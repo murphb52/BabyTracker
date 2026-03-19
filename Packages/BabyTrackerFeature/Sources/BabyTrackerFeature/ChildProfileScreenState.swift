@@ -14,7 +14,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
     public let canManageFeedEvents: Bool
     public let currentStateSummary: CurrentStateSummaryViewState?
     public let recentFeedEvents: [RecentFeedEventViewState]
-    public let syncBannerState: SyncBannerState?
+    public let cloudKitStatus: CloudKitStatusViewState
     public let canShareChild: Bool
 
     public var canEditChild: Bool {
@@ -42,7 +42,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         canManageFeedEvents: Bool,
         currentStateSummary: CurrentStateSummaryViewState?,
         recentFeedEvents: [RecentFeedEventViewState],
-        syncBannerState: SyncBannerState?,
+        cloudKitStatus: CloudKitStatusViewState,
         canShareChild: Bool
     ) {
         self.child = child
@@ -57,7 +57,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         self.canManageFeedEvents = canManageFeedEvents
         self.currentStateSummary = currentStateSummary
         self.recentFeedEvents = recentFeedEvents
-        self.syncBannerState = syncBannerState
+        self.cloudKitStatus = cloudKitStatus
         self.canShareChild = canShareChild
     }
 }

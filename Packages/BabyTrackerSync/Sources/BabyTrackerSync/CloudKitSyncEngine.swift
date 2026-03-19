@@ -256,17 +256,13 @@ public final class CloudKitSyncEngine {
         let children = try childRepository.loadAllChildren()
 
         for child in children {
-            let context = try childRepository.loadCloudKitChildContext(id: child.id) ??
-                CloudKitChildContext(
-                    childID: child.id,
-                    zoneID: CloudKitRecordNames.zoneID(for: child.id),
-                    shareRecordName: CloudKitRecordNames.shareRecordID(
-                        childID: child.id,
-                        zoneID: CloudKitRecordNames.zoneID(for: child.id)
-                    ).recordName,
-                    databaseScope: .private
-                )
-            try await pullZoneSnapshot(context: context)
+            if let context = try childRepository.loadCloudKitChildContext(id: child.id) {
+                try await pullZoneSnapshot(context: context)
+                continue
+            }
+
+            let context = try await ensureZoneContext(for: child.id, preferredScope: .private)
+            try await pushZoneSnapshot(for: child.id, context: context)
         }
     }
 
@@ -407,90 +403,33 @@ public final class CloudKitSyncEngine {
     }
 
     private func pullZoneSnapshot(context: CloudKitChildContext) async throws {
-        let childRecords = try await loadRecords(
-            recordType: CloudKitConfiguration.childRecordType,
-            zoneID: context.zoneID,
-            scope: context.databaseScope
+        let databaseScope = context.databaseScope == .shared ? "shared" : "private"
+        let anchor = try syncStateRepository.loadAnchor(
+            databaseScope: databaseScope,
+            zoneName: context.zoneID.zoneName,
+            ownerName: context.zoneID.ownerName
         )
-        let userRecords = try await loadRecords(
-            recordType: CloudKitConfiguration.userRecordType,
-            zoneID: context.zoneID,
-            scope: context.databaseScope
-        )
-        let membershipRecords = try await loadRecords(
-            recordType: CloudKitConfiguration.membershipRecordType,
-            zoneID: context.zoneID,
-            scope: context.databaseScope
-        )
-        let breastFeedRecords = try await loadRecords(
-            recordType: CloudKitConfiguration.breastFeedRecordType,
-            zoneID: context.zoneID,
-            scope: context.databaseScope
-        )
-        let bottleFeedRecords = try await loadRecords(
-            recordType: CloudKitConfiguration.bottleFeedRecordType,
-            zoneID: context.zoneID,
-            scope: context.databaseScope
-        )
-        let sleepRecords = try await loadRecords(
-            recordType: CloudKitConfiguration.sleepRecordType,
-            zoneID: context.zoneID,
-            scope: context.databaseScope
-        )
-        let nappyRecords = try await loadRecords(
-            recordType: CloudKitConfiguration.nappyRecordType,
-            zoneID: context.zoneID,
-            scope: context.databaseScope
+        let changes = try await client.recordZoneChanges(
+            in: context.zoneID,
+            databaseScope: context.databaseScope,
+            since: anchor?.tokenData
         )
 
-        for record in childRecords {
-            let child = try CloudKitRecordMapper.child(from: record)
-            try childRepository.saveChild(child)
-            let updatedContext = CloudKitChildContext(
-                childID: child.id,
-                zoneID: context.zoneID,
-                shareRecordName: context.shareRecordName,
-                databaseScope: context.databaseScope
-            )
-            try childRepository.saveCloudKitChildContext(updatedContext)
-            try syncStateRepository.updateSyncState(
-                for: SyncRecordReference(recordType: .child, recordID: child.id, childID: child.id),
-                state: .upToDate,
-                lastSyncedAt: .now,
-                lastSyncErrorCode: nil
-            )
+        for record in changes.modifiedRecords {
+            try save(record: record, within: context)
         }
 
-        for record in userRecords {
-            let user = try CloudKitRecordMapper.user(from: record)
-            try childRepository.saveUser(user)
-            try syncStateRepository.updateSyncState(
-                for: SyncRecordReference(recordType: .user, recordID: user.id),
-                state: .upToDate,
-                lastSyncedAt: .now,
-                lastSyncErrorCode: nil
-            )
+        for deletion in changes.deletions {
+            try applyDeletion(deletion, within: context)
         }
 
-        for record in membershipRecords {
-            let membership = CloudKitRecordMapper.membership(from: record)
-            try childRepository.saveMembership(membership)
-            try syncStateRepository.updateSyncState(
-                for: SyncRecordReference(
-                    recordType: .membership,
-                    recordID: membership.id,
-                    childID: membership.childID
-                ),
-                state: .upToDate,
-                lastSyncedAt: .now,
-                lastSyncErrorCode: nil
-            )
-        }
-
-        try await saveEvents(from: breastFeedRecords)
-        try await saveEvents(from: bottleFeedRecords)
-        try await saveEvents(from: sleepRecords)
-        try await saveEvents(from: nappyRecords)
+        let updatedAnchor = SyncAnchor(
+            databaseScope: context.databaseScope,
+            zoneID: context.zoneID,
+            tokenData: changes.tokenData,
+            lastSyncAt: .now
+        )
+        try syncStateRepository.saveAnchor(updatedAnchor)
 
         let childID = context.childID
         let shareRecordID = CKRecord.ID(
@@ -508,8 +447,50 @@ public final class CloudKitSyncEngine {
         }
     }
 
-    private func saveEvents(from records: [CKRecord]) async throws {
-        for record in records {
+    private func save(record: CKRecord, within context: CloudKitChildContext) throws {
+        switch record.recordType {
+        case CloudKitConfiguration.childRecordType:
+            let child = try CloudKitRecordMapper.child(from: record)
+            try childRepository.saveChild(child)
+            let updatedContext = CloudKitChildContext(
+                childID: child.id,
+                zoneID: context.zoneID,
+                shareRecordName: context.shareRecordName,
+                databaseScope: context.databaseScope
+            )
+            try childRepository.saveCloudKitChildContext(updatedContext)
+            try syncStateRepository.updateSyncState(
+                for: SyncRecordReference(recordType: .child, recordID: child.id, childID: child.id),
+                state: .upToDate,
+                lastSyncedAt: .now,
+                lastSyncErrorCode: nil
+            )
+        case CloudKitConfiguration.userRecordType:
+            let user = try CloudKitRecordMapper.user(from: record)
+            try childRepository.saveUser(user)
+            try syncStateRepository.updateSyncState(
+                for: SyncRecordReference(recordType: .user, recordID: user.id),
+                state: .upToDate,
+                lastSyncedAt: .now,
+                lastSyncErrorCode: nil
+            )
+        case CloudKitConfiguration.membershipRecordType:
+            let membership = CloudKitRecordMapper.membership(from: record)
+            try childRepository.saveMembership(membership)
+            try syncStateRepository.updateSyncState(
+                for: SyncRecordReference(
+                    recordType: .membership,
+                    recordID: membership.id,
+                    childID: membership.childID
+                ),
+                state: .upToDate,
+                lastSyncedAt: .now,
+                lastSyncErrorCode: nil
+            )
+        case CloudKitConfiguration.breastFeedRecordType,
+             CloudKitConfiguration.bottleFeedRecordType,
+             CloudKitConfiguration.sleepRecordType,
+             CloudKitConfiguration.nappyRecordType:
             let event = try CloudKitRecordMapper.event(from: record)
             try eventRepository.saveEvent(event)
             try syncStateRepository.updateSyncState(
@@ -522,7 +503,21 @@ public final class CloudKitSyncEngine {
                 lastSyncedAt: .now,
                 lastSyncErrorCode: nil
             )
+        default:
+            return
         }
+    }
+
+    private func applyDeletion(
+        _ deletion: CloudKitRecordZoneDeletion,
+        within context: CloudKitChildContext
+    ) throws {
+        if deletion.recordType == CloudKitConfiguration.childRecordType {
+            let childID = childID(fromRecordName: deletion.recordID.recordName)
+            try childRepository.purgeChildData(id: childID)
+        }
+
+        _ = context
     }
 
     private func ensureZoneContext(
@@ -558,23 +553,6 @@ public final class CloudKitSyncEngine {
         )
         try childRepository.saveCloudKitChildContext(context)
         return context
-    }
-
-    private func loadRecords(
-        recordType: String,
-        zoneID: CKRecordZone.ID,
-        scope: CKDatabase.Scope
-    ) async throws -> [CKRecord] {
-        let query = CKQuery(
-            recordType: recordType,
-            predicate: NSPredicate(value: true)
-        )
-
-        return try await client.records(
-            matching: query,
-            in: zoneID,
-            databaseScope: scope
-        )
     }
 
     private func ensureMembershipForAcceptedShare(

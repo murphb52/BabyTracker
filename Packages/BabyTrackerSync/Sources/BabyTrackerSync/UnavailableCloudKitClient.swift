@@ -68,6 +68,18 @@ public struct UnavailableCloudKitClient: CloudKitClient {
         )
     }
 
+    public func recordZoneChanges(
+        in zoneID: CKRecordZone.ID,
+        databaseScope: CKDatabase.Scope,
+        since tokenData: Data?
+    ) async throws -> CloudKitRecordZoneChangeSet {
+        CloudKitRecordZoneChangeSet(
+            modifiedRecords: [],
+            deletions: [],
+            tokenData: nil
+        )
+    }
+
     public func accept(_ metadatas: [CKShare.Metadata]) async throws {
         throw CKError(.notAuthenticated)
     }

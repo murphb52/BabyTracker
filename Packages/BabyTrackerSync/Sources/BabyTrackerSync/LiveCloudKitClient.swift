@@ -118,6 +118,47 @@ public struct LiveCloudKitClient: CloudKitClient {
         )
     }
 
+    public func recordZoneChanges(
+        in zoneID: CKRecordZone.ID,
+        databaseScope: CKDatabase.Scope,
+        since tokenData: Data?
+    ) async throws -> CloudKitRecordZoneChangeSet {
+        var modifiedRecords: [CKRecord] = []
+        var deletions: [CloudKitRecordZoneDeletion] = []
+        var currentToken = try token(from: tokenData)
+        var latestTokenData = tokenData
+
+        while true {
+            let changes = try await database(for: databaseScope).recordZoneChanges(
+                inZoneWith: zoneID,
+                since: currentToken
+            )
+
+            modifiedRecords.append(contentsOf: changes.modificationResultsByID.compactMap { _, result in
+                try? result.get().record
+            })
+            deletions.append(contentsOf: changes.deletions.map { deletion in
+                CloudKitRecordZoneDeletion(
+                    recordID: deletion.recordID,
+                    recordType: deletion.recordType
+                )
+            })
+            latestTokenData = try archive(token: changes.changeToken)
+
+            guard changes.moreComing else {
+                break
+            }
+
+            currentToken = changes.changeToken
+        }
+
+        return CloudKitRecordZoneChangeSet(
+            modifiedRecords: modifiedRecords,
+            deletions: deletions,
+            tokenData: latestTokenData
+        )
+    }
+
     public func accept(_ metadatas: [CKShare.Metadata]) async throws {
         _ = try await resolvedContainer.accept(metadatas)
     }

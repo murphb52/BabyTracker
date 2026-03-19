@@ -53,11 +53,32 @@ struct ChildProfileView: View {
                 }
             }
 
-            if let syncBannerState = profile.syncBannerState {
-                Section {
-                    Label(syncBannerState.message, systemImage: syncBannerIcon(for: syncBannerState))
+            Section("iCloud Sync") {
+                LabeledContent("Status") {
+                    Text(profile.cloudKitStatus.statusTitle)
+                        .foregroundStyle(syncStatusColor(for: profile.cloudKitStatus))
+                }
+
+                LabeledContent("Backup") {
+                    Text(profile.cloudKitStatus.backupTitle)
+                }
+
+                if let lastSyncAt = profile.cloudKitStatus.lastSyncAt {
+                    LabeledContent("Last Sync") {
+                        Text(lastSyncAt, format: .dateTime.month(.abbreviated).day().hour().minute())
+                    }
+                }
+
+                if let pendingChangesTitle = profile.cloudKitStatus.pendingChangesTitle {
+                    LabeledContent("Pending Changes") {
+                        Text(pendingChangesTitle)
+                    }
+                }
+
+                if let detailMessage = profile.cloudKitStatus.detailMessage {
+                    Text(detailMessage)
                         .font(.subheadline)
-                        .foregroundStyle(syncBannerColor(for: syncBannerState))
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -404,26 +425,15 @@ struct ChildProfileView: View {
         }
     }
 
-    private func syncBannerIcon(for state: SyncBannerState) -> String {
-        switch state {
-        case .syncing:
-            "arrow.triangle.2.circlepath"
-        case .pendingSync:
-            "clock.badge.exclamationmark"
-        case .syncUnavailable:
-            "icloud.slash"
-        case .lastSyncFailed:
-            "exclamationmark.icloud"
-        }
-    }
-
-    private func syncBannerColor(for state: SyncBannerState) -> Color {
-        switch state {
+    private func syncStatusColor(for state: CloudKitStatusViewState) -> Color {
+        switch state.state {
+        case .upToDate:
+            .green
         case .syncing:
             .blue
         case .pendingSync:
             .orange
-        case .syncUnavailable, .lastSyncFailed:
+        case .failed:
             .red
         }
     }

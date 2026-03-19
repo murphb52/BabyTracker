@@ -539,7 +539,7 @@ public final class AppModel {
             canManageFeedEvents: canManageFeedEvents,
             currentStateSummary: makeCurrentStateSummary(from: visibleEvents),
             recentFeedEvents: makeRecentFeedEvents(from: visibleEvents),
-            syncBannerState: makeSyncBannerState(from: syncEngine.statusSummary),
+            cloudKitStatus: CloudKitStatusViewState(summary: syncEngine.statusSummary),
             canShareChild: ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership) &&
                 syncEngine.statusSummary.state != .failed
         )
@@ -628,30 +628,6 @@ public final class AppModel {
         undoDeleteTask = nil
         pendingUndoDeletedEvent = nil
         undoDeleteMessage = nil
-    }
-
-    private func makeSyncBannerState(
-        from summary: SyncStatusSummary
-    ) -> SyncBannerState? {
-        switch summary.state {
-        case .upToDate:
-            return nil
-        case .syncing:
-            return .syncing
-        case .pendingSync:
-            return .pendingSync("Changes saved locally. Sync will resume automatically.")
-        case .failed:
-            guard let description = summary.lastErrorDescription else {
-                return .lastSyncFailed("Last sync failed. Local data is still available.")
-            }
-
-            if description.localizedCaseInsensitiveContains("sign in to iCloud") ||
-                description.localizedCaseInsensitiveContains("unavailable") {
-                return .syncUnavailable(description)
-            }
-
-            return .lastSyncFailed(description)
-        }
     }
 
     private func resolveErrorMessage(for error: Error) -> String {
