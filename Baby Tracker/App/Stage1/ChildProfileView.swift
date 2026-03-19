@@ -8,7 +8,8 @@ struct ChildProfileView: View {
 
     @State private var showingEditChildSheet = false
     @State private var showingArchiveConfirmation = false
-    @State private var quickLogSheet: FeedQuickLogSheet?
+    @State private var activeFeedSheet: FeedSheet?
+    @State private var deleteCandidate: RecentFeedEventViewState?
 
     var body: some View {
         @Bindable var bindableModel = model
@@ -22,7 +23,7 @@ struct ChildProfileView: View {
                         tint: .pink,
                         accessibilityIdentifier: "quick-log-breast-feed-button"
                     ) {
-                        quickLogSheet = .breastFeed
+                        activeFeedSheet = .quickLogBreastFeed
                     }
 
                     quickLogButton(
@@ -31,7 +32,7 @@ struct ChildProfileView: View {
                         tint: .teal,
                         accessibilityIdentifier: "quick-log-bottle-feed-button"
                     ) {
-                        quickLogSheet = .bottleFeed
+                        activeFeedSheet = .quickLogBottleFeed
                     }
                 }
             }
@@ -54,9 +55,21 @@ struct ChildProfileView: View {
                         accessibilityIdentifier: "feeding-count-value"
                     )
                 } else {
-                    Text("No feeds logged yet.")
+                    Text(emptyFeedText)
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("feeding-empty-state")
+                }
+            }
+
+            Section("Recent Feeds") {
+                if profile.recentFeedEvents.isEmpty {
+                    Text(emptyFeedText)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("recent-feeds-empty-state")
+                } else {
+                    ForEach(profile.recentFeedEvents) { event in
+                        recentFeedRow(for: event)
+                    }
                 }
             }
 
@@ -144,24 +157,48 @@ struct ChildProfileView: View {
                 saveAction: model.updateCurrentChild(name:birthDate:)
             )
         }
-        .sheet(item: $quickLogSheet) { sheet in
+        .sheet(item: $activeFeedSheet, onDismiss: {
+            activeFeedSheet = nil
+        }) { sheet in
             switch sheet {
-            case .breastFeed:
-                BreastFeedQuickLogSheetView { durationMinutes, endTime, side in
-                    model.logBreastFeed(
+            case .quickLogBreastFeed:
+                BreastFeedEditorSheetView(
+                    navigationTitle: "Breast Feed",
+                    primaryActionTitle: "Save",
+                    initialDurationMinutes: 15,
+                    initialEndTime: Date(),
+                    initialSide: nil
+                ) { durationMinutes, endTime, side in
+                    let didSave = model.logBreastFeed(
                         durationMinutes: durationMinutes,
                         endTime: endTime,
                         side: side
                     )
+                    if didSave {
+                        activeFeedSheet = nil
+                    }
+                    return didSave
                 }
-            case .bottleFeed:
-                BottleFeedQuickLogSheetView { amountMilliliters, occurredAt, milkType in
-                    model.logBottleFeed(
+            case .quickLogBottleFeed:
+                BottleFeedEditorSheetView(
+                    navigationTitle: "Bottle Feed",
+                    primaryActionTitle: "Save",
+                    initialAmountMilliliters: 120,
+                    initialOccurredAt: Date(),
+                    initialMilkType: nil
+                ) { amountMilliliters, occurredAt, milkType in
+                    let didSave = model.logBottleFeed(
                         amountMilliliters: amountMilliliters,
                         occurredAt: occurredAt,
                         milkType: milkType
                     )
+                    if didSave {
+                        activeFeedSheet = nil
+                    }
+                    return didSave
                 }
+            case let .editRecentFeed(event):
+                feedEditor(for: event)
             }
         }
         .sheet(item: $bindableModel.shareSheetState) { shareState in
@@ -172,7 +209,7 @@ struct ChildProfileView: View {
                 }
         }
         .confirmationDialog(
-            "Archive \(profile.child.name)?",
+            archiveDialogTitle,
             isPresented: $showingArchiveConfirmation,
             titleVisibility: .visible
         ) {
@@ -181,6 +218,19 @@ struct ChildProfileView: View {
             }
         } message: {
             Text("Archived child profiles are hidden from the main flow until restored.")
+        }
+        .confirmationDialog(
+            "Delete Feed?",
+            isPresented: deleteConfirmationIsPresented,
+            titleVisibility: .visible,
+            presenting: deleteCandidate
+        ) { event in
+            Button("Delete Feed", role: .destructive) {
+                model.deleteEvent(id: event.id)
+                deleteCandidate = nil
+            }
+        } message: { event in
+            Text("Delete \(event.title.lowercased()) from \(event.timestampText)?")
         }
         .toolbar {
             if profile.canEditChild {
@@ -204,12 +254,31 @@ struct ChildProfileView: View {
         }
     }
 
+    private var archiveDialogTitle: String {
+        "Archive \(profile.child.name)?"
+    }
+
     private var birthDateText: String {
         if let birthDate = profile.child.birthDate {
             "Birth date: \(birthDate.formatted(date: .abbreviated, time: .omitted))"
         } else {
             "Birth date not added yet"
         }
+    }
+
+    private var deleteConfirmationIsPresented: Binding<Bool> {
+        Binding(
+            get: { deleteCandidate != nil },
+            set: { isPresented in
+                if !isPresented {
+                    deleteCandidate = nil
+                }
+            }
+        )
+    }
+
+    private var emptyFeedText: String {
+        "No feeds logged yet. Use Quick Log above to add the first feed."
     }
 
     private func quickLogButton(
@@ -240,6 +309,55 @@ struct ChildProfileView: View {
             Text(value)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier(accessibilityIdentifier)
+        }
+    }
+
+    @ViewBuilder
+    private func recentFeedRow(for event: RecentFeedEventViewState) -> some View {
+        let rowContent = HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(event.title)
+                    .font(.headline)
+
+                Text(event.detailText)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Text(event.timestampText)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+        }
+        .padding(.vertical, 4)
+
+        if profile.canManageFeedEvents {
+            Button {
+                activeFeedSheet = .editRecentFeed(event)
+            } label: {
+                rowContent
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("recent-feed-\(event.id.uuidString)")
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    activeFeedSheet = .editRecentFeed(event)
+                }
+            )
+            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                Button("Edit") {
+                    activeFeedSheet = .editRecentFeed(event)
+                }
+            }
+            .swipeActions {
+                Button("Delete", role: .destructive) {
+                    deleteCandidate = event
+                }
+            }
+        } else {
+            rowContent
         }
     }
 
@@ -276,6 +394,50 @@ struct ChildProfileView: View {
         .padding(.vertical, 4)
     }
 
+    @ViewBuilder
+    private func feedEditor(for event: RecentFeedEventViewState) -> some View {
+        switch event.editPayload {
+        case let .breastFeed(durationMinutes, endTime, side):
+            BreastFeedEditorSheetView(
+                navigationTitle: "Edit Breast Feed",
+                primaryActionTitle: "Update",
+                initialDurationMinutes: durationMinutes,
+                initialEndTime: endTime,
+                initialSide: side
+            ) { updatedDuration, updatedEndTime, updatedSide in
+                let didSave = model.updateBreastFeed(
+                    id: event.id,
+                    durationMinutes: updatedDuration,
+                    endTime: updatedEndTime,
+                    side: updatedSide
+                )
+                if didSave {
+                    activeFeedSheet = nil
+                }
+                return didSave
+            }
+        case let .bottleFeed(amountMilliliters, occurredAt, milkType):
+            BottleFeedEditorSheetView(
+                navigationTitle: "Edit Bottle Feed",
+                primaryActionTitle: "Update",
+                initialAmountMilliliters: amountMilliliters,
+                initialOccurredAt: occurredAt,
+                initialMilkType: milkType
+            ) { updatedAmount, updatedOccurredAt, updatedMilkType in
+                let didSave = model.updateBottleFeed(
+                    id: event.id,
+                    amountMilliliters: updatedAmount,
+                    occurredAt: updatedOccurredAt,
+                    milkType: updatedMilkType
+                )
+                if didSave {
+                    activeFeedSheet = nil
+                }
+                return didSave
+            }
+        }
+    }
+
     private func syncBannerIcon(for state: SyncBannerState) -> String {
         switch state {
         case .syncing:
@@ -302,258 +464,19 @@ struct ChildProfileView: View {
 }
 
 extension ChildProfileView {
-    private enum FeedQuickLogSheet: String, Identifiable {
-        case breastFeed
-        case bottleFeed
+    private enum FeedSheet: Identifiable {
+        case quickLogBreastFeed
+        case quickLogBottleFeed
+        case editRecentFeed(RecentFeedEventViewState)
 
         var id: String {
-            rawValue
-        }
-    }
-
-    private struct BreastFeedQuickLogSheetView: View {
-        let saveAction: (_ durationMinutes: Int, _ endTime: Date, _ side: BreastSide?) -> Bool
-
-        @Environment(\.dismiss) private var dismiss
-        @State private var durationMinutes = "15"
-        @State private var endTime = Date()
-        @State private var side = BreastSideChoice.notSet
-
-        var body: some View {
-            NavigationStack {
-                Form {
-                    Section("Feed") {
-                        TextField("Duration (minutes)", text: $durationMinutes)
-                            .keyboardType(.numberPad)
-                            .accessibilityIdentifier("breast-feed-duration-field")
-
-                        DatePicker(
-                            "End time",
-                            selection: $endTime,
-                            displayedComponents: [.date, .hourAndMinute]
-                        )
-                        .accessibilityIdentifier("breast-feed-end-time-picker")
-
-                        Picker("Side", selection: $side) {
-                            ForEach(BreastSideChoice.allCases) { option in
-                                Text(option.title).tag(option)
-                            }
-                        }
-                        .accessibilityIdentifier("breast-feed-side-picker")
-                    }
-
-                    if let validationMessage {
-                        Section {
-                            Text(validationMessage)
-                                .foregroundStyle(.red)
-                        }
-                    }
-                }
-                .navigationTitle("Breast Feed")
-                .navigationBarTitleDisplayMode(.inline)
-                .presentationDetents([.medium])
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") {
-                            dismiss()
-                        }
-                    }
-
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
-                            guard let durationValue = parsedDurationMinutes else {
-                                return
-                            }
-
-                            let didSave = saveAction(durationValue, endTime, side.value)
-                            if didSave {
-                                dismiss()
-                            }
-                        }
-                        .disabled(parsedDurationMinutes == nil)
-                        .accessibilityIdentifier("save-breast-feed-button")
-                    }
-                }
-            }
-        }
-
-        private var parsedDurationMinutes: Int? {
-            guard let durationValue = Int(durationMinutes.trimmingCharacters(in: .whitespacesAndNewlines)),
-                  durationValue > 0 else {
-                return nil
-            }
-
-            return durationValue
-        }
-
-        private var validationMessage: String? {
-            guard !durationMinutes.isEmpty, parsedDurationMinutes == nil else {
-                return nil
-            }
-
-            return "Enter a duration greater than 0 minutes."
-        }
-    }
-
-    private struct BottleFeedQuickLogSheetView: View {
-        let saveAction: (_ amountMilliliters: Int, _ occurredAt: Date, _ milkType: MilkType?) -> Bool
-
-        @Environment(\.dismiss) private var dismiss
-        @State private var amountMilliliters = "120"
-        @State private var occurredAt = Date()
-        @State private var milkType = MilkTypeChoice.notSet
-
-        var body: some View {
-            NavigationStack {
-                Form {
-                    Section("Feed") {
-                        TextField("Amount (mL)", text: $amountMilliliters)
-                            .keyboardType(.numberPad)
-                            .accessibilityIdentifier("bottle-feed-amount-field")
-
-                        DatePicker(
-                            "Time",
-                            selection: $occurredAt,
-                            displayedComponents: [.date, .hourAndMinute]
-                        )
-                        .accessibilityIdentifier("bottle-feed-time-picker")
-
-                        Picker("Milk Type", selection: $milkType) {
-                            ForEach(MilkTypeChoice.allCases) { option in
-                                Text(option.title).tag(option)
-                            }
-                        }
-                        .accessibilityIdentifier("bottle-feed-milk-type-picker")
-                    }
-
-                    if let validationMessage {
-                        Section {
-                            Text(validationMessage)
-                                .foregroundStyle(.red)
-                        }
-                    }
-                }
-                .navigationTitle("Bottle Feed")
-                .navigationBarTitleDisplayMode(.inline)
-                .presentationDetents([.medium])
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") {
-                            dismiss()
-                        }
-                    }
-
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
-                            guard let amountValue = parsedAmountMilliliters else {
-                                return
-                            }
-
-                            let didSave = saveAction(amountValue, occurredAt, milkType.value)
-                            if didSave {
-                                dismiss()
-                            }
-                        }
-                        .disabled(parsedAmountMilliliters == nil)
-                        .accessibilityIdentifier("save-bottle-feed-button")
-                    }
-                }
-            }
-        }
-
-        private var parsedAmountMilliliters: Int? {
-            guard let amountValue = Int(amountMilliliters.trimmingCharacters(in: .whitespacesAndNewlines)),
-                  amountValue > 0 else {
-                return nil
-            }
-
-            return amountValue
-        }
-
-        private var validationMessage: String? {
-            guard !amountMilliliters.isEmpty, parsedAmountMilliliters == nil else {
-                return nil
-            }
-
-            return "Enter an amount greater than 0 mL."
-        }
-    }
-
-    private enum BreastSideChoice: String, CaseIterable, Identifiable {
-        case notSet
-        case left
-        case right
-        case both
-
-        var id: String {
-            rawValue
-        }
-
-        var title: String {
             switch self {
-            case .notSet:
-                "Not Set"
-            case .left:
-                "Left"
-            case .right:
-                "Right"
-            case .both:
-                "Both"
-            }
-        }
-
-        var value: BreastSide? {
-            switch self {
-            case .notSet:
-                nil
-            case .left:
-                .left
-            case .right:
-                .right
-            case .both:
-                .both
-            }
-        }
-    }
-
-    private enum MilkTypeChoice: String, CaseIterable, Identifiable {
-        case notSet
-        case breastMilk
-        case formula
-        case mixed
-        case other
-
-        var id: String {
-            rawValue
-        }
-
-        var title: String {
-            switch self {
-            case .notSet:
-                "Not Set"
-            case .breastMilk:
-                "Breast Milk"
-            case .formula:
-                "Formula"
-            case .mixed:
-                "Mixed"
-            case .other:
-                "Other"
-            }
-        }
-
-        var value: MilkType? {
-            switch self {
-            case .notSet:
-                nil
-            case .breastMilk:
-                .breastMilk
-            case .formula:
-                .formula
-            case .mixed:
-                .mixed
-            case .other:
-                .other
+            case .quickLogBreastFeed:
+                "quick-log-breast-feed"
+            case .quickLogBottleFeed:
+                "quick-log-bottle-feed"
+            case let .editRecentFeed(event):
+                "edit-\(event.id.uuidString)"
             }
         }
     }

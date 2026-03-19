@@ -22,4 +22,22 @@ public struct BottleFeedEvent: Equatable, Identifiable, Sendable {
         self.amountMilliliters = amountMilliliters
         self.milkType = milkType
     }
+
+    public func updating(
+        amountMilliliters: Int,
+        occurredAt: Date,
+        milkType: MilkType?,
+        updatedAt: Date = Date(),
+        updatedBy: UUID
+    ) throws -> BottleFeedEvent {
+        var metadata = metadata
+        metadata.occurredAt = occurredAt
+        metadata.markUpdated(at: updatedAt, by: updatedBy)
+
+        return try BottleFeedEvent(
+            metadata: metadata,
+            amountMilliliters: amountMilliliters,
+            milkType: milkType
+        )
+    }
 }

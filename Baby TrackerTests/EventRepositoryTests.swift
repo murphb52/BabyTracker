@@ -174,6 +174,99 @@ struct EventRepositoryTests {
             Issue.record("Expected a breast feed event with both sides")
         }
     }
+
+    @Test
+    func savingEditedEventUpdatesExistingRecordInPlace() throws {
+        let harness = try RepositoryHarness()
+        defer { harness.cleanUp() }
+
+        let childID = UUID()
+        let userID = UUID()
+        let occurredAt = Date(timeIntervalSince1970: 7_000)
+        let original = try BottleFeedEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: occurredAt,
+                createdAt: occurredAt,
+                createdBy: userID
+            ),
+            amountMilliliters: 120
+        )
+
+        try harness.repository.saveEvent(.bottleFeed(original))
+
+        let updated = try original.updating(
+            amountMilliliters: 150,
+            occurredAt: occurredAt.addingTimeInterval(600),
+            milkType: .formula,
+            updatedBy: userID
+        )
+        try harness.repository.saveEvent(.bottleFeed(updated))
+
+        let timeline = try harness.repository.loadTimeline(for: childID, includingDeleted: false)
+        let reloadedEvent = try #require(try harness.repository.loadEvent(id: original.id))
+
+        #expect(timeline.count == 1)
+
+        switch reloadedEvent {
+        case let .bottleFeed(event):
+            #expect(event.id == original.id)
+            #expect(event.amountMilliliters == 150)
+            #expect(event.milkType == .formula)
+            #expect(event.metadata.occurredAt == occurredAt.addingTimeInterval(600))
+        default:
+            Issue.record("Expected an updated bottle feed event")
+        }
+    }
+
+    @Test
+    func softDeletedEventCanBeRestoredBySavingItAgain() throws {
+        let harness = try RepositoryHarness()
+        defer { harness.cleanUp() }
+
+        let childID = UUID()
+        let userID = UUID()
+        let occurredAt = Date(timeIntervalSince1970: 8_000)
+        let original = try BottleFeedEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: occurredAt,
+                createdAt: occurredAt,
+                createdBy: userID
+            ),
+            amountMilliliters: 120
+        )
+
+        try harness.repository.saveEvent(.bottleFeed(original))
+        try harness.repository.softDeleteEvent(
+            id: original.id,
+            deletedAt: occurredAt.addingTimeInterval(60),
+            deletedBy: userID
+        )
+
+        let deletedEvent = try #require(try harness.repository.loadEvent(id: original.id))
+
+        switch deletedEvent {
+        case var .bottleFeed(event):
+            event.metadata.restoreDeleted(by: userID)
+            try harness.repository.saveEvent(.bottleFeed(event))
+        default:
+            Issue.record("Expected a deleted bottle feed event")
+        }
+
+        let visibleTimeline = try harness.repository.loadTimeline(for: childID, includingDeleted: false)
+        let reloadedEvent = try #require(try harness.repository.loadEvent(id: original.id))
+
+        #expect(visibleTimeline.count == 1)
+
+        switch reloadedEvent {
+        case let .bottleFeed(event):
+            #expect(event.metadata.isDeleted == false)
+            #expect(event.metadata.deletedAt == nil)
+        default:
+            Issue.record("Expected a restored bottle feed event")
+        }
+    }
 }
 
 extension EventRepositoryTests {

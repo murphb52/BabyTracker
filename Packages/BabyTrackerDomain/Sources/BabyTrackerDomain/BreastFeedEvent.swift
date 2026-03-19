@@ -25,4 +25,25 @@ public struct BreastFeedEvent: Equatable, Identifiable, Sendable {
         self.startedAt = startedAt
         self.endedAt = endedAt
     }
+
+    public func updating(
+        durationMinutes: Int,
+        endTime: Date,
+        side: BreastSide?,
+        updatedAt: Date = Date(),
+        updatedBy: UUID
+    ) throws -> BreastFeedEvent {
+        let startedAt = endTime.addingTimeInterval(TimeInterval(durationMinutes * -60))
+
+        var metadata = metadata
+        metadata.occurredAt = endTime
+        metadata.markUpdated(at: updatedAt, by: updatedBy)
+
+        return try BreastFeedEvent(
+            metadata: metadata,
+            side: side,
+            startedAt: startedAt,
+            endedAt: endTime
+        )
+    }
 }

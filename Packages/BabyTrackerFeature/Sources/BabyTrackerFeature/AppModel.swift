@@ -13,11 +13,14 @@ public final class AppModel {
     public private(set) var archivedChildren: [ChildSummary] = []
     public private(set) var profile: ChildProfileScreenState?
     public private(set) var errorMessage: String?
+    public private(set) var undoDeleteMessage: String?
     public var shareSheetState: ShareSheetState?
 
     private let repository: ChildProfileRepository
     private let eventRepository: EventRepository
     private let syncEngine: CloudKitSyncEngine
+    private var pendingUndoDeletedEvent: BabyEvent?
+    private var undoDeleteTask: Task<Void, Never>?
 
     public init(
         repository: ChildProfileRepository,
@@ -253,6 +256,120 @@ public final class AppModel {
     }
 
     @discardableResult
+    public func updateBreastFeed(
+        id: UUID,
+        durationMinutes: Int,
+        endTime: Date,
+        side: BreastSide?
+    ) -> Bool {
+        perform {
+            guard let profile else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard profile.canManageFeedEvents else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let event = try eventRepository.loadEvent(id: id) else {
+                return
+            }
+            guard case let .breastFeed(feed) = event else {
+                return
+            }
+
+            let updatedEvent = try feed.updating(
+                durationMinutes: durationMinutes,
+                endTime: endTime,
+                side: side,
+                updatedBy: localUser.id
+            )
+            try eventRepository.saveEvent(.breastFeed(updatedEvent))
+        }
+    }
+
+    @discardableResult
+    public func updateBottleFeed(
+        id: UUID,
+        amountMilliliters: Int,
+        occurredAt: Date,
+        milkType: MilkType?
+    ) -> Bool {
+        perform {
+            guard let profile else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard profile.canManageFeedEvents else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let event = try eventRepository.loadEvent(id: id) else {
+                return
+            }
+            guard case let .bottleFeed(feed) = event else {
+                return
+            }
+
+            let updatedEvent = try feed.updating(
+                amountMilliliters: amountMilliliters,
+                occurredAt: occurredAt,
+                milkType: milkType,
+                updatedBy: localUser.id
+            )
+            try eventRepository.saveEvent(.bottleFeed(updatedEvent))
+        }
+    }
+
+    @discardableResult
+    public func deleteEvent(id: UUID) -> Bool {
+        perform {
+            guard let profile else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard profile.canManageFeedEvents else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let event = try eventRepository.loadEvent(id: id) else {
+                return
+            }
+
+            clearUndoDeleteState()
+            try eventRepository.softDeleteEvent(
+                id: id,
+                deletedAt: .now,
+                deletedBy: localUser.id
+            )
+            pendingUndoDeletedEvent = event
+            undoDeleteMessage = "\(feedTitle(for: event)) deleted"
+            startUndoDeleteExpiryTask()
+        }
+    }
+
+    public func undoLastDeletedEvent() {
+        perform {
+            guard let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let pendingUndoDeletedEvent else {
+                return
+            }
+
+            let restoredEvent = restoreDeletedEvent(
+                pendingUndoDeletedEvent,
+                restoredBy: localUser.id
+            )
+            try eventRepository.saveEvent(restoredEvent)
+            clearUndoDeleteState()
+        }
+    }
+
+    @discardableResult
     private func perform(_ operation: () throws -> Void) -> Bool {
         do {
             try operation()
@@ -388,8 +505,12 @@ public final class AppModel {
                 statusLabel: invite.acceptanceStatus == .pending ? "Pending invitation" : "Invited"
             )
         }
-        let feedingSummary = try makeFeedingSummary(for: child.id)
+        let feedEvents = try loadVisibleFeedEvents(for: child.id)
+        let feedingSummary = makeFeedingSummary(from: feedEvents)
         let canLogFeeds = ChildAccessPolicy.canPerform(.logEvent, membership: currentMembership)
+        let canManageFeedEvents =
+            ChildAccessPolicy.canPerform(.editEvent, membership: currentMembership) &&
+            ChildAccessPolicy.canPerform(.deleteEvent, membership: currentMembership)
 
         return ChildProfileScreenState(
             child: child,
@@ -401,23 +522,93 @@ public final class AppModel {
             removedCaregivers: removedCaregivers,
             canSwitchChildren: activeChildren.count > 1,
             canLogFeeds: canLogFeeds,
+            canManageFeedEvents: canManageFeedEvents,
             feedingSummary: feedingSummary,
+            recentFeedEvents: makeRecentFeedEvents(from: feedEvents),
             syncBannerState: makeSyncBannerState(from: syncEngine.statusSummary),
             canShareChild: ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership) &&
                 syncEngine.statusSummary.state != .failed
         )
     }
 
-    private func makeFeedingSummary(
-        for childID: UUID
-    ) throws -> FeedingSummaryViewState? {
-        let events = try eventRepository.loadTimeline(for: childID, includingDeleted: false)
+    private func loadVisibleFeedEvents(for childID: UUID) throws -> [BabyEvent] {
+        try eventRepository.loadTimeline(for: childID, includingDeleted: false)
+            .filter { event in
+                switch event {
+                case .breastFeed, .bottleFeed:
+                    true
+                case .sleep, .nappy:
+                    false
+                }
+            }
+    }
 
+    private func makeFeedingSummary(
+        from events: [BabyEvent]
+    ) -> FeedingSummaryViewState? {
         guard let summary = FeedSummaryCalculator.makeSummary(from: events) else {
             return nil
         }
 
         return FeedingSummaryViewState(summary: summary)
+    }
+
+    private func makeRecentFeedEvents(
+        from events: [BabyEvent]
+    ) -> [RecentFeedEventViewState] {
+        Array(events.prefix(5)).compactMap(RecentFeedEventViewState.init)
+    }
+
+    private func feedTitle(for event: BabyEvent) -> String {
+        switch event {
+        case .breastFeed:
+            "Breast Feed"
+        case .bottleFeed:
+            "Bottle Feed"
+        case .sleep:
+            "Sleep"
+        case .nappy:
+            "Nappy"
+        }
+    }
+
+    private func restoreDeletedEvent(
+        _ event: BabyEvent,
+        restoredBy userID: UUID
+    ) -> BabyEvent {
+        switch event {
+        case var .breastFeed(feed):
+            feed.metadata.restoreDeleted(by: userID)
+            return .breastFeed(feed)
+        case var .bottleFeed(feed):
+            feed.metadata.restoreDeleted(by: userID)
+            return .bottleFeed(feed)
+        case var .sleep(feed):
+            feed.metadata.restoreDeleted(by: userID)
+            return .sleep(feed)
+        case var .nappy(feed):
+            feed.metadata.restoreDeleted(by: userID)
+            return .nappy(feed)
+        }
+    }
+
+    private func startUndoDeleteExpiryTask() {
+        undoDeleteTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(10))
+
+            guard !Task.isCancelled else {
+                return
+            }
+
+            clearUndoDeleteState()
+        }
+    }
+
+    private func clearUndoDeleteState() {
+        undoDeleteTask?.cancel()
+        undoDeleteTask = nil
+        pendingUndoDeletedEvent = nil
+        undoDeleteMessage = nil
     }
 
     private func makeSyncBannerState(

@@ -42,6 +42,16 @@ struct AppRootView: View {
                 .padding(.top, 8)
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            if let undoDeleteMessage = model.undoDeleteMessage {
+                UndoBannerView(
+                    message: undoDeleteMessage,
+                    undoAction: model.undoLastDeletedEvent
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+            }
+        }
     }
 }
 

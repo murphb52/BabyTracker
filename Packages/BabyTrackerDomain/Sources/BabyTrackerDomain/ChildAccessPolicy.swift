@@ -6,7 +6,7 @@ public enum ChildAccessPolicy {
         membership: Membership?
     ) -> Bool {
         switch action {
-        case .viewChild, .logEvent:
+        case .viewChild, .logEvent, .editEvent, .deleteEvent:
             membership?.status.hasSharedDataAccess == true
         case .editChild, .archiveChild, .restoreChild, .inviteCaregiver, .removeCaregiver:
             isActiveOwner(membership)

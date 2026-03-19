@@ -53,4 +53,14 @@ public struct EventMetadata: Equatable, Identifiable, Sendable {
         updatedAt = deletedAt
         updatedBy = deletedBy
     }
+
+    public mutating func restoreDeleted(
+        at restoredAt: Date = Date(),
+        by restoredBy: UUID
+    ) {
+        isDeleted = false
+        deletedAt = nil
+        updatedAt = restoredAt
+        updatedBy = restoredBy
+    }
 }

@@ -158,6 +158,98 @@ final class Baby_TrackerUITests: XCTestCase {
     }
 
     @MainActor
+    func testOwnerCanEditBreastFeedFromRecentFeeds() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
+
+        app.buttons["quick-log-breast-feed-button"].tap()
+        XCTAssertTrue(app.buttons["save-breast-feed-button"].waitForExistence(timeout: 5))
+        app.buttons["save-breast-feed-button"].tap()
+
+        let recentFeedButton = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "recent-feed-")
+        ).firstMatch
+        XCTAssertTrue(recentFeedButton.waitForExistence(timeout: 5))
+        recentFeedButton.swipeRight()
+        app.buttons["Edit"].tap()
+
+        let durationField = app.textFields["breast-feed-duration-field"]
+        XCTAssertTrue(durationField.waitForExistence(timeout: 5))
+        replaceText(in: durationField, with: "20")
+
+        app.buttons["save-breast-feed-button"].tap()
+
+        XCTAssertTrue(app.staticTexts["20 min"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testActiveCaregiverCanEditBottleFeedFromRecentFeeds() throws {
+        let app = makeApp(scenario: "activeCaregiver")
+        app.launch()
+
+        app.buttons["quick-log-bottle-feed-button"].tap()
+        XCTAssertTrue(app.buttons["save-bottle-feed-button"].waitForExistence(timeout: 5))
+        app.buttons["save-bottle-feed-button"].tap()
+
+        let recentFeedButton = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "recent-feed-")
+        ).firstMatch
+        XCTAssertTrue(recentFeedButton.waitForExistence(timeout: 5))
+        recentFeedButton.swipeRight()
+        app.buttons["Edit"].tap()
+
+        let amountField = app.textFields["bottle-feed-amount-field"]
+        XCTAssertTrue(amountField.waitForExistence(timeout: 5))
+        replaceText(in: amountField, with: "150")
+
+        app.buttons["save-bottle-feed-button"].tap()
+
+        XCTAssertTrue(app.staticTexts["150 mL"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testDeleteRequiresConfirmationAndUndoRestoresFeed() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
+
+        app.buttons["quick-log-bottle-feed-button"].tap()
+        XCTAssertTrue(app.buttons["save-bottle-feed-button"].waitForExistence(timeout: 5))
+        app.buttons["save-bottle-feed-button"].tap()
+
+        let recentFeedButton = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "recent-feed-")
+        ).firstMatch
+        XCTAssertTrue(recentFeedButton.waitForExistence(timeout: 5))
+        recentFeedButton.swipeLeft()
+        app.buttons["Delete"].tap()
+
+        let confirmDeleteButton = app.sheets.buttons["Delete Feed"]
+        XCTAssertTrue(confirmDeleteButton.waitForExistence(timeout: 5))
+        confirmDeleteButton.tap()
+
+        let undoButton = app.buttons["undo-delete-button"]
+        XCTAssertTrue(undoButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["recent-feeds-empty-state"].exists)
+
+        undoButton.tap()
+
+        XCTAssertTrue(recentFeedButton.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testRecentFeedsEmptyStateAppearsBeforeLogging() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
+
+        let emptyState = app.staticTexts["recent-feeds-empty-state"]
+        XCTAssertTrue(emptyState.waitForExistence(timeout: 5))
+        XCTAssertEqual(
+            emptyState.label,
+            "No feeds logged yet. Use Quick Log above to add the first feed."
+        )
+    }
+
+    @MainActor
     private func launchOwnerFlow() -> XCUIApplication {
         let app = makeApp()
         app.launch()
