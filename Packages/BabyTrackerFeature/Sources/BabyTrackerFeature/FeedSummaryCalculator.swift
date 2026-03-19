@@ -23,6 +23,8 @@ public enum FeedSummaryCalculator {
 
         return FeedSummary(
             lastFeedKind: lastFeed.kind,
+            lastFeedTitle: BabyEventPresentation.title(for: lastFeed),
+            lastFeedDetailText: BabyEventPresentation.detailText(for: lastFeed),
             lastFeedAt: lastFeed.metadata.occurredAt,
             feedsTodayCount: feedsTodayCount
         )

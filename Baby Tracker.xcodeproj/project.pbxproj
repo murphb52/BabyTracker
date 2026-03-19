@@ -15,7 +15,25 @@
 		D0A000000000000000000006 /* BabyTrackerPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000042 /* BabyTrackerPersistence */; };
 		D0A000000000000000000007 /* BabyTrackerSync in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000043 /* BabyTrackerSync */; };
 		D0A000000000000000000008 /* BabyTrackerSync in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000043 /* BabyTrackerSync */; };
+		D0A000000000000000000050 /* BabyTrackerLiveActivities in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000044 /* BabyTrackerLiveActivities */; };
+		D0A000000000000000000051 /* BabyTrackerDomain in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000041 /* BabyTrackerDomain */; };
+		D0A000000000000000000052 /* BabyTrackerLiveActivities in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000044 /* BabyTrackerLiveActivities */; };
+		D0A000000000000000000053 /* Baby Tracker Live Activities.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D0A000000000000000000054 /* Baby Tracker Live Activities.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		D0A000000000000000000058 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				D0A000000000000000000053 /* Baby Tracker Live Activities.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXContainerItemProxy section */
 		C93425822F6BEA40009ECD88 /* PBXContainerItemProxy */ = {
@@ -32,6 +50,13 @@
 			remoteGlobalIDString = C934256F2F6BEA3F009ECD88;
 			remoteInfo = "Baby Tracker";
 		};
+		D0A000000000000000000059 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C93425682F6BEA3F009ECD88 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D0A00000000000000000005A;
+			remoteInfo = "Baby Tracker Live Activities";
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +68,8 @@
 		D0A000000000000000000023 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = App.xcconfig; sourceTree = "<group>"; };
 		D0A000000000000000000024 /* Tests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Tests.xcconfig; sourceTree = "<group>"; };
 		D0A000000000000000000025 /* UITests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = UITests.xcconfig; sourceTree = "<group>"; };
+		D0A000000000000000000054 /* Baby Tracker Live Activities.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Baby Tracker Live Activities.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D0A000000000000000000055 /* LiveActivitiesExtension.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = LiveActivitiesExtension.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -58,10 +85,18 @@
 			membershipExceptions = (
 				BabyTrackerDomain,
 				BabyTrackerFeature,
+				BabyTrackerLiveActivities,
 				BabyTrackerPersistence,
 				BabyTrackerSync,
 			);
 			target = C934256F2F6BEA3F009ECD88 /* Baby Tracker */;
+		};
+		D0A000000000000000000056 /* Exceptions for "Baby Tracker Live Activities" folder in "Baby Tracker Live Activities" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = D0A00000000000000000005A /* Baby Tracker Live Activities */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -92,6 +127,14 @@
 			path = Packages;
 			sourceTree = "<group>";
 		};
+		D0A000000000000000000057 /* Baby Tracker Live Activities */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D0A000000000000000000056 /* Exceptions for "Baby Tracker Live Activities" folder in "Baby Tracker Live Activities" target */,
+			);
+			path = "Baby Tracker Live Activities";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -102,6 +145,7 @@
 				D0A000000000000000000001 /* BabyTrackerFeature in Frameworks */,
 				D0A000000000000000000004 /* BabyTrackerDomain in Frameworks */,
 				D0A000000000000000000003 /* BabyTrackerPersistence in Frameworks */,
+				D0A000000000000000000050 /* BabyTrackerLiveActivities in Frameworks */,
 				D0A000000000000000000007 /* BabyTrackerSync in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -124,6 +168,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D0A00000000000000000005F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D0A000000000000000000051 /* BabyTrackerDomain in Frameworks */,
+				D0A000000000000000000052 /* BabyTrackerLiveActivities in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -131,6 +184,7 @@
 			isa = PBXGroup;
 			children = (
 				C93425722F6BEA3F009ECD88 /* Baby Tracker */,
+				D0A000000000000000000057 /* Baby Tracker Live Activities */,
 				C93425842F6BEA40009ECD88 /* Baby TrackerTests */,
 				C934258E2F6BEA40009ECD88 /* Baby TrackerUITests */,
 				D0A000000000000000000010 /* Packages */,
@@ -143,6 +197,7 @@
 			isa = PBXGroup;
 			children = (
 				C93425702F6BEA3F009ECD88 /* Baby Tracker.app */,
+				D0A000000000000000000054 /* Baby Tracker Live Activities.appex */,
 				C93425812F6BEA40009ECD88 /* Baby TrackerTests.xctest */,
 				C934258B2F6BEA40009ECD88 /* Baby TrackerUITests.xctest */,
 			);
@@ -155,6 +210,7 @@
 				D0A000000000000000000021 /* Project-Debug.xcconfig */,
 				D0A000000000000000000022 /* Project-Release.xcconfig */,
 				D0A000000000000000000023 /* App.xcconfig */,
+				D0A000000000000000000055 /* LiveActivitiesExtension.xcconfig */,
 				D0A000000000000000000024 /* Tests.xcconfig */,
 				D0A000000000000000000025 /* UITests.xcconfig */,
 			);
@@ -170,11 +226,13 @@
 			buildPhases = (
 				C934256C2F6BEA3F009ECD88 /* Sources */,
 				C934256D2F6BEA3F009ECD88 /* Frameworks */,
+				D0A000000000000000000058 /* Embed App Extensions */,
 				C934256E2F6BEA3F009ECD88 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				D0A00000000000000000005B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				C93425722F6BEA3F009ECD88 /* Baby Tracker */,
@@ -184,6 +242,7 @@
 			packageProductDependencies = (
 				D0A000000000000000000040 /* BabyTrackerFeature */,
 				D0A000000000000000000041 /* BabyTrackerDomain */,
+				D0A000000000000000000044 /* BabyTrackerLiveActivities */,
 				D0A000000000000000000042 /* BabyTrackerPersistence */,
 				D0A000000000000000000043 /* BabyTrackerSync */,
 			);
@@ -241,6 +300,30 @@
 			productReference = C934258B2F6BEA40009ECD88 /* Baby TrackerUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		D0A00000000000000000005A /* Baby Tracker Live Activities */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D0A00000000000000000005E /* Build configuration list for PBXNativeTarget "Baby Tracker Live Activities" */;
+			buildPhases = (
+				D0A000000000000000000061 /* Sources */,
+				D0A00000000000000000005F /* Frameworks */,
+				D0A000000000000000000060 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				D0A000000000000000000057 /* Baby Tracker Live Activities */,
+			);
+			name = "Baby Tracker Live Activities";
+			packageProductDependencies = (
+				D0A000000000000000000041 /* BabyTrackerDomain */,
+				D0A000000000000000000044 /* BabyTrackerLiveActivities */,
+			);
+			productName = "Baby Tracker Live Activities";
+			productReference = D0A000000000000000000054 /* Baby Tracker Live Activities.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -262,6 +345,9 @@
 						CreatedOnToolsVersion = 26.3;
 						TestTargetID = C934256F2F6BEA3F009ECD88;
 					};
+					D0A00000000000000000005A = {
+						CreatedOnToolsVersion = 26.3;
+					};
 				};
 			};
 			buildConfigurationList = C934256B2F6BEA3F009ECD88 /* Build configuration list for PBXProject "Baby Tracker" */;
@@ -278,6 +364,7 @@
 				D0A000000000000000000031 /* XCLocalSwiftPackageReference "Packages/BabyTrackerPersistence" */,
 				D0A000000000000000000032 /* XCLocalSwiftPackageReference "Packages/BabyTrackerSync" */,
 				D0A000000000000000000033 /* XCLocalSwiftPackageReference "Packages/BabyTrackerFeature" */,
+				D0A000000000000000000034 /* XCLocalSwiftPackageReference "Packages/BabyTrackerLiveActivities" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C93425712F6BEA3F009ECD88 /* Products */;
@@ -285,6 +372,7 @@
 			projectRoot = "";
 			targets = (
 				C934256F2F6BEA3F009ECD88 /* Baby Tracker */,
+				D0A00000000000000000005A /* Baby Tracker Live Activities */,
 				C93425802F6BEA40009ECD88 /* Baby TrackerTests */,
 				C934258A2F6BEA40009ECD88 /* Baby TrackerUITests */,
 			);
@@ -307,6 +395,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C93425892F6BEA40009ECD88 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D0A000000000000000000060 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -337,6 +432,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D0A000000000000000000061 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -349,6 +451,11 @@
 			isa = PBXTargetDependency;
 			target = C934256F2F6BEA3F009ECD88 /* Baby Tracker */;
 			targetProxy = C934258C2F6BEA40009ECD88 /* PBXContainerItemProxy */;
+		};
+		D0A00000000000000000005B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D0A00000000000000000005A /* Baby Tracker Live Activities */;
+			targetProxy = D0A000000000000000000059 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -517,6 +624,20 @@
 			};
 			name = Release;
 		};
+		D0A00000000000000000005C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = D0A000000000000000000055 /* LiveActivitiesExtension.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		D0A00000000000000000005D /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = D0A000000000000000000055 /* LiveActivitiesExtension.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -556,6 +677,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		D0A00000000000000000005E /* Build configuration list for PBXNativeTarget "Baby Tracker Live Activities" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D0A00000000000000000005C /* Debug */,
+				D0A00000000000000000005D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -575,6 +705,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/BabyTrackerFeature;
 		};
+		D0A000000000000000000034 /* XCLocalSwiftPackageReference "Packages/BabyTrackerLiveActivities" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/BabyTrackerLiveActivities;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -593,6 +727,10 @@
 		D0A000000000000000000043 /* BabyTrackerSync */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = BabyTrackerSync;
+		};
+		D0A000000000000000000044 /* BabyTrackerLiveActivities */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BabyTrackerLiveActivities;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

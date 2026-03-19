@@ -23,12 +23,19 @@ struct AppContainer {
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
 
         if let scenario = launchConfiguration.scenario {
-            try? Self.seed(scenario: scenario, repository: repository)
+            try? Self.seed(
+                scenario: scenario,
+                repository: repository,
+                eventRepository: eventRepository
+            )
         }
 
         let cloudKitClient: any CloudKitClient = launchConfiguration.usesUnavailableCloudKitClient ?
             UnavailableCloudKitClient() :
             LiveCloudKitClient()
+        let liveActivityManager: any FeedLiveActivityManaging = launchConfiguration.usesNoOpLiveActivities ?
+            NoOpFeedLiveActivityManager() :
+            FeedLiveActivityManager()
         let syncEngine = CloudKitSyncEngine(
             childRepository: repository,
             eventRepository: eventRepository,
@@ -38,7 +45,8 @@ struct AppContainer {
         let appModel = AppModel(
             repository: repository,
             eventRepository: eventRepository,
-            syncEngine: syncEngine
+            syncEngine: syncEngine,
+            liveActivityManager: liveActivityManager
         )
         let shareAcceptanceHandler = ShareAcceptanceHandler(syncEngine: syncEngine) {
             appModel.load()
@@ -56,7 +64,7 @@ struct AppContainer {
         let launchConfiguration = LaunchConfiguration(
             usesInMemoryStore: true,
             userDefaultsSuiteName: "BabyTrackerPreview",
-            scenario: .ownerPreview
+            scenario: .mixedEventsPreview
         )
         let userDefaults = launchConfiguration.makeUserDefaults()
         let store = try! BabyTrackerModelStore(isStoredInMemoryOnly: true)
@@ -67,7 +75,11 @@ struct AppContainer {
         let eventRepository = SwiftDataEventRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
 
-        try? seed(scenario: .ownerPreview, repository: repository)
+        try? seed(
+            scenario: .mixedEventsPreview,
+            repository: repository,
+            eventRepository: eventRepository
+        )
 
         let syncEngine = CloudKitSyncEngine(
             childRepository: repository,
@@ -78,7 +90,8 @@ struct AppContainer {
         let appModel = AppModel(
             repository: repository,
             eventRepository: eventRepository,
-            syncEngine: syncEngine
+            syncEngine: syncEngine,
+            liveActivityManager: NoOpFeedLiveActivityManager()
         )
         let shareAcceptanceHandler = ShareAcceptanceHandler(syncEngine: syncEngine) {
             appModel.load()
@@ -102,7 +115,8 @@ struct AppContainer {
 
     private static func seed(
         scenario: LaunchScenario,
-        repository: SwiftDataChildProfileRepository
+        repository: SwiftDataChildProfileRepository,
+        eventRepository: SwiftDataEventRepository
     ) throws {
         try repository.resetAllData()
 
@@ -170,6 +184,44 @@ struct AppContainer {
             ))
             try repository.saveLocalUser(owner)
             repository.saveSelectedChildID(child.id)
+        case .mixedEventsPreview:
+            let owner = try UserIdentity(
+                displayName: "Alex Parent",
+                cloudKitUserRecordName: "owner.preview.record"
+            )
+            let child = try Child(name: "Poppy", birthDate: .now, createdBy: owner.id)
+            let feedTime = Date(timeIntervalSinceNow: -7_200)
+            let sleepEnd = Date(timeIntervalSinceNow: -1_800)
+
+            try repository.saveUser(owner)
+            try repository.saveChild(child)
+            try repository.saveMembership(.owner(childID: child.id, userID: owner.id, createdAt: child.createdAt))
+            try repository.saveLocalUser(owner)
+            repository.saveSelectedChildID(child.id)
+
+            let bottleFeed = try BottleFeedEvent(
+                metadata: EventMetadata(
+                    childID: child.id,
+                    occurredAt: feedTime,
+                    createdAt: feedTime,
+                    createdBy: owner.id
+                ),
+                amountMilliliters: 120,
+                milkType: .formula
+            )
+            let sleep = try SleepEvent(
+                metadata: EventMetadata(
+                    childID: child.id,
+                    occurredAt: sleepEnd,
+                    createdAt: sleepEnd,
+                    createdBy: owner.id
+                ),
+                startedAt: sleepEnd.addingTimeInterval(-1_800),
+                endedAt: sleepEnd
+            )
+
+            try eventRepository.saveEvent(.bottleFeed(bottleFeed))
+            try eventRepository.saveEvent(.sleep(sleep))
         }
     }
 }
@@ -178,6 +230,7 @@ extension AppContainer {
     private struct LaunchConfiguration {
         let usesInMemoryStore: Bool
         let usesUnavailableCloudKitClient: Bool
+        let usesNoOpLiveActivities: Bool
         let skipsLaunchSync: Bool
         let userDefaultsSuiteName: String?
         let scenario: LaunchScenario?
@@ -190,6 +243,7 @@ extension AppContainer {
             self.init(
                 usesInMemoryStore: usesInMemoryStore,
                 usesUnavailableCloudKitClient: usesInMemoryStore || isRunningTests,
+                usesNoOpLiveActivities: usesInMemoryStore || isRunningTests,
                 skipsLaunchSync: usesInMemoryStore || isRunningTests,
                 userDefaultsSuiteName: usesInMemoryStore ? "BabyTrackerUITests" : nil,
                 scenario: scenario
@@ -199,12 +253,14 @@ extension AppContainer {
         init(
             usesInMemoryStore: Bool,
             usesUnavailableCloudKitClient: Bool = true,
+            usesNoOpLiveActivities: Bool = true,
             skipsLaunchSync: Bool = false,
             userDefaultsSuiteName: String?,
             scenario: LaunchScenario?
         ) {
             self.usesInMemoryStore = usesInMemoryStore
             self.usesUnavailableCloudKitClient = usesUnavailableCloudKitClient
+            self.usesNoOpLiveActivities = usesNoOpLiveActivities
             self.skipsLaunchSync = skipsLaunchSync
             self.userDefaultsSuiteName = userDefaultsSuiteName
             self.scenario = scenario
@@ -223,6 +279,7 @@ extension AppContainer {
 
     private enum LaunchScenario: String {
         case activeCaregiver
+        case mixedEventsPreview
         case ownerPreview
     }
 }

@@ -12,7 +12,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
     public let canSwitchChildren: Bool
     public let canLogFeeds: Bool
     public let canManageFeedEvents: Bool
-    public let feedingSummary: FeedingSummaryViewState?
+    public let currentStateSummary: CurrentStateSummaryViewState?
     public let recentFeedEvents: [RecentFeedEventViewState]
     public let syncBannerState: SyncBannerState?
     public let canShareChild: Bool
@@ -40,7 +40,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         canSwitchChildren: Bool,
         canLogFeeds: Bool,
         canManageFeedEvents: Bool,
-        feedingSummary: FeedingSummaryViewState?,
+        currentStateSummary: CurrentStateSummaryViewState?,
         recentFeedEvents: [RecentFeedEventViewState],
         syncBannerState: SyncBannerState?,
         canShareChild: Bool
@@ -55,7 +55,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         self.canSwitchChildren = canSwitchChildren
         self.canLogFeeds = canLogFeeds
         self.canManageFeedEvents = canManageFeedEvents
-        self.feedingSummary = feedingSummary
+        self.currentStateSummary = currentStateSummary
         self.recentFeedEvents = recentFeedEvents
         self.syncBannerState = syncBannerState
         self.canShareChild = canShareChild

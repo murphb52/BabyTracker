@@ -38,6 +38,50 @@ struct AppModelTests {
     }
 
     @Test
+    func mixedTimelineUsesLatestEventForCurrentStateAndLatestFeedForFeedStatus() throws {
+        let liveActivityManager = LiveActivityManagerSpy()
+        let harness = try Harness(liveActivityManager: liveActivityManager)
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let feed = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 120,
+            occurredAt: Date(timeIntervalSince1970: 1_000),
+            milkType: .formula
+        )
+        _ = try harness.saveSleep(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            startedAt: Date(timeIntervalSince1970: 1_800),
+            endedAt: Date(timeIntervalSince1970: 3_000)
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        let profile = try #require(harness.model.profile)
+        let summary = try #require(profile.currentStateSummary)
+        let lastFeed = try #require(summary.lastFeed)
+
+        #expect(summary.lastEvent.kind == .sleep)
+        #expect(summary.lastEvent.title == "Sleep")
+        #expect(summary.lastEvent.detailText == "20 min")
+        #expect(lastFeed.kind == .bottleFeed)
+        #expect(lastFeed.title == "Bottle Feed")
+        #expect(lastFeed.detailText == "120 mL • Formula")
+        #expect(profile.recentFeedEvents.map(\.id) == [feed.id])
+        #expect(
+            liveActivityManager.latestSnapshot == FeedLiveActivitySnapshot(
+                childID: seed.child.id,
+                childName: seed.child.name,
+                lastFeedKind: .bottleFeed,
+                lastFeedAt: feed.metadata.occurredAt
+            )
+        )
+    }
+
+    @Test
     func activeCaregiverCanEditAndDeleteFeedEvents() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }
@@ -148,6 +192,93 @@ struct AppModelTests {
         #expect(visibleTimeline.first?.id == secondFeed.id)
         #expect(!visibleTimeline.contains(where: { $0.id == firstFeed.id }))
     }
+
+    @Test
+    func liveActivityManagerReceivesCreateUpdateDeleteAndUndoSnapshots() throws {
+        let liveActivityManager = LiveActivityManagerSpy()
+        let harness = try Harness(liveActivityManager: liveActivityManager)
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+
+        harness.model.load(performLaunchSync: false)
+        #expect(liveActivityManager.latestSnapshot == nil)
+
+        #expect(
+            harness.model.logBottleFeed(
+                amountMilliliters: 120,
+                occurredAt: Date(timeIntervalSince1970: 4_000),
+                milkType: nil
+            )
+        )
+
+        let loggedFeed = try #require(
+            try harness.eventRepository.loadTimeline(
+                for: seed.child.id,
+                includingDeleted: false
+            ).compactMap { event -> BottleFeedEvent? in
+                guard case let .bottleFeed(feed) = event else {
+                    return nil
+                }
+
+                return feed
+            }.first
+        )
+
+        #expect(liveActivityManager.latestSnapshot?.lastFeedAt == loggedFeed.metadata.occurredAt)
+
+        #expect(
+            harness.model.updateBottleFeed(
+                id: loggedFeed.id,
+                amountMilliliters: 150,
+                occurredAt: Date(timeIntervalSince1970: 4_600),
+                milkType: .formula
+            )
+        )
+        #expect(liveActivityManager.latestSnapshot?.lastFeedAt == Date(timeIntervalSince1970: 4_600))
+
+        #expect(harness.model.deleteEvent(id: loggedFeed.id))
+        #expect(liveActivityManager.latestSnapshot == nil)
+
+        harness.model.undoLastDeletedEvent()
+        #expect(liveActivityManager.latestSnapshot?.childID == seed.child.id)
+        #expect(liveActivityManager.latestSnapshot?.lastFeedAt == Date(timeIntervalSince1970: 4_600))
+    }
+
+    @Test
+    func selectingDifferentChildSynchronizesLiveActivityForSelectedChild() throws {
+        let liveActivityManager = LiveActivityManagerSpy()
+        let harness = try Harness(liveActivityManager: liveActivityManager)
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let secondChild = try harness.saveOwnedChild(
+            name: "Juniper",
+            owner: seed.localUser
+        )
+
+        _ = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 90,
+            occurredAt: Date(timeIntervalSince1970: 5_000),
+            milkType: nil
+        )
+        _ = try harness.saveBreastFeed(
+            childID: secondChild.id,
+            userID: seed.localUser.id,
+            start: Date(timeIntervalSince1970: 5_500),
+            end: Date(timeIntervalSince1970: 6_100),
+            side: .left
+        )
+
+        harness.model.load(performLaunchSync: false)
+        #expect(liveActivityManager.latestSnapshot?.childID == seed.child.id)
+
+        harness.model.selectChild(id: secondChild.id)
+        #expect(liveActivityManager.latestSnapshot?.childID == secondChild.id)
+        #expect(liveActivityManager.latestSnapshot?.lastFeedKind == .breastFeed)
+    }
 }
 
 extension AppModelTests {
@@ -162,7 +293,9 @@ extension AppModelTests {
         let syncEngine: CloudKitSyncEngine
         let model: AppModel
 
-        init() throws {
+        init(
+            liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager()
+        ) throws {
             let userDefaults = UserDefaults(suiteName: suiteName)!
             userDefaults.removePersistentDomain(forName: suiteName)
 
@@ -183,7 +316,8 @@ extension AppModelTests {
             self.model = AppModel(
                 repository: childRepository,
                 eventRepository: eventRepository,
-                syncEngine: syncEngine
+                syncEngine: syncEngine,
+                liveActivityManager: liveActivityManager
             )
         }
 
@@ -244,6 +378,22 @@ extension AppModelTests {
             )
         }
 
+        func saveOwnedChild(
+            name: String,
+            owner: UserIdentity
+        ) throws -> Child {
+            let child = try Child(name: name, createdBy: owner.id)
+            try childRepository.saveChild(child)
+            try childRepository.saveMembership(
+                .owner(
+                    childID: child.id,
+                    userID: owner.id,
+                    createdAt: child.createdAt
+                )
+            )
+            return child
+        }
+
         func saveBreastFeed(
             childID: UUID,
             userID: UUID,
@@ -286,6 +436,27 @@ extension AppModelTests {
             try eventRepository.saveEvent(.bottleFeed(event))
             return event
         }
+
+        func saveSleep(
+            childID: UUID,
+            userID: UUID,
+            startedAt: Date,
+            endedAt: Date?
+        ) throws -> SleepEvent {
+            let occurredAt = endedAt ?? startedAt
+            let event = try SleepEvent(
+                metadata: EventMetadata(
+                    childID: childID,
+                    occurredAt: occurredAt,
+                    createdAt: occurredAt,
+                    createdBy: userID
+                ),
+                startedAt: startedAt,
+                endedAt: endedAt
+            )
+            try eventRepository.saveEvent(.sleep(event))
+            return event
+        }
     }
 
     private struct OwnerSeed {
@@ -297,5 +468,18 @@ extension AppModelTests {
         let owner: UserIdentity
         let localUser: UserIdentity
         let child: Child
+    }
+
+    @MainActor
+    private final class LiveActivityManagerSpy: FeedLiveActivityManaging {
+        private(set) var snapshots: [FeedLiveActivitySnapshot?] = []
+
+        var latestSnapshot: FeedLiveActivitySnapshot? {
+            snapshots.last ?? nil
+        }
+
+        func synchronize(with snapshot: FeedLiveActivitySnapshot?) {
+            snapshots.append(snapshot)
+        }
     }
 }

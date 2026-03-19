@@ -76,7 +76,7 @@ final class Baby_TrackerUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.buttons["quick-log-breast-feed-button"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["feeding-empty-state"].exists)
+        XCTAssertTrue(app.staticTexts["current-status-empty-state"].exists)
 
         app.buttons["quick-log-breast-feed-button"].tap()
 
@@ -84,10 +84,10 @@ final class Baby_TrackerUITests: XCTestCase {
         XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
         saveButton.tap()
 
-        let latestFeedValue = app.staticTexts["feeding-latest-feed-value"]
+        let latestFeedValue = app.staticTexts["current-status-last-event-value"]
         XCTAssertTrue(latestFeedValue.waitForExistence(timeout: 5))
         XCTAssertEqual(latestFeedValue.label, "Breast Feed")
-        XCTAssertEqual(app.staticTexts["feeding-count-value"].label, "1")
+        XCTAssertEqual(app.staticTexts["current-status-feeds-today-value"].label, "1")
     }
 
     @MainActor
@@ -103,10 +103,10 @@ final class Baby_TrackerUITests: XCTestCase {
         XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
         saveButton.tap()
 
-        let latestFeedValue = app.staticTexts["feeding-latest-feed-value"]
+        let latestFeedValue = app.staticTexts["current-status-last-event-value"]
         XCTAssertTrue(latestFeedValue.waitForExistence(timeout: 5))
         XCTAssertEqual(latestFeedValue.label, "Bottle Feed")
-        XCTAssertEqual(app.staticTexts["feeding-count-value"].label, "1")
+        XCTAssertEqual(app.staticTexts["current-status-feeds-today-value"].label, "1")
     }
 
     @MainActor
@@ -134,7 +134,7 @@ final class Baby_TrackerUITests: XCTestCase {
         XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
         saveButton.tap()
 
-        let latestFeedValue = app.staticTexts["feeding-latest-feed-value"]
+        let latestFeedValue = app.staticTexts["current-status-last-event-value"]
         XCTAssertTrue(latestFeedValue.waitForExistence(timeout: 5))
         XCTAssertEqual(latestFeedValue.label, "Bottle Feed")
     }
@@ -247,6 +247,25 @@ final class Baby_TrackerUITests: XCTestCase {
             emptyState.label,
             "No feeds logged yet. Use Quick Log above to add the first feed."
         )
+    }
+
+    @MainActor
+    func testMixedEventsScenarioShowsLatestEventButKeepsFeedHistoryFeedOnly() throws {
+        let app = makeApp(scenario: "mixedEventsPreview")
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["current-status-last-event-value"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["current-status-last-event-value"].label, "Sleep")
+        XCTAssertEqual(app.staticTexts["current-status-last-event-detail"].label, "30 min")
+        XCTAssertEqual(app.staticTexts["current-status-feeds-today-value"].label, "1")
+        XCTAssertFalse(app.staticTexts["current-status-since-last-feed-value"].label.isEmpty)
+
+        let recentFeedButton = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "recent-feed-")
+        ).firstMatch
+        XCTAssertTrue(recentFeedButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Bottle Feed"].exists)
+        XCTAssertFalse(app.staticTexts["Sleep"].exists && recentFeedButton.label == "Sleep")
     }
 
     @MainActor

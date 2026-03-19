@@ -14,28 +14,12 @@ public struct RecentFeedEventViewState: Equatable, Identifiable, Sendable {
         case let .breastFeed(feed):
             id = feed.id
             kind = .breastFeed
-            title = "Breast Feed"
-
+            title = BabyEventPresentation.title(for: event)
+            detailText = BabyEventPresentation.detailText(for: event) ?? ""
             let durationMinutes = max(
                 1,
                 Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60)
             )
-            let sideText: String? = switch feed.side {
-            case .left?:
-                "Left"
-            case .right?:
-                "Right"
-            case .both?:
-                "Both"
-            case nil:
-                nil
-            }
-
-            if let sideText {
-                detailText = "\(durationMinutes) min • \(sideText)"
-            } else {
-                detailText = "\(durationMinutes) min"
-            }
 
             timestampText = feed.metadata.occurredAt.formatted(
                 date: .abbreviated,
@@ -49,13 +33,8 @@ public struct RecentFeedEventViewState: Equatable, Identifiable, Sendable {
         case let .bottleFeed(feed):
             id = feed.id
             kind = .bottleFeed
-            title = "Bottle Feed"
-
-            if let milkType = feed.milkType {
-                detailText = "\(feed.amountMilliliters) mL • \(Self.milkTypeTitle(for: milkType))"
-            } else {
-                detailText = "\(feed.amountMilliliters) mL"
-            }
+            title = BabyEventPresentation.title(for: event)
+            detailText = BabyEventPresentation.detailText(for: event) ?? ""
 
             timestampText = feed.metadata.occurredAt.formatted(
                 date: .abbreviated,
@@ -68,19 +47,6 @@ public struct RecentFeedEventViewState: Equatable, Identifiable, Sendable {
             )
         case .sleep, .nappy:
             return nil
-        }
-    }
-
-    private static func milkTypeTitle(for milkType: MilkType) -> String {
-        switch milkType {
-        case .breastMilk:
-            "Breast Milk"
-        case .formula:
-            "Formula"
-        case .mixed:
-            "Mixed"
-        case .other:
-            "Other"
         }
     }
 }

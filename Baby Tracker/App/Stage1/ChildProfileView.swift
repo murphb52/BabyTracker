@@ -15,6 +15,10 @@ struct ChildProfileView: View {
         @Bindable var bindableModel = model
 
         List {
+            Section("Current Status") {
+                CurrentStateCardView(summary: profile.currentStateSummary)
+            }
+
             if profile.canLogFeeds {
                 Section("Quick Log") {
                     quickLogButton(
@@ -34,30 +38,6 @@ struct ChildProfileView: View {
                     ) {
                         activeFeedSheet = .quickLogBottleFeed
                     }
-                }
-            }
-
-            Section("Feeding") {
-                if let feedingSummary = profile.feedingSummary {
-                    summaryRow(
-                        title: "Latest Feed",
-                        value: feedingSummary.lastFeedTitle,
-                        accessibilityIdentifier: "feeding-latest-feed-value"
-                    )
-                    summaryRow(
-                        title: "Last Logged",
-                        value: feedingSummary.lastFeedTimestamp,
-                        accessibilityIdentifier: "feeding-last-logged-value"
-                    )
-                    summaryRow(
-                        title: "Feeds Today",
-                        value: feedingSummary.feedsTodayText,
-                        accessibilityIdentifier: "feeding-count-value"
-                    )
-                } else {
-                    Text(emptyFeedText)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("feeding-empty-state")
                 }
             }
 
@@ -296,20 +276,6 @@ struct ChildProfileView: View {
         .buttonStyle(.borderedProminent)
         .tint(tint)
         .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    private func summaryRow(
-        title: String,
-        value: String,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
-            Text(value)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier(accessibilityIdentifier)
-        }
     }
 
     @ViewBuilder

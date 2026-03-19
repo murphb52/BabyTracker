@@ -1,6 +1,6 @@
 import Foundation
 
-public enum BabyEventKind: String, Equatable, Sendable {
+public enum BabyEventKind: String, Codable, Equatable, Hashable, Sendable {
     case breastFeed
     case bottleFeed
     case sleep

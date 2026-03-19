@@ -19,17 +19,20 @@ public final class AppModel {
     private let repository: ChildProfileRepository
     private let eventRepository: EventRepository
     private let syncEngine: CloudKitSyncEngine
+    private let liveActivityManager: any FeedLiveActivityManaging
     private var pendingUndoDeletedEvent: BabyEvent?
     private var undoDeleteTask: Task<Void, Never>?
 
     public init(
         repository: ChildProfileRepository,
         eventRepository: EventRepository,
-        syncEngine: CloudKitSyncEngine
+        syncEngine: CloudKitSyncEngine,
+        liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager()
     ) {
         self.repository = repository
         self.eventRepository = eventRepository
         self.syncEngine = syncEngine
+        self.liveActivityManager = liveActivityManager
     }
 
     public func load(performLaunchSync: Bool = true) {
@@ -395,6 +398,7 @@ public final class AppModel {
                 activeChildren = []
                 archivedChildren = []
                 profile = nil
+                liveActivityManager.synchronize(with: nil)
                 return
             }
 
@@ -410,6 +414,7 @@ public final class AppModel {
             guard !activeChildren.isEmpty else {
                 route = .childCreation
                 profile = nil
+                liveActivityManager.synchronize(with: nil)
                 return
             }
 
@@ -421,19 +426,29 @@ public final class AppModel {
             if activeChildren.count > 1 && selectedSummary == nil {
                 route = .childPicker
                 profile = nil
+                liveActivityManager.synchronize(with: nil)
                 return
             }
 
             let currentSummary = selectedSummary ?? activeChildren[0]
             repository.saveSelectedChildID(currentSummary.child.id)
+            let visibleEvents = try loadVisibleEvents(for: currentSummary.child.id)
             profile = try makeProfile(
                 child: currentSummary.child,
-                localUser: localUser
+                localUser: localUser,
+                visibleEvents: visibleEvents
             )
             route = .childProfile
+            liveActivityManager.synchronize(
+                with: makeFeedLiveActivitySnapshot(
+                    from: visibleEvents,
+                    child: currentSummary.child
+                )
+            )
         } catch {
             errorMessage = resolveErrorMessage(for: error)
             route = .identityOnboarding
+            liveActivityManager.synchronize(with: nil)
         }
     }
 
@@ -461,7 +476,8 @@ public final class AppModel {
 
     private func makeProfile(
         child: Child,
-        localUser: UserIdentity
+        localUser: UserIdentity,
+        visibleEvents: [BabyEvent]
     ) throws -> ChildProfileScreenState {
         let memberships = try repository.loadMemberships(for: child.id)
         let userIDs = memberships.map(\.userID)
@@ -505,8 +521,6 @@ public final class AppModel {
                 statusLabel: invite.acceptanceStatus == .pending ? "Pending invitation" : "Invited"
             )
         }
-        let feedEvents = try loadVisibleFeedEvents(for: child.id)
-        let feedingSummary = makeFeedingSummary(from: feedEvents)
         let canLogFeeds = ChildAccessPolicy.canPerform(.logEvent, membership: currentMembership)
         let canManageFeedEvents =
             ChildAccessPolicy.canPerform(.editEvent, membership: currentMembership) &&
@@ -523,53 +537,58 @@ public final class AppModel {
             canSwitchChildren: activeChildren.count > 1,
             canLogFeeds: canLogFeeds,
             canManageFeedEvents: canManageFeedEvents,
-            feedingSummary: feedingSummary,
-            recentFeedEvents: makeRecentFeedEvents(from: feedEvents),
+            currentStateSummary: makeCurrentStateSummary(from: visibleEvents),
+            recentFeedEvents: makeRecentFeedEvents(from: visibleEvents),
             syncBannerState: makeSyncBannerState(from: syncEngine.statusSummary),
             canShareChild: ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership) &&
                 syncEngine.statusSummary.state != .failed
         )
     }
 
-    private func loadVisibleFeedEvents(for childID: UUID) throws -> [BabyEvent] {
+    private func loadVisibleEvents(for childID: UUID) throws -> [BabyEvent] {
         try eventRepository.loadTimeline(for: childID, includingDeleted: false)
-            .filter { event in
-                switch event {
-                case .breastFeed, .bottleFeed:
-                    true
-                case .sleep, .nappy:
-                    false
-                }
-            }
     }
 
-    private func makeFeedingSummary(
+    private func makeCurrentStateSummary(
         from events: [BabyEvent]
-    ) -> FeedingSummaryViewState? {
-        guard let summary = FeedSummaryCalculator.makeSummary(from: events) else {
+    ) -> CurrentStateSummaryViewState? {
+        guard let lastEvent = LastEventSummaryCalculator.makeSummary(from: events) else {
             return nil
         }
 
-        return FeedingSummaryViewState(summary: summary)
+        let lastFeed = FeedSummaryCalculator.makeSummary(from: events)
+            .map(FeedStatusViewState.init)
+
+        return CurrentStateSummaryViewState(
+            lastEvent: lastEvent,
+            lastFeed: lastFeed
+        )
     }
 
     private func makeRecentFeedEvents(
         from events: [BabyEvent]
     ) -> [RecentFeedEventViewState] {
-        Array(events.prefix(5)).compactMap(RecentFeedEventViewState.init)
+        Array(events.compactMap(RecentFeedEventViewState.init).prefix(5))
+    }
+
+    private func makeFeedLiveActivitySnapshot(
+        from events: [BabyEvent],
+        child: Child
+    ) -> FeedLiveActivitySnapshot? {
+        guard let summary = FeedSummaryCalculator.makeSummary(from: events) else {
+            return nil
+        }
+
+        return FeedLiveActivitySnapshot(
+            childID: child.id,
+            childName: child.name,
+            lastFeedKind: summary.lastFeedKind,
+            lastFeedAt: summary.lastFeedAt
+        )
     }
 
     private func feedTitle(for event: BabyEvent) -> String {
-        switch event {
-        case .breastFeed:
-            "Breast Feed"
-        case .bottleFeed:
-            "Bottle Feed"
-        case .sleep:
-            "Sleep"
-        case .nappy:
-            "Nappy"
-        }
+        BabyEventPresentation.title(for: event)
     }
 
     private func restoreDeletedEvent(
