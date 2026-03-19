@@ -9,6 +9,13 @@ final class StoredChild {
     var createdAt: Date = Date()
     var createdBy: UUID = UUID()
     var isArchived: Bool = false
+    var cloudKitZoneName: String?
+    var cloudKitZoneOwnerName: String?
+    var cloudKitShareRecordName: String?
+    var cloudKitDatabaseScopeRawValue: String?
+    var syncStateRawValue: String = ""
+    var lastSyncedAt: Date?
+    var lastSyncErrorCode: String?
 
     init(
         id: UUID,
@@ -16,7 +23,14 @@ final class StoredChild {
         birthDate: Date?,
         createdAt: Date,
         createdBy: UUID,
-        isArchived: Bool
+        isArchived: Bool,
+        cloudKitZoneName: String? = nil,
+        cloudKitZoneOwnerName: String? = nil,
+        cloudKitShareRecordName: String? = nil,
+        cloudKitDatabaseScopeRawValue: String? = nil,
+        syncStateRawValue: String = "",
+        lastSyncedAt: Date? = nil,
+        lastSyncErrorCode: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -24,5 +38,12 @@ final class StoredChild {
         self.createdAt = createdAt
         self.createdBy = createdBy
         self.isArchived = isArchived
+        self.cloudKitZoneName = cloudKitZoneName
+        self.cloudKitZoneOwnerName = cloudKitZoneOwnerName
+        self.cloudKitShareRecordName = cloudKitShareRecordName
+        self.cloudKitDatabaseScopeRawValue = cloudKitDatabaseScopeRawValue
+        self.syncStateRawValue = syncStateRawValue
+        self.lastSyncedAt = lastSyncedAt
+        self.lastSyncErrorCode = lastSyncErrorCode
     }
 }

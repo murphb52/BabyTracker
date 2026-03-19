@@ -8,7 +8,7 @@ public enum ChildAccessPolicy {
         switch action {
         case .viewChild:
             membership?.status.hasSharedDataAccess == true
-        case .editChild, .archiveChild, .restoreChild, .inviteCaregiver, .activateCaregiver, .removeCaregiver:
+        case .editChild, .archiveChild, .restoreChild, .inviteCaregiver, .removeCaregiver:
             isActiveOwner(membership)
         }
     }

@@ -7,9 +7,11 @@ public struct ChildProfileScreenState: Equatable, Sendable {
     public let currentMembership: Membership
     public let owner: CaregiverMembershipViewState
     public let activeCaregivers: [CaregiverMembershipViewState]
-    public let invitedCaregivers: [CaregiverMembershipViewState]
+    public let pendingShareInvites: [PendingShareInviteViewState]
     public let removedCaregivers: [CaregiverMembershipViewState]
     public let canSwitchChildren: Bool
+    public let syncBannerState: SyncBannerState?
+    public let canShareChild: Bool
 
     public var canEditChild: Bool {
         ChildAccessPolicy.canPerform(.editChild, membership: currentMembership)
@@ -29,17 +31,21 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         currentMembership: Membership,
         owner: CaregiverMembershipViewState,
         activeCaregivers: [CaregiverMembershipViewState],
-        invitedCaregivers: [CaregiverMembershipViewState],
+        pendingShareInvites: [PendingShareInviteViewState],
         removedCaregivers: [CaregiverMembershipViewState],
-        canSwitchChildren: Bool
+        canSwitchChildren: Bool,
+        syncBannerState: SyncBannerState?,
+        canShareChild: Bool
     ) {
         self.child = child
         self.localUser = localUser
         self.currentMembership = currentMembership
         self.owner = owner
         self.activeCaregivers = activeCaregivers
-        self.invitedCaregivers = invitedCaregivers
+        self.pendingShareInvites = pendingShareInvites
         self.removedCaregivers = removedCaregivers
         self.canSwitchChildren = canSwitchChildren
+        self.syncBannerState = syncBannerState
+        self.canShareChild = canShareChild
     }
 }

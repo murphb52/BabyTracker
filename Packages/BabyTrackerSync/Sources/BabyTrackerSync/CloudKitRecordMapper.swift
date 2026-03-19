@@ -1,0 +1,273 @@
+import BabyTrackerDomain
+import CloudKit
+import Foundation
+
+enum CloudKitRecordMapper {
+    static func childRecord(
+        from child: Child,
+        zoneID: CKRecordZone.ID
+    ) -> CKRecord {
+        let record = CKRecord(
+            recordType: CloudKitConfiguration.childRecordType,
+            recordID: CloudKitRecordNames.childRecordID(
+                childID: child.id,
+                zoneID: zoneID
+            )
+        )
+        record["name"] = child.name
+        record["birthDate"] = child.birthDate
+        record["createdAt"] = child.createdAt
+        record["createdBy"] = child.createdBy.uuidString
+        record["isArchived"] = child.isArchived
+        return record
+    }
+
+    static func membershipRecord(
+        from membership: Membership,
+        zoneID: CKRecordZone.ID
+    ) -> CKRecord {
+        let record = CKRecord(
+            recordType: CloudKitConfiguration.membershipRecordType,
+            recordID: CloudKitRecordNames.membershipRecordID(
+                membershipID: membership.id,
+                zoneID: zoneID
+            )
+        )
+        record["childID"] = membership.childID.uuidString
+        record["userID"] = membership.userID.uuidString
+        record["role"] = membership.role.rawValue
+        record["status"] = membership.status.rawValue
+        record["invitedAt"] = membership.invitedAt
+        record["acceptedAt"] = membership.acceptedAt
+        return record
+    }
+
+    static func userRecord(
+        from user: UserIdentity,
+        zoneID: CKRecordZone.ID
+    ) -> CKRecord {
+        let record = CKRecord(
+            recordType: CloudKitConfiguration.userRecordType,
+            recordID: CloudKitRecordNames.userRecordID(
+                userID: user.id,
+                zoneID: zoneID
+            )
+        )
+        record["displayName"] = user.displayName
+        record["createdAt"] = user.createdAt
+        record["cloudKitUserRecordName"] = user.cloudKitUserRecordName
+        return record
+    }
+
+    static func eventRecord(
+        from event: BabyEvent,
+        zoneID: CKRecordZone.ID
+    ) -> CKRecord {
+        switch event {
+        case let .breastFeed(value):
+            return breastFeedRecord(from: value, zoneID: zoneID)
+        case let .bottleFeed(value):
+            return bottleFeedRecord(from: value, zoneID: zoneID)
+        case let .sleep(value):
+            return sleepRecord(from: value, zoneID: zoneID)
+        case let .nappy(value):
+            return nappyRecord(from: value, zoneID: zoneID)
+        }
+    }
+
+    static func child(from record: CKRecord) throws -> Child {
+        try Child(
+            id: extractUUID(prefix: "child.", from: record.recordID.recordName),
+            name: record["name"] as? String ?? "",
+            birthDate: record["birthDate"] as? Date,
+            createdAt: record["createdAt"] as? Date ?? .now,
+            createdBy: UUID(uuidString: record["createdBy"] as? String ?? "") ?? UUID(),
+            isArchived: record["isArchived"] as? Bool ?? false
+        )
+    }
+
+    static func membership(from record: CKRecord) -> Membership {
+        Membership(
+            id: extractUUID(prefix: "membership.", from: record.recordID.recordName),
+            childID: UUID(uuidString: record["childID"] as? String ?? "") ?? UUID(),
+            userID: UUID(uuidString: record["userID"] as? String ?? "") ?? UUID(),
+            role: MembershipRole(rawValue: record["role"] as? String ?? "") ?? .caregiver,
+            status: MembershipStatus(rawValue: record["status"] as? String ?? "") ?? .invited,
+            invitedAt: record["invitedAt"] as? Date ?? .now,
+            acceptedAt: record["acceptedAt"] as? Date
+        )
+    }
+
+    static func user(from record: CKRecord) throws -> UserIdentity {
+        try UserIdentity(
+            id: extractUUID(prefix: "user.", from: record.recordID.recordName),
+            displayName: record["displayName"] as? String ?? "",
+            createdAt: record["createdAt"] as? Date ?? .now,
+            cloudKitUserRecordName: record["cloudKitUserRecordName"] as? String
+        )
+    }
+
+    static func event(from record: CKRecord) throws -> BabyEvent {
+        switch record.recordType {
+        case CloudKitConfiguration.breastFeedRecordType:
+            return .breastFeed(try breastFeed(from: record))
+        case CloudKitConfiguration.bottleFeedRecordType:
+            return .bottleFeed(try bottleFeed(from: record))
+        case CloudKitConfiguration.sleepRecordType:
+            return .sleep(try sleep(from: record))
+        case CloudKitConfiguration.nappyRecordType:
+            return .nappy(try nappy(from: record))
+        default:
+            throw BabyEventError.invalidDateRange
+        }
+    }
+
+    static func shareTitle(for child: Child) -> String {
+        child.name
+    }
+
+    private static func breastFeedRecord(
+        from event: BreastFeedEvent,
+        zoneID: CKRecordZone.ID
+    ) -> CKRecord {
+        let record = CKRecord(
+            recordType: CloudKitConfiguration.breastFeedRecordType,
+            recordID: CloudKitRecordNames.breastFeedRecordID(
+                eventID: event.id,
+                zoneID: zoneID
+            )
+        )
+        applyMetadata(event.metadata, to: record)
+        record["side"] = event.side.rawValue
+        record["startedAt"] = event.startedAt
+        record["endedAt"] = event.endedAt
+        return record
+    }
+
+    private static func bottleFeedRecord(
+        from event: BottleFeedEvent,
+        zoneID: CKRecordZone.ID
+    ) -> CKRecord {
+        let record = CKRecord(
+            recordType: CloudKitConfiguration.bottleFeedRecordType,
+            recordID: CloudKitRecordNames.bottleFeedRecordID(
+                eventID: event.id,
+                zoneID: zoneID
+            )
+        )
+        applyMetadata(event.metadata, to: record)
+        record["amountMilliliters"] = event.amountMilliliters
+        record["milkType"] = event.milkType?.rawValue
+        return record
+    }
+
+    private static func sleepRecord(
+        from event: SleepEvent,
+        zoneID: CKRecordZone.ID
+    ) -> CKRecord {
+        let record = CKRecord(
+            recordType: CloudKitConfiguration.sleepRecordType,
+            recordID: CloudKitRecordNames.sleepRecordID(
+                eventID: event.id,
+                zoneID: zoneID
+            )
+        )
+        applyMetadata(event.metadata, to: record)
+        record["startedAt"] = event.startedAt
+        record["endedAt"] = event.endedAt
+        return record
+    }
+
+    private static func nappyRecord(
+        from event: NappyEvent,
+        zoneID: CKRecordZone.ID
+    ) -> CKRecord {
+        let record = CKRecord(
+            recordType: CloudKitConfiguration.nappyRecordType,
+            recordID: CloudKitRecordNames.nappyRecordID(
+                eventID: event.id,
+                zoneID: zoneID
+            )
+        )
+        applyMetadata(event.metadata, to: record)
+        record["type"] = event.type.rawValue
+        record["intensity"] = event.intensity?.rawValue
+        record["pooColor"] = event.pooColor?.rawValue
+        return record
+    }
+
+    private static func breastFeed(from record: CKRecord) throws -> BreastFeedEvent {
+        try BreastFeedEvent(
+            metadata: metadata(from: record, prefix: "breastFeed."),
+            side: BreastSide(rawValue: record["side"] as? String ?? "") ?? .left,
+            startedAt: record["startedAt"] as? Date ?? .now,
+            endedAt: record["endedAt"] as? Date ?? .now
+        )
+    }
+
+    private static func bottleFeed(from record: CKRecord) throws -> BottleFeedEvent {
+        try BottleFeedEvent(
+            metadata: metadata(from: record, prefix: "bottleFeed."),
+            amountMilliliters: record["amountMilliliters"] as? Int ?? 0,
+            milkType: (record["milkType"] as? String).flatMap(MilkType.init(rawValue:))
+        )
+    }
+
+    private static func sleep(from record: CKRecord) throws -> SleepEvent {
+        try SleepEvent(
+            metadata: metadata(from: record, prefix: "sleep."),
+            startedAt: record["startedAt"] as? Date ?? .now,
+            endedAt: record["endedAt"] as? Date
+        )
+    }
+
+    private static func nappy(from record: CKRecord) throws -> NappyEvent {
+        try NappyEvent(
+            metadata: metadata(from: record, prefix: "nappy."),
+            type: NappyType(rawValue: record["type"] as? String ?? "") ?? .dry,
+            intensity: (record["intensity"] as? String).flatMap(NappyIntensity.init(rawValue:)),
+            pooColor: (record["pooColor"] as? String).flatMap(PooColor.init(rawValue:))
+        )
+    }
+
+    private static func applyMetadata(
+        _ metadata: EventMetadata,
+        to record: CKRecord
+    ) {
+        record["childID"] = metadata.childID.uuidString
+        record["occurredAt"] = metadata.occurredAt
+        record["createdAt"] = metadata.createdAt
+        record["createdBy"] = metadata.createdBy.uuidString
+        record["updatedAt"] = metadata.updatedAt
+        record["updatedBy"] = metadata.updatedBy.uuidString
+        record["notes"] = metadata.notes
+        record["isDeleted"] = metadata.isDeleted
+        record["deletedAt"] = metadata.deletedAt
+    }
+
+    private static func metadata(
+        from record: CKRecord,
+        prefix: String
+    ) -> EventMetadata {
+        EventMetadata(
+            id: extractUUID(prefix: prefix, from: record.recordID.recordName),
+            childID: UUID(uuidString: record["childID"] as? String ?? "") ?? UUID(),
+            occurredAt: record["occurredAt"] as? Date ?? .now,
+            createdAt: record["createdAt"] as? Date ?? .now,
+            createdBy: UUID(uuidString: record["createdBy"] as? String ?? "") ?? UUID(),
+            updatedAt: record["updatedAt"] as? Date,
+            updatedBy: UUID(uuidString: record["updatedBy"] as? String ?? ""),
+            notes: record["notes"] as? String ?? "",
+            isDeleted: record["isDeleted"] as? Bool ?? false,
+            deletedAt: record["deletedAt"] as? Date
+        )
+    }
+
+    private static func extractUUID(
+        prefix: String,
+        from recordName: String
+    ) -> UUID {
+        let rawValue = recordName.replacingOccurrences(of: prefix, with: "")
+        return UUID(uuidString: rawValue) ?? UUID()
+    }
+}

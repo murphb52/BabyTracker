@@ -13,6 +13,7 @@
 		D0A000000000000000000004 /* BabyTrackerDomain in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000041 /* BabyTrackerDomain */; };
 		D0A000000000000000000005 /* BabyTrackerFeature in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000040 /* BabyTrackerFeature */; };
 		D0A000000000000000000006 /* BabyTrackerPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000042 /* BabyTrackerPersistence */; };
+		D0A000000000000000000007 /* BabyTrackerSync in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000043 /* BabyTrackerSync */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -100,6 +101,7 @@
 				D0A000000000000000000001 /* BabyTrackerFeature in Frameworks */,
 				D0A000000000000000000004 /* BabyTrackerDomain in Frameworks */,
 				D0A000000000000000000003 /* BabyTrackerPersistence in Frameworks */,
+				D0A000000000000000000007 /* BabyTrackerSync in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -181,6 +183,7 @@
 				D0A000000000000000000040 /* BabyTrackerFeature */,
 				D0A000000000000000000041 /* BabyTrackerDomain */,
 				D0A000000000000000000042 /* BabyTrackerPersistence */,
+				D0A000000000000000000043 /* BabyTrackerSync */,
 			);
 			productName = "Baby Tracker";
 			productReference = C93425702F6BEA3F009ECD88 /* Baby Tracker.app */;
@@ -351,6 +354,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = D0A000000000000000000023 /* App.xcconfig */;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Baby Tracker/Baby Tracker.entitlements";
 				DEVELOPMENT_TEAM = 8AGZ5RNUVG;
 				ENABLE_APP_SANDBOX = YES;
 			};
@@ -360,6 +364,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = D0A000000000000000000023 /* App.xcconfig */;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Baby Tracker/Baby Tracker.entitlements";
 				DEVELOPMENT_TEAM = 8AGZ5RNUVG;
 				ENABLE_APP_SANDBOX = YES;
 			};
@@ -581,6 +586,10 @@
 		D0A000000000000000000042 /* BabyTrackerPersistence */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = BabyTrackerPersistence;
+		};
+		D0A000000000000000000043 /* BabyTrackerSync */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BabyTrackerSync;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

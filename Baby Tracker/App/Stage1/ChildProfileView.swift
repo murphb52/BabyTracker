@@ -3,15 +3,24 @@ import BabyTrackerFeature
 import SwiftUI
 
 struct ChildProfileView: View {
-    let model: Stage1AppModel
+    let model: AppModel
     let profile: ChildProfileScreenState
 
     @State private var showingEditChildSheet = false
-    @State private var showingInviteCaregiverSheet = false
     @State private var showingArchiveConfirmation = false
 
     var body: some View {
+        @Bindable var bindableModel = model
+
         List {
+            if let syncBannerState = profile.syncBannerState {
+                Section {
+                    Label(syncBannerState.message, systemImage: syncBannerIcon(for: syncBannerState))
+                        .font(.subheadline)
+                        .foregroundStyle(syncBannerColor(for: syncBannerState))
+                }
+            }
+
             Section("Profile") {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(profile.child.name)
@@ -34,7 +43,7 @@ struct ChildProfileView: View {
             }
 
             Section("Owner") {
-                caregiverRow(for: profile.owner, showsActivation: false, showsRemoval: false)
+                caregiverRow(for: profile.owner, showsRemoval: false)
             }
 
             if !profile.activeCaregivers.isEmpty {
@@ -42,25 +51,24 @@ struct ChildProfileView: View {
                     ForEach(profile.activeCaregivers) { caregiver in
                         caregiverRow(
                             for: caregiver,
-                            showsActivation: false,
                             showsRemoval: profile.canManageSharing
                         )
                     }
                 }
             }
 
-            if !profile.invitedCaregivers.isEmpty {
-                Section("Invited Caregivers") {
-                    Text("Activation is temporary Stage 1 scaffolding until CloudKit sharing is added.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+            if !profile.pendingShareInvites.isEmpty {
+                Section("Pending Invitations") {
+                    ForEach(profile.pendingShareInvites) { invite in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(invite.displayName)
+                                .font(.headline)
 
-                    ForEach(profile.invitedCaregivers) { caregiver in
-                        caregiverRow(
-                            for: caregiver,
-                            showsActivation: profile.canManageSharing,
-                            showsRemoval: profile.canManageSharing
-                        )
+                            Text(invite.statusLabel)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
             }
@@ -68,7 +76,7 @@ struct ChildProfileView: View {
             if !profile.removedCaregivers.isEmpty {
                 Section("Removed Caregivers") {
                     ForEach(profile.removedCaregivers) { caregiver in
-                        caregiverRow(for: caregiver, showsActivation: false, showsRemoval: false)
+                        caregiverRow(for: caregiver, showsRemoval: false)
                     }
                 }
             }
@@ -89,8 +97,12 @@ struct ChildProfileView: View {
                 saveAction: model.updateCurrentChild(name:birthDate:)
             )
         }
-        .sheet(isPresented: $showingInviteCaregiverSheet) {
-            InviteCaregiverSheetView(inviteAction: model.inviteCaregiver(displayName:))
+        .sheet(item: $bindableModel.shareSheetState) { shareState in
+            CloudKitShareSheetView(shareState: shareState, childName: profile.child.name)
+                .onDisappear {
+                    model.dismissShareSheet()
+                    model.refreshAfterShareSheet()
+                }
         }
         .confirmationDialog(
             "Archive \(profile.child.name)?",
@@ -115,10 +127,11 @@ struct ChildProfileView: View {
 
             if profile.canManageSharing {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Invite Caregiver", systemImage: "person.badge.plus") {
-                        showingInviteCaregiverSheet = true
+                    Button("Share", systemImage: "square.and.arrow.up") {
+                        model.presentShareSheet()
                     }
-                    .accessibilityIdentifier("invite-caregiver-button")
+                    .disabled(!profile.canShareChild)
+                    .accessibilityIdentifier("share-child-button")
                 }
             }
         }
@@ -135,7 +148,6 @@ struct ChildProfileView: View {
     @ViewBuilder
     private func caregiverRow(
         for caregiver: CaregiverMembershipViewState,
-        showsActivation: Bool,
         showsRemoval: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -151,15 +163,8 @@ struct ChildProfileView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if showsActivation || showsRemoval {
+            if showsRemoval {
                 HStack {
-                    if showsActivation {
-                        Button("Mark Active") {
-                            model.activateCaregiver(membershipID: caregiver.membership.id)
-                        }
-                        .accessibilityIdentifier("activate-caregiver-\(caregiver.membership.id.uuidString)")
-                    }
-
                     if showsRemoval {
                         Button("Remove", role: .destructive) {
                             model.removeCaregiver(membershipID: caregiver.membership.id)
@@ -171,5 +176,29 @@ struct ChildProfileView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private func syncBannerIcon(for state: SyncBannerState) -> String {
+        switch state {
+        case .syncing:
+            "arrow.triangle.2.circlepath"
+        case .pendingSync:
+            "clock.badge.exclamationmark"
+        case .syncUnavailable:
+            "icloud.slash"
+        case .lastSyncFailed:
+            "exclamationmark.icloud"
+        }
+    }
+
+    private func syncBannerColor(for state: SyncBannerState) -> Color {
+        switch state {
+        case .syncing:
+            .blue
+        case .pendingSync:
+            .orange
+        case .syncUnavailable, .lastSyncFailed:
+            .red
+        }
     }
 }

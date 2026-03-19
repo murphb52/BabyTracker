@@ -91,6 +91,104 @@ struct ChildProfilePersistenceTests {
 
         #expect(harness.repository.loadSelectedChildID() == childID)
     }
+
+    @Test
+    func linksLocalUserToCanonicalCloudKitIdentity() throws {
+        let harness = try RepositoryHarness()
+        defer { harness.cleanUp() }
+
+        let localOwner = try UserIdentity(displayName: "Alex Parent")
+        let canonicalOwner = try UserIdentity(
+            displayName: "Cloud Alex",
+            cloudKitUserRecordName: "owner.record"
+        )
+        let child = try Child(name: "Poppy", createdBy: localOwner.id)
+
+        try harness.repository.saveUser(canonicalOwner)
+        try harness.repository.saveLocalUser(localOwner)
+        try harness.repository.saveChild(child)
+        try harness.repository.saveMembership(
+            .owner(
+                childID: child.id,
+                userID: localOwner.id,
+                createdAt: child.createdAt
+            )
+        )
+
+        let linkedUser = try #require(
+            try harness.repository.linkLocalUser(
+                toCloudKitUserRecordName: "owner.record"
+            )
+        )
+        let memberships = try harness.repository.loadMemberships(for: child.id)
+        let activeChildren = try harness.repository.loadActiveChildren(for: canonicalOwner.id)
+
+        #expect(linkedUser.id == canonicalOwner.id)
+        #expect(linkedUser.displayName == localOwner.displayName)
+        #expect(memberships.map(\.userID) == [canonicalOwner.id])
+        #expect(activeChildren.count == 1)
+        #expect(activeChildren.first?.id == child.id)
+        #expect(activeChildren.first?.createdBy == canonicalOwner.id)
+    }
+
+    @Test
+    func removesLegacyPlaceholderCaregiversWithoutCloudKitLinkage() throws {
+        let harness = try RepositoryHarness()
+        defer { harness.cleanUp() }
+
+        let owner = try UserIdentity(displayName: "Alex Parent")
+        let placeholderCaregiver = try UserIdentity(displayName: "Legacy Helper")
+        let cloudLinkedCaregiver = try UserIdentity(
+            displayName: "Cloud Helper",
+            cloudKitUserRecordName: "helper.record"
+        )
+        let child = try Child(name: "Robin", createdBy: owner.id)
+
+        try harness.repository.saveLocalUser(owner)
+        try harness.repository.saveUser(placeholderCaregiver)
+        try harness.repository.saveUser(cloudLinkedCaregiver)
+        try harness.repository.saveChild(child)
+        try harness.repository.saveMembership(
+            .owner(
+                childID: child.id,
+                userID: owner.id,
+                createdAt: child.createdAt
+            )
+        )
+        try harness.repository.saveMembership(
+            Membership(
+                childID: child.id,
+                userID: placeholderCaregiver.id,
+                role: .caregiver,
+                status: .active,
+                invitedAt: child.createdAt,
+                acceptedAt: child.createdAt
+            )
+        )
+        try harness.repository.saveMembership(
+            Membership(
+                childID: child.id,
+                userID: cloudLinkedCaregiver.id,
+                role: .caregiver,
+                status: .active,
+                invitedAt: child.createdAt,
+                acceptedAt: child.createdAt
+            )
+        )
+
+        try harness.repository.removeLegacyPlaceholderCaregivers()
+
+        let memberships = try harness.repository.loadMemberships(for: child.id)
+        let remainingUsers = try harness.repository.loadUsers(
+            for: [owner.id, placeholderCaregiver.id, cloudLinkedCaregiver.id]
+        )
+
+        #expect(memberships.count == 2)
+        #expect(!memberships.contains(where: { $0.userID == placeholderCaregiver.id }))
+        #expect(remainingUsers.contains(where: { $0.id == owner.id }))
+        #expect(!remainingUsers.contains(where: { $0.id == placeholderCaregiver.id }))
+        #expect(remainingUsers.contains(where: { $0.id == cloudLinkedCaregiver.id }))
+    }
 }
 
 extension ChildProfilePersistenceTests {

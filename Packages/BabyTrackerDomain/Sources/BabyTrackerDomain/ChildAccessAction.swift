@@ -6,6 +6,5 @@ public enum ChildAccessAction: Sendable {
     case archiveChild
     case restoreChild
     case inviteCaregiver
-    case activateCaregiver
     case removeCaregiver
 }

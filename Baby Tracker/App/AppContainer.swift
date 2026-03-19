@@ -1,28 +1,51 @@
 import BabyTrackerDomain
 import BabyTrackerFeature
 import BabyTrackerPersistence
+import BabyTrackerSync
 import Foundation
 
 @MainActor
 struct AppContainer {
-    let appModel: Stage1AppModel
+    let appModel: AppModel
+    let shareAcceptanceHandler: ShareAcceptanceHandler
 
     init(processInfo: ProcessInfo = .processInfo) {
         let launchConfiguration = LaunchConfiguration(processInfo: processInfo)
         let userDefaults = launchConfiguration.makeUserDefaults()
-        let repository = try! SwiftDataChildProfileRepository(
-            isStoredInMemoryOnly: launchConfiguration.usesInMemoryStore,
+        let store = try! BabyTrackerModelStore(
+            isStoredInMemoryOnly: launchConfiguration.usesInMemoryStore
+        )
+        let repository = SwiftDataChildProfileRepository(
+            store: store,
             userDefaults: userDefaults
         )
+        let eventRepository = SwiftDataEventRepository(store: store)
+        let syncStateRepository = SwiftDataSyncStateRepository(store: store)
 
         if let scenario = launchConfiguration.scenario {
             try? Self.seed(scenario: scenario, repository: repository)
         }
 
-        let appModel = Stage1AppModel(repository: repository)
-        appModel.load()
+        let cloudKitClient: any CloudKitClient = launchConfiguration.usesUnavailableCloudKitClient ?
+            UnavailableCloudKitClient() :
+            LiveCloudKitClient()
+        let syncEngine = CloudKitSyncEngine(
+            childRepository: repository,
+            eventRepository: eventRepository,
+            syncStateRepository: syncStateRepository,
+            client: cloudKitClient
+        )
+        let appModel = AppModel(
+            repository: repository,
+            syncEngine: syncEngine
+        )
+        let shareAcceptanceHandler = ShareAcceptanceHandler(syncEngine: syncEngine) {
+            appModel.load()
+        }
+        appModel.load(performLaunchSync: !launchConfiguration.skipsLaunchSync)
 
         self.appModel = appModel
+        self.shareAcceptanceHandler = shareAcceptanceHandler
     }
 
     static let live = AppContainer()
@@ -35,22 +58,44 @@ struct AppContainer {
             scenario: .ownerPreview
         )
         let userDefaults = launchConfiguration.makeUserDefaults()
-        let repository = try! SwiftDataChildProfileRepository(
-            isStoredInMemoryOnly: true,
+        let store = try! BabyTrackerModelStore(isStoredInMemoryOnly: true)
+        let repository = SwiftDataChildProfileRepository(
+            store: store,
             userDefaults: userDefaults
         )
+        let eventRepository = SwiftDataEventRepository(store: store)
+        let syncStateRepository = SwiftDataSyncStateRepository(store: store)
 
         try? seed(scenario: .ownerPreview, repository: repository)
 
-        let appModel = Stage1AppModel(repository: repository)
+        let syncEngine = CloudKitSyncEngine(
+            childRepository: repository,
+            eventRepository: eventRepository,
+            syncStateRepository: syncStateRepository,
+            client: UnavailableCloudKitClient()
+        )
+        let appModel = AppModel(
+            repository: repository,
+            syncEngine: syncEngine
+        )
+        let shareAcceptanceHandler = ShareAcceptanceHandler(syncEngine: syncEngine) {
+            appModel.load()
+        }
         appModel.load()
 
         _ = processInfo
-        return AppContainer(appModel: appModel)
+        return AppContainer(
+            appModel: appModel,
+            shareAcceptanceHandler: shareAcceptanceHandler
+        )
     }()
 
-    private init(appModel: Stage1AppModel) {
+    private init(
+        appModel: AppModel,
+        shareAcceptanceHandler: ShareAcceptanceHandler
+    ) {
         self.appModel = appModel
+        self.shareAcceptanceHandler = shareAcceptanceHandler
     }
 
     private static func seed(
@@ -61,8 +106,14 @@ struct AppContainer {
 
         switch scenario {
         case .activeCaregiver:
-            let owner = try UserIdentity(displayName: "Sam Owner")
-            let caregiver = try UserIdentity(displayName: "Jamie Caregiver")
+            let owner = try UserIdentity(
+                displayName: "Sam Owner",
+                cloudKitUserRecordName: "owner.preview.record"
+            )
+            let caregiver = try UserIdentity(
+                displayName: "Jamie Caregiver",
+                cloudKitUserRecordName: "caregiver.preview.record"
+            )
             let child = try Child(name: "Robin", birthDate: .now, createdBy: owner.id)
 
             try repository.saveUser(owner)
@@ -80,15 +131,22 @@ struct AppContainer {
             try repository.saveLocalUser(caregiver)
             repository.saveSelectedChildID(child.id)
         case .ownerPreview:
-            let owner = try UserIdentity(displayName: "Alex Parent")
-            let activeCaregiver = try UserIdentity(displayName: "Taylor Night Feed")
-            let invitedCaregiver = try UserIdentity(displayName: "Morgan Invite")
-            let removedCaregiver = try UserIdentity(displayName: "Jordan Former")
+            let owner = try UserIdentity(
+                displayName: "Alex Parent",
+                cloudKitUserRecordName: "owner.preview.record"
+            )
+            let activeCaregiver = try UserIdentity(
+                displayName: "Taylor Night Feed",
+                cloudKitUserRecordName: "caregiver.preview.record"
+            )
+            let removedCaregiver = try UserIdentity(
+                displayName: "Jordan Former",
+                cloudKitUserRecordName: "removed.preview.record"
+            )
             let child = try Child(name: "Poppy", birthDate: .now, createdBy: owner.id)
 
             try repository.saveUser(owner)
             try repository.saveUser(activeCaregiver)
-            try repository.saveUser(invitedCaregiver)
             try repository.saveUser(removedCaregiver)
             try repository.saveChild(child)
             try repository.saveMembership(.owner(childID: child.id, userID: owner.id, createdAt: child.createdAt))
@@ -100,7 +158,6 @@ struct AppContainer {
                 invitedAt: child.createdAt,
                 acceptedAt: child.createdAt
             ))
-            try repository.saveMembership(.invitedCaregiver(childID: child.id, userID: invitedCaregiver.id))
             try repository.saveMembership(Membership(
                 childID: child.id,
                 userID: removedCaregiver.id,
@@ -118,15 +175,20 @@ struct AppContainer {
 extension AppContainer {
     private struct LaunchConfiguration {
         let usesInMemoryStore: Bool
+        let usesUnavailableCloudKitClient: Bool
+        let skipsLaunchSync: Bool
         let userDefaultsSuiteName: String?
         let scenario: LaunchScenario?
 
         init(processInfo: ProcessInfo) {
             let usesInMemoryStore = processInfo.arguments.contains("UI_TESTING")
+            let isRunningTests = processInfo.environment["XCTestConfigurationFilePath"] != nil
             let scenario = LaunchScenario(rawValue: processInfo.environment["UI_TEST_SCENARIO"] ?? "")
 
             self.init(
                 usesInMemoryStore: usesInMemoryStore,
+                usesUnavailableCloudKitClient: usesInMemoryStore || isRunningTests,
+                skipsLaunchSync: usesInMemoryStore || isRunningTests,
                 userDefaultsSuiteName: usesInMemoryStore ? "BabyTrackerUITests" : nil,
                 scenario: scenario
             )
@@ -134,10 +196,14 @@ extension AppContainer {
 
         init(
             usesInMemoryStore: Bool,
+            usesUnavailableCloudKitClient: Bool = true,
+            skipsLaunchSync: Bool = false,
             userDefaultsSuiteName: String?,
             scenario: LaunchScenario?
         ) {
             self.usesInMemoryStore = usesInMemoryStore
+            self.usesUnavailableCloudKitClient = usesUnavailableCloudKitClient
+            self.skipsLaunchSync = skipsLaunchSync
             self.userDefaultsSuiteName = userDefaultsSuiteName
             self.scenario = scenario
         }

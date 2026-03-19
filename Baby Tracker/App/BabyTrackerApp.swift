@@ -2,7 +2,14 @@ import SwiftUI
 
 @main
 struct BabyTrackerApp: App {
-    private let container = AppContainer.live
+    @UIApplicationDelegateAdaptor(CloudKitShareAppDelegate.self) private var appDelegate
+    private let container: AppContainer
+
+    init() {
+        let container = AppContainer.live
+        self.container = container
+        CloudKitShareAcceptanceBridge.shared.handler = container.shareAcceptanceHandler
+    }
 
     var body: some Scene {
         WindowGroup {

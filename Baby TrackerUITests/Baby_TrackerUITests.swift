@@ -28,26 +28,18 @@ final class Baby_TrackerUITests: XCTestCase {
     }
 
     @MainActor
-    func testOwnerCanInviteActivateAndRemoveCaregiver() throws {
-        let app = launchOwnerFlow()
+    func testOwnerSeesStage2SharingUIWithoutActivationControls() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
 
-        app.buttons["invite-caregiver-button"].tap()
+        XCTAssertTrue(app.staticTexts["child-profile-name"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Active Caregivers"].exists)
+        XCTAssertTrue(app.staticTexts["Removed Caregivers"].exists)
 
-        let inviteField = app.textFields["invite-caregiver-name-field"]
-        XCTAssertTrue(inviteField.waitForExistence(timeout: 5))
-        inviteField.tap()
-        inviteField.typeText("Jamie Helper")
-        app.buttons["invite-caregiver-save-button"].tap()
-
-        XCTAssertTrue(app.staticTexts["Jamie Helper"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Mark Active"].waitForExistence(timeout: 5))
-        app.buttons["Mark Active"].tap()
-
-        XCTAssertTrue(app.staticTexts["Active Caregivers"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Remove"].waitForExistence(timeout: 5))
-        app.buttons["Remove"].tap()
-
-        XCTAssertTrue(app.staticTexts["Removed Caregivers"].waitForExistence(timeout: 5))
+        let shareButton = app.buttons["share-child-button"]
+        XCTAssertTrue(shareButton.exists)
+        XCTAssertFalse(app.buttons["Mark Active"].exists)
+        XCTAssertFalse(app.buttons["invite-caregiver-button"].exists)
     }
 
     @MainActor
@@ -75,15 +67,8 @@ final class Baby_TrackerUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["child-profile-name"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["edit-child-button"].exists)
-        XCTAssertFalse(app.buttons["invite-caregiver-button"].exists)
+        XCTAssertFalse(app.buttons["share-child-button"].exists)
         XCTAssertFalse(app.buttons["archive-child-button"].exists)
-    }
-
-    @MainActor
-    func testLaunchPerformance() throws {
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            makeApp().launch()
-        }
     }
 
     @MainActor

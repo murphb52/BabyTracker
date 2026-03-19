@@ -2,7 +2,7 @@ import BabyTrackerFeature
 import SwiftUI
 
 struct AppRootView: View {
-    @State private var model: Stage1AppModel
+    @State private var model: AppModel
 
     init(container: AppContainer) {
         _model = State(initialValue: container.appModel)

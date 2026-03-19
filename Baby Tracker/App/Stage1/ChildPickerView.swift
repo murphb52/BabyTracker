@@ -3,7 +3,7 @@ import BabyTrackerFeature
 import SwiftUI
 
 struct ChildPickerView: View {
-    let model: Stage1AppModel
+    let model: AppModel
 
     var body: some View {
         List {

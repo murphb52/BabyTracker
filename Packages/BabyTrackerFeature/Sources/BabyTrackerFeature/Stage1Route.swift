@@ -1,9 +1,3 @@
 import Foundation
 
-public enum Stage1Route: Equatable, Sendable {
-    case loading
-    case identityOnboarding
-    case childCreation
-    case childPicker
-    case childProfile
-}
+public typealias Stage1Route = AppRoute

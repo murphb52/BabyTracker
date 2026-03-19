@@ -3,7 +3,7 @@ import BabyTrackerFeature
 import SwiftUI
 
 struct ChildCreationView: View {
-    let model: Stage1AppModel
+    let model: AppModel
 
     @State private var childName = ""
     @State private var includesBirthDate = false

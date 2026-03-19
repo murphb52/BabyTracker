@@ -16,6 +16,7 @@ let package = Package(
     dependencies: [
         .package(path: "../BabyTrackerDomain"),
         .package(path: "../BabyTrackerPersistence"),
+        .package(path: "../BabyTrackerSync"),
     ],
     targets: [
         .target(
@@ -23,6 +24,7 @@ let package = Package(
             dependencies: [
                 .product(name: "BabyTrackerDomain", package: "BabyTrackerDomain"),
                 .product(name: "BabyTrackerPersistence", package: "BabyTrackerPersistence"),
+                .product(name: "BabyTrackerSync", package: "BabyTrackerSync"),
             ]
         ),
     ]

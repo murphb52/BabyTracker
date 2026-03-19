@@ -2,7 +2,7 @@ import BabyTrackerFeature
 import SwiftUI
 
 struct IdentityOnboardingView: View {
-    let model: Stage1AppModel
+    let model: AppModel
 
     @State private var displayName = ""
 
