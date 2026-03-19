@@ -10,6 +10,8 @@ public struct ChildProfileScreenState: Equatable, Sendable {
     public let pendingShareInvites: [PendingShareInviteViewState]
     public let removedCaregivers: [CaregiverMembershipViewState]
     public let canSwitchChildren: Bool
+    public let canLogFeeds: Bool
+    public let feedingSummary: FeedingSummaryViewState?
     public let syncBannerState: SyncBannerState?
     public let canShareChild: Bool
 
@@ -34,6 +36,8 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         pendingShareInvites: [PendingShareInviteViewState],
         removedCaregivers: [CaregiverMembershipViewState],
         canSwitchChildren: Bool,
+        canLogFeeds: Bool,
+        feedingSummary: FeedingSummaryViewState?,
         syncBannerState: SyncBannerState?,
         canShareChild: Bool
     ) {
@@ -45,6 +49,8 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         self.pendingShareInvites = pendingShareInvites
         self.removedCaregivers = removedCaregivers
         self.canSwitchChildren = canSwitchChildren
+        self.canLogFeeds = canLogFeeds
+        self.feedingSummary = feedingSummary
         self.syncBannerState = syncBannerState
         self.canShareChild = canShareChild
     }

@@ -2,7 +2,7 @@ import BabyTrackerDomain
 import CloudKit
 import Foundation
 
-enum CloudKitRecordMapper {
+public enum CloudKitRecordMapper {
     static func childRecord(
         from child: Child,
         zoneID: CKRecordZone.ID
@@ -59,7 +59,7 @@ enum CloudKitRecordMapper {
         return record
     }
 
-    static func eventRecord(
+    public static func eventRecord(
         from event: BabyEvent,
         zoneID: CKRecordZone.ID
     ) -> CKRecord {
@@ -107,7 +107,7 @@ enum CloudKitRecordMapper {
         )
     }
 
-    static func event(from record: CKRecord) throws -> BabyEvent {
+    public static func event(from record: CKRecord) throws -> BabyEvent {
         switch record.recordType {
         case CloudKitConfiguration.breastFeedRecordType:
             return .breastFeed(try breastFeed(from: record))
@@ -138,7 +138,9 @@ enum CloudKitRecordMapper {
             )
         )
         applyMetadata(event.metadata, to: record)
-        record["side"] = event.side.rawValue
+        if let side = event.side {
+            record["side"] = side.rawValue
+        }
         record["startedAt"] = event.startedAt
         record["endedAt"] = event.endedAt
         return record
@@ -199,7 +201,7 @@ enum CloudKitRecordMapper {
     private static func breastFeed(from record: CKRecord) throws -> BreastFeedEvent {
         try BreastFeedEvent(
             metadata: metadata(from: record, prefix: "breastFeed."),
-            side: BreastSide(rawValue: record["side"] as? String ?? "") ?? .left,
+            side: (record["side"] as? String).flatMap(BreastSide.init(rawValue:)),
             startedAt: record["startedAt"] as? Date ?? .now,
             endedAt: record["endedAt"] as? Date ?? .now
         )

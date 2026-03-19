@@ -180,7 +180,7 @@ public final class SwiftDataEventRepository: EventRepository {
             notes: event.metadata.notes,
             isDeleted: event.metadata.isDeleted,
             deletedAt: event.metadata.deletedAt,
-            sideRawValue: event.side.rawValue,
+            sideRawValue: event.side?.rawValue ?? "",
             startedAt: event.startedAt,
             endedAt: event.endedAt,
             syncStateRawValue: SyncState.pendingSync.rawValue,
@@ -189,7 +189,7 @@ public final class SwiftDataEventRepository: EventRepository {
         )
 
         applyMetadata(event.metadata, to: storedEvent)
-        storedEvent.sideRawValue = event.side.rawValue
+        storedEvent.sideRawValue = event.side?.rawValue ?? ""
         storedEvent.startedAt = event.startedAt
         storedEvent.endedAt = event.endedAt
         markPending(storedEvent)
@@ -312,7 +312,13 @@ public final class SwiftDataEventRepository: EventRepository {
     }
 
     private func mapBreastFeed(_ storedEvent: StoredBreastFeedEvent) throws -> BreastFeedEvent {
-        guard let side = BreastSide(rawValue: storedEvent.sideRawValue) else {
+        let side: BreastSide?
+
+        if storedEvent.sideRawValue.isEmpty {
+            side = nil
+        } else if let storedSide = BreastSide(rawValue: storedEvent.sideRawValue) {
+            side = storedSide
+        } else {
             throw BabyEventError.invalidDateRange
         }
 

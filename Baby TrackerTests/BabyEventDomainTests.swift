@@ -73,4 +73,73 @@ struct BabyEventDomainTests {
         #expect(LastWriteWinsResolver.prefersLocal(laterUpdaterLocal, over: earlierUpdaterRemote))
         #expect(LastWriteWinsResolver.prefersLocal(laterRecordLocal, over: earlierRecordRemote))
     }
+
+    @Test
+    func breastFeedsSupportOptionalAndBothSides() throws {
+        let childID = UUID()
+        let userID = UUID()
+        let start = Date(timeIntervalSince1970: 1_000)
+        let end = start.addingTimeInterval(900)
+
+        let noSideEvent = try BreastFeedEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: end,
+                createdAt: end,
+                createdBy: userID
+            ),
+            side: nil,
+            startedAt: start,
+            endedAt: end
+        )
+        let bothSidesEvent = try BreastFeedEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: end.addingTimeInterval(60),
+                createdAt: end.addingTimeInterval(60),
+                createdBy: userID
+            ),
+            side: .both,
+            startedAt: start.addingTimeInterval(60),
+            endedAt: end.addingTimeInterval(60)
+        )
+
+        #expect(noSideEvent.side == nil)
+        #expect(bothSidesEvent.side == .both)
+    }
+
+    @Test
+    func breastFeedsRequirePositiveDuration() {
+        let childID = UUID()
+        let userID = UUID()
+        let time = Date(timeIntervalSince1970: 2_000)
+
+        #expect(throws: BabyEventError.invalidDateRange) {
+            _ = try BreastFeedEvent(
+                metadata: EventMetadata(
+                    childID: childID,
+                    occurredAt: time,
+                    createdAt: time,
+                    createdBy: userID
+                ),
+                side: .left,
+                startedAt: time,
+                endedAt: time
+            )
+        }
+
+        #expect(throws: BabyEventError.invalidDateRange) {
+            _ = try BreastFeedEvent(
+                metadata: EventMetadata(
+                    childID: childID,
+                    occurredAt: time,
+                    createdAt: time,
+                    createdBy: userID
+                ),
+                side: .right,
+                startedAt: time,
+                endedAt: time.addingTimeInterval(-60)
+            )
+        }
+    }
 }

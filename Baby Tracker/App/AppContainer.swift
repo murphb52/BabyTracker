@@ -37,6 +37,7 @@ struct AppContainer {
         )
         let appModel = AppModel(
             repository: repository,
+            eventRepository: eventRepository,
             syncEngine: syncEngine
         )
         let shareAcceptanceHandler = ShareAcceptanceHandler(syncEngine: syncEngine) {
@@ -76,6 +77,7 @@ struct AppContainer {
         )
         let appModel = AppModel(
             repository: repository,
+            eventRepository: eventRepository,
             syncEngine: syncEngine
         )
         let shareAcceptanceHandler = ShareAcceptanceHandler(syncEngine: syncEngine) {

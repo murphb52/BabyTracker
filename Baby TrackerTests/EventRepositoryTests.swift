@@ -115,6 +115,65 @@ struct EventRepositoryTests {
         #expect(loadedSleep.id == activeSleep.id)
         #expect(loadedSleep.endedAt == nil)
     }
+
+    @Test
+    func breastFeedEventsRoundTripOptionalAndBothSides() throws {
+        let harness = try RepositoryHarness()
+        defer { harness.cleanUp() }
+
+        let childID = UUID()
+        let userID = UUID()
+        let firstStart = Date(timeIntervalSince1970: 4_000)
+        let firstEnd = firstStart.addingTimeInterval(900)
+        let secondStart = Date(timeIntervalSince1970: 6_000)
+        let secondEnd = secondStart.addingTimeInterval(1_200)
+
+        let noSideFeed = try BreastFeedEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: firstEnd,
+                createdAt: firstEnd,
+                createdBy: userID
+            ),
+            side: nil,
+            startedAt: firstStart,
+            endedAt: firstEnd
+        )
+        let bothSidesFeed = try BreastFeedEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: secondEnd,
+                createdAt: secondEnd,
+                createdBy: userID
+            ),
+            side: .both,
+            startedAt: secondStart,
+            endedAt: secondEnd
+        )
+
+        try harness.repository.saveEvent(.breastFeed(noSideFeed))
+        try harness.repository.saveEvent(.breastFeed(bothSidesFeed))
+
+        let timeline = try harness.repository.loadTimeline(for: childID, includingDeleted: false)
+        let reloadedNoSideFeed = try #require(try harness.repository.loadEvent(id: noSideFeed.id))
+        let reloadedBothSidesFeed = try #require(try harness.repository.loadEvent(id: bothSidesFeed.id))
+
+        #expect(timeline.map(\.kind) == [.breastFeed, .breastFeed])
+
+        switch reloadedNoSideFeed {
+        case let .breastFeed(event):
+            #expect(event.side == nil)
+        default:
+            Issue.record("Expected a breast feed event without a side")
+        }
+
+        switch reloadedBothSidesFeed {
+        case let .breastFeed(event):
+            #expect(event.side == .both)
+        default:
+            Issue.record("Expected a breast feed event with both sides")
+        }
+    }
 }
 
 extension EventRepositoryTests {

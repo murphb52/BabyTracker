@@ -1,8 +1,8 @@
 import CloudKit
 import Foundation
 
-enum CloudKitRecordNames {
-    static func zoneID(
+public enum CloudKitRecordNames {
+    public static func zoneID(
         for childID: UUID,
         ownerName: String = CKCurrentUserDefaultName
     ) -> CKRecordZone.ID {

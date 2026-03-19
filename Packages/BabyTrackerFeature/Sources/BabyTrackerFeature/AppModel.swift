@@ -16,13 +16,16 @@ public final class AppModel {
     public var shareSheetState: ShareSheetState?
 
     private let repository: ChildProfileRepository
+    private let eventRepository: EventRepository
     private let syncEngine: CloudKitSyncEngine
 
     public init(
         repository: ChildProfileRepository,
+        eventRepository: EventRepository,
         syncEngine: CloudKitSyncEngine
     ) {
         self.repository = repository
+        self.eventRepository = eventRepository
         self.syncEngine = syncEngine
     }
 
@@ -183,7 +186,74 @@ public final class AppModel {
         }
     }
 
-    private func perform(_ operation: () throws -> Void) {
+    @discardableResult
+    public func logBreastFeed(
+        durationMinutes: Int,
+        endTime: Date,
+        side: BreastSide?
+    ) -> Bool {
+        perform {
+            guard let profile else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard profile.canLogFeeds else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+
+            let startedAt = endTime.addingTimeInterval(TimeInterval(durationMinutes * -60))
+            let event = try BreastFeedEvent(
+                metadata: EventMetadata(
+                    childID: profile.child.id,
+                    occurredAt: endTime,
+                    createdAt: .now,
+                    createdBy: localUser.id
+                ),
+                side: side,
+                startedAt: startedAt,
+                endedAt: endTime
+            )
+
+            try eventRepository.saveEvent(.breastFeed(event))
+        }
+    }
+
+    @discardableResult
+    public func logBottleFeed(
+        amountMilliliters: Int,
+        occurredAt: Date,
+        milkType: MilkType?
+    ) -> Bool {
+        perform {
+            guard let profile else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard profile.canLogFeeds else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+
+            let event = try BottleFeedEvent(
+                metadata: EventMetadata(
+                    childID: profile.child.id,
+                    occurredAt: occurredAt,
+                    createdAt: .now,
+                    createdBy: localUser.id
+                ),
+                amountMilliliters: amountMilliliters,
+                milkType: milkType
+            )
+
+            try eventRepository.saveEvent(.bottleFeed(event))
+        }
+    }
+
+    @discardableResult
+    private func perform(_ operation: () throws -> Void) -> Bool {
         do {
             try operation()
             refresh(selecting: repository.loadSelectedChildID())
@@ -191,9 +261,11 @@ public final class AppModel {
                 _ = await syncEngine.refreshAfterLocalWrite()
                 refresh(selecting: repository.loadSelectedChildID())
             }
+            return true
         } catch {
             errorMessage = resolveErrorMessage(for: error)
             refresh(selecting: repository.loadSelectedChildID())
+            return false
         }
     }
 
@@ -316,6 +388,8 @@ public final class AppModel {
                 statusLabel: invite.acceptanceStatus == .pending ? "Pending invitation" : "Invited"
             )
         }
+        let feedingSummary = try makeFeedingSummary(for: child.id)
+        let canLogFeeds = ChildAccessPolicy.canPerform(.logEvent, membership: currentMembership)
 
         return ChildProfileScreenState(
             child: child,
@@ -326,10 +400,24 @@ public final class AppModel {
             pendingShareInvites: pendingShareInvites,
             removedCaregivers: removedCaregivers,
             canSwitchChildren: activeChildren.count > 1,
+            canLogFeeds: canLogFeeds,
+            feedingSummary: feedingSummary,
             syncBannerState: makeSyncBannerState(from: syncEngine.statusSummary),
             canShareChild: ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership) &&
                 syncEngine.statusSummary.state != .failed
         )
+    }
+
+    private func makeFeedingSummary(
+        for childID: UUID
+    ) throws -> FeedingSummaryViewState? {
+        let events = try eventRepository.loadTimeline(for: childID, includingDeleted: false)
+
+        guard let summary = FeedSummaryCalculator.makeSummary(from: events) else {
+            return nil
+        }
+
+        return FeedingSummaryViewState(summary: summary)
     }
 
     private func makeSyncBannerState(

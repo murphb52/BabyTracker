@@ -32,9 +32,11 @@ struct ChildProfileDomainTests {
 
         #expect(ChildAccessPolicy.canPerform(.editChild, membership: owner))
         #expect(ChildAccessPolicy.canPerform(.inviteCaregiver, membership: owner))
+        #expect(ChildAccessPolicy.canPerform(.logEvent, membership: owner))
         #expect(!ChildAccessPolicy.canPerform(.editChild, membership: caregiver))
         #expect(!ChildAccessPolicy.canPerform(.removeCaregiver, membership: caregiver))
         #expect(ChildAccessPolicy.canPerform(.viewChild, membership: caregiver))
+        #expect(ChildAccessPolicy.canPerform(.logEvent, membership: caregiver))
     }
 
     @Test
