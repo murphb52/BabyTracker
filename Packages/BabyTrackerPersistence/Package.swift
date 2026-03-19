@@ -4,6 +4,9 @@ import PackageDescription
 
 let package = Package(
     name: "BabyTrackerPersistence",
+    platforms: [
+        .iOS(.v17),
+    ],
     products: [
         .library(
             name: "BabyTrackerPersistence",

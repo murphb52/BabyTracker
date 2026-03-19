@@ -4,6 +4,9 @@ import PackageDescription
 
 let package = Package(
     name: "BabyTrackerSync",
+    platforms: [
+        .iOS(.v17),
+    ],
     products: [
         .library(
             name: "BabyTrackerSync",

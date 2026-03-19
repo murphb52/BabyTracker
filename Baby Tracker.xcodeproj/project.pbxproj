@@ -9,6 +9,10 @@
 /* Begin PBXBuildFile section */
 		D0A000000000000000000001 /* BabyTrackerFeature in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000040 /* BabyTrackerFeature */; };
 		D0A000000000000000000002 /* BabyTrackerDomain in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000041 /* BabyTrackerDomain */; };
+		D0A000000000000000000003 /* BabyTrackerPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000042 /* BabyTrackerPersistence */; };
+		D0A000000000000000000004 /* BabyTrackerDomain in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000041 /* BabyTrackerDomain */; };
+		D0A000000000000000000005 /* BabyTrackerFeature in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000040 /* BabyTrackerFeature */; };
+		D0A000000000000000000006 /* BabyTrackerPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000042 /* BabyTrackerPersistence */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -94,6 +98,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				D0A000000000000000000001 /* BabyTrackerFeature in Frameworks */,
+				D0A000000000000000000004 /* BabyTrackerDomain in Frameworks */,
+				D0A000000000000000000003 /* BabyTrackerPersistence in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -102,6 +108,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				D0A000000000000000000002 /* BabyTrackerDomain in Frameworks */,
+				D0A000000000000000000005 /* BabyTrackerFeature in Frameworks */,
+				D0A000000000000000000006 /* BabyTrackerPersistence in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -171,6 +179,8 @@
 			name = "Baby Tracker";
 			packageProductDependencies = (
 				D0A000000000000000000040 /* BabyTrackerFeature */,
+				D0A000000000000000000041 /* BabyTrackerDomain */,
+				D0A000000000000000000042 /* BabyTrackerPersistence */,
 			);
 			productName = "Baby Tracker";
 			productReference = C93425702F6BEA3F009ECD88 /* Baby Tracker.app */;
@@ -195,6 +205,8 @@
 			name = "Baby TrackerTests";
 			packageProductDependencies = (
 				D0A000000000000000000041 /* BabyTrackerDomain */,
+				D0A000000000000000000040 /* BabyTrackerFeature */,
+				D0A000000000000000000042 /* BabyTrackerPersistence */,
 			);
 			productName = "Baby TrackerTests";
 			productReference = C93425812F6BEA40009ECD88 /* Baby TrackerTests.xctest */;
@@ -565,6 +577,10 @@
 		D0A000000000000000000041 /* BabyTrackerDomain */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = BabyTrackerDomain;
+		};
+		D0A000000000000000000042 /* BabyTrackerPersistence */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BabyTrackerPersistence;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

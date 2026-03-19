@@ -2,40 +2,49 @@ import BabyTrackerFeature
 import SwiftUI
 
 struct AppRootView: View {
-    let container: AppContainer
+    @State private var model: Stage1AppModel
+
+    init(container: AppContainer) {
+        _model = State(initialValue: container.appModel)
+    }
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 20) {
-                Image(systemName: "figure.and.child.holdinghands")
-                    .font(.system(size: 42, weight: .semibold))
-                    .foregroundStyle(.tint)
-                    .accessibilityHidden(true)
-
-                Text(container.rootState.title)
-                    .font(.title2.weight(.semibold))
-                    .accessibilityIdentifier("foundation-title")
-
-                Text(container.rootState.message)
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("foundation-message")
-
-                Text(container.rootState.stageMessage)
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.primary)
-                    .accessibilityIdentifier("foundation-stage-message")
-
-                Spacer(minLength: 0)
+            Group {
+                switch model.route {
+                case .loading:
+                    ProgressView("Loading profile…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .identityOnboarding:
+                    IdentityOnboardingView(model: model)
+                case .childCreation:
+                    ChildCreationView(model: model)
+                case .childPicker:
+                    ChildPickerView(model: model)
+                case .childProfile:
+                    if let profile = model.profile {
+                        ChildProfileView(model: model, profile: profile)
+                    } else {
+                        ProgressView("Loading profile…")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                }
             }
-            .padding(24)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(Color(.systemGroupedBackground))
             .navigationTitle("Baby Tracker")
+        }
+        .overlay(alignment: .top) {
+            if let errorMessage = model.errorMessage {
+                Stage1ErrorBannerView(
+                    message: errorMessage,
+                    dismissAction: model.dismissError
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            }
         }
     }
 }
 
 #Preview {
-    AppRootView(container: .live)
+    AppRootView(container: .preview)
 }
