@@ -24,11 +24,12 @@ final class Baby_TrackerUITests: XCTestCase {
 
     @MainActor
     func testExample() throws {
-        // UI tests must launch the application that they test.
         let app = XCUIApplication()
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+        XCTAssertTrue(app.navigationBars["Baby Tracker"].exists)
+        XCTAssertTrue(app.staticTexts["foundation-title"].exists)
+        XCTAssertTrue(app.staticTexts["foundation-message"].exists)
     }
 
     @MainActor
