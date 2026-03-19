@@ -50,6 +50,10 @@ Each commit should:
 
 Avoid mixing unrelated refactors with feature work or bug fixes in the same commit.
 
+For multi-step work, agents should commit incrementally as each logical slice is completed and verified.
+
+Do not wait until the end of a long implementation to create one large commit if the work can be separated safely into smaller passing commits.
+
 ### 4. Do not commit broken builds
 Before committing, make sure:
 
@@ -82,6 +86,8 @@ Prefer:
 - composition that remains easy to follow
 
 Avoid broad refactors unless they are necessary for the task.
+
+When a task spans multiple logical steps, stop at each completed slice, verify it, and create a commit before continuing.
 
 ### Before committing
 Verify the change is safe.
