@@ -213,17 +213,17 @@ Exit criteria:
 
 Stage summary: add nappy logging with a finalised detail model that supports quick entry without invalid field combinations.
 
-Stage status: `Blocked`
+Stage status: `Complete`
 
 | ID | Task | Why / Scope | Dependencies | Status | Notes |
 | --- | --- | --- | --- | --- | --- |
-| S6-01 | Resolve the final nappy detail model | PRD and tech spec conflict on optional detail fields and terminology | S0-05 | `Blocked` | This decision must precede UI, persistence, and validation work |
-| S6-02 | Implement nappy domain and persistence models | Nappy events require their own typed storage and validation | S6-01, S2-05 | `Not Started` | Must match the final agreed detail schema |
-| S6-03 | Build nappy quick-log flow for dry, wee, poo, and mixed | PRD requires fast tracking for all nappy types | S6-02 | `Not Started` | Keep the flow short and explicit |
-| S6-04 | Show poo-specific detail fields only when appropriate | The UI must prevent invalid combinations and unnecessary input | S6-01, S6-03 | `Not Started` | Applies to color, consistency, and any intensity decision |
-| S6-05 | Support edit, delete, and undo for nappy events | Nappy events need the same recovery path as other event types | S6-02, S4-01, S4-02, S4-03 | `Not Started` | Should reuse common event-management behavior where practical |
-| S6-06 | Render nappy events correctly in timeline and summaries | Users need nappy events to scan well in daily history and state views | S6-02, S5-01, S8-01 | `Not Started` | Final display text depends on the chosen detail model |
-| S6-07 | Add tests for valid and invalid nappy combinations | The nappy schema is one of the highest-risk validation areas | S6-02, S6-03, S6-04, S6-05 | `Not Started` | Cover allowed vs disallowed detail combinations thoroughly |
+| S6-01 | Resolve the final nappy detail model | PRD and tech spec conflict on optional detail fields and terminology | S0-05 | `Done` | Stage 0 locked `type`, optional `intensity`, and optional `pooColor` for `.poo` and `.mixed` |
+| S6-02 | Implement nappy domain and persistence models | Nappy events require their own typed storage and validation | S6-01, S2-05 | `Done` | Domain, SwiftData, and CloudKit now round-trip the agreed schema |
+| S6-03 | Build nappy quick-log flow for dry, wee, poo, and mixed | PRD requires fast tracking for all nappy types | S6-02 | `Done` | Child profile now supports nappy quick logging for all four types |
+| S6-04 | Show poo-specific detail fields only when appropriate | The UI must prevent invalid combinations and unnecessary input | S6-01, S6-03 | `Done` | The editor only exposes `pooColor` for `.poo` and `.mixed` |
+| S6-05 | Support edit, delete, and undo for nappy events | Nappy events need the same recovery path as other event types | S6-02, S4-01, S4-02, S4-03 | `Done` | Nappy events reuse the shared event-management flow |
+| S6-06 | Render nappy events correctly in timeline and summaries | Users need nappy events to scan well in daily history and state views | S6-02, S5-01, S8-01 | `Done` | Current status and recent history now show nappy events with consistent detail text |
+| S6-07 | Add tests for valid and invalid nappy combinations | The nappy schema is one of the highest-risk validation areas | S6-02, S6-03, S6-04, S6-05 | `Done` | Domain, repository, CloudKit mapper, app-model, calculator, and UI coverage added |
 
 Exit criteria:
 - The nappy schema is resolved and implemented consistently across model, storage, and UI
@@ -311,7 +311,7 @@ These items are intentionally excluded from active MVP delivery and should stay 
 | ID | Decision | Impacted Stages | Current State | Notes |
 | --- | --- | --- | --- | --- |
 | O-01 | Is `milkType` optional or required for bottle feeds? | Stage 0, Stage 2, Stage 3, Stage 5 | `Blocked` | PRD and tech spec disagree |
-| O-02 | What is the canonical nappy detail schema? | Stage 0, Stage 2, Stage 6, Stage 8 | `Blocked` | Need one final model for color, consistency, and intensity behavior |
+| O-02 | What is the canonical nappy detail schema? | Stage 0, Stage 2, Stage 6, Stage 8 | `Done` | Stage 0 locked `type`, optional `intensity`, optional `pooColor`, and no `PooConsistency` in the MVP |
 | O-03 | What typed model should represent `Child`, `User`, and `Membership` in the technical design? | Stage 0, Stage 1, Stage 2 | `Blocked` | PRD defines records, tech spec does not type them |
 | O-04 | Should the tech-spec package list be implemented as real local packages, targets, or a simpler staged structure? | Stage 0, Stage 1, Stage 2 | `Not Started` | Choose the simplest structure that still supports clean boundaries |
 | O-05 | What is the delete undo window and exact UX pattern? | Stage 2, Stage 4 | `Not Started` | PRD requires immediate undo but does not define the interaction details |

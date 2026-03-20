@@ -38,6 +38,38 @@ struct AppModelTests {
     }
 
     @Test
+    func profileDerivesRecentNappyRowsInNewestFirstOrder() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let earlierNappy = try harness.saveNappy(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            type: .wee,
+            occurredAt: Date(timeIntervalSince1970: 1_500),
+            intensity: .low,
+            pooColor: nil
+        )
+        let laterNappy = try harness.saveNappy(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            type: .mixed,
+            occurredAt: Date(timeIntervalSince1970: 2_500),
+            intensity: .high,
+            pooColor: .green
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        let profile = try #require(harness.model.profile)
+
+        #expect(profile.recentNappyEvents.count == 2)
+        #expect(profile.recentNappyEvents.map(\.id) == [laterNappy.id, earlierNappy.id])
+        #expect(profile.recentNappyEvents.first?.detailText == "Mixed • High • Green")
+    }
+
+    @Test
     func mixedTimelineUsesLatestEventForCurrentStateAndLatestFeedForFeedStatus() throws {
         let liveActivityManager = LiveActivityManagerSpy()
         let harness = try Harness(liveActivityManager: liveActivityManager)
@@ -98,7 +130,7 @@ struct AppModelTests {
         harness.model.load(performLaunchSync: false)
 
         let profile = try #require(harness.model.profile)
-        #expect(profile.canManageFeedEvents)
+        #expect(profile.canManageEvents)
 
         #expect(
             harness.model.updateBottleFeed(
@@ -126,6 +158,74 @@ struct AppModelTests {
         )
         #expect(visibleTimeline.isEmpty)
         #expect(harness.model.undoDeleteMessage == "Bottle Feed deleted")
+    }
+
+    @Test
+    func activeCaregiverCanLogEditDeleteAndUndoNappyEvents() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedActiveCaregiverProfile()
+
+        harness.model.load(performLaunchSync: false)
+
+        let profile = try #require(harness.model.profile)
+        #expect(profile.canLogEvents)
+        #expect(profile.canManageEvents)
+
+        #expect(
+            harness.model.logNappy(
+                type: .poo,
+                occurredAt: Date(timeIntervalSince1970: 6_000),
+                intensity: .medium,
+                pooColor: .brown
+            )
+        )
+
+        let loggedNappy = try #require(
+            try harness.eventRepository.loadTimeline(
+                for: seed.child.id,
+                includingDeleted: false
+            ).compactMap { event -> NappyEvent? in
+                guard case let .nappy(nappy) = event else {
+                    return nil
+                }
+
+                return nappy
+            }.first
+        )
+
+        #expect(
+            harness.model.updateNappy(
+                id: loggedNappy.id,
+                type: .mixed,
+                occurredAt: Date(timeIntervalSince1970: 6_600),
+                intensity: .high,
+                pooColor: .green
+            )
+        )
+
+        let updatedEvent = try #require(try harness.eventRepository.loadEvent(id: loggedNappy.id))
+        switch updatedEvent {
+        case let .nappy(event):
+            #expect(event.type == .mixed)
+            #expect(event.intensity == .high)
+            #expect(event.pooColor == .green)
+        default:
+            Issue.record("Expected an updated nappy event")
+        }
+
+        #expect(harness.model.deleteEvent(id: loggedNappy.id))
+        #expect(harness.model.undoDeleteMessage == "Nappy deleted")
+
+        harness.model.undoLastDeletedEvent()
+
+        let visibleTimeline = try harness.eventRepository.loadTimeline(
+            for: seed.child.id,
+            includingDeleted: false
+        )
+        #expect(visibleTimeline.count == 1)
+        #expect(visibleTimeline.first?.id == loggedNappy.id)
     }
 
     @Test
@@ -243,6 +343,64 @@ struct AppModelTests {
         harness.model.undoLastDeletedEvent()
         #expect(liveActivityManager.latestSnapshot?.childID == seed.child.id)
         #expect(liveActivityManager.latestSnapshot?.lastFeedAt == Date(timeIntervalSince1970: 4_600))
+    }
+
+    @Test
+    func nappyMutationsDoNotChangeLiveActivityFeedSnapshot() throws {
+        let liveActivityManager = LiveActivityManagerSpy()
+        let harness = try Harness(liveActivityManager: liveActivityManager)
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let feed = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 120,
+            occurredAt: Date(timeIntervalSince1970: 7_000),
+            milkType: .formula
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        let originalSnapshot = try #require(liveActivityManager.latestSnapshot)
+        #expect(originalSnapshot.lastFeedAt == feed.metadata.occurredAt)
+
+        #expect(
+            harness.model.logNappy(
+                type: .mixed,
+                occurredAt: Date(timeIntervalSince1970: 7_500),
+                intensity: .medium,
+                pooColor: .brown
+            )
+        )
+        #expect(liveActivityManager.latestSnapshot == originalSnapshot)
+
+        let loggedNappy = try #require(
+            try harness.eventRepository.loadTimeline(
+                for: seed.child.id,
+                includingDeleted: false
+            ).compactMap { event -> NappyEvent? in
+                guard case let .nappy(nappy) = event else {
+                    return nil
+                }
+
+                return nappy
+            }.first
+        )
+
+        #expect(
+            harness.model.updateNappy(
+                id: loggedNappy.id,
+                type: .poo,
+                occurredAt: Date(timeIntervalSince1970: 7_800),
+                intensity: .high,
+                pooColor: .green
+            )
+        )
+        #expect(liveActivityManager.latestSnapshot == originalSnapshot)
+
+        #expect(harness.model.deleteEvent(id: loggedNappy.id))
+        #expect(liveActivityManager.latestSnapshot == originalSnapshot)
     }
 
     @Test
@@ -434,6 +592,29 @@ extension AppModelTests {
                 milkType: milkType
             )
             try eventRepository.saveEvent(.bottleFeed(event))
+            return event
+        }
+
+        func saveNappy(
+            childID: UUID,
+            userID: UUID,
+            type: NappyType,
+            occurredAt: Date,
+            intensity: NappyIntensity?,
+            pooColor: PooColor?
+        ) throws -> NappyEvent {
+            let event = try NappyEvent(
+                metadata: EventMetadata(
+                    childID: childID,
+                    occurredAt: occurredAt,
+                    createdAt: occurredAt,
+                    createdBy: userID
+                ),
+                type: type,
+                intensity: intensity,
+                pooColor: pooColor
+            )
+            try eventRepository.saveEvent(.nappy(event))
             return event
         }
 

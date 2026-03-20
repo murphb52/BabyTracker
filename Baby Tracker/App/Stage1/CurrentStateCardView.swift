@@ -44,7 +44,7 @@ struct CurrentStateCardView: View {
                         title: "Since last feed",
                         identifier: "current-status-since-last-feed-value"
                     ) {
-                        sinceLastFeedText(for: lastFeed.lastFeedAt)
+                        relativeTimeText(for: lastFeed.lastFeedAt)
                     }
                     statusRow(
                         title: "Feeds today",
@@ -66,6 +66,22 @@ struct CurrentStateCardView: View {
                         Text("0")
                     }
                 }
+
+                if let lastNappy = summary.lastNappy {
+                    statusRow(
+                        title: "Last nappy",
+                        identifier: "current-status-last-nappy-value"
+                    ) {
+                        relativeTimeText(for: lastNappy.occurredAt)
+                    }
+                } else {
+                    statusRow(
+                        title: "Last nappy",
+                        identifier: "current-status-last-nappy-value"
+                    ) {
+                        Text("No nappies yet")
+                    }
+                }
             }
             .padding(16)
             .background(
@@ -75,7 +91,7 @@ struct CurrentStateCardView: View {
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("current-status-card")
         } else {
-            Text("No events logged yet. Use Quick Log below to add the first feed.")
+            Text("No events logged yet. Use Quick Log below to add the first event.")
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("current-status-empty-state")
         }
@@ -97,13 +113,13 @@ struct CurrentStateCardView: View {
         .font(.subheadline)
     }
 
-    private func sinceLastFeedText(for date: Date) -> some View {
+    private func relativeTimeText(for date: Date) -> some View {
         TimelineView(.everyMinute) { context in
-            Text(relativeFeedText(for: date, relativeTo: context.date))
+            Text(relativeText(for: date, relativeTo: context.date))
         }
     }
 
-    private func relativeFeedText(
+    private func relativeText(
         for date: Date,
         relativeTo referenceDate: Date
     ) -> String {

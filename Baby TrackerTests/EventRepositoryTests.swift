@@ -176,6 +176,63 @@ struct EventRepositoryTests {
     }
 
     @Test
+    func nappyEventsRoundTripOptionalFields() throws {
+        let harness = try RepositoryHarness()
+        defer { harness.cleanUp() }
+
+        let childID = UUID()
+        let userID = UUID()
+        let dryTime = Date(timeIntervalSince1970: 6_500)
+        let mixedTime = Date(timeIntervalSince1970: 7_500)
+
+        let dryNappy = try NappyEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: dryTime,
+                createdAt: dryTime,
+                createdBy: userID
+            ),
+            type: .dry
+        )
+        let mixedNappy = try NappyEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: mixedTime,
+                createdAt: mixedTime,
+                createdBy: userID
+            ),
+            type: .mixed,
+            intensity: .high,
+            pooColor: .green
+        )
+
+        try harness.repository.saveEvent(.nappy(dryNappy))
+        try harness.repository.saveEvent(.nappy(mixedNappy))
+
+        let timeline = try harness.repository.loadTimeline(for: childID, includingDeleted: false)
+        let reloadedDryNappy = try #require(try harness.repository.loadEvent(id: dryNappy.id))
+        let reloadedMixedNappy = try #require(try harness.repository.loadEvent(id: mixedNappy.id))
+
+        #expect(timeline.map(\.kind) == [.nappy, .nappy])
+
+        switch reloadedDryNappy {
+        case let .nappy(event):
+            #expect(event.intensity == nil)
+            #expect(event.pooColor == nil)
+        default:
+            Issue.record("Expected a dry nappy event")
+        }
+
+        switch reloadedMixedNappy {
+        case let .nappy(event):
+            #expect(event.intensity == .high)
+            #expect(event.pooColor == .green)
+        default:
+            Issue.record("Expected a mixed nappy event")
+        }
+    }
+
+    @Test
     func savingEditedEventUpdatesExistingRecordInPlace() throws {
         let harness = try RepositoryHarness()
         defer { harness.cleanUp() }

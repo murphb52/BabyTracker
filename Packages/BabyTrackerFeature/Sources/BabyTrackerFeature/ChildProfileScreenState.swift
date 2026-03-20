@@ -10,10 +10,11 @@ public struct ChildProfileScreenState: Equatable, Sendable {
     public let pendingShareInvites: [PendingShareInviteViewState]
     public let removedCaregivers: [CaregiverMembershipViewState]
     public let canSwitchChildren: Bool
-    public let canLogFeeds: Bool
-    public let canManageFeedEvents: Bool
+    public let canLogEvents: Bool
+    public let canManageEvents: Bool
     public let currentStateSummary: CurrentStateSummaryViewState?
     public let recentFeedEvents: [RecentFeedEventViewState]
+    public let recentNappyEvents: [RecentNappyEventViewState]
     public let cloudKitStatus: CloudKitStatusViewState
     public let canShareChild: Bool
 
@@ -38,10 +39,11 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         pendingShareInvites: [PendingShareInviteViewState],
         removedCaregivers: [CaregiverMembershipViewState],
         canSwitchChildren: Bool,
-        canLogFeeds: Bool,
-        canManageFeedEvents: Bool,
+        canLogEvents: Bool,
+        canManageEvents: Bool,
         currentStateSummary: CurrentStateSummaryViewState?,
         recentFeedEvents: [RecentFeedEventViewState],
+        recentNappyEvents: [RecentNappyEventViewState],
         cloudKitStatus: CloudKitStatusViewState,
         canShareChild: Bool
     ) {
@@ -53,10 +55,11 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         self.pendingShareInvites = pendingShareInvites
         self.removedCaregivers = removedCaregivers
         self.canSwitchChildren = canSwitchChildren
-        self.canLogFeeds = canLogFeeds
-        self.canManageFeedEvents = canManageFeedEvents
+        self.canLogEvents = canLogEvents
+        self.canManageEvents = canManageEvents
         self.currentStateSummary = currentStateSummary
         self.recentFeedEvents = recentFeedEvents
+        self.recentNappyEvents = recentNappyEvents
         self.cloudKitStatus = cloudKitStatus
         self.canShareChild = canShareChild
     }

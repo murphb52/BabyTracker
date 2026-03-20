@@ -23,7 +23,8 @@ final class Baby_TrackerUITests: XCTestCase {
         app.buttons["create-child-button"].tap()
 
         let profileName = app.staticTexts["child-profile-name"]
-        XCTAssertTrue(profileName.waitForExistence(timeout: 5))
+        scrollToElement(profileName, in: app)
+        XCTAssertTrue(profileName.exists)
         XCTAssertEqual(profileName.label, "Poppy")
     }
 
@@ -32,7 +33,9 @@ final class Baby_TrackerUITests: XCTestCase {
         let app = makeApp(scenario: "ownerPreview")
         app.launch()
 
-        XCTAssertTrue(app.staticTexts["child-profile-name"].waitForExistence(timeout: 5))
+        let profileName = app.staticTexts["child-profile-name"]
+        scrollToElement(profileName, in: app)
+        XCTAssertTrue(profileName.exists)
         let activeCaregiversHeader = app.staticTexts["Active Caregivers"]
         let removedCaregiversHeader = app.staticTexts["Removed Caregivers"]
 
@@ -67,7 +70,9 @@ final class Baby_TrackerUITests: XCTestCase {
         XCTAssertTrue(restoreButton.waitForExistence(timeout: 5))
         restoreButton.tap()
 
-        XCTAssertTrue(app.staticTexts["child-profile-name"].waitForExistence(timeout: 5))
+        let profileName = app.staticTexts["child-profile-name"]
+        scrollToElement(profileName, in: app)
+        XCTAssertTrue(profileName.exists)
     }
 
     @MainActor
@@ -110,12 +115,55 @@ final class Baby_TrackerUITests: XCTestCase {
     }
 
     @MainActor
+    func testOwnerCanQuickLogNappy() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
+
+        XCTAssertTrue(app.buttons["quick-log-nappy-button"].waitForExistence(timeout: 5))
+
+        app.buttons["quick-log-nappy-button"].tap()
+        app.sheets.buttons["Poo"].tap()
+
+        let saveButton = app.buttons["save-nappy-button"]
+        XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
+        saveButton.tap()
+
+        let latestEventValue = app.staticTexts["current-status-last-event-value"]
+        XCTAssertTrue(latestEventValue.waitForExistence(timeout: 5))
+        XCTAssertEqual(latestEventValue.label, "Nappy")
+        XCTAssertTrue(app.staticTexts["current-status-last-nappy-value"].waitForExistence(timeout: 5))
+
+        let recentNappyButton = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "recent-nappy-")
+        ).firstMatch
+        scrollToElement(recentNappyButton, in: app, maxSwipes: 10)
+        XCTAssertTrue(recentNappyButton.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testNappyQuickLogShowsPooColorOnlyForPooCapableTypes() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
+
+        app.buttons["quick-log-nappy-button"].tap()
+        app.sheets.buttons["Dry"].tap()
+
+        XCTAssertTrue(app.buttons["save-nappy-button"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["nappy-poo-color-picker"].exists)
+        app.buttons["Cancel"].tap()
+
+        app.buttons["quick-log-nappy-button"].tap()
+        app.sheets.buttons["Mixed"].tap()
+
+        XCTAssertTrue(app.buttons["nappy-poo-color-picker"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testActiveCaregiverDoesNotSeeOwnerActions() throws {
         let app = makeApp(scenario: "activeCaregiver")
         app.launch()
 
-        XCTAssertTrue(app.staticTexts["child-profile-name"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["quick-log-bottle-feed-button"].exists)
+        XCTAssertTrue(app.buttons["quick-log-bottle-feed-button"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["edit-child-button"].exists)
         XCTAssertFalse(app.buttons["share-child-button"].exists)
         XCTAssertFalse(app.buttons["archive-child-button"].exists)
@@ -237,6 +285,37 @@ final class Baby_TrackerUITests: XCTestCase {
     }
 
     @MainActor
+    func testDeleteRequiresConfirmationAndUndoRestoresNappy() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
+
+        app.buttons["quick-log-nappy-button"].tap()
+        app.sheets.buttons["Mixed"].tap()
+        XCTAssertTrue(app.buttons["save-nappy-button"].waitForExistence(timeout: 5))
+        app.buttons["save-nappy-button"].tap()
+
+        let recentNappyButton = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "recent-nappy-")
+        ).firstMatch
+        scrollToElement(recentNappyButton, in: app, maxSwipes: 10)
+        XCTAssertTrue(recentNappyButton.waitForExistence(timeout: 5))
+        recentNappyButton.swipeLeft()
+        app.buttons["Delete"].tap()
+
+        let confirmDeleteButton = app.sheets.buttons["Delete Nappy"]
+        XCTAssertTrue(confirmDeleteButton.waitForExistence(timeout: 5))
+        confirmDeleteButton.tap()
+
+        let undoButton = app.buttons["undo-delete-button"]
+        XCTAssertTrue(undoButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["recent-nappies-empty-state"].exists)
+
+        undoButton.tap()
+
+        XCTAssertTrue(recentNappyButton.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testRecentFeedsEmptyStateAppearsBeforeLogging() throws {
         let app = makeApp(scenario: "ownerPreview")
         app.launch()
@@ -285,7 +364,9 @@ final class Baby_TrackerUITests: XCTestCase {
         childField.typeText("Poppy")
         app.buttons["create-child-button"].tap()
 
-        XCTAssertTrue(app.staticTexts["child-profile-name"].waitForExistence(timeout: 5))
+        let profileName = app.staticTexts["child-profile-name"]
+        scrollToElement(profileName, in: app)
+        XCTAssertTrue(profileName.exists)
 
         return app
     }
@@ -313,6 +394,7 @@ final class Baby_TrackerUITests: XCTestCase {
         }
     }
 
+    @MainActor
     private func makeApp(scenario: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["UI_TESTING"]

@@ -1,5 +1,7 @@
 import BabyTrackerDomain
 import BabyTrackerFeature
+import BabyTrackerSync
+import CloudKit
 import Foundation
 import Testing
 
@@ -45,5 +47,47 @@ struct CloudKitRecordMapperTests {
 
         #expect(reloadedNoSideRecord.side == nil)
         #expect(reloadedBothSidesRecord.side == .both)
+    }
+
+    @Test
+    func nappyMapperRoundTripsOptionalFields() throws {
+        let childID = UUID()
+        let userID = UUID()
+        let occurredAt = Date(timeIntervalSince1970: 3_000)
+        let zoneID = CloudKitRecordNames.zoneID(
+            for: childID,
+            ownerName: "probe-owner"
+        )
+        let nappy = try NappyEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: occurredAt,
+                createdAt: occurredAt,
+                createdBy: userID
+            ),
+            type: .mixed,
+            intensity: .medium,
+            pooColor: .brown
+        )
+
+        let record = CloudKitRecordMapper.eventRecord(
+            from: .nappy(nappy),
+            zoneID: zoneID
+        )
+
+        #expect(record["type"] as? String == "mixed")
+        #expect(record["intensity"] as? String == "medium")
+        #expect(record["pooColor"] as? String == "brown")
+
+        let mappedEvent = try CloudKitRecordMapper.event(from: record)
+
+        switch mappedEvent {
+        case let .nappy(event):
+            #expect(event.type == .mixed)
+            #expect(event.intensity == .medium)
+            #expect(event.pooColor == .brown)
+        default:
+            Issue.record("Expected a nappy event")
+        }
     }
 }

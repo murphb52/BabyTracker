@@ -27,4 +27,24 @@ public struct NappyEvent: Equatable, Identifiable, Sendable {
         self.intensity = intensity
         self.pooColor = pooColor
     }
+
+    public func updating(
+        type: NappyType,
+        occurredAt: Date,
+        intensity: NappyIntensity?,
+        pooColor: PooColor?,
+        updatedAt: Date = Date(),
+        updatedBy: UUID
+    ) throws -> NappyEvent {
+        var metadata = metadata
+        metadata.occurredAt = occurredAt
+        metadata.markUpdated(at: updatedAt, by: updatedBy)
+
+        return try NappyEvent(
+            metadata: metadata,
+            type: type,
+            intensity: intensity,
+            pooColor: pooColor
+        )
+    }
 }

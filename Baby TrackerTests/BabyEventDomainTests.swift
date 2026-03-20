@@ -200,6 +200,47 @@ struct BabyEventDomainTests {
     }
 
     @Test
+    func updatingNappySupportsValidEditsAndRejectsInvalidPooColor() throws {
+        let childID = UUID()
+        let userID = UUID()
+        let occurredAt = Date(timeIntervalSince1970: 4_500)
+        let original = try NappyEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: occurredAt,
+                createdAt: occurredAt,
+                createdBy: userID
+            ),
+            type: .poo,
+            intensity: .medium,
+            pooColor: .brown
+        )
+
+        let updated = try original.updating(
+            type: .mixed,
+            occurredAt: occurredAt.addingTimeInterval(300),
+            intensity: .high,
+            pooColor: .green,
+            updatedBy: userID
+        )
+
+        #expect(updated.type == .mixed)
+        #expect(updated.intensity == .high)
+        #expect(updated.pooColor == .green)
+        #expect(updated.metadata.occurredAt == occurredAt.addingTimeInterval(300))
+
+        #expect(throws: NappyEntryError.pooColorRequiresPooOrMixed) {
+            _ = try original.updating(
+                type: .dry,
+                occurredAt: occurredAt.addingTimeInterval(600),
+                intensity: .low,
+                pooColor: .yellow,
+                updatedBy: userID
+            )
+        }
+    }
+
+    @Test
     func restoreDeletedClearsSoftDeleteMetadata() {
         let childID = UUID()
         let creatorID = UUID()

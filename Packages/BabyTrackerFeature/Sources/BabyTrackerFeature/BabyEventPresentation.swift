@@ -100,13 +100,17 @@ enum BabyEventPresentation {
     private static func nappyDetailText(
         for event: NappyEvent
     ) -> String {
-        let base = nappyTypeTitle(for: event.type)
+        var parts = [nappyTypeTitle(for: event.type)]
 
-        guard let intensity = event.intensity else {
-            return base
+        if let intensity = event.intensity {
+            parts.append(nappyIntensityTitle(for: intensity))
         }
 
-        return "\(base) • \(nappyIntensityTitle(for: intensity))"
+        if let pooColor = event.pooColor {
+            parts.append(pooColorTitle(for: pooColor))
+        }
+
+        return parts.joined(separator: " • ")
     }
 
     private static func breastSideTitle(for side: BreastSide) -> String {
@@ -143,6 +147,23 @@ enum BabyEventPresentation {
             "Medium"
         case .high:
             "High"
+        }
+    }
+
+    private static func pooColorTitle(for color: PooColor) -> String {
+        switch color {
+        case .yellow:
+            "Yellow"
+        case .mustard:
+            "Mustard"
+        case .brown:
+            "Brown"
+        case .green:
+            "Green"
+        case .black:
+            "Black"
+        case .other:
+            "Other"
         }
     }
 }

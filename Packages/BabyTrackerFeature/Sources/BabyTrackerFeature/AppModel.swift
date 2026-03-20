@@ -205,7 +205,7 @@ public final class AppModel {
             guard let localUser else {
                 throw ChildProfileValidationError.insufficientPermissions
             }
-            guard profile.canLogFeeds else {
+            guard profile.canLogEvents else {
                 throw ChildProfileValidationError.insufficientPermissions
             }
 
@@ -239,7 +239,7 @@ public final class AppModel {
             guard let localUser else {
                 throw ChildProfileValidationError.insufficientPermissions
             }
-            guard profile.canLogFeeds else {
+            guard profile.canLogEvents else {
                 throw ChildProfileValidationError.insufficientPermissions
             }
 
@@ -259,6 +259,40 @@ public final class AppModel {
     }
 
     @discardableResult
+    public func logNappy(
+        type: NappyType,
+        occurredAt: Date,
+        intensity: NappyIntensity?,
+        pooColor: PooColor?
+    ) -> Bool {
+        perform {
+            guard let profile else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard profile.canLogEvents else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+
+            let event = try NappyEvent(
+                metadata: EventMetadata(
+                    childID: profile.child.id,
+                    occurredAt: occurredAt,
+                    createdAt: .now,
+                    createdBy: localUser.id
+                ),
+                type: type,
+                intensity: intensity,
+                pooColor: pooColor
+            )
+
+            try eventRepository.saveEvent(.nappy(event))
+        }
+    }
+
+    @discardableResult
     public func updateBreastFeed(
         id: UUID,
         durationMinutes: Int,
@@ -272,7 +306,7 @@ public final class AppModel {
             guard let localUser else {
                 throw ChildProfileValidationError.insufficientPermissions
             }
-            guard profile.canManageFeedEvents else {
+            guard profile.canManageEvents else {
                 throw ChildProfileValidationError.insufficientPermissions
             }
             guard let event = try eventRepository.loadEvent(id: id) else {
@@ -306,7 +340,7 @@ public final class AppModel {
             guard let localUser else {
                 throw ChildProfileValidationError.insufficientPermissions
             }
-            guard profile.canManageFeedEvents else {
+            guard profile.canManageEvents else {
                 throw ChildProfileValidationError.insufficientPermissions
             }
             guard let event = try eventRepository.loadEvent(id: id) else {
@@ -327,6 +361,42 @@ public final class AppModel {
     }
 
     @discardableResult
+    public func updateNappy(
+        id: UUID,
+        type: NappyType,
+        occurredAt: Date,
+        intensity: NappyIntensity?,
+        pooColor: PooColor?
+    ) -> Bool {
+        perform {
+            guard let profile else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard profile.canManageEvents else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let event = try eventRepository.loadEvent(id: id) else {
+                return
+            }
+            guard case let .nappy(nappyEvent) = event else {
+                return
+            }
+
+            let updatedEvent = try nappyEvent.updating(
+                type: type,
+                occurredAt: occurredAt,
+                intensity: intensity,
+                pooColor: pooColor,
+                updatedBy: localUser.id
+            )
+            try eventRepository.saveEvent(.nappy(updatedEvent))
+        }
+    }
+
+    @discardableResult
     public func deleteEvent(id: UUID) -> Bool {
         perform {
             guard let profile else {
@@ -335,7 +405,7 @@ public final class AppModel {
             guard let localUser else {
                 throw ChildProfileValidationError.insufficientPermissions
             }
-            guard profile.canManageFeedEvents else {
+            guard profile.canManageEvents else {
                 throw ChildProfileValidationError.insufficientPermissions
             }
             guard let event = try eventRepository.loadEvent(id: id) else {
@@ -349,7 +419,7 @@ public final class AppModel {
                 deletedBy: localUser.id
             )
             pendingUndoDeletedEvent = event
-            undoDeleteMessage = "\(feedTitle(for: event)) deleted"
+            undoDeleteMessage = "\(eventTitle(for: event)) deleted"
             startUndoDeleteExpiryTask()
         }
     }
@@ -521,8 +591,8 @@ public final class AppModel {
                 statusLabel: invite.acceptanceStatus == .pending ? "Pending invitation" : "Invited"
             )
         }
-        let canLogFeeds = ChildAccessPolicy.canPerform(.logEvent, membership: currentMembership)
-        let canManageFeedEvents =
+        let canLogEvents = ChildAccessPolicy.canPerform(.logEvent, membership: currentMembership)
+        let canManageEvents =
             ChildAccessPolicy.canPerform(.editEvent, membership: currentMembership) &&
             ChildAccessPolicy.canPerform(.deleteEvent, membership: currentMembership)
 
@@ -535,10 +605,11 @@ public final class AppModel {
             pendingShareInvites: pendingShareInvites,
             removedCaregivers: removedCaregivers,
             canSwitchChildren: activeChildren.count > 1,
-            canLogFeeds: canLogFeeds,
-            canManageFeedEvents: canManageFeedEvents,
+            canLogEvents: canLogEvents,
+            canManageEvents: canManageEvents,
             currentStateSummary: makeCurrentStateSummary(from: visibleEvents),
             recentFeedEvents: makeRecentFeedEvents(from: visibleEvents),
+            recentNappyEvents: makeRecentNappyEvents(from: visibleEvents),
             cloudKitStatus: CloudKitStatusViewState(summary: syncEngine.statusSummary),
             canShareChild: ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership) &&
                 syncEngine.statusSummary.state != .failed
@@ -558,10 +629,12 @@ public final class AppModel {
 
         let lastFeed = FeedSummaryCalculator.makeSummary(from: events)
             .map(FeedStatusViewState.init)
+        let lastNappy = LastNappySummaryCalculator.makeSummary(from: events)
 
         return CurrentStateSummaryViewState(
             lastEvent: lastEvent,
-            lastFeed: lastFeed
+            lastFeed: lastFeed,
+            lastNappy: lastNappy
         )
     }
 
@@ -569,6 +642,12 @@ public final class AppModel {
         from events: [BabyEvent]
     ) -> [RecentFeedEventViewState] {
         Array(events.compactMap(RecentFeedEventViewState.init).prefix(5))
+    }
+
+    private func makeRecentNappyEvents(
+        from events: [BabyEvent]
+    ) -> [RecentNappyEventViewState] {
+        Array(events.compactMap(RecentNappyEventViewState.init).prefix(5))
     }
 
     private func makeFeedLiveActivitySnapshot(
@@ -587,7 +666,7 @@ public final class AppModel {
         )
     }
 
-    private func feedTitle(for event: BabyEvent) -> String {
+    private func eventTitle(for event: BabyEvent) -> String {
         BabyEventPresentation.title(for: event)
     }
 

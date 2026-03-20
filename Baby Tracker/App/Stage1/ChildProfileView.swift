@@ -8,8 +8,9 @@ struct ChildProfileView: View {
 
     @State private var showingEditChildSheet = false
     @State private var showingArchiveConfirmation = false
-    @State private var activeFeedSheet: FeedSheet?
-    @State private var deleteCandidate: RecentFeedEventViewState?
+    @State private var showingQuickLogNappyTypeDialog = false
+    @State private var activeEventSheet: EventSheet?
+    @State private var deleteCandidate: DeleteCandidate?
 
     var body: some View {
         @Bindable var bindableModel = model
@@ -19,7 +20,7 @@ struct ChildProfileView: View {
                 CurrentStateCardView(summary: profile.currentStateSummary)
             }
 
-            if profile.canLogFeeds {
+            if profile.canLogEvents {
                 Section("Quick Log") {
                     quickLogButton(
                         title: "Breast Feed",
@@ -27,7 +28,7 @@ struct ChildProfileView: View {
                         tint: .pink,
                         accessibilityIdentifier: "quick-log-breast-feed-button"
                     ) {
-                        activeFeedSheet = .quickLogBreastFeed
+                        activeEventSheet = .quickLogBreastFeed
                     }
 
                     quickLogButton(
@@ -36,7 +37,16 @@ struct ChildProfileView: View {
                         tint: .teal,
                         accessibilityIdentifier: "quick-log-bottle-feed-button"
                     ) {
-                        activeFeedSheet = .quickLogBottleFeed
+                        activeEventSheet = .quickLogBottleFeed
+                    }
+
+                    quickLogButton(
+                        title: "Nappy",
+                        systemImage: "checklist",
+                        tint: .orange,
+                        accessibilityIdentifier: "quick-log-nappy-button"
+                    ) {
+                        showingQuickLogNappyTypeDialog = true
                     }
                 }
             }
@@ -49,6 +59,18 @@ struct ChildProfileView: View {
                 } else {
                     ForEach(profile.recentFeedEvents) { event in
                         recentFeedRow(for: event)
+                    }
+                }
+            }
+
+            Section("Recent Nappies") {
+                if profile.recentNappyEvents.isEmpty {
+                    Text(emptyNappyText)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("recent-nappies-empty-state")
+                } else {
+                    ForEach(profile.recentNappyEvents) { event in
+                        recentNappyRow(for: event)
                     }
                 }
             }
@@ -158,8 +180,8 @@ struct ChildProfileView: View {
                 saveAction: model.updateCurrentChild(name:birthDate:)
             )
         }
-        .sheet(item: $activeFeedSheet, onDismiss: {
-            activeFeedSheet = nil
+        .sheet(item: $activeEventSheet, onDismiss: {
+            activeEventSheet = nil
         }) { sheet in
             switch sheet {
             case .quickLogBreastFeed:
@@ -176,7 +198,7 @@ struct ChildProfileView: View {
                         side: side
                     )
                     if didSave {
-                        activeFeedSheet = nil
+                        activeEventSheet = nil
                     }
                     return didSave
                 }
@@ -194,12 +216,34 @@ struct ChildProfileView: View {
                         milkType: milkType
                     )
                     if didSave {
-                        activeFeedSheet = nil
+                        activeEventSheet = nil
+                    }
+                    return didSave
+                }
+            case let .quickLogNappy(type):
+                NappyEditorSheetView(
+                    navigationTitle: "Nappy",
+                    primaryActionTitle: "Save",
+                    initialType: type,
+                    initialOccurredAt: Date(),
+                    initialIntensity: nil,
+                    initialPooColor: nil
+                ) { updatedType, occurredAt, intensity, pooColor in
+                    let didSave = model.logNappy(
+                        type: updatedType,
+                        occurredAt: occurredAt,
+                        intensity: intensity,
+                        pooColor: pooColor
+                    )
+                    if didSave {
+                        activeEventSheet = nil
                     }
                     return didSave
                 }
             case let .editRecentFeed(event):
                 feedEditor(for: event)
+            case let .editRecentNappy(event):
+                nappyEditor(for: event)
             }
         }
         .sheet(item: $bindableModel.shareSheetState) { shareState in
@@ -208,6 +252,17 @@ struct ChildProfileView: View {
                     model.dismissShareSheet()
                     model.refreshAfterShareSheet()
                 }
+        }
+        .confirmationDialog(
+            "Log Nappy",
+            isPresented: $showingQuickLogNappyTypeDialog,
+            titleVisibility: .visible
+        ) {
+            ForEach(NappyType.allCases, id: \.self) { type in
+                Button(nappyTypeTitle(for: type)) {
+                    activeEventSheet = .quickLogNappy(type)
+                }
+            }
         }
         .confirmationDialog(
             archiveDialogTitle,
@@ -221,12 +276,12 @@ struct ChildProfileView: View {
             Text("Archived child profiles are hidden from the main flow until restored.")
         }
         .confirmationDialog(
-            "Delete Feed?",
+            deleteCandidate?.dialogTitle ?? "Delete Event?",
             isPresented: deleteConfirmationIsPresented,
             titleVisibility: .visible,
             presenting: deleteCandidate
         ) { event in
-            Button("Delete Feed", role: .destructive) {
+            Button(event.confirmButtonTitle, role: .destructive) {
                 model.deleteEvent(id: event.id)
                 deleteCandidate = nil
             }
@@ -282,6 +337,10 @@ struct ChildProfileView: View {
         "No feeds logged yet. Use Quick Log above to add the first feed."
     }
 
+    private var emptyNappyText: String {
+        "No nappies logged yet. Use Quick Log above to add the first nappy."
+    }
+
     private func quickLogButton(
         title: String,
         systemImage: String,
@@ -301,28 +360,15 @@ struct ChildProfileView: View {
 
     @ViewBuilder
     private func recentFeedRow(for event: RecentFeedEventViewState) -> some View {
-        let rowContent = HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(event.title)
-                    .font(.headline)
+        let rowContent = eventRowContent(
+            title: event.title,
+            detailText: event.detailText,
+            timestampText: event.timestampText
+        )
 
-                Text(event.detailText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Text(event.timestampText)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
-        }
-        .padding(.vertical, 4)
-
-        if profile.canManageFeedEvents {
+        if profile.canManageEvents {
             Button {
-                activeFeedSheet = .editRecentFeed(event)
+                activeEventSheet = .editRecentFeed(event)
             } label: {
                 rowContent
             }
@@ -330,22 +376,83 @@ struct ChildProfileView: View {
             .accessibilityIdentifier("recent-feed-\(event.id.uuidString)")
             .simultaneousGesture(
                 TapGesture().onEnded {
-                    activeFeedSheet = .editRecentFeed(event)
+                    activeEventSheet = .editRecentFeed(event)
                 }
             )
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button("Edit") {
-                    activeFeedSheet = .editRecentFeed(event)
+                    activeEventSheet = .editRecentFeed(event)
                 }
             }
             .swipeActions {
                 Button("Delete", role: .destructive) {
-                    deleteCandidate = event
+                    deleteCandidate = .feed(event)
                 }
             }
         } else {
             rowContent
         }
+    }
+
+    @ViewBuilder
+    private func recentNappyRow(for event: RecentNappyEventViewState) -> some View {
+        let rowContent = eventRowContent(
+            title: event.title,
+            detailText: event.detailText,
+            timestampText: event.timestampText
+        )
+
+        if profile.canManageEvents {
+            Button {
+                activeEventSheet = .editRecentNappy(event)
+            } label: {
+                rowContent
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("recent-nappy-\(event.id.uuidString)")
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    activeEventSheet = .editRecentNappy(event)
+                }
+            )
+            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                Button("Edit") {
+                    activeEventSheet = .editRecentNappy(event)
+                }
+            }
+            .swipeActions {
+                Button("Delete", role: .destructive) {
+                    deleteCandidate = .nappy(event)
+                }
+            }
+        } else {
+            rowContent
+        }
+    }
+
+    private func eventRowContent(
+        title: String,
+        detailText: String,
+        timestampText: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+
+                Text(detailText)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Text(timestampText)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+        }
+        .padding(.vertical, 4)
     }
 
     @ViewBuilder
@@ -399,7 +506,7 @@ struct ChildProfileView: View {
                     side: updatedSide
                 )
                 if didSave {
-                    activeFeedSheet = nil
+                    activeEventSheet = nil
                 }
                 return didSave
             }
@@ -418,10 +525,47 @@ struct ChildProfileView: View {
                     milkType: updatedMilkType
                 )
                 if didSave {
-                    activeFeedSheet = nil
+                    activeEventSheet = nil
                 }
                 return didSave
             }
+        }
+    }
+
+    @ViewBuilder
+    private func nappyEditor(for event: RecentNappyEventViewState) -> some View {
+        NappyEditorSheetView(
+            navigationTitle: "Edit Nappy",
+            primaryActionTitle: "Update",
+            initialType: event.editPayload.type,
+            initialOccurredAt: event.editPayload.occurredAt,
+            initialIntensity: event.editPayload.intensity,
+            initialPooColor: event.editPayload.pooColor
+        ) { updatedType, occurredAt, intensity, pooColor in
+            let didSave = model.updateNappy(
+                id: event.id,
+                type: updatedType,
+                occurredAt: occurredAt,
+                intensity: intensity,
+                pooColor: pooColor
+            )
+            if didSave {
+                activeEventSheet = nil
+            }
+            return didSave
+        }
+    }
+
+    private func nappyTypeTitle(for type: NappyType) -> String {
+        switch type {
+        case .dry:
+            "Dry"
+        case .wee:
+            "Wee"
+        case .poo:
+            "Poo"
+        case .mixed:
+            "Mixed"
         }
     }
 
@@ -440,10 +584,12 @@ struct ChildProfileView: View {
 }
 
 extension ChildProfileView {
-    private enum FeedSheet: Identifiable {
+    private enum EventSheet: Identifiable {
         case quickLogBreastFeed
         case quickLogBottleFeed
+        case quickLogNappy(NappyType)
         case editRecentFeed(RecentFeedEventViewState)
+        case editRecentNappy(RecentNappyEventViewState)
 
         var id: String {
             switch self {
@@ -451,8 +597,62 @@ extension ChildProfileView {
                 "quick-log-breast-feed"
             case .quickLogBottleFeed:
                 "quick-log-bottle-feed"
+            case let .quickLogNappy(type):
+                "quick-log-nappy-\(type.rawValue)"
             case let .editRecentFeed(event):
-                "edit-\(event.id.uuidString)"
+                "edit-feed-\(event.id.uuidString)"
+            case let .editRecentNappy(event):
+                "edit-nappy-\(event.id.uuidString)"
+            }
+        }
+    }
+
+    private enum DeleteCandidate: Identifiable {
+        case feed(RecentFeedEventViewState)
+        case nappy(RecentNappyEventViewState)
+
+        var id: UUID {
+            switch self {
+            case let .feed(event):
+                event.id
+            case let .nappy(event):
+                event.id
+            }
+        }
+
+        var title: String {
+            switch self {
+            case let .feed(event):
+                event.title
+            case let .nappy(event):
+                event.title
+            }
+        }
+
+        var timestampText: String {
+            switch self {
+            case let .feed(event):
+                event.timestampText
+            case let .nappy(event):
+                event.timestampText
+            }
+        }
+
+        var dialogTitle: String {
+            switch self {
+            case .feed:
+                "Delete Feed?"
+            case .nappy:
+                "Delete Nappy?"
+            }
+        }
+
+        var confirmButtonTitle: String {
+            switch self {
+            case .feed:
+                "Delete Feed"
+            case .nappy:
+                "Delete Nappy"
             }
         }
     }
