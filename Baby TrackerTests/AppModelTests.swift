@@ -182,6 +182,49 @@ struct AppModelTests {
     }
 
     @Test
+    func timelineDaySelectionShowsRequestedDayAndClampsFutureDatesToToday() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: .now)
+        let yesterday = try #require(calendar.date(byAdding: .day, value: -1, to: today))
+        let tomorrow = try #require(calendar.date(byAdding: .day, value: 1, to: today))
+        let todayEventTime = try #require(calendar.date(byAdding: .hour, value: 9, to: today))
+        let yesterdayEventTime = try #require(calendar.date(byAdding: .hour, value: 9, to: yesterday))
+
+        let yesterdayEvent = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 120,
+            occurredAt: yesterdayEventTime,
+            milkType: nil
+        )
+        let todayEvent = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 150,
+            occurredAt: todayEventTime,
+            milkType: .formula
+        )
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.showTimelineDay(yesterday)
+
+        var timeline = try #require(harness.model.profile?.timeline)
+        #expect(timeline.blocks.map(\.id) == [yesterdayEvent.id])
+        #expect(calendar.isDate(timeline.selectedDay, inSameDayAs: yesterday))
+
+        harness.model.showTimelineDay(tomorrow)
+
+        timeline = try #require(harness.model.profile?.timeline)
+        #expect(timeline.blocks.map(\.id) == [todayEvent.id])
+        #expect(calendar.isDateInToday(timeline.selectedDay))
+        #expect(timeline.canMoveToNextDay == false)
+    }
+
+    @Test
     func activeSleepAppearsOnTimelineWithEndAction() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }

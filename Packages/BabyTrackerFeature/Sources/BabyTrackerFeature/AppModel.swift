@@ -174,6 +174,12 @@ public final class AppModel {
         refresh(selecting: repository.loadSelectedChildID())
     }
 
+    public func showTimelineDay(_ day: Date) {
+        let today = normalizedTimelineDay(for: .now)
+        timelineSelectedDay = min(normalizedTimelineDay(for: day), today)
+        refresh(selecting: repository.loadSelectedChildID())
+    }
+
     public func showChildPicker() {
         guard activeChildren.count > 1 else {
             return

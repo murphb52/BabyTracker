@@ -7,11 +7,12 @@ struct TimelineScreenView: View {
 
     @State private var activeEvent: TimelineEventBlockViewState?
     @State private var deleteCandidate: TimelineEventBlockViewState?
+    @State private var showingDayPicker = false
 
-    private let hourRowHeight: CGFloat = 104
-    private let timeColumnWidth: CGFloat = 52
-    private let laneSpacing: CGFloat = 8
-    private let blockCornerRadius: CGFloat = 14
+    private let hourRowHeight: CGFloat = 72
+    private let timeColumnWidth: CGFloat = 46
+    private let laneSpacing: CGFloat = 6
+    private let blockCornerRadius: CGFloat = 12
 
     var body: some View {
         if let profile = model.profile {
@@ -23,6 +24,9 @@ struct TimelineScreenView: View {
             .navigationBarTitleDisplayMode(.inline)
             .sheet(item: $activeEvent) { event in
                 eventSheet(for: event, canManageEvents: profile.canManageEvents)
+            }
+            .sheet(isPresented: $showingDayPicker) {
+                dayPickerSheet
             }
             .confirmationDialog(
                 deleteDialogTitle,
@@ -50,7 +54,7 @@ struct TimelineScreenView: View {
     ) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 16) {
                     dayNavigationHeader(for: timeline)
 
                     if let syncMessage = timeline.syncMessage {
@@ -69,10 +73,12 @@ struct TimelineScreenView: View {
                         canManageEvents: canManageEvents
                     )
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 20)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 14)
             }
+            .accessibilityIdentifier("timeline-scroll-view")
             .background(Color(.systemGroupedBackground))
+            .simultaneousGesture(daySwipeGesture)
             .onAppear {
                 scrollToVisibleHour(for: timeline.selectedDay, using: proxy)
             }
@@ -108,6 +114,15 @@ struct TimelineScreenView: View {
 
                 Spacer()
 
+                Button {
+                    showingDayPicker = true
+                } label: {
+                    Image(systemName: "calendar")
+                        .frame(width: 18, height: 18)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("timeline-day-picker-button")
+
                 if timeline.showsJumpToToday {
                     Button("Today") {
                         model.jumpTimelineToToday()
@@ -127,6 +142,42 @@ struct TimelineScreenView: View {
                 .accessibilityIdentifier("timeline-next-day-button")
             }
         }
+    }
+
+    private var dayPickerSheet: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                DatePicker(
+                    "Day",
+                    selection: timelineDayBinding,
+                    in: ...Date(),
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.graphical)
+                .labelsHidden()
+                .accessibilityIdentifier("timeline-day-picker")
+            }
+            .padding(20)
+            .navigationTitle("Choose Day")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Today") {
+                        model.jumpTimelineToToday()
+                        showingDayPicker = false
+                    }
+                    .accessibilityIdentifier("timeline-day-picker-today-button")
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        showingDayPicker = false
+                    }
+                    .accessibilityIdentifier("timeline-day-picker-done-button")
+                }
+            }
+        }
+        .presentationDetents([.large])
     }
 
     private func syncBanner(message: String) -> some View {
@@ -307,7 +358,7 @@ struct TimelineScreenView: View {
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
     }
 
     private func primaryActionTitle(
@@ -501,7 +552,7 @@ struct TimelineScreenView: View {
         let totalSpacing = CGFloat(laneCount - 1) * laneSpacing
         let width = (contentWidth - totalSpacing) / CGFloat(laneCount)
 
-        return max(90, width)
+        return max(82, width)
     }
 
     private func blockHeight(
@@ -523,6 +574,15 @@ struct TimelineScreenView: View {
         for event: TimelineEventBlockViewState
     ) -> CGFloat {
         CGFloat(event.startMinute) * hourRowHeight / 60
+    }
+
+    private var timelineDayBinding: Binding<Date> {
+        Binding(
+            get: { model.profile?.timeline.selectedDay ?? Date() },
+            set: { day in
+                model.showTimelineDay(day)
+            }
+        )
     }
 
     private func blockBackgroundColor(
@@ -584,6 +644,25 @@ struct TimelineScreenView: View {
         DispatchQueue.main.async {
             proxy.scrollTo(hourAnchorID(for: currentHour), anchor: .top)
         }
+    }
+
+    private var daySwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 24, coordinateSpace: .local)
+            .onEnded { gesture in
+                let horizontalDistance = gesture.translation.width
+                let verticalDistance = gesture.translation.height
+
+                guard abs(horizontalDistance) > abs(verticalDistance),
+                      abs(horizontalDistance) > 44 else {
+                    return
+                }
+
+                if horizontalDistance < 0 {
+                    model.showNextTimelineDay()
+                } else {
+                    model.showPreviousTimelineDay()
+                }
+            }
     }
 
     private func defaultSleepEndTime(for startedAt: Date) -> Date {

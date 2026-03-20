@@ -490,17 +490,20 @@ final class Baby_TrackerUITests: XCTestCase {
 
         openTimelineTab(in: app)
 
+        let timelineScrollView = app.scrollViews["timeline-scroll-view"]
+        XCTAssertTrue(timelineScrollView.waitForExistence(timeout: 5))
+
         let todayTitle = app.staticTexts["timeline-day-title"]
         XCTAssertTrue(todayTitle.waitForExistence(timeout: 5))
         XCTAssertEqual(todayTitle.label, "Today")
 
-        app.buttons["timeline-previous-day-button"].tap()
+        timelineScrollView.swipeRight()
 
         let jumpToTodayButton = app.buttons["timeline-jump-to-today-button"]
         XCTAssertTrue(jumpToTodayButton.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["timeline-empty-state"].waitForExistence(timeout: 5))
 
-        jumpToTodayButton.tap()
+        timelineScrollView.swipeLeft()
 
         XCTAssertEqual(app.staticTexts["timeline-day-title"].label, "Today")
         XCTAssertTrue(
@@ -508,6 +511,29 @@ final class Baby_TrackerUITests: XCTestCase {
                 NSPredicate(format: "identifier BEGINSWITH %@", "timeline-event-")
             ).firstMatch.waitForExistence(timeout: 5)
         )
+    }
+
+    @MainActor
+    func testTimelineDayPickerCanJumpBackToToday() throws {
+        let app = makeApp(scenario: "mixedEventsPreview")
+        app.launch()
+
+        openTimelineTab(in: app)
+
+        let timelineScrollView = app.scrollViews["timeline-scroll-view"]
+        XCTAssertTrue(timelineScrollView.waitForExistence(timeout: 5))
+        timelineScrollView.swipeRight()
+
+        XCTAssertTrue(app.buttons["timeline-jump-to-today-button"].waitForExistence(timeout: 5))
+
+        app.buttons["timeline-day-picker-button"].tap()
+
+        let dayPicker = app.datePickers["timeline-day-picker"]
+        XCTAssertTrue(dayPicker.waitForExistence(timeout: 5))
+
+        app.buttons["timeline-day-picker-today-button"].tap()
+
+        XCTAssertEqual(app.staticTexts["timeline-day-title"].label, "Today")
     }
 
     @MainActor
