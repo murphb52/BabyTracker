@@ -5,7 +5,7 @@ public struct TimelineScreenState: Equatable, Sendable {
     public let dayTitle: String
     public let showsJumpToToday: Bool
     public let canMoveToNextDay: Bool
-    public let rows: [TimelineEventRowViewState]
+    public let blocks: [TimelineEventBlockViewState]
     public let emptyStateTitle: String
     public let emptyStateMessage: String
     public let syncMessage: String?
@@ -15,7 +15,7 @@ public struct TimelineScreenState: Equatable, Sendable {
         dayTitle: String,
         showsJumpToToday: Bool,
         canMoveToNextDay: Bool,
-        rows: [TimelineEventRowViewState],
+        blocks: [TimelineEventBlockViewState],
         emptyStateTitle: String,
         emptyStateMessage: String,
         syncMessage: String?
@@ -24,7 +24,7 @@ public struct TimelineScreenState: Equatable, Sendable {
         self.dayTitle = dayTitle
         self.showsJumpToToday = showsJumpToToday
         self.canMoveToNextDay = canMoveToNextDay
-        self.rows = rows
+        self.blocks = blocks
         self.emptyStateTitle = emptyStateTitle
         self.emptyStateMessage = emptyStateMessage
         self.syncMessage = syncMessage

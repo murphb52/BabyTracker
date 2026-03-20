@@ -478,10 +478,7 @@ final class Baby_TrackerUITests: XCTestCase {
         let app = makeApp(scenario: "ownerPreview")
         app.launch()
 
-        let timelineButton = app.buttons["open-timeline-button"]
-        scrollToElement(timelineButton, in: app, maxSwipes: 10)
-        XCTAssertTrue(timelineButton.waitForExistence(timeout: 5))
-        timelineButton.tap()
+        openTimelineTab(in: app)
 
         XCTAssertTrue(app.staticTexts["timeline-empty-state"].waitForExistence(timeout: 5))
     }
@@ -491,9 +488,7 @@ final class Baby_TrackerUITests: XCTestCase {
         let app = makeApp(scenario: "mixedEventsPreview")
         app.launch()
 
-        let timelineButton = app.buttons["open-timeline-button"]
-        scrollToElement(timelineButton, in: app, maxSwipes: 10)
-        timelineButton.tap()
+        openTimelineTab(in: app)
 
         let todayTitle = app.staticTexts["timeline-day-title"]
         XCTAssertTrue(todayTitle.waitForExistence(timeout: 5))
@@ -524,9 +519,7 @@ final class Baby_TrackerUITests: XCTestCase {
         XCTAssertTrue(app.buttons["save-bottle-feed-button"].waitForExistence(timeout: 5))
         app.buttons["save-bottle-feed-button"].tap()
 
-        let timelineButton = app.buttons["open-timeline-button"]
-        scrollToElement(timelineButton, in: app, maxSwipes: 10)
-        timelineButton.tap()
+        openTimelineTab(in: app)
 
         let timelineEvent = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "timeline-event-")
@@ -548,9 +541,7 @@ final class Baby_TrackerUITests: XCTestCase {
         XCTAssertTrue(app.buttons["save-sleep-button"].waitForExistence(timeout: 5))
         app.buttons["save-sleep-button"].tap()
 
-        let timelineButton = app.buttons["open-timeline-button"]
-        scrollToElement(timelineButton, in: app, maxSwipes: 10)
-        timelineButton.tap()
+        openTimelineTab(in: app)
 
         let activeSleepEvent = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "timeline-event-")
@@ -570,15 +561,13 @@ final class Baby_TrackerUITests: XCTestCase {
         XCTAssertTrue(app.buttons["save-bottle-feed-button"].waitForExistence(timeout: 5))
         app.buttons["save-bottle-feed-button"].tap()
 
-        let timelineButton = app.buttons["open-timeline-button"]
-        scrollToElement(timelineButton, in: app, maxSwipes: 10)
-        timelineButton.tap()
+        openTimelineTab(in: app)
 
         let timelineEvent = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "timeline-event-")
         ).firstMatch
         XCTAssertTrue(timelineEvent.waitForExistence(timeout: 5))
-        timelineEvent.swipeLeft()
+        timelineEvent.press(forDuration: 1.0)
         app.buttons["Delete"].tap()
 
         let confirmDeleteButton = app.sheets.buttons["Delete Feed"]
@@ -667,5 +656,12 @@ final class Baby_TrackerUITests: XCTestCase {
         app.buttons["quick-log-sleep-button"].tap()
         XCTAssertTrue(app.buttons["save-sleep-button"].waitForExistence(timeout: 5))
         app.buttons["save-sleep-button"].tap()
+    }
+
+    @MainActor
+    private func openTimelineTab(in app: XCUIApplication) {
+        let timelineTab = app.tabBars.buttons["Timeline"]
+        XCTAssertTrue(timelineTab.waitForExistence(timeout: 5))
+        timelineTab.tap()
     }
 }

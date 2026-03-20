@@ -925,48 +925,31 @@ public final class AppModel {
             dayTitle: timelineDayTitle(for: selectedDay),
             showsJumpToToday: selectedDay != today,
             canMoveToNextDay: selectedDay < today,
-            rows: makeTimelineRows(from: events),
+            blocks: makeTimelineBlocks(from: events, on: selectedDay),
             emptyStateTitle: "No events for this day",
             emptyStateMessage: "Try another day or use Quick Log to add the next event.",
             syncMessage: timelineSyncMessage(for: cloudKitStatus)
         )
     }
 
-    private func makeTimelineRows(
-        from events: [BabyEvent]
-    ) -> [TimelineEventRowViewState] {
-        var rows: [TimelineEventRowViewState] = []
-        var previousEvent: BabyEvent?
-
-        for event in events {
-            let overlapText = makeTimelineOverlapText(
-                current: event,
-                previous: previousEvent
-            )
-            let gapText = makeTimelineGapText(
-                current: event,
-                previous: previousEvent,
-                hasOverlap: overlapText != nil
-            )
-
-            rows.append(
-                makeTimelineRow(
-                    from: event,
-                    overlapText: overlapText,
-                    gapFromPreviousText: gapText
-                )
-            )
-            previousEvent = event
+    private func makeTimelineBlocks(
+        from events: [BabyEvent],
+        on selectedDay: Date
+    ) -> [TimelineEventBlockViewState] {
+        let blocks = events.map { event in
+            makeTimelineBlock(from: event, on: selectedDay)
         }
 
-        return rows
+        return assignTimelineLayout(to: blocks)
     }
 
-    private func makeTimelineRow(
+    private func makeTimelineBlock(
         from event: BabyEvent,
-        overlapText: String?,
-        gapFromPreviousText: String?
-    ) -> TimelineEventRowViewState {
+        on selectedDay: Date
+    ) -> TimelineEventBlockViewState {
+        let startMinute = visibleTimelineStartMinute(for: event, on: selectedDay)
+        let endMinute = visibleTimelineEndMinute(for: event, on: selectedDay)
+
         switch event {
         case let .breastFeed(feed):
             let durationMinutes = max(
@@ -974,15 +957,16 @@ public final class AppModel {
                 Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60)
             )
 
-            return TimelineEventRowViewState(
+            return TimelineEventBlockViewState(
                 id: feed.id,
                 kind: .breastFeed,
                 title: BabyEventPresentation.title(for: event),
                 detailText: BabyEventPresentation.detailText(for: event) ?? "",
-                timeText: shortTimeText(for: feed.startedAt),
-                secondaryTimeText: "to \(shortTimeText(for: feed.endedAt))",
-                overlapText: overlapText,
-                gapFromPreviousText: gapFromPreviousText,
+                timeText: "\(shortTimeText(for: feed.startedAt))-\(shortTimeText(for: feed.endedAt))",
+                startMinute: startMinute,
+                endMinute: endMinute,
+                laneIndex: 0,
+                laneCount: 1,
                 actionPayload: .editBreastFeed(
                     durationMinutes: durationMinutes,
                     endTime: feed.endedAt,
@@ -990,15 +974,16 @@ public final class AppModel {
                 )
             )
         case let .bottleFeed(feed):
-            return TimelineEventRowViewState(
+            return TimelineEventBlockViewState(
                 id: feed.id,
                 kind: .bottleFeed,
                 title: BabyEventPresentation.title(for: event),
                 detailText: BabyEventPresentation.detailText(for: event) ?? "",
                 timeText: shortTimeText(for: feed.metadata.occurredAt),
-                secondaryTimeText: nil,
-                overlapText: overlapText,
-                gapFromPreviousText: gapFromPreviousText,
+                startMinute: startMinute,
+                endMinute: endMinute,
+                laneIndex: 0,
+                laneCount: 1,
                 actionPayload: .editBottleFeed(
                     amountMilliliters: feed.amountMilliliters,
                     occurredAt: feed.metadata.occurredAt,
@@ -1007,15 +992,16 @@ public final class AppModel {
             )
         case let .sleep(sleep):
             if let endedAt = sleep.endedAt {
-                return TimelineEventRowViewState(
+                return TimelineEventBlockViewState(
                     id: sleep.id,
                     kind: .sleep,
                     title: BabyEventPresentation.title(for: event),
                     detailText: BabyEventPresentation.detailText(for: event) ?? "",
-                    timeText: shortTimeText(for: sleep.startedAt),
-                    secondaryTimeText: "to \(shortTimeText(for: endedAt))",
-                    overlapText: overlapText,
-                    gapFromPreviousText: gapFromPreviousText,
+                    timeText: "\(shortTimeText(for: sleep.startedAt))-\(shortTimeText(for: endedAt))",
+                    startMinute: startMinute,
+                    endMinute: endMinute,
+                    laneIndex: 0,
+                    laneCount: 1,
                     actionPayload: .editSleep(
                         startedAt: sleep.startedAt,
                         endedAt: endedAt
@@ -1023,27 +1009,29 @@ public final class AppModel {
                 )
             }
 
-            return TimelineEventRowViewState(
+            return TimelineEventBlockViewState(
                 id: sleep.id,
                 kind: .sleep,
                 title: BabyEventPresentation.title(for: event),
                 detailText: BabyEventPresentation.detailText(for: event) ?? "",
-                timeText: shortTimeText(for: sleep.startedAt),
-                secondaryTimeText: "In progress",
-                overlapText: overlapText,
-                gapFromPreviousText: gapFromPreviousText,
+                timeText: "Started \(shortTimeText(for: sleep.startedAt))",
+                startMinute: startMinute,
+                endMinute: endMinute,
+                laneIndex: 0,
+                laneCount: 1,
                 actionPayload: .endSleep(startedAt: sleep.startedAt)
             )
         case let .nappy(nappy):
-            return TimelineEventRowViewState(
+            return TimelineEventBlockViewState(
                 id: nappy.id,
                 kind: .nappy,
                 title: BabyEventPresentation.title(for: event),
                 detailText: BabyEventPresentation.detailText(for: event) ?? "",
                 timeText: shortTimeText(for: nappy.metadata.occurredAt),
-                secondaryTimeText: nil,
-                overlapText: overlapText,
-                gapFromPreviousText: gapFromPreviousText,
+                startMinute: startMinute,
+                endMinute: endMinute,
+                laneIndex: 0,
+                laneCount: 1,
                 actionPayload: .editNappy(
                     type: nappy.type,
                     occurredAt: nappy.metadata.occurredAt,
@@ -1054,34 +1042,82 @@ public final class AppModel {
         }
     }
 
-    private func makeTimelineOverlapText(
-        current: BabyEvent,
-        previous: BabyEvent?
-    ) -> String? {
-        guard let previous else {
-            return nil
+    private func assignTimelineLayout(
+        to blocks: [TimelineEventBlockViewState]
+    ) -> [TimelineEventBlockViewState] {
+        var laneEndMinutes: [Int] = []
+        var laneIndexesByID: [UUID: Int] = [:]
+
+        for block in blocks {
+            if let laneIndex = laneEndMinutes.firstIndex(where: { block.startMinute >= $0 }) {
+                laneEndMinutes[laneIndex] = block.endMinute
+                laneIndexesByID[block.id] = laneIndex
+            } else {
+                laneIndexesByID[block.id] = laneEndMinutes.count
+                laneEndMinutes.append(block.endMinute)
+            }
         }
 
-        return timelineStartDate(for: current) < timelineEndDate(for: previous) ?
-            "Overlaps with previous event" :
-            nil
+        return blocks.map { block in
+            let laneIndex = laneIndexesByID[block.id] ?? 0
+            let laneCount = timelineLaneCount(for: block, within: blocks)
+
+            return block.updatingLayout(
+                laneIndex: laneIndex,
+                laneCount: laneCount
+            )
+        }
     }
 
-    private func makeTimelineGapText(
-        current: BabyEvent,
-        previous: BabyEvent?,
-        hasOverlap: Bool
-    ) -> String? {
-        guard let previous, !hasOverlap else {
-            return nil
-        }
+    private func timelineLaneCount(
+        for block: TimelineEventBlockViewState,
+        within blocks: [TimelineEventBlockViewState]
+    ) -> Int {
+        let candidateMinutes = blocks
+            .filter { other in
+                other.endMinute > block.startMinute &&
+                    other.startMinute < block.endMinute
+            }
+            .map(\.startMinute) + [block.startMinute]
 
-        let gap = timelineStartDate(for: current).timeIntervalSince(timelineEndDate(for: previous))
-        guard gap >= 7_200 else {
-            return nil
+        return candidateMinutes.reduce(into: 1) { currentMax, minute in
+            let concurrentCount = blocks.count { other in
+                other.startMinute <= minute && other.endMinute > minute
+            }
+            currentMax = max(currentMax, concurrentCount)
         }
+    }
 
-        return "\(durationText(for: gap)) gap"
+    private func visibleTimelineStartMinute(
+        for event: BabyEvent,
+        on selectedDay: Date
+    ) -> Int {
+        let dayStart = normalizedTimelineDay(for: selectedDay)
+        let visibleStart = max(timelineStartDate(for: event), dayStart)
+
+        return minuteOfDay(for: visibleStart, relativeTo: dayStart)
+    }
+
+    private func visibleTimelineEndMinute(
+        for event: BabyEvent,
+        on selectedDay: Date
+    ) -> Int {
+        let dayStart = normalizedTimelineDay(for: selectedDay)
+        let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
+        let minimumDurationMinutes = 20
+        let visibleEnd = min(timelineEndDate(for: event), dayEnd)
+        let unclampedMinute = minuteOfDay(for: visibleEnd, relativeTo: dayStart)
+        let minimumEndMinute = visibleTimelineStartMinute(for: event, on: selectedDay) + minimumDurationMinutes
+
+        return min(1_440, max(unclampedMinute, minimumEndMinute))
+    }
+
+    private func minuteOfDay(
+        for date: Date,
+        relativeTo dayStart: Date
+    ) -> Int {
+        let interval = date.timeIntervalSince(dayStart)
+        return max(0, min(1_440, Int(interval / 60)))
     }
 
     private func timelineStartDate(for event: BabyEvent) -> Date {
@@ -1137,21 +1173,5 @@ public final class AppModel {
 
     private func shortTimeText(for date: Date) -> String {
         date.formatted(date: .omitted, time: .shortened)
-    }
-
-    private func durationText(for interval: TimeInterval) -> String {
-        let totalMinutes = max(1, Int(interval / 60))
-        let hours = totalMinutes / 60
-        let minutes = totalMinutes % 60
-
-        if hours > 0 && minutes > 0 {
-            return "\(hours) hr \(minutes) min"
-        }
-
-        if hours > 0 {
-            return hours == 1 ? "1 hr" : "\(hours) hr"
-        }
-
-        return "\(minutes) min"
     }
 }

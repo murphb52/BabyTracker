@@ -6,7 +6,6 @@ struct ChildProfileView: View {
     let model: AppModel
     let profile: ChildProfileScreenState
 
-    @State private var showingEditChildSheet = false
     @State private var showingArchiveConfirmation = false
     @State private var showingQuickLogNappyTypeDialog = false
     @State private var activeEventSheet: EventSheet?
@@ -62,15 +61,6 @@ struct ChildProfileView: View {
                         showingQuickLogNappyTypeDialog = true
                     }
                 }
-            }
-
-            Section("History") {
-                NavigationLink {
-                    TimelineScreenView(model: model)
-                } label: {
-                    Label("Timeline", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
-                }
-                .accessibilityIdentifier("open-timeline-button")
             }
 
             Section("Recent Feeds") {
@@ -207,13 +197,8 @@ struct ChildProfileView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingEditChildSheet) {
-            ChildEditSheetView(
-                initialName: profile.child.name,
-                initialBirthDate: profile.child.birthDate,
-                saveAction: model.updateCurrentChild(name:birthDate:)
-            )
-        }
+        .navigationTitle(profile.child.name)
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $activeEventSheet, onDismiss: {
             activeEventSheet = nil
         }) { sheet in
@@ -434,26 +419,6 @@ struct ChildProfileView: View {
             }
         } message: { event in
             Text("Delete \(event.title.lowercased()) from \(event.timestampText)?")
-        }
-        .toolbar {
-            if profile.canEditChild {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Edit Child") {
-                        showingEditChildSheet = true
-                    }
-                    .accessibilityIdentifier("edit-child-button")
-                }
-            }
-
-            if profile.canManageSharing {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Share", systemImage: "square.and.arrow.up") {
-                        model.presentShareSheet()
-                    }
-                    .disabled(!profile.canShareChild)
-                    .accessibilityIdentifier("share-child-button")
-                }
-            }
         }
     }
 
@@ -722,48 +687,6 @@ struct ChildProfileView: View {
         )
     }
 
-    private func editSheet(
-        for event: TimelineEventRowViewState
-    ) -> EventSheet {
-        switch event.actionPayload {
-        case let .editBreastFeed(durationMinutes, endTime, side):
-            return .editBreastFeed(
-                id: event.id,
-                durationMinutes: durationMinutes,
-                endTime: endTime,
-                side: side
-            )
-        case let .editBottleFeed(amountMilliliters, occurredAt, milkType):
-            return .editBottleFeed(
-                id: event.id,
-                amountMilliliters: amountMilliliters,
-                occurredAt: occurredAt,
-                milkType: milkType
-            )
-        case let .editNappy(type, occurredAt, intensity, pooColor):
-            return .editNappy(
-                id: event.id,
-                type: type,
-                occurredAt: occurredAt,
-                intensity: intensity,
-                pooColor: pooColor
-            )
-        case let .editSleep(startedAt, endedAt):
-            return .editSleep(
-                id: event.id,
-                startedAt: startedAt,
-                endedAt: endedAt
-            )
-        case let .endSleep(startedAt):
-            return .endSleep(
-                ActiveSleepSessionViewState(
-                    id: event.id,
-                    startedAt: startedAt
-                )
-            )
-        }
-    }
-
     private func deleteCandidate(
         for event: RecentFeedEventViewState
     ) -> DeleteCandidate {
@@ -798,54 +721,6 @@ struct ChildProfileView: View {
             dialogTitle: "Delete Nappy?",
             confirmButtonTitle: "Delete Nappy"
         )
-    }
-
-    private func deleteCandidate(
-        for event: TimelineEventRowViewState
-    ) -> DeleteCandidate {
-        DeleteCandidate(
-            id: event.id,
-            title: event.title,
-            timestampText: timelineTimestampText(for: event),
-            dialogTitle: deleteDialogTitle(for: event.kind),
-            confirmButtonTitle: deleteConfirmButtonTitle(for: event.kind)
-        )
-    }
-
-    private func timelineTimestampText(
-        for event: TimelineEventRowViewState
-    ) -> String {
-        guard let secondaryTimeText = event.secondaryTimeText else {
-            return event.timeText
-        }
-
-        return "\(event.timeText) \(secondaryTimeText)"
-    }
-
-    private func deleteDialogTitle(
-        for kind: BabyEventKind
-    ) -> String {
-        switch kind {
-        case .breastFeed, .bottleFeed:
-            return "Delete Feed?"
-        case .sleep:
-            return "Delete Sleep?"
-        case .nappy:
-            return "Delete Nappy?"
-        }
-    }
-
-    private func deleteConfirmButtonTitle(
-        for kind: BabyEventKind
-    ) -> String {
-        switch kind {
-        case .breastFeed, .bottleFeed:
-            return "Delete Feed"
-        case .sleep:
-            return "Delete Sleep"
-        case .nappy:
-            return "Delete Nappy"
-        }
     }
 
     private func defaultSleepEndTime(for startedAt: Date) -> Date {

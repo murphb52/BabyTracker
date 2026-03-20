@@ -70,7 +70,7 @@ struct AppModelTests {
     }
 
     @Test
-    func timelineDerivesMixedDayRowsOldestFirstWithGapAndOverlapMetadata() throws {
+    func timelineDerivesMixedDayBlocksOldestFirstWithSideBySideLayout() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }
 
@@ -116,11 +116,17 @@ struct AppModelTests {
         harness.model.load(performLaunchSync: false)
 
         let timeline = try #require(harness.model.profile?.timeline)
+        let blocks = timeline.blocks
 
-        #expect(timeline.rows.map(\.id) == [breastFeed.id, sleep.id, bottleFeed.id, nappy.id])
-        #expect(timeline.rows[1].gapFromPreviousText == "2 hr 40 min gap")
-        #expect(timeline.rows[2].overlapText == "Overlaps with previous event")
-        #expect(timeline.rows[2].actionPayload == .editBottleFeed(
+        #expect(blocks.map(\.id) == [breastFeed.id, sleep.id, bottleFeed.id, nappy.id])
+        #expect(blocks[0].startMinute == 360)
+        #expect(blocks[0].endMinute == 380)
+        #expect(blocks[1].startMinute == 540)
+        #expect(blocks[1].endMinute == 660)
+        #expect(blocks[1].laneCount == 2)
+        #expect(blocks[2].laneIndex == 1)
+        #expect(blocks[2].laneCount == 2)
+        #expect(blocks[2].actionPayload == .editBottleFeed(
             amountMilliliters: 150,
             occurredAt: bottleTime,
             milkType: .formula
@@ -157,21 +163,21 @@ struct AppModelTests {
         harness.model.load(performLaunchSync: false)
 
         var timeline = try #require(harness.model.profile?.timeline)
-        #expect(timeline.rows.map(\.id) == [todayEvent.id])
+        #expect(timeline.blocks.map(\.id) == [todayEvent.id])
         #expect(timeline.canMoveToNextDay == false)
         #expect(timeline.showsJumpToToday == false)
 
         harness.model.showPreviousTimelineDay()
 
         timeline = try #require(harness.model.profile?.timeline)
-        #expect(timeline.rows.map(\.id) == [yesterdayEvent.id])
+        #expect(timeline.blocks.map(\.id) == [yesterdayEvent.id])
         #expect(timeline.canMoveToNextDay)
         #expect(timeline.showsJumpToToday)
 
         harness.model.showNextTimelineDay()
 
         timeline = try #require(harness.model.profile?.timeline)
-        #expect(timeline.rows.map(\.id) == [todayEvent.id])
+        #expect(timeline.blocks.map(\.id) == [todayEvent.id])
         #expect(timeline.canMoveToNextDay == false)
     }
 
@@ -194,12 +200,13 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        let row = try #require(
-            harness.model.profile?.timeline.rows.first(where: { $0.id == activeSleep.id })
+        let block = try #require(
+            harness.model.profile?.timeline.blocks.first(where: { $0.id == activeSleep.id })
         )
 
-        #expect(row.secondaryTimeText == "In progress")
-        #expect(row.actionPayload == .endSleep(startedAt: start))
+        #expect(block.startMinute == 420)
+        #expect(block.endMinute > block.startMinute)
+        #expect(block.actionPayload == .endSleep(startedAt: start))
     }
 
     @Test

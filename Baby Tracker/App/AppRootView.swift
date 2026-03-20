@@ -23,7 +23,7 @@ struct AppRootView: View {
                     ChildPickerView(model: model)
                 case .childProfile:
                     if let profile = model.profile {
-                        ChildProfileView(model: model, profile: profile)
+                        ChildProfileTabView(model: model, profile: profile)
                     } else {
                         ProgressView("Loading profile…")
                             .frame(maxWidth: .infinity, maxHeight: .infinity)

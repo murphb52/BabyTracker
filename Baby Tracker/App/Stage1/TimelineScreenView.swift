@@ -5,8 +5,13 @@ import SwiftUI
 struct TimelineScreenView: View {
     let model: AppModel
 
-    @State private var activeEvent: TimelineEventRowViewState?
-    @State private var deleteCandidate: TimelineEventRowViewState?
+    @State private var activeEvent: TimelineEventBlockViewState?
+    @State private var deleteCandidate: TimelineEventBlockViewState?
+
+    private let hourRowHeight: CGFloat = 104
+    private let timeColumnWidth: CGFloat = 52
+    private let laneSpacing: CGFloat = 8
+    private let blockCornerRadius: CGFloat = 14
 
     var body: some View {
         if let profile = model.profile {
@@ -15,6 +20,7 @@ struct TimelineScreenView: View {
                 canManageEvents: profile.canManageEvents
             )
             .navigationTitle("Timeline")
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(item: $activeEvent) { event in
                 eventSheet(for: event, canManageEvents: profile.canManageEvents)
             }
@@ -29,7 +35,7 @@ struct TimelineScreenView: View {
                     deleteCandidate = nil
                 }
             } message: { event in
-                Text("Delete \(event.title.lowercased()) from \(timestampText(for: event))?")
+                Text("Delete \(event.title.lowercased()) from \(event.timeText)?")
             }
         } else {
             ProgressView("Loading timeline…")
@@ -42,76 +48,185 @@ struct TimelineScreenView: View {
         timeline: TimelineScreenState,
         canManageEvents: Bool
     ) -> some View {
-        List {
-            Section {
-                HStack {
-                    Button {
-                        model.showPreviousTimelineDay()
-                    } label: {
-                        Image(systemName: "chevron.left")
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    dayNavigationHeader(for: timeline)
+
+                    if let syncMessage = timeline.syncMessage {
+                        syncBanner(message: syncMessage)
                     }
-                    .accessibilityIdentifier("timeline-previous-day-button")
 
-                    Spacer()
+                    if timeline.blocks.isEmpty {
+                        emptyState(
+                            title: timeline.emptyStateTitle,
+                            message: timeline.emptyStateMessage
+                        )
+                    }
 
+                    timelineCanvas(
+                        for: timeline,
+                        canManageEvents: canManageEvents
+                    )
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 20)
+            }
+            .background(Color(.systemGroupedBackground))
+            .onAppear {
+                scrollToVisibleHour(for: timeline.selectedDay, using: proxy)
+            }
+            .onChange(of: timeline.selectedDay) { _, selectedDay in
+                scrollToVisibleHour(for: selectedDay, using: proxy)
+            }
+        }
+    }
+
+    private func dayNavigationHeader(
+        for timeline: TimelineScreenState
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Button {
+                    model.showPreviousTimelineDay()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .frame(width: 18, height: 18)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("timeline-previous-day-button")
+
+                VStack(alignment: .leading, spacing: 2) {
                     Text(timeline.dayTitle)
-                        .font(.headline)
+                        .font(.title2.weight(.semibold))
                         .accessibilityIdentifier("timeline-day-title")
 
-                    Spacer()
-
-                    Button {
-                        model.showNextTimelineDay()
-                    } label: {
-                        Image(systemName: "chevron.right")
-                    }
-                    .disabled(!timeline.canMoveToNextDay)
-                    .accessibilityIdentifier("timeline-next-day-button")
+                    Text("24-hour day view")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
+
+                Spacer()
 
                 if timeline.showsJumpToToday {
                     Button("Today") {
                         model.jumpTimelineToToday()
                     }
+                    .buttonStyle(.borderedProminent)
                     .accessibilityIdentifier("timeline-jump-to-today-button")
                 }
-            }
 
-            if let syncMessage = timeline.syncMessage {
-                Section {
-                    Text(syncMessage)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("timeline-sync-message")
+                Button {
+                    model.showNextTimelineDay()
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .frame(width: 18, height: 18)
+                }
+                .buttonStyle(.bordered)
+                .disabled(!timeline.canMoveToNextDay)
+                .accessibilityIdentifier("timeline-next-day-button")
+            }
+        }
+    }
+
+    private func syncBanner(message: String) -> some View {
+        Text(message)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+            )
+            .accessibilityIdentifier("timeline-sync-message")
+    }
+
+    private func emptyState(
+        title: String,
+        message: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.headline)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+        .accessibilityIdentifier("timeline-empty-state")
+    }
+
+    private func timelineCanvas(
+        for timeline: TimelineScreenState,
+        canManageEvents: Bool
+    ) -> some View {
+        GeometryReader { geometry in
+            let contentWidth = max(geometry.size.width - timeColumnWidth - 12, 180)
+
+            ZStack(alignment: .topLeading) {
+                hourGrid(for: timeline)
+
+                ForEach(timeline.blocks) { event in
+                    timelineBlock(
+                        for: event,
+                        contentWidth: contentWidth,
+                        canManageEvents: canManageEvents
+                    )
                 }
             }
+        }
+        .frame(height: hourRowHeight * 24)
+    }
 
-            Section("Events") {
-                if timeline.rows.isEmpty {
-                    ContentUnavailableView(
-                        timeline.emptyStateTitle,
-                        systemImage: "clock",
-                        description: Text(timeline.emptyStateMessage)
-                    )
-                    .accessibilityIdentifier("timeline-empty-state")
-                } else {
-                    ForEach(timeline.rows) { event in
-                        timelineRow(
-                            for: event,
-                            canManageEvents: canManageEvents
-                        )
+    private func hourGrid(
+        for timeline: TimelineScreenState
+    ) -> some View {
+        VStack(spacing: 0) {
+            ForEach(0..<24, id: \.self) { hour in
+                HStack(alignment: .top, spacing: 12) {
+                    Text(hourLabel(for: hour))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: timeColumnWidth, alignment: .trailing)
+                        .padding(.top, 6)
+                        .id(hourAnchorID(for: hour))
+
+                    ZStack(alignment: .topLeading) {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(backgroundColor(forHour: hour, selectedDay: timeline.selectedDay))
+
+                        Rectangle()
+                            .fill(Color(.separator))
+                            .frame(height: 1)
                     }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: hourRowHeight)
                 }
             }
         }
     }
 
     @ViewBuilder
-    private func timelineRow(
-        for event: TimelineEventRowViewState,
+    private func timelineBlock(
+        for event: TimelineEventBlockViewState,
+        contentWidth: CGFloat,
         canManageEvents: Bool
     ) -> some View {
-        let content = timelineRowContent(for: event)
+        let width = blockWidth(for: event, contentWidth: contentWidth)
+        let height = blockHeight(for: event)
+        let xOffset = blockXOffset(for: event, contentWidth: contentWidth)
+        let yOffset = blockYOffset(for: event)
+        let xPosition = timeColumnWidth + 12 + xOffset + (width / 2)
+        let yPosition = yOffset + (height / 2)
+        let content = timelineBlockContent(for: event, height: height)
 
         if canManageEvents {
             Button {
@@ -120,73 +235,83 @@ struct TimelineScreenView: View {
                 content
             }
             .buttonStyle(.plain)
-            .accessibilityIdentifier("timeline-event-\(event.id.uuidString)")
-            .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                Button(leadingActionTitle(for: event)) {
+            .frame(width: width, height: height, alignment: .topLeading)
+            .background(blockBackgroundColor(for: event.kind))
+            .clipShape(RoundedRectangle(cornerRadius: blockCornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: blockCornerRadius, style: .continuous)
+                    .stroke(blockBorderColor(for: event.kind), lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: blockCornerRadius, style: .continuous))
+            .position(x: xPosition, y: yPosition)
+            .simultaneousGesture(
+                TapGesture().onEnded {
                     activeEvent = event
                 }
-            }
-            .swipeActions {
+            )
+            .accessibilityIdentifier("timeline-event-\(event.id.uuidString)")
+            .accessibilityLabel("\(event.title), \(event.detailText), \(event.timeText)")
+            .contextMenu {
+                Button(primaryActionTitle(for: event)) {
+                    activeEvent = event
+                }
+
                 Button("Delete", role: .destructive) {
                     deleteCandidate = event
                 }
             }
         } else {
             content
+                .frame(width: width, height: height, alignment: .topLeading)
+                .background(blockBackgroundColor(for: event.kind))
+                .clipShape(RoundedRectangle(cornerRadius: blockCornerRadius, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: blockCornerRadius, style: .continuous)
+                        .stroke(blockBorderColor(for: event.kind), lineWidth: 1)
+                )
+                .position(x: xPosition, y: yPosition)
                 .accessibilityIdentifier("timeline-event-\(event.id.uuidString)")
         }
     }
 
-    private func timelineRowContent(
-        for event: TimelineEventRowViewState
+    private func timelineBlockContent(
+        for event: TimelineEventBlockViewState,
+        height: CGFloat
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let gapFromPreviousText = event.gapFromPreviousText {
-                Text(gapFromPreviousText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("timeline-gap-\(event.id.uuidString)")
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: systemImageName(for: event.kind))
+                    .font(.caption.weight(.semibold))
+
+                if height > 28 {
+                    Text(event.title)
+                        .font(height > 44 ? .footnote.weight(.semibold) : .caption.weight(.semibold))
+                        .lineLimit(1)
+                }
             }
 
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(event.title)
-                        .font(.headline)
+            if height > 46 {
+                Text(event.detailText)
+                    .font(.caption)
+                    .lineLimit(height > 74 ? 2 : 1)
+                    .opacity(0.92)
+            }
 
-                    Text(event.detailText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    if let overlapText = event.overlapText {
-                        Text(overlapText)
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                            .accessibilityIdentifier("timeline-overlap-\(event.id.uuidString)")
-                    }
-                }
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(event.timeText)
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(.secondary)
-
-                    if let secondaryTimeText = event.secondaryTimeText {
-                        Text(secondaryTimeText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .multilineTextAlignment(.trailing)
+            if height > 72 {
+                Text(event.timeText)
+                    .font(.caption2.weight(.medium))
+                    .opacity(0.85)
+                    .lineLimit(1)
             }
         }
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
     }
 
-    private func leadingActionTitle(
-        for event: TimelineEventRowViewState
+    private func primaryActionTitle(
+        for event: TimelineEventBlockViewState
     ) -> String {
         switch event.actionPayload {
         case .endSleep:
@@ -196,9 +321,22 @@ struct TimelineScreenView: View {
         }
     }
 
+    private func systemImageName(for kind: BabyEventKind) -> String {
+        switch kind {
+        case .breastFeed:
+            return "heart.text.square"
+        case .bottleFeed:
+            return "drop.circle"
+        case .sleep:
+            return "bed.double"
+        case .nappy:
+            return "checklist"
+        }
+    }
+
     @ViewBuilder
     private func eventSheet(
-        for event: TimelineEventRowViewState,
+        for event: TimelineEventBlockViewState,
         canManageEvents: Bool
     ) -> some View {
         switch event.actionPayload {
@@ -343,7 +481,7 @@ struct TimelineScreenView: View {
     }
 
     private func deleteConfirmTitle(
-        for event: TimelineEventRowViewState
+        for event: TimelineEventBlockViewState
     ) -> String {
         switch event.kind {
         case .breastFeed, .bottleFeed:
@@ -355,14 +493,97 @@ struct TimelineScreenView: View {
         }
     }
 
-    private func timestampText(
-        for event: TimelineEventRowViewState
-    ) -> String {
-        guard let secondaryTimeText = event.secondaryTimeText else {
-            return event.timeText
+    private func blockWidth(
+        for event: TimelineEventBlockViewState,
+        contentWidth: CGFloat
+    ) -> CGFloat {
+        let laneCount = max(1, event.laneCount)
+        let totalSpacing = CGFloat(laneCount - 1) * laneSpacing
+        let width = (contentWidth - totalSpacing) / CGFloat(laneCount)
+
+        return max(90, width)
+    }
+
+    private func blockHeight(
+        for event: TimelineEventBlockViewState
+    ) -> CGFloat {
+        let minutes = max(20, event.endMinute - event.startMinute)
+        return max(28, CGFloat(minutes) * hourRowHeight / 60)
+    }
+
+    private func blockXOffset(
+        for event: TimelineEventBlockViewState,
+        contentWidth: CGFloat
+    ) -> CGFloat {
+        let width = blockWidth(for: event, contentWidth: contentWidth)
+        return CGFloat(event.laneIndex) * (width + laneSpacing)
+    }
+
+    private func blockYOffset(
+        for event: TimelineEventBlockViewState
+    ) -> CGFloat {
+        CGFloat(event.startMinute) * hourRowHeight / 60
+    }
+
+    private func blockBackgroundColor(
+        for kind: BabyEventKind
+    ) -> Color {
+        switch kind {
+        case .breastFeed:
+            return Color(red: 0.87, green: 0.35, blue: 0.54)
+        case .bottleFeed:
+            return Color(red: 0.11, green: 0.59, blue: 0.62)
+        case .sleep:
+            return Color(red: 0.28, green: 0.36, blue: 0.80)
+        case .nappy:
+            return Color(red: 0.90, green: 0.50, blue: 0.19)
+        }
+    }
+
+    private func blockBorderColor(
+        for kind: BabyEventKind
+    ) -> Color {
+        blockBackgroundColor(for: kind).opacity(0.75)
+    }
+
+    private func backgroundColor(
+        forHour hour: Int,
+        selectedDay: Date
+    ) -> Color {
+        guard Calendar.autoupdatingCurrent.isDateInToday(selectedDay),
+              Calendar.autoupdatingCurrent.component(.hour, from: .now) == hour else {
+            return Color(.secondarySystemGroupedBackground)
         }
 
-        return "\(event.timeText) \(secondaryTimeText)"
+        return Color.accentColor.opacity(0.12)
+    }
+
+    private func hourLabel(
+        for hour: Int
+    ) -> String {
+        let components = DateComponents(hour: hour)
+        let date = Calendar.autoupdatingCurrent.date(from: components) ?? .now
+        return date.formatted(.dateTime.hour(.defaultDigits(amPM: .abbreviated)))
+    }
+
+    private func hourAnchorID(
+        for hour: Int
+    ) -> String {
+        "timeline-hour-\(hour)"
+    }
+
+    private func scrollToVisibleHour(
+        for selectedDay: Date,
+        using proxy: ScrollViewProxy
+    ) {
+        guard Calendar.autoupdatingCurrent.isDateInToday(selectedDay) else {
+            return
+        }
+
+        let currentHour = Calendar.autoupdatingCurrent.component(.hour, from: .now)
+        DispatchQueue.main.async {
+            proxy.scrollTo(hourAnchorID(for: currentHour), anchor: .top)
+        }
     }
 
     private func defaultSleepEndTime(for startedAt: Date) -> Date {
