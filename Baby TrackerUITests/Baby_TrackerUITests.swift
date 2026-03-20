@@ -339,6 +339,7 @@ final class Baby_TrackerUITests: XCTestCase {
         let recentFeedButton = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "recent-feed-")
         ).firstMatch
+        scrollToElement(recentFeedButton, in: app, maxSwipes: 10)
         XCTAssertTrue(recentFeedButton.waitForExistence(timeout: 5))
         recentFeedButton.swipeRight()
         app.buttons["Edit"].tap()
@@ -364,6 +365,7 @@ final class Baby_TrackerUITests: XCTestCase {
         let recentFeedButton = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "recent-feed-")
         ).firstMatch
+        scrollToElement(recentFeedButton, in: app, maxSwipes: 10)
         XCTAssertTrue(recentFeedButton.waitForExistence(timeout: 5))
         recentFeedButton.swipeRight()
         app.buttons["Edit"].tap()
@@ -389,6 +391,7 @@ final class Baby_TrackerUITests: XCTestCase {
         let recentFeedButton = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "recent-feed-")
         ).firstMatch
+        scrollToElement(recentFeedButton, in: app, maxSwipes: 10)
         XCTAssertTrue(recentFeedButton.waitForExistence(timeout: 5))
         recentFeedButton.swipeLeft()
         app.buttons["Delete"].tap()
@@ -464,9 +467,131 @@ final class Baby_TrackerUITests: XCTestCase {
         let recentFeedButton = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "recent-feed-")
         ).firstMatch
+        scrollToElement(recentFeedButton, in: app, maxSwipes: 10)
         XCTAssertTrue(recentFeedButton.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Bottle Feed"].exists)
         XCTAssertFalse(app.staticTexts["Sleep"].exists && recentFeedButton.label == "Sleep")
+    }
+
+    @MainActor
+    func testTimelineScreenShowsEmptyStateForOwnerPreview() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
+
+        let timelineButton = app.buttons["open-timeline-button"]
+        scrollToElement(timelineButton, in: app, maxSwipes: 10)
+        XCTAssertTrue(timelineButton.waitForExistence(timeout: 5))
+        timelineButton.tap()
+
+        XCTAssertTrue(app.staticTexts["timeline-empty-state"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testTimelineDayNavigationCanReturnToToday() throws {
+        let app = makeApp(scenario: "mixedEventsPreview")
+        app.launch()
+
+        let timelineButton = app.buttons["open-timeline-button"]
+        scrollToElement(timelineButton, in: app, maxSwipes: 10)
+        timelineButton.tap()
+
+        let todayTitle = app.staticTexts["timeline-day-title"]
+        XCTAssertTrue(todayTitle.waitForExistence(timeout: 5))
+        XCTAssertEqual(todayTitle.label, "Today")
+
+        app.buttons["timeline-previous-day-button"].tap()
+
+        let jumpToTodayButton = app.buttons["timeline-jump-to-today-button"]
+        XCTAssertTrue(jumpToTodayButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["timeline-empty-state"].waitForExistence(timeout: 5))
+
+        jumpToTodayButton.tap()
+
+        XCTAssertEqual(app.staticTexts["timeline-day-title"].label, "Today")
+        XCTAssertTrue(
+            app.buttons.matching(
+                NSPredicate(format: "identifier BEGINSWITH %@", "timeline-event-")
+            ).firstMatch.waitForExistence(timeout: 5)
+        )
+    }
+
+    @MainActor
+    func testTimelineBottleFeedRowOpensEditFlow() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
+
+        app.buttons["quick-log-bottle-feed-button"].tap()
+        XCTAssertTrue(app.buttons["save-bottle-feed-button"].waitForExistence(timeout: 5))
+        app.buttons["save-bottle-feed-button"].tap()
+
+        let timelineButton = app.buttons["open-timeline-button"]
+        scrollToElement(timelineButton, in: app, maxSwipes: 10)
+        timelineButton.tap()
+
+        let timelineEvent = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "timeline-event-")
+        ).firstMatch
+        XCTAssertTrue(timelineEvent.waitForExistence(timeout: 5))
+        timelineEvent.tap()
+
+        XCTAssertTrue(app.buttons["save-bottle-feed-button"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testTimelineActiveSleepRowOpensEndSleepFlow() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
+
+        let sleepButton = app.buttons["quick-log-sleep-button"]
+        XCTAssertTrue(sleepButton.waitForExistence(timeout: 5))
+        sleepButton.tap()
+        XCTAssertTrue(app.buttons["save-sleep-button"].waitForExistence(timeout: 5))
+        app.buttons["save-sleep-button"].tap()
+
+        let timelineButton = app.buttons["open-timeline-button"]
+        scrollToElement(timelineButton, in: app, maxSwipes: 10)
+        timelineButton.tap()
+
+        let activeSleepEvent = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "timeline-event-")
+        ).firstMatch
+        XCTAssertTrue(activeSleepEvent.waitForExistence(timeout: 5))
+        activeSleepEvent.tap()
+
+        XCTAssertTrue(app.buttons["save-sleep-button"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testTimelineDeleteShowsUndoAndRemovesRow() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
+
+        app.buttons["quick-log-bottle-feed-button"].tap()
+        XCTAssertTrue(app.buttons["save-bottle-feed-button"].waitForExistence(timeout: 5))
+        app.buttons["save-bottle-feed-button"].tap()
+
+        let timelineButton = app.buttons["open-timeline-button"]
+        scrollToElement(timelineButton, in: app, maxSwipes: 10)
+        timelineButton.tap()
+
+        let timelineEvent = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "timeline-event-")
+        ).firstMatch
+        XCTAssertTrue(timelineEvent.waitForExistence(timeout: 5))
+        timelineEvent.swipeLeft()
+        app.buttons["Delete"].tap()
+
+        let confirmDeleteButton = app.sheets.buttons["Delete Feed"]
+        XCTAssertTrue(confirmDeleteButton.waitForExistence(timeout: 5))
+        confirmDeleteButton.tap()
+
+        let undoButton = app.buttons["undo-delete-button"]
+        XCTAssertTrue(undoButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["timeline-empty-state"].waitForExistence(timeout: 5))
+
+        undoButton.tap()
+
+        XCTAssertTrue(timelineEvent.waitForExistence(timeout: 5))
     }
 
     @MainActor

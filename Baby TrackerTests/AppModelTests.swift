@@ -70,6 +70,178 @@ struct AppModelTests {
     }
 
     @Test
+    func timelineDerivesMixedDayRowsOldestFirstWithGapAndOverlapMetadata() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: .now)
+        let breastStart = try #require(calendar.date(byAdding: .hour, value: 6, to: today))
+        let breastEnd = try #require(calendar.date(byAdding: .minute, value: 20, to: breastStart))
+        let sleepStart = try #require(calendar.date(byAdding: .hour, value: 9, to: today))
+        let sleepEnd = try #require(calendar.date(byAdding: .hour, value: 11, to: today))
+        let bottleTime = try #require(calendar.date(byAdding: .hour, value: 10, to: today))
+        let nappyTime = try #require(calendar.date(byAdding: .hour, value: 12, to: today))
+
+        let breastFeed = try harness.saveBreastFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            start: breastStart,
+            end: breastEnd,
+            side: .left
+        )
+        let sleep = try harness.saveSleep(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            startedAt: sleepStart,
+            endedAt: sleepEnd
+        )
+        let bottleFeed = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 150,
+            occurredAt: bottleTime,
+            milkType: .formula
+        )
+        let nappy = try harness.saveNappy(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            type: .mixed,
+            occurredAt: nappyTime,
+            intensity: .high,
+            pooColor: .green
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        let timeline = try #require(harness.model.profile?.timeline)
+
+        #expect(timeline.rows.map(\.id) == [breastFeed.id, sleep.id, bottleFeed.id, nappy.id])
+        #expect(timeline.rows[1].gapFromPreviousText == "2 hr 40 min gap")
+        #expect(timeline.rows[2].overlapText == "Overlaps with previous event")
+        #expect(timeline.rows[2].actionPayload == .editBottleFeed(
+            amountMilliliters: 150,
+            occurredAt: bottleTime,
+            milkType: .formula
+        ))
+    }
+
+    @Test
+    func timelineNavigationMovesBetweenDaysAndDisablesForwardNavigationOnToday() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: .now)
+        let yesterday = try #require(calendar.date(byAdding: .day, value: -1, to: today))
+        let todayEventTime = try #require(calendar.date(byAdding: .hour, value: 8, to: today))
+        let yesterdayEventTime = try #require(calendar.date(byAdding: .hour, value: 8, to: yesterday))
+
+        let yesterdayEvent = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 120,
+            occurredAt: yesterdayEventTime,
+            milkType: nil
+        )
+        let todayEvent = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 150,
+            occurredAt: todayEventTime,
+            milkType: .formula
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        var timeline = try #require(harness.model.profile?.timeline)
+        #expect(timeline.rows.map(\.id) == [todayEvent.id])
+        #expect(timeline.canMoveToNextDay == false)
+        #expect(timeline.showsJumpToToday == false)
+
+        harness.model.showPreviousTimelineDay()
+
+        timeline = try #require(harness.model.profile?.timeline)
+        #expect(timeline.rows.map(\.id) == [yesterdayEvent.id])
+        #expect(timeline.canMoveToNextDay)
+        #expect(timeline.showsJumpToToday)
+
+        harness.model.showNextTimelineDay()
+
+        timeline = try #require(harness.model.profile?.timeline)
+        #expect(timeline.rows.map(\.id) == [todayEvent.id])
+        #expect(timeline.canMoveToNextDay == false)
+    }
+
+    @Test
+    func activeSleepAppearsOnTimelineWithEndAction() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: .now)
+        let start = try #require(calendar.date(byAdding: .hour, value: 7, to: today))
+
+        let activeSleep = try harness.saveSleep(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            startedAt: start,
+            endedAt: nil
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        let row = try #require(
+            harness.model.profile?.timeline.rows.first(where: { $0.id == activeSleep.id })
+        )
+
+        #expect(row.secondaryTimeText == "In progress")
+        #expect(row.actionPayload == .endSleep(startedAt: start))
+    }
+
+    @Test
+    func selectingDifferentChildResetsTimelineDayToToday() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let secondChild = try harness.saveOwnedChild(
+            name: "Juniper",
+            owner: seed.localUser
+        )
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.showPreviousTimelineDay()
+        harness.model.selectChild(id: secondChild.id)
+
+        let timeline = try #require(harness.model.profile?.timeline)
+
+        #expect(Calendar.autoupdatingCurrent.isDateInToday(timeline.selectedDay))
+        #expect(timeline.canMoveToNextDay == false)
+        #expect(timeline.showsJumpToToday == false)
+    }
+
+    @Test
+    func timelineShowsSyncMessageWhenSyncStatusIsNotUpToDate() async throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+
+        harness.model.load(performLaunchSync: false)
+        _ = await harness.syncEngine.refreshForeground()
+        harness.model.load(performLaunchSync: false)
+
+        let profile = try #require(harness.model.profile)
+
+        #expect(profile.cloudKitStatus.state == .failed)
+        #expect(profile.timeline.syncMessage == profile.cloudKitStatus.detailMessage)
+    }
+
+    @Test
     func mixedTimelineUsesLatestEventForCurrentStateAndLatestFeedForFeedStatus() throws {
         let liveActivityManager = LiveActivityManagerSpy()
         let harness = try Harness(liveActivityManager: liveActivityManager)

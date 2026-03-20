@@ -20,6 +20,9 @@ public final class AppModel {
     private let eventRepository: EventRepository
     private let syncEngine: CloudKitSyncEngine
     private let liveActivityManager: any FeedLiveActivityManaging
+    private let calendar = Calendar.autoupdatingCurrent
+    private var timelineSelectedDay = Calendar.autoupdatingCurrent.startOfDay(for: .now)
+    private var timelineChildID: UUID?
     private var pendingUndoDeletedEvent: BabyEvent?
     private var undoDeleteTask: Task<Void, Never>?
 
@@ -131,7 +134,44 @@ public final class AppModel {
 
     public func selectChild(id: UUID) {
         repository.saveSelectedChildID(id)
+        timelineChildID = id
+        timelineSelectedDay = normalizedTimelineDay(for: .now)
         refresh(selecting: id)
+    }
+
+    public func showPreviousTimelineDay() {
+        guard let previousDay = calendar.date(
+            byAdding: .day,
+            value: -1,
+            to: timelineSelectedDay
+        ) else {
+            return
+        }
+
+        timelineSelectedDay = normalizedTimelineDay(for: previousDay)
+        refresh(selecting: repository.loadSelectedChildID())
+    }
+
+    public func showNextTimelineDay() {
+        let today = normalizedTimelineDay(for: .now)
+        guard timelineSelectedDay < today else {
+            return
+        }
+        guard let nextDay = calendar.date(
+            byAdding: .day,
+            value: 1,
+            to: timelineSelectedDay
+        ) else {
+            return
+        }
+
+        timelineSelectedDay = min(normalizedTimelineDay(for: nextDay), today)
+        refresh(selecting: repository.loadSelectedChildID())
+    }
+
+    public func jumpTimelineToToday() {
+        timelineSelectedDay = normalizedTimelineDay(for: .now)
+        refresh(selecting: repository.loadSelectedChildID())
     }
 
     public func showChildPicker() {
@@ -563,6 +603,7 @@ public final class AppModel {
                 activeChildren = []
                 archivedChildren = []
                 profile = nil
+                timelineChildID = nil
                 liveActivityManager.synchronize(with: nil)
                 return
             }
@@ -579,6 +620,7 @@ public final class AppModel {
             guard !activeChildren.isEmpty else {
                 route = .childCreation
                 profile = nil
+                timelineChildID = nil
                 liveActivityManager.synchronize(with: nil)
                 return
             }
@@ -591,18 +633,25 @@ public final class AppModel {
             if activeChildren.count > 1 && selectedSummary == nil {
                 route = .childPicker
                 profile = nil
+                timelineChildID = nil
                 liveActivityManager.synchronize(with: nil)
                 return
             }
 
             let currentSummary = selectedSummary ?? activeChildren[0]
             repository.saveSelectedChildID(currentSummary.child.id)
+            synchronizeTimelineSelection(for: currentSummary.child.id)
             let visibleEvents = try loadVisibleEvents(for: currentSummary.child.id)
+            let timelineEvents = try loadTimelineEvents(
+                for: currentSummary.child.id,
+                on: timelineSelectedDay
+            )
             let activeSleep = try eventRepository.loadActiveSleepEvent(for: currentSummary.child.id)
             profile = try makeProfile(
                 child: currentSummary.child,
                 localUser: localUser,
                 visibleEvents: visibleEvents,
+                timelineEvents: timelineEvents,
                 activeSleep: activeSleep
             )
             route = .childProfile
@@ -645,6 +694,7 @@ public final class AppModel {
         child: Child,
         localUser: UserIdentity,
         visibleEvents: [BabyEvent],
+        timelineEvents: [BabyEvent],
         activeSleep: SleepEvent?
     ) throws -> ChildProfileScreenState {
         let memberships = try repository.loadMemberships(for: child.id)
@@ -693,6 +743,7 @@ public final class AppModel {
         let canManageEvents =
             ChildAccessPolicy.canPerform(.editEvent, membership: currentMembership) &&
             ChildAccessPolicy.canPerform(.deleteEvent, membership: currentMembership)
+        let cloudKitStatus = CloudKitStatusViewState(summary: syncEngine.statusSummary)
 
         return ChildProfileScreenState(
             child: child,
@@ -710,7 +761,12 @@ public final class AppModel {
             recentFeedEvents: makeRecentFeedEvents(from: visibleEvents),
             recentSleepEvents: makeRecentSleepEvents(from: visibleEvents),
             recentNappyEvents: makeRecentNappyEvents(from: visibleEvents),
-            cloudKitStatus: CloudKitStatusViewState(summary: syncEngine.statusSummary),
+            timeline: makeTimelineScreenState(
+                from: timelineEvents,
+                selectedDay: timelineSelectedDay,
+                cloudKitStatus: cloudKitStatus
+            ),
+            cloudKitStatus: cloudKitStatus,
             canShareChild: ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership) &&
                 syncEngine.statusSummary.state != .failed
         )
@@ -718,6 +774,20 @@ public final class AppModel {
 
     private func loadVisibleEvents(for childID: UUID) throws -> [BabyEvent] {
         try eventRepository.loadTimeline(for: childID, includingDeleted: false)
+    }
+
+    private func loadTimelineEvents(
+        for childID: UUID,
+        on day: Date
+    ) throws -> [BabyEvent] {
+        try eventRepository.loadEvents(
+            for: childID,
+            on: day,
+            calendar: calendar,
+            includingDeleted: false
+        ).sorted { left, right in
+            timelineStartDate(for: left) < timelineStartDate(for: right)
+        }
     }
 
     private func makeCurrentStateSummary(
@@ -828,5 +898,260 @@ public final class AppModel {
         }
 
         return "Something went wrong. Please try again."
+    }
+
+    private func normalizedTimelineDay(for date: Date) -> Date {
+        calendar.startOfDay(for: date)
+    }
+
+    private func synchronizeTimelineSelection(for childID: UUID) {
+        guard timelineChildID != childID else {
+            return
+        }
+
+        timelineChildID = childID
+        timelineSelectedDay = normalizedTimelineDay(for: .now)
+    }
+
+    private func makeTimelineScreenState(
+        from events: [BabyEvent],
+        selectedDay: Date,
+        cloudKitStatus: CloudKitStatusViewState
+    ) -> TimelineScreenState {
+        let today = normalizedTimelineDay(for: .now)
+
+        return TimelineScreenState(
+            selectedDay: selectedDay,
+            dayTitle: timelineDayTitle(for: selectedDay),
+            showsJumpToToday: selectedDay != today,
+            canMoveToNextDay: selectedDay < today,
+            rows: makeTimelineRows(from: events),
+            emptyStateTitle: "No events for this day",
+            emptyStateMessage: "Try another day or use Quick Log to add the next event.",
+            syncMessage: timelineSyncMessage(for: cloudKitStatus)
+        )
+    }
+
+    private func makeTimelineRows(
+        from events: [BabyEvent]
+    ) -> [TimelineEventRowViewState] {
+        var rows: [TimelineEventRowViewState] = []
+        var previousEvent: BabyEvent?
+
+        for event in events {
+            let overlapText = makeTimelineOverlapText(
+                current: event,
+                previous: previousEvent
+            )
+            let gapText = makeTimelineGapText(
+                current: event,
+                previous: previousEvent,
+                hasOverlap: overlapText != nil
+            )
+
+            rows.append(
+                makeTimelineRow(
+                    from: event,
+                    overlapText: overlapText,
+                    gapFromPreviousText: gapText
+                )
+            )
+            previousEvent = event
+        }
+
+        return rows
+    }
+
+    private func makeTimelineRow(
+        from event: BabyEvent,
+        overlapText: String?,
+        gapFromPreviousText: String?
+    ) -> TimelineEventRowViewState {
+        switch event {
+        case let .breastFeed(feed):
+            let durationMinutes = max(
+                1,
+                Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60)
+            )
+
+            return TimelineEventRowViewState(
+                id: feed.id,
+                kind: .breastFeed,
+                title: BabyEventPresentation.title(for: event),
+                detailText: BabyEventPresentation.detailText(for: event) ?? "",
+                timeText: shortTimeText(for: feed.startedAt),
+                secondaryTimeText: "to \(shortTimeText(for: feed.endedAt))",
+                overlapText: overlapText,
+                gapFromPreviousText: gapFromPreviousText,
+                actionPayload: .editBreastFeed(
+                    durationMinutes: durationMinutes,
+                    endTime: feed.endedAt,
+                    side: feed.side
+                )
+            )
+        case let .bottleFeed(feed):
+            return TimelineEventRowViewState(
+                id: feed.id,
+                kind: .bottleFeed,
+                title: BabyEventPresentation.title(for: event),
+                detailText: BabyEventPresentation.detailText(for: event) ?? "",
+                timeText: shortTimeText(for: feed.metadata.occurredAt),
+                secondaryTimeText: nil,
+                overlapText: overlapText,
+                gapFromPreviousText: gapFromPreviousText,
+                actionPayload: .editBottleFeed(
+                    amountMilliliters: feed.amountMilliliters,
+                    occurredAt: feed.metadata.occurredAt,
+                    milkType: feed.milkType
+                )
+            )
+        case let .sleep(sleep):
+            if let endedAt = sleep.endedAt {
+                return TimelineEventRowViewState(
+                    id: sleep.id,
+                    kind: .sleep,
+                    title: BabyEventPresentation.title(for: event),
+                    detailText: BabyEventPresentation.detailText(for: event) ?? "",
+                    timeText: shortTimeText(for: sleep.startedAt),
+                    secondaryTimeText: "to \(shortTimeText(for: endedAt))",
+                    overlapText: overlapText,
+                    gapFromPreviousText: gapFromPreviousText,
+                    actionPayload: .editSleep(
+                        startedAt: sleep.startedAt,
+                        endedAt: endedAt
+                    )
+                )
+            }
+
+            return TimelineEventRowViewState(
+                id: sleep.id,
+                kind: .sleep,
+                title: BabyEventPresentation.title(for: event),
+                detailText: BabyEventPresentation.detailText(for: event) ?? "",
+                timeText: shortTimeText(for: sleep.startedAt),
+                secondaryTimeText: "In progress",
+                overlapText: overlapText,
+                gapFromPreviousText: gapFromPreviousText,
+                actionPayload: .endSleep(startedAt: sleep.startedAt)
+            )
+        case let .nappy(nappy):
+            return TimelineEventRowViewState(
+                id: nappy.id,
+                kind: .nappy,
+                title: BabyEventPresentation.title(for: event),
+                detailText: BabyEventPresentation.detailText(for: event) ?? "",
+                timeText: shortTimeText(for: nappy.metadata.occurredAt),
+                secondaryTimeText: nil,
+                overlapText: overlapText,
+                gapFromPreviousText: gapFromPreviousText,
+                actionPayload: .editNappy(
+                    type: nappy.type,
+                    occurredAt: nappy.metadata.occurredAt,
+                    intensity: nappy.intensity,
+                    pooColor: nappy.pooColor
+                )
+            )
+        }
+    }
+
+    private func makeTimelineOverlapText(
+        current: BabyEvent,
+        previous: BabyEvent?
+    ) -> String? {
+        guard let previous else {
+            return nil
+        }
+
+        return timelineStartDate(for: current) < timelineEndDate(for: previous) ?
+            "Overlaps with previous event" :
+            nil
+    }
+
+    private func makeTimelineGapText(
+        current: BabyEvent,
+        previous: BabyEvent?,
+        hasOverlap: Bool
+    ) -> String? {
+        guard let previous, !hasOverlap else {
+            return nil
+        }
+
+        let gap = timelineStartDate(for: current).timeIntervalSince(timelineEndDate(for: previous))
+        guard gap >= 7_200 else {
+            return nil
+        }
+
+        return "\(durationText(for: gap)) gap"
+    }
+
+    private func timelineStartDate(for event: BabyEvent) -> Date {
+        switch event {
+        case let .breastFeed(feed):
+            return feed.startedAt
+        case let .bottleFeed(feed):
+            return feed.metadata.occurredAt
+        case let .sleep(sleep):
+            return sleep.startedAt
+        case let .nappy(event):
+            return event.metadata.occurredAt
+        }
+    }
+
+    private func timelineEndDate(for event: BabyEvent) -> Date {
+        switch event {
+        case let .breastFeed(feed):
+            return feed.endedAt
+        case let .bottleFeed(feed):
+            return feed.metadata.occurredAt
+        case let .sleep(sleep):
+            return sleep.endedAt ?? Date()
+        case let .nappy(event):
+            return event.metadata.occurredAt
+        }
+    }
+
+    private func timelineDayTitle(for day: Date) -> String {
+        if calendar.isDateInToday(day) {
+            return "Today"
+        }
+
+        if calendar.isDateInYesterday(day) {
+            return "Yesterday"
+        }
+
+        return day.formatted(date: .abbreviated, time: .omitted)
+    }
+
+    private func timelineSyncMessage(
+        for cloudKitStatus: CloudKitStatusViewState
+    ) -> String? {
+        switch cloudKitStatus.state {
+        case .upToDate:
+            return nil
+        case .pendingSync:
+            return "Changes are saved locally and will sync automatically."
+        case .syncing, .failed:
+            return cloudKitStatus.detailMessage
+        }
+    }
+
+    private func shortTimeText(for date: Date) -> String {
+        date.formatted(date: .omitted, time: .shortened)
+    }
+
+    private func durationText(for interval: TimeInterval) -> String {
+        let totalMinutes = max(1, Int(interval / 60))
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+
+        if hours > 0 && minutes > 0 {
+            return "\(hours) hr \(minutes) min"
+        }
+
+        if hours > 0 {
+            return hours == 1 ? "1 hr" : "\(hours) hr"
+        }
+
+        return "\(minutes) min"
     }
 }

@@ -324,6 +324,56 @@ struct EventRepositoryTests {
             Issue.record("Expected a restored bottle feed event")
         }
     }
+
+    @Test
+    func loadEventsUsesOccurredAtDayForSleepThatSpansMidnight() throws {
+        let harness = try RepositoryHarness()
+        defer { harness.cleanUp() }
+
+        let childID = UUID()
+        let userID = UUID()
+        let calendar = Calendar(identifier: .gregorian)
+        let dayOne = Date(timeIntervalSince1970: 1_728_000_000)
+        let startOfDayOne = calendar.startOfDay(for: dayOne)
+        let startOfDayTwo = try #require(
+            calendar.date(byAdding: .day, value: 1, to: startOfDayOne)
+        )
+        let sleepStart = try #require(
+            calendar.date(byAdding: .hour, value: 23, to: startOfDayOne)
+        )
+        let sleepEnd = try #require(
+            calendar.date(byAdding: .hour, value: 1, to: startOfDayTwo)
+        )
+
+        let sleep = try SleepEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: sleepEnd,
+                createdAt: sleepEnd,
+                createdBy: userID
+            ),
+            startedAt: sleepStart,
+            endedAt: sleepEnd
+        )
+
+        try harness.repository.saveEvent(.sleep(sleep))
+
+        let firstDayEvents = try harness.repository.loadEvents(
+            for: childID,
+            on: startOfDayOne,
+            calendar: calendar,
+            includingDeleted: false
+        )
+        let secondDayEvents = try harness.repository.loadEvents(
+            for: childID,
+            on: startOfDayTwo,
+            calendar: calendar,
+            includingDeleted: false
+        )
+
+        #expect(firstDayEvents.isEmpty)
+        #expect(secondDayEvents.map(\.id) == [sleep.id])
+    }
 }
 
 extension EventRepositoryTests {

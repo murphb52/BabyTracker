@@ -17,6 +17,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
     public let recentFeedEvents: [RecentFeedEventViewState]
     public let recentSleepEvents: [RecentSleepEventViewState]
     public let recentNappyEvents: [RecentNappyEventViewState]
+    public let timeline: TimelineScreenState
     public let cloudKitStatus: CloudKitStatusViewState
     public let canShareChild: Bool
 
@@ -48,6 +49,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         recentFeedEvents: [RecentFeedEventViewState],
         recentSleepEvents: [RecentSleepEventViewState],
         recentNappyEvents: [RecentNappyEventViewState],
+        timeline: TimelineScreenState,
         cloudKitStatus: CloudKitStatusViewState,
         canShareChild: Bool
     ) {
@@ -66,6 +68,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         self.recentFeedEvents = recentFeedEvents
         self.recentSleepEvents = recentSleepEvents
         self.recentNappyEvents = recentNappyEvents
+        self.timeline = timeline
         self.cloudKitStatus = cloudKitStatus
         self.canShareChild = canShareChild
     }

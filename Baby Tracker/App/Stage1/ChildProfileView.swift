@@ -64,6 +64,15 @@ struct ChildProfileView: View {
                 }
             }
 
+            Section("History") {
+                NavigationLink {
+                    TimelineScreenView(model: model)
+                } label: {
+                    Label("Timeline", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                }
+                .accessibilityIdentifier("open-timeline-button")
+            }
+
             Section("Recent Feeds") {
                 if profile.recentFeedEvents.isEmpty {
                     Text(emptyFeedText)
@@ -303,12 +312,85 @@ struct ChildProfileView: View {
                     }
                     return didSave
                 }
-            case let .editRecentFeed(event):
-                feedEditor(for: event)
-            case let .editRecentSleep(event):
-                sleepEditor(for: event)
-            case let .editRecentNappy(event):
-                nappyEditor(for: event)
+            case let .editBreastFeed(id, durationMinutes, endTime, side):
+                BreastFeedEditorSheetView(
+                    navigationTitle: "Edit Breast Feed",
+                    primaryActionTitle: "Update",
+                    initialDurationMinutes: durationMinutes,
+                    initialEndTime: endTime,
+                    initialSide: side
+                ) { updatedDuration, updatedEndTime, updatedSide in
+                    let didSave = model.updateBreastFeed(
+                        id: id,
+                        durationMinutes: updatedDuration,
+                        endTime: updatedEndTime,
+                        side: updatedSide
+                    )
+                    if didSave {
+                        activeEventSheet = nil
+                    }
+                    return didSave
+                }
+            case let .editBottleFeed(id, amountMilliliters, occurredAt, milkType):
+                BottleFeedEditorSheetView(
+                    navigationTitle: "Edit Bottle Feed",
+                    primaryActionTitle: "Update",
+                    initialAmountMilliliters: amountMilliliters,
+                    initialOccurredAt: occurredAt,
+                    initialMilkType: milkType
+                ) { updatedAmount, updatedOccurredAt, updatedMilkType in
+                    let didSave = model.updateBottleFeed(
+                        id: id,
+                        amountMilliliters: updatedAmount,
+                        occurredAt: updatedOccurredAt,
+                        milkType: updatedMilkType
+                    )
+                    if didSave {
+                        activeEventSheet = nil
+                    }
+                    return didSave
+                }
+            case let .editSleep(id, startedAt, endedAt):
+                SleepEditorSheetView(
+                    mode: .edit,
+                    initialStartedAt: startedAt,
+                    initialEndedAt: endedAt
+                ) { updatedStartedAt, updatedEndedAt in
+                    guard let updatedEndedAt else {
+                        return false
+                    }
+
+                    let didSave = model.updateSleep(
+                        id: id,
+                        startedAt: updatedStartedAt,
+                        endedAt: updatedEndedAt
+                    )
+                    if didSave {
+                        activeEventSheet = nil
+                    }
+                    return didSave
+                }
+            case let .editNappy(id, type, occurredAt, intensity, pooColor):
+                NappyEditorSheetView(
+                    navigationTitle: "Edit Nappy",
+                    primaryActionTitle: "Update",
+                    initialType: type,
+                    initialOccurredAt: occurredAt,
+                    initialIntensity: intensity,
+                    initialPooColor: pooColor
+                ) { updatedType, updatedOccurredAt, updatedIntensity, updatedPooColor in
+                    let didSave = model.updateNappy(
+                        id: id,
+                        type: updatedType,
+                        occurredAt: updatedOccurredAt,
+                        intensity: updatedIntensity,
+                        pooColor: updatedPooColor
+                    )
+                    if didSave {
+                        activeEventSheet = nil
+                    }
+                    return didSave
+                }
             }
         }
         .sheet(item: $bindableModel.shareSheetState) { shareState in
@@ -441,7 +523,7 @@ struct ChildProfileView: View {
 
         if profile.canManageEvents {
             Button {
-                activeEventSheet = .editRecentFeed(event)
+                activeEventSheet = editSheet(for: event)
             } label: {
                 rowContent
             }
@@ -449,17 +531,17 @@ struct ChildProfileView: View {
             .accessibilityIdentifier("recent-feed-\(event.id.uuidString)")
             .simultaneousGesture(
                 TapGesture().onEnded {
-                    activeEventSheet = .editRecentFeed(event)
+                    activeEventSheet = editSheet(for: event)
                 }
             )
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button("Edit") {
-                    activeEventSheet = .editRecentFeed(event)
+                    activeEventSheet = editSheet(for: event)
                 }
             }
             .swipeActions {
                 Button("Delete", role: .destructive) {
-                    deleteCandidate = .feed(event)
+                    deleteCandidate = deleteCandidate(for: event)
                 }
             }
         } else {
@@ -477,7 +559,7 @@ struct ChildProfileView: View {
 
         if profile.canManageEvents {
             Button {
-                activeEventSheet = .editRecentNappy(event)
+                activeEventSheet = editSheet(for: event)
             } label: {
                 rowContent
             }
@@ -485,17 +567,17 @@ struct ChildProfileView: View {
             .accessibilityIdentifier("recent-nappy-\(event.id.uuidString)")
             .simultaneousGesture(
                 TapGesture().onEnded {
-                    activeEventSheet = .editRecentNappy(event)
+                    activeEventSheet = editSheet(for: event)
                 }
             )
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button("Edit") {
-                    activeEventSheet = .editRecentNappy(event)
+                    activeEventSheet = editSheet(for: event)
                 }
             }
             .swipeActions {
                 Button("Delete", role: .destructive) {
-                    deleteCandidate = .nappy(event)
+                    deleteCandidate = deleteCandidate(for: event)
                 }
             }
         } else {
@@ -513,7 +595,7 @@ struct ChildProfileView: View {
 
         if profile.canManageEvents {
             Button {
-                activeEventSheet = .editRecentSleep(event)
+                activeEventSheet = editSheet(for: event)
             } label: {
                 rowContent
             }
@@ -521,17 +603,17 @@ struct ChildProfileView: View {
             .accessibilityIdentifier("recent-sleep-\(event.id.uuidString)")
             .simultaneousGesture(
                 TapGesture().onEnded {
-                    activeEventSheet = .editRecentSleep(event)
+                    activeEventSheet = editSheet(for: event)
                 }
             )
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button("Edit") {
-                    activeEventSheet = .editRecentSleep(event)
+                    activeEventSheet = editSheet(for: event)
                 }
             }
             .swipeActions {
                 Button("Delete", role: .destructive) {
-                    deleteCandidate = .sleep(event)
+                    deleteCandidate = deleteCandidate(for: event)
                 }
             }
         } else {
@@ -597,94 +679,172 @@ struct ChildProfileView: View {
         .padding(.vertical, 4)
     }
 
-    @ViewBuilder
-    private func feedEditor(for event: RecentFeedEventViewState) -> some View {
+    private func editSheet(
+        for event: RecentFeedEventViewState
+    ) -> EventSheet {
         switch event.editPayload {
         case let .breastFeed(durationMinutes, endTime, side):
-            BreastFeedEditorSheetView(
-                navigationTitle: "Edit Breast Feed",
-                primaryActionTitle: "Update",
-                initialDurationMinutes: durationMinutes,
-                initialEndTime: endTime,
-                initialSide: side
-            ) { updatedDuration, updatedEndTime, updatedSide in
-                let didSave = model.updateBreastFeed(
-                    id: event.id,
-                    durationMinutes: updatedDuration,
-                    endTime: updatedEndTime,
-                    side: updatedSide
-                )
-                if didSave {
-                    activeEventSheet = nil
-                }
-                return didSave
-            }
+            return .editBreastFeed(
+                id: event.id,
+                durationMinutes: durationMinutes,
+                endTime: endTime,
+                side: side
+            )
         case let .bottleFeed(amountMilliliters, occurredAt, milkType):
-            BottleFeedEditorSheetView(
-                navigationTitle: "Edit Bottle Feed",
-                primaryActionTitle: "Update",
-                initialAmountMilliliters: amountMilliliters,
-                initialOccurredAt: occurredAt,
-                initialMilkType: milkType
-            ) { updatedAmount, updatedOccurredAt, updatedMilkType in
-                let didSave = model.updateBottleFeed(
-                    id: event.id,
-                    amountMilliliters: updatedAmount,
-                    occurredAt: updatedOccurredAt,
-                    milkType: updatedMilkType
-                )
-                if didSave {
-                    activeEventSheet = nil
-                }
-                return didSave
-            }
+            return .editBottleFeed(
+                id: event.id,
+                amountMilliliters: amountMilliliters,
+                occurredAt: occurredAt,
+                milkType: milkType
+            )
         }
     }
 
-    @ViewBuilder
-    private func nappyEditor(for event: RecentNappyEventViewState) -> some View {
-        NappyEditorSheetView(
-            navigationTitle: "Edit Nappy",
-            primaryActionTitle: "Update",
-            initialType: event.editPayload.type,
-            initialOccurredAt: event.editPayload.occurredAt,
-            initialIntensity: event.editPayload.intensity,
-            initialPooColor: event.editPayload.pooColor
-        ) { updatedType, occurredAt, intensity, pooColor in
-            let didSave = model.updateNappy(
+    private func editSheet(
+        for event: RecentNappyEventViewState
+    ) -> EventSheet {
+        .editNappy(
+            id: event.id,
+            type: event.editPayload.type,
+            occurredAt: event.editPayload.occurredAt,
+            intensity: event.editPayload.intensity,
+            pooColor: event.editPayload.pooColor
+        )
+    }
+
+    private func editSheet(
+        for event: RecentSleepEventViewState
+    ) -> EventSheet {
+        .editSleep(
+            id: event.id,
+            startedAt: event.editPayload.startedAt,
+            endedAt: event.editPayload.endedAt
+        )
+    }
+
+    private func editSheet(
+        for event: TimelineEventRowViewState
+    ) -> EventSheet {
+        switch event.actionPayload {
+        case let .editBreastFeed(durationMinutes, endTime, side):
+            return .editBreastFeed(
                 id: event.id,
-                type: updatedType,
+                durationMinutes: durationMinutes,
+                endTime: endTime,
+                side: side
+            )
+        case let .editBottleFeed(amountMilliliters, occurredAt, milkType):
+            return .editBottleFeed(
+                id: event.id,
+                amountMilliliters: amountMilliliters,
+                occurredAt: occurredAt,
+                milkType: milkType
+            )
+        case let .editNappy(type, occurredAt, intensity, pooColor):
+            return .editNappy(
+                id: event.id,
+                type: type,
                 occurredAt: occurredAt,
                 intensity: intensity,
                 pooColor: pooColor
             )
-            if didSave {
-                activeEventSheet = nil
-            }
-            return didSave
-        }
-    }
-
-    @ViewBuilder
-    private func sleepEditor(for event: RecentSleepEventViewState) -> some View {
-        SleepEditorSheetView(
-            mode: .edit,
-            initialStartedAt: event.editPayload.startedAt,
-            initialEndedAt: event.editPayload.endedAt
-        ) { startedAt, endedAt in
-            guard let endedAt else {
-                return false
-            }
-
-            let didSave = model.updateSleep(
+        case let .editSleep(startedAt, endedAt):
+            return .editSleep(
                 id: event.id,
                 startedAt: startedAt,
                 endedAt: endedAt
             )
-            if didSave {
-                activeEventSheet = nil
-            }
-            return didSave
+        case let .endSleep(startedAt):
+            return .endSleep(
+                ActiveSleepSessionViewState(
+                    id: event.id,
+                    startedAt: startedAt
+                )
+            )
+        }
+    }
+
+    private func deleteCandidate(
+        for event: RecentFeedEventViewState
+    ) -> DeleteCandidate {
+        DeleteCandidate(
+            id: event.id,
+            title: event.title,
+            timestampText: event.timestampText,
+            dialogTitle: "Delete Feed?",
+            confirmButtonTitle: "Delete Feed"
+        )
+    }
+
+    private func deleteCandidate(
+        for event: RecentSleepEventViewState
+    ) -> DeleteCandidate {
+        DeleteCandidate(
+            id: event.id,
+            title: event.title,
+            timestampText: event.timestampText,
+            dialogTitle: "Delete Sleep?",
+            confirmButtonTitle: "Delete Sleep"
+        )
+    }
+
+    private func deleteCandidate(
+        for event: RecentNappyEventViewState
+    ) -> DeleteCandidate {
+        DeleteCandidate(
+            id: event.id,
+            title: event.title,
+            timestampText: event.timestampText,
+            dialogTitle: "Delete Nappy?",
+            confirmButtonTitle: "Delete Nappy"
+        )
+    }
+
+    private func deleteCandidate(
+        for event: TimelineEventRowViewState
+    ) -> DeleteCandidate {
+        DeleteCandidate(
+            id: event.id,
+            title: event.title,
+            timestampText: timelineTimestampText(for: event),
+            dialogTitle: deleteDialogTitle(for: event.kind),
+            confirmButtonTitle: deleteConfirmButtonTitle(for: event.kind)
+        )
+    }
+
+    private func timelineTimestampText(
+        for event: TimelineEventRowViewState
+    ) -> String {
+        guard let secondaryTimeText = event.secondaryTimeText else {
+            return event.timeText
+        }
+
+        return "\(event.timeText) \(secondaryTimeText)"
+    }
+
+    private func deleteDialogTitle(
+        for kind: BabyEventKind
+    ) -> String {
+        switch kind {
+        case .breastFeed, .bottleFeed:
+            return "Delete Feed?"
+        case .sleep:
+            return "Delete Sleep?"
+        case .nappy:
+            return "Delete Nappy?"
+        }
+    }
+
+    private func deleteConfirmButtonTitle(
+        for kind: BabyEventKind
+    ) -> String {
+        switch kind {
+        case .breastFeed, .bottleFeed:
+            return "Delete Feed"
+        case .sleep:
+            return "Delete Sleep"
+        case .nappy:
+            return "Delete Nappy"
         }
     }
 
@@ -732,9 +892,30 @@ extension ChildProfileView {
         case startSleep
         case endSleep(ActiveSleepSessionViewState)
         case quickLogNappy(NappyType)
-        case editRecentFeed(RecentFeedEventViewState)
-        case editRecentSleep(RecentSleepEventViewState)
-        case editRecentNappy(RecentNappyEventViewState)
+        case editBreastFeed(
+            id: UUID,
+            durationMinutes: Int,
+            endTime: Date,
+            side: BreastSide?
+        )
+        case editBottleFeed(
+            id: UUID,
+            amountMilliliters: Int,
+            occurredAt: Date,
+            milkType: MilkType?
+        )
+        case editSleep(
+            id: UUID,
+            startedAt: Date,
+            endedAt: Date
+        )
+        case editNappy(
+            id: UUID,
+            type: NappyType,
+            occurredAt: Date,
+            intensity: NappyIntensity?,
+            pooColor: PooColor?
+        )
 
         var id: String {
             switch self {
@@ -748,74 +929,23 @@ extension ChildProfileView {
                 "end-sleep-\(event.id.uuidString)"
             case let .quickLogNappy(type):
                 "quick-log-nappy-\(type.rawValue)"
-            case let .editRecentFeed(event):
-                "edit-feed-\(event.id.uuidString)"
-            case let .editRecentSleep(event):
-                "edit-sleep-\(event.id.uuidString)"
-            case let .editRecentNappy(event):
-                "edit-nappy-\(event.id.uuidString)"
+            case let .editBreastFeed(id, _, _, _):
+                "edit-breast-feed-\(id.uuidString)"
+            case let .editBottleFeed(id, _, _, _):
+                "edit-bottle-feed-\(id.uuidString)"
+            case let .editSleep(id, _, _):
+                "edit-sleep-\(id.uuidString)"
+            case let .editNappy(id, _, _, _, _):
+                "edit-nappy-\(id.uuidString)"
             }
         }
     }
 
-    private enum DeleteCandidate: Identifiable {
-        case feed(RecentFeedEventViewState)
-        case sleep(RecentSleepEventViewState)
-        case nappy(RecentNappyEventViewState)
-
-        var id: UUID {
-            switch self {
-            case let .feed(event):
-                event.id
-            case let .sleep(event):
-                event.id
-            case let .nappy(event):
-                event.id
-            }
-        }
-
-        var title: String {
-            switch self {
-            case let .feed(event):
-                event.title
-            case let .sleep(event):
-                event.title
-            case let .nappy(event):
-                event.title
-            }
-        }
-
-        var timestampText: String {
-            switch self {
-            case let .feed(event):
-                event.timestampText
-            case let .sleep(event):
-                event.timestampText
-            case let .nappy(event):
-                event.timestampText
-            }
-        }
-
-        var dialogTitle: String {
-            switch self {
-            case .feed:
-                "Delete Feed?"
-            case .sleep:
-                "Delete Sleep?"
-            case .nappy:
-                "Delete Nappy?"
-            }
-        }
-
-        var confirmButtonTitle: String {
-            switch self {
-            case .feed:
-                "Delete Feed"
-            case .sleep:
-                "Delete Sleep"
-            case .nappy:
-                "Delete Nappy"
-            }
-        }
+    private struct DeleteCandidate: Identifiable {
+        let id: UUID
+        let title: String
+        let timestampText: String
+        let dialogTitle: String
+        let confirmButtonTitle: String
     }
 }
