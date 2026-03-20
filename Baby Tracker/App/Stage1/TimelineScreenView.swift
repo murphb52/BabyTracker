@@ -22,6 +22,7 @@ struct TimelineScreenView: View {
             )
             .navigationTitle("Timeline")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .sheet(item: $activeEvent) { event in
                 eventSheet(for: event, canManageEvents: profile.canManageEvents)
             }
@@ -45,6 +46,7 @@ struct TimelineScreenView: View {
             ProgressView("Loading timeline…")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .navigationTitle("Timeline")
+                .toolbarBackground(.hidden, for: .navigationBar)
         }
     }
 
@@ -55,8 +57,6 @@ struct TimelineScreenView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    dayNavigationHeader(for: timeline)
-
                     if let syncMessage = timeline.syncMessage {
                         syncBanner(message: syncMessage)
                     }
@@ -74,11 +74,15 @@ struct TimelineScreenView: View {
                     )
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 14)
+                .padding(.top, 8)
+                .padding(.bottom, 14)
             }
             .accessibilityIdentifier("timeline-scroll-view")
-            .background(Color(.systemGroupedBackground))
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .simultaneousGesture(daySwipeGesture)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                pinnedDayNavigationHeader(for: timeline)
+            }
             .onAppear {
                 scrollToVisibleHour(for: timeline.selectedDay, using: proxy)
             }
@@ -86,6 +90,19 @@ struct TimelineScreenView: View {
                 scrollToVisibleHour(for: selectedDay, using: proxy)
             }
         }
+    }
+
+    private func pinnedDayNavigationHeader(
+        for timeline: TimelineScreenState
+    ) -> some View {
+        dayNavigationHeader(for: timeline)
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 12)
+            .background(.regularMaterial)
+            .overlay(alignment: .bottom) {
+                Divider()
+            }
     }
 
     private func dayNavigationHeader(
