@@ -121,12 +121,9 @@ struct TimelineScreenView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(timeline.dayTitle)
-                        .font(.title2.weight(.semibold))
+                        .font(.title3.weight(.semibold))
+                        .lineLimit(1, reservesSpace: true)
                         .accessibilityIdentifier("timeline-day-title")
-
-                    Text("24-hour day view")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()

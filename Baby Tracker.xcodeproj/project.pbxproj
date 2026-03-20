@@ -21,20 +21,6 @@
 		D0A000000000000000000053 /* Baby Tracker Live Activities.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D0A000000000000000000054 /* Baby Tracker Live Activities.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
-/* Begin PBXCopyFilesBuildPhase section */
-		D0A000000000000000000058 /* Embed App Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				D0A000000000000000000053 /* Baby Tracker Live Activities.appex in Embed App Extensions */,
-			);
-			name = "Embed App Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXContainerItemProxy section */
 		C93425822F6BEA40009ECD88 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -58,6 +44,20 @@
 			remoteInfo = "Baby Tracker Live Activities";
 		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		D0A000000000000000000058 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				D0A000000000000000000053 /* Baby Tracker Live Activities.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		C93425702F6BEA3F009ECD88 /* Baby Tracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Baby Tracker.app"; sourceTree = BUILT_PRODUCTS_DIR; };

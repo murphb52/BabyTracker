@@ -1161,7 +1161,7 @@ public final class AppModel {
             return "Yesterday"
         }
 
-        return day.formatted(date: .abbreviated, time: .omitted)
+        return day.formatted(date: .numeric, time: .omitted)
     }
 
     private func timelineSyncMessage(
