@@ -241,6 +241,67 @@ struct BabyEventDomainTests {
     }
 
     @Test
+    func updatingSleepSupportsOpenEndedAndCompletedSessions() throws {
+        let childID = UUID()
+        let userID = UUID()
+        let originalStart = Date(timeIntervalSince1970: 4_800)
+        let original = try SleepEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: originalStart,
+                createdAt: originalStart,
+                createdBy: userID
+            ),
+            startedAt: originalStart
+        )
+
+        let updatedStart = originalStart.addingTimeInterval(600)
+        let updatedEnd = updatedStart.addingTimeInterval(1_800)
+
+        let activeUpdate = try original.updating(
+            startedAt: updatedStart,
+            endedAt: nil,
+            updatedBy: userID
+        )
+        let completedUpdate = try original.updating(
+            startedAt: updatedStart,
+            endedAt: updatedEnd,
+            updatedBy: userID
+        )
+
+        #expect(activeUpdate.startedAt == updatedStart)
+        #expect(activeUpdate.endedAt == nil)
+        #expect(activeUpdate.metadata.occurredAt == updatedStart)
+        #expect(completedUpdate.startedAt == updatedStart)
+        #expect(completedUpdate.endedAt == updatedEnd)
+        #expect(completedUpdate.metadata.occurredAt == updatedEnd)
+    }
+
+    @Test
+    func updatingSleepRejectsEndBeforeStart() throws {
+        let childID = UUID()
+        let userID = UUID()
+        let originalStart = Date(timeIntervalSince1970: 4_900)
+        let original = try SleepEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: originalStart,
+                createdAt: originalStart,
+                createdBy: userID
+            ),
+            startedAt: originalStart
+        )
+
+        #expect(throws: BabyEventError.invalidDateRange) {
+            _ = try original.updating(
+                startedAt: originalStart.addingTimeInterval(600),
+                endedAt: originalStart.addingTimeInterval(300),
+                updatedBy: userID
+            )
+        }
+    }
+
+    @Test
     func restoreDeletedClearsSoftDeleteMetadata() {
         let childID = UUID()
         let creatorID = UUID()

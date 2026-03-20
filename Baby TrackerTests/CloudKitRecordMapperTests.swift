@@ -90,4 +90,66 @@ struct CloudKitRecordMapperTests {
             Issue.record("Expected a nappy event")
         }
     }
+
+    @Test
+    func sleepMapperRoundTripsOpenEndedAndCompletedSessions() throws {
+        let childID = UUID()
+        let userID = UUID()
+        let activeStart = Date(timeIntervalSince1970: 4_000)
+        let completedEnd = Date(timeIntervalSince1970: 5_000)
+        let zoneID = CloudKitRecordNames.zoneID(
+            for: childID,
+            ownerName: "probe-owner"
+        )
+        let activeSleep = try SleepEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: activeStart,
+                createdAt: activeStart,
+                createdBy: userID
+            ),
+            startedAt: activeStart
+        )
+        let completedSleep = try SleepEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: completedEnd,
+                createdAt: completedEnd,
+                createdBy: userID
+            ),
+            startedAt: completedEnd.addingTimeInterval(-1_800),
+            endedAt: completedEnd
+        )
+
+        let activeRecord = CloudKitRecordMapper.eventRecord(
+            from: .sleep(activeSleep),
+            zoneID: zoneID
+        )
+        let completedRecord = CloudKitRecordMapper.eventRecord(
+            from: .sleep(completedSleep),
+            zoneID: zoneID
+        )
+
+        #expect(activeRecord["endedAt"] as? Date == nil)
+        #expect(completedRecord["endedAt"] as? Date == completedEnd)
+
+        let activeMappedEvent = try CloudKitRecordMapper.event(from: activeRecord)
+        let completedMappedEvent = try CloudKitRecordMapper.event(from: completedRecord)
+
+        switch activeMappedEvent {
+        case let .sleep(event):
+            #expect(event.startedAt == activeStart)
+            #expect(event.endedAt == nil)
+        default:
+            Issue.record("Expected an active sleep event")
+        }
+
+        switch completedMappedEvent {
+        case let .sleep(event):
+            #expect(event.startedAt == completedSleep.startedAt)
+            #expect(event.endedAt == completedEnd)
+        default:
+            Issue.record("Expected a completed sleep event")
+        }
+    }
 }

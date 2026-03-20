@@ -141,6 +141,128 @@ final class Baby_TrackerUITests: XCTestCase {
     }
 
     @MainActor
+    func testOwnerCanStartAndEndSleep() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
+
+        let sleepButton = app.buttons["quick-log-sleep-button"]
+        XCTAssertTrue(sleepButton.waitForExistence(timeout: 5))
+        XCTAssertEqual(sleepButton.label, "Start Sleep")
+
+        sleepButton.tap()
+
+        let saveButton = app.buttons["save-sleep-button"]
+        XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
+        saveButton.tap()
+
+        XCTAssertEqual(app.buttons["quick-log-sleep-button"].label, "End Sleep")
+        XCTAssertEqual(app.staticTexts["current-status-last-sleep-value"].label, "In progress")
+
+        app.buttons["quick-log-sleep-button"].tap()
+        XCTAssertTrue(app.buttons["save-sleep-button"].waitForExistence(timeout: 5))
+        app.buttons["save-sleep-button"].tap()
+
+        let recentSleepButton = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "recent-sleep-")
+        ).firstMatch
+        scrollToElement(recentSleepButton, in: app, maxSwipes: 10)
+        XCTAssertTrue(recentSleepButton.waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["quick-log-sleep-button"].label, "Start Sleep")
+    }
+
+    @MainActor
+    func testSleepEndSheetDisablesSaveWhenEndPrecedesStart() throws {
+        let app = makeApp(scenario: "futureActiveSleepPreview")
+        app.launch()
+
+        let sleepButton = app.buttons["quick-log-sleep-button"]
+        XCTAssertTrue(sleepButton.waitForExistence(timeout: 5))
+        XCTAssertEqual(sleepButton.label, "End Sleep")
+
+        sleepButton.tap()
+
+        let saveButton = app.buttons["save-sleep-button"]
+        XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
+        XCTAssertFalse(saveButton.isEnabled)
+        XCTAssertTrue(app.staticTexts["End time must be later than the start time."].exists)
+    }
+
+    @MainActor
+    func testOwnerCanOpenEditSleepFlowFromRecentSleep() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
+
+        createCompletedSleep(in: app)
+
+        let recentSleepButton = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "recent-sleep-")
+        ).firstMatch
+        scrollToElement(recentSleepButton, in: app, maxSwipes: 10)
+        XCTAssertTrue(recentSleepButton.waitForExistence(timeout: 5))
+        recentSleepButton.swipeRight()
+        app.buttons["Edit"].tap()
+
+        let saveButton = app.buttons["save-sleep-button"]
+        XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
+        saveButton.tap()
+
+        XCTAssertTrue(recentSleepButton.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testDeleteRequiresConfirmationAndUndoRestoresSleep() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
+
+        createCompletedSleep(in: app)
+
+        let recentSleepButton = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "recent-sleep-")
+        ).firstMatch
+        scrollToElement(recentSleepButton, in: app, maxSwipes: 10)
+        XCTAssertTrue(recentSleepButton.waitForExistence(timeout: 5))
+        recentSleepButton.swipeLeft()
+        app.buttons["Delete"].tap()
+
+        let confirmDeleteButton = app.sheets.buttons["Delete Sleep"]
+        XCTAssertTrue(confirmDeleteButton.waitForExistence(timeout: 5))
+        confirmDeleteButton.tap()
+
+        let undoButton = app.buttons["undo-delete-button"]
+        XCTAssertTrue(undoButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["recent-sleep-empty-state"].exists)
+
+        undoButton.tap()
+
+        XCTAssertTrue(recentSleepButton.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testActiveSleepCanBeDeletedFromEndSheet() throws {
+        let app = makeApp(scenario: "ownerPreview")
+        app.launch()
+
+        let sleepButton = app.buttons["quick-log-sleep-button"]
+        XCTAssertTrue(sleepButton.waitForExistence(timeout: 5))
+        sleepButton.tap()
+        XCTAssertTrue(app.buttons["save-sleep-button"].waitForExistence(timeout: 5))
+        app.buttons["save-sleep-button"].tap()
+
+        XCTAssertEqual(app.buttons["quick-log-sleep-button"].label, "End Sleep")
+
+        app.buttons["quick-log-sleep-button"].tap()
+        let deleteButton = app.buttons["delete-sleep-button"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        deleteButton.tap()
+
+        let undoButton = app.buttons["undo-delete-button"]
+        XCTAssertTrue(undoButton.waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["quick-log-sleep-button"].label, "Start Sleep")
+        undoButton.tap()
+        XCTAssertEqual(app.buttons["quick-log-sleep-button"].label, "End Sleep")
+    }
+
+    @MainActor
     func testNappyQuickLogShowsPooColorOnlyForPooCapableTypes() throws {
         let app = makeApp(scenario: "ownerPreview")
         app.launch()
@@ -404,5 +526,21 @@ final class Baby_TrackerUITests: XCTestCase {
         }
 
         return app
+    }
+
+    @MainActor
+    private func createCompletedSleep(in app: XCUIApplication) {
+        let sleepButton = app.buttons["quick-log-sleep-button"]
+        XCTAssertTrue(sleepButton.waitForExistence(timeout: 5))
+
+        sleepButton.tap()
+        XCTAssertTrue(app.buttons["save-sleep-button"].waitForExistence(timeout: 5))
+        app.buttons["save-sleep-button"].tap()
+
+        XCTAssertEqual(app.buttons["quick-log-sleep-button"].label, "End Sleep")
+
+        app.buttons["quick-log-sleep-button"].tap()
+        XCTAssertTrue(app.buttons["save-sleep-button"].waitForExistence(timeout: 5))
+        app.buttons["save-sleep-button"].tap()
     }
 }

@@ -293,6 +293,69 @@ public final class AppModel {
     }
 
     @discardableResult
+    public func startSleep(startedAt: Date) -> Bool {
+        perform {
+            guard let profile else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard profile.canLogEvents else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard try eventRepository.loadActiveSleepEvent(for: profile.child.id) == nil else {
+                throw BabyEventError.activeSleepAlreadyInProgress
+            }
+
+            let event = try SleepEvent(
+                metadata: EventMetadata(
+                    childID: profile.child.id,
+                    occurredAt: startedAt,
+                    createdAt: .now,
+                    createdBy: localUser.id
+                ),
+                startedAt: startedAt,
+                endedAt: nil
+            )
+
+            try eventRepository.saveEvent(.sleep(event))
+        }
+    }
+
+    @discardableResult
+    public func endSleep(
+        id: UUID,
+        startedAt: Date,
+        endedAt: Date
+    ) -> Bool {
+        perform {
+            guard let profile else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard profile.canLogEvents else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let event = try eventRepository.loadEvent(id: id) else {
+                throw BabyEventError.noActiveSleepInProgress
+            }
+            guard case let .sleep(sleepEvent) = event, sleepEvent.endedAt == nil else {
+                throw BabyEventError.noActiveSleepInProgress
+            }
+
+            let updatedEvent = try sleepEvent.updating(
+                startedAt: startedAt,
+                endedAt: endedAt,
+                updatedBy: localUser.id
+            )
+            try eventRepository.saveEvent(.sleep(updatedEvent))
+        }
+    }
+
+    @discardableResult
     public func updateBreastFeed(
         id: UUID,
         durationMinutes: Int,
@@ -393,6 +456,38 @@ public final class AppModel {
                 updatedBy: localUser.id
             )
             try eventRepository.saveEvent(.nappy(updatedEvent))
+        }
+    }
+
+    @discardableResult
+    public func updateSleep(
+        id: UUID,
+        startedAt: Date,
+        endedAt: Date
+    ) -> Bool {
+        perform {
+            guard let profile else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard profile.canManageEvents else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            guard let event = try eventRepository.loadEvent(id: id) else {
+                return
+            }
+            guard case let .sleep(sleepEvent) = event, sleepEvent.endedAt != nil else {
+                return
+            }
+
+            let updatedEvent = try sleepEvent.updating(
+                startedAt: startedAt,
+                endedAt: endedAt,
+                updatedBy: localUser.id
+            )
+            try eventRepository.saveEvent(.sleep(updatedEvent))
         }
     }
 
@@ -503,10 +598,12 @@ public final class AppModel {
             let currentSummary = selectedSummary ?? activeChildren[0]
             repository.saveSelectedChildID(currentSummary.child.id)
             let visibleEvents = try loadVisibleEvents(for: currentSummary.child.id)
+            let activeSleep = try eventRepository.loadActiveSleepEvent(for: currentSummary.child.id)
             profile = try makeProfile(
                 child: currentSummary.child,
                 localUser: localUser,
-                visibleEvents: visibleEvents
+                visibleEvents: visibleEvents,
+                activeSleep: activeSleep
             )
             route = .childProfile
             liveActivityManager.synchronize(
@@ -547,7 +644,8 @@ public final class AppModel {
     private func makeProfile(
         child: Child,
         localUser: UserIdentity,
-        visibleEvents: [BabyEvent]
+        visibleEvents: [BabyEvent],
+        activeSleep: SleepEvent?
     ) throws -> ChildProfileScreenState {
         let memberships = try repository.loadMemberships(for: child.id)
         let userIDs = memberships.map(\.userID)
@@ -607,8 +705,10 @@ public final class AppModel {
             canSwitchChildren: activeChildren.count > 1,
             canLogEvents: canLogEvents,
             canManageEvents: canManageEvents,
-            currentStateSummary: makeCurrentStateSummary(from: visibleEvents),
+            activeSleepSession: activeSleep.map(ActiveSleepSessionViewState.init),
+            currentStateSummary: makeCurrentStateSummary(from: visibleEvents, activeSleep: activeSleep),
             recentFeedEvents: makeRecentFeedEvents(from: visibleEvents),
+            recentSleepEvents: makeRecentSleepEvents(from: visibleEvents),
             recentNappyEvents: makeRecentNappyEvents(from: visibleEvents),
             cloudKitStatus: CloudKitStatusViewState(summary: syncEngine.statusSummary),
             canShareChild: ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership) &&
@@ -621,7 +721,8 @@ public final class AppModel {
     }
 
     private func makeCurrentStateSummary(
-        from events: [BabyEvent]
+        from events: [BabyEvent],
+        activeSleep: SleepEvent?
     ) -> CurrentStateSummaryViewState? {
         guard let lastEvent = LastEventSummaryCalculator.makeSummary(from: events) else {
             return nil
@@ -629,11 +730,16 @@ public final class AppModel {
 
         let lastFeed = FeedSummaryCalculator.makeSummary(from: events)
             .map(FeedStatusViewState.init)
+        let lastSleep = LastSleepSummaryCalculator.makeSummary(
+            from: events,
+            activeSleep: activeSleep
+        )
         let lastNappy = LastNappySummaryCalculator.makeSummary(from: events)
 
         return CurrentStateSummaryViewState(
             lastEvent: lastEvent,
             lastFeed: lastFeed,
+            lastSleep: lastSleep,
             lastNappy: lastNappy
         )
     }
@@ -642,6 +748,12 @@ public final class AppModel {
         from events: [BabyEvent]
     ) -> [RecentFeedEventViewState] {
         Array(events.compactMap(RecentFeedEventViewState.init).prefix(5))
+    }
+
+    private func makeRecentSleepEvents(
+        from events: [BabyEvent]
+    ) -> [RecentSleepEventViewState] {
+        Array(events.compactMap(RecentSleepEventViewState.init).prefix(5))
     }
 
     private func makeRecentNappyEvents(

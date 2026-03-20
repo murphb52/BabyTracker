@@ -82,6 +82,35 @@ struct CurrentStateCardView: View {
                         Text("No nappies yet")
                     }
                 }
+
+                if let lastSleep = summary.lastSleep {
+                    statusRow(
+                        title: "Last sleep",
+                        identifier: "current-status-last-sleep-value"
+                    ) {
+                        if lastSleep.isActive {
+                            Text("In progress")
+                        } else if let endedAt = lastSleep.endedAt {
+                            relativeTimeText(for: endedAt)
+                        }
+                    }
+
+                    if lastSleep.isActive {
+                        statusRow(
+                            title: "Since sleep started",
+                            identifier: "current-status-since-sleep-started-value"
+                        ) {
+                            relativeTimeText(for: lastSleep.startedAt)
+                        }
+                    }
+                } else {
+                    statusRow(
+                        title: "Last sleep",
+                        identifier: "current-status-last-sleep-value"
+                    ) {
+                        Text("No sleep sessions yet")
+                    }
+                }
             }
             .padding(16)
             .background(

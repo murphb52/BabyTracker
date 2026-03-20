@@ -22,4 +22,21 @@ public struct SleepEvent: Equatable, Identifiable, Sendable {
         self.startedAt = startedAt
         self.endedAt = endedAt
     }
+
+    public func updating(
+        startedAt: Date,
+        endedAt: Date?,
+        updatedAt: Date = Date(),
+        updatedBy: UUID
+    ) throws -> SleepEvent {
+        var metadata = metadata
+        metadata.occurredAt = endedAt ?? startedAt
+        metadata.markUpdated(at: updatedAt, by: updatedBy)
+
+        return try SleepEvent(
+            metadata: metadata,
+            startedAt: startedAt,
+            endedAt: endedAt
+        )
+    }
 }

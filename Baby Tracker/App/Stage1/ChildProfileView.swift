@@ -41,6 +41,19 @@ struct ChildProfileView: View {
                     }
 
                     quickLogButton(
+                        title: sleepQuickLogTitle,
+                        systemImage: "bed.double",
+                        tint: .indigo,
+                        accessibilityIdentifier: "quick-log-sleep-button"
+                    ) {
+                        if let activeSleepSession = profile.activeSleepSession {
+                            activeEventSheet = .endSleep(activeSleepSession)
+                        } else {
+                            activeEventSheet = .startSleep
+                        }
+                    }
+
+                    quickLogButton(
                         title: "Nappy",
                         systemImage: "checklist",
                         tint: .orange,
@@ -59,6 +72,18 @@ struct ChildProfileView: View {
                 } else {
                     ForEach(profile.recentFeedEvents) { event in
                         recentFeedRow(for: event)
+                    }
+                }
+            }
+
+            Section("Recent Sleep") {
+                if profile.recentSleepEvents.isEmpty {
+                    Text(emptySleepText)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("recent-sleep-empty-state")
+                } else {
+                    ForEach(profile.recentSleepEvents) { event in
+                        recentSleepRow(for: event)
                     }
                 }
             }
@@ -220,6 +245,44 @@ struct ChildProfileView: View {
                     }
                     return didSave
                 }
+            case .startSleep:
+                SleepEditorSheetView(
+                    mode: .start,
+                    initialStartedAt: Date(),
+                    initialEndedAt: nil
+                ) { startedAt, _ in
+                    let didSave = model.startSleep(startedAt: startedAt)
+                    if didSave {
+                        activeEventSheet = nil
+                    }
+                    return didSave
+                }
+            case let .endSleep(event):
+                SleepEditorSheetView(
+                    mode: .end,
+                    initialStartedAt: event.startedAt,
+                    initialEndedAt: defaultSleepEndTime(for: event.startedAt),
+                    saveAction: { startedAt, endedAt in
+                        guard let endedAt else {
+                            return false
+                        }
+
+                        let didSave = model.endSleep(
+                            id: event.id,
+                            startedAt: startedAt,
+                            endedAt: endedAt
+                        )
+                        if didSave {
+                            activeEventSheet = nil
+                        }
+                        return didSave
+                    },
+                    deleteAction: profile.canManageEvents ? {
+                        if model.deleteEvent(id: event.id) {
+                            activeEventSheet = nil
+                        }
+                    } : nil
+                )
             case let .quickLogNappy(type):
                 NappyEditorSheetView(
                     navigationTitle: "Nappy",
@@ -242,6 +305,8 @@ struct ChildProfileView: View {
                 }
             case let .editRecentFeed(event):
                 feedEditor(for: event)
+            case let .editRecentSleep(event):
+                sleepEditor(for: event)
             case let .editRecentNappy(event):
                 nappyEditor(for: event)
             }
@@ -337,8 +402,16 @@ struct ChildProfileView: View {
         "No feeds logged yet. Use Quick Log above to add the first feed."
     }
 
+    private var emptySleepText: String {
+        "No sleep sessions logged yet. Use Quick Log above to add the first sleep."
+    }
+
     private var emptyNappyText: String {
         "No nappies logged yet. Use Quick Log above to add the first nappy."
+    }
+
+    private var sleepQuickLogTitle: String {
+        profile.activeSleepSession == nil ? "Start Sleep" : "End Sleep"
     }
 
     private func quickLogButton(
@@ -423,6 +496,42 @@ struct ChildProfileView: View {
             .swipeActions {
                 Button("Delete", role: .destructive) {
                     deleteCandidate = .nappy(event)
+                }
+            }
+        } else {
+            rowContent
+        }
+    }
+
+    @ViewBuilder
+    private func recentSleepRow(for event: RecentSleepEventViewState) -> some View {
+        let rowContent = eventRowContent(
+            title: event.title,
+            detailText: event.detailText,
+            timestampText: event.timestampText
+        )
+
+        if profile.canManageEvents {
+            Button {
+                activeEventSheet = .editRecentSleep(event)
+            } label: {
+                rowContent
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("recent-sleep-\(event.id.uuidString)")
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    activeEventSheet = .editRecentSleep(event)
+                }
+            )
+            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                Button("Edit") {
+                    activeEventSheet = .editRecentSleep(event)
+                }
+            }
+            .swipeActions {
+                Button("Delete", role: .destructive) {
+                    deleteCandidate = .sleep(event)
                 }
             }
         } else {
@@ -556,6 +665,39 @@ struct ChildProfileView: View {
         }
     }
 
+    @ViewBuilder
+    private func sleepEditor(for event: RecentSleepEventViewState) -> some View {
+        SleepEditorSheetView(
+            mode: .edit,
+            initialStartedAt: event.editPayload.startedAt,
+            initialEndedAt: event.editPayload.endedAt
+        ) { startedAt, endedAt in
+            guard let endedAt else {
+                return false
+            }
+
+            let didSave = model.updateSleep(
+                id: event.id,
+                startedAt: startedAt,
+                endedAt: endedAt
+            )
+            if didSave {
+                activeEventSheet = nil
+            }
+            return didSave
+        }
+    }
+
+    private func defaultSleepEndTime(for startedAt: Date) -> Date {
+        let now = Date()
+
+        if startedAt > now {
+            return now
+        }
+
+        return max(now, startedAt.addingTimeInterval(60))
+    }
+
     private func nappyTypeTitle(for type: NappyType) -> String {
         switch type {
         case .dry:
@@ -587,8 +729,11 @@ extension ChildProfileView {
     private enum EventSheet: Identifiable {
         case quickLogBreastFeed
         case quickLogBottleFeed
+        case startSleep
+        case endSleep(ActiveSleepSessionViewState)
         case quickLogNappy(NappyType)
         case editRecentFeed(RecentFeedEventViewState)
+        case editRecentSleep(RecentSleepEventViewState)
         case editRecentNappy(RecentNappyEventViewState)
 
         var id: String {
@@ -597,10 +742,16 @@ extension ChildProfileView {
                 "quick-log-breast-feed"
             case .quickLogBottleFeed:
                 "quick-log-bottle-feed"
+            case .startSleep:
+                "start-sleep"
+            case let .endSleep(event):
+                "end-sleep-\(event.id.uuidString)"
             case let .quickLogNappy(type):
                 "quick-log-nappy-\(type.rawValue)"
             case let .editRecentFeed(event):
                 "edit-feed-\(event.id.uuidString)"
+            case let .editRecentSleep(event):
+                "edit-sleep-\(event.id.uuidString)"
             case let .editRecentNappy(event):
                 "edit-nappy-\(event.id.uuidString)"
             }
@@ -609,11 +760,14 @@ extension ChildProfileView {
 
     private enum DeleteCandidate: Identifiable {
         case feed(RecentFeedEventViewState)
+        case sleep(RecentSleepEventViewState)
         case nappy(RecentNappyEventViewState)
 
         var id: UUID {
             switch self {
             case let .feed(event):
+                event.id
+            case let .sleep(event):
                 event.id
             case let .nappy(event):
                 event.id
@@ -624,6 +778,8 @@ extension ChildProfileView {
             switch self {
             case let .feed(event):
                 event.title
+            case let .sleep(event):
+                event.title
             case let .nappy(event):
                 event.title
             }
@@ -632,6 +788,8 @@ extension ChildProfileView {
         var timestampText: String {
             switch self {
             case let .feed(event):
+                event.timestampText
+            case let .sleep(event):
                 event.timestampText
             case let .nappy(event):
                 event.timestampText
@@ -642,6 +800,8 @@ extension ChildProfileView {
             switch self {
             case .feed:
                 "Delete Feed?"
+            case .sleep:
+                "Delete Sleep?"
             case .nappy:
                 "Delete Nappy?"
             }
@@ -651,6 +811,8 @@ extension ChildProfileView {
             switch self {
             case .feed:
                 "Delete Feed"
+            case .sleep:
+                "Delete Sleep"
             case .nappy:
                 "Delete Nappy"
             }

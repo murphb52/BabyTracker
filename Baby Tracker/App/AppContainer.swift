@@ -184,6 +184,31 @@ struct AppContainer {
             ))
             try repository.saveLocalUser(owner)
             repository.saveSelectedChildID(child.id)
+        case .futureActiveSleepPreview:
+            let owner = try UserIdentity(
+                displayName: "Alex Parent",
+                cloudKitUserRecordName: "owner.preview.record"
+            )
+            let child = try Child(name: "Poppy", birthDate: .now, createdBy: owner.id)
+            let sleepStart = Date(timeIntervalSinceNow: 3_600)
+
+            try repository.saveUser(owner)
+            try repository.saveChild(child)
+            try repository.saveMembership(.owner(childID: child.id, userID: owner.id, createdAt: child.createdAt))
+            try repository.saveLocalUser(owner)
+            repository.saveSelectedChildID(child.id)
+
+            let sleep = try SleepEvent(
+                metadata: EventMetadata(
+                    childID: child.id,
+                    occurredAt: sleepStart,
+                    createdAt: sleepStart,
+                    createdBy: owner.id
+                ),
+                startedAt: sleepStart
+            )
+
+            try eventRepository.saveEvent(.sleep(sleep))
         case .mixedEventsPreview:
             let owner = try UserIdentity(
                 displayName: "Alex Parent",
@@ -279,6 +304,7 @@ extension AppContainer {
 
     private enum LaunchScenario: String {
         case activeCaregiver
+        case futureActiveSleepPreview
         case mixedEventsPreview
         case ownerPreview
     }

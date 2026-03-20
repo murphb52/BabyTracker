@@ -69,7 +69,7 @@ Exit criteria:
 
 Stage summary: establish the child record, caregiver identities, and access-sharing model that the rest of the MVP depends on.
 
-Stage status: `Not Started`
+Stage status: `Complete`
 
 | ID | Task | Why / Scope | Dependencies | Status | Notes |
 | --- | --- | --- | --- | --- | --- |
@@ -244,14 +244,14 @@ Stage status: `Not Started`
 
 | ID | Task | Why / Scope | Dependencies | Status | Notes |
 | --- | --- | --- | --- | --- | --- |
-| S7-01 | Implement sleep domain and persistence models | Sleep events require open-ended sessions and derived duration behavior | S2-05 | `Not Started` | Must support `endedAt` being absent while a sleep is active |
-| S7-02 | Build start sleep flow | Users need a fast way to begin a sleep session | S7-01 | `Not Started` | Keep the action quick and obvious |
-| S7-03 | Build end sleep flow | Active sleep sessions must be closable with minimal friction | S7-01, S7-02 | `Not Started` | Must prevent invalid end-before-start states |
-| S7-04 | Derive sleep duration instead of storing it as source-of-truth data | The PRD and tech spec both treat duration as derived | S7-01, S7-03 | `Not Started` | Derived values should be reused in summaries and timeline |
-| S7-05 | Support active sleep session recovery in app state | The app needs to show and preserve an ongoing sleep session correctly | S7-02, S2-10 | `Not Started` | Must behave correctly across relaunches and sync updates |
-| S7-06 | Allow editing closed sleep sessions | Sleep history needs the same correction path as other events | S7-03, S4-01 | `Not Started` | Editing rules for active sessions may need separate handling |
-| S7-07 | Support overlapping event presentation where required | Sleep can overlap with feeds or other events in the timeline | S7-01, S8-01 | `Not Started` | Timeline rules must remain readable when overlaps occur |
-| S7-08 | Add tests for open-ended sessions, duration derivation, and editing | Sleep behavior includes several edge cases that need protection | S7-03, S7-04, S7-05, S7-06, S7-07 | `Not Started` | Include relaunch and overlap scenarios where practical |
+| S7-01 | Implement sleep domain and persistence models | Sleep events require open-ended sessions and derived duration behavior | S2-05 | `Complete` | Must support `endedAt` being absent while a sleep is active |
+| S7-02 | Build start sleep flow | Users need a fast way to begin a sleep session | S7-01 | `Complete` | Keep the action quick and obvious |
+| S7-03 | Build end sleep flow | Active sleep sessions must be closable with minimal friction | S7-01, S7-02 | `Complete` | Must prevent invalid end-before-start states |
+| S7-04 | Derive sleep duration instead of storing it as source-of-truth data | The PRD and tech spec both treat duration as derived | S7-01, S7-03 | `Complete` | Derived values should be reused in summaries and timeline |
+| S7-05 | Support active sleep session recovery in app state | The app needs to show and preserve an ongoing sleep session correctly | S7-02, S2-10 | `Complete` | Must behave correctly across relaunches and sync updates |
+| S7-06 | Allow editing closed sleep sessions | Sleep history needs the same correction path as other events | S7-03, S4-01 | `Complete` | Editing rules for active sessions may need separate handling |
+| S7-07 | Support overlapping event presentation where required | Sleep can overlap with feeds or other events in the timeline | S7-01, S8-01 | `Complete` | Timeline rules must remain readable when overlaps occur |
+| S7-08 | Add tests for open-ended sessions, duration derivation, and editing | Sleep behavior includes several edge cases that need protection | S7-03, S7-04, S7-05, S7-06, S7-07 | `Complete` | Include relaunch and overlap scenarios where practical |
 
 Exit criteria:
 - Users can start and end sleep sessions reliably

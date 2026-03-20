@@ -229,6 +229,182 @@ struct AppModelTests {
     }
 
     @Test
+    func startSleepCreatesRecoverableActiveSessionAndEndSleepCompletesIt() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let sleepStart = Date(timeIntervalSince1970: 8_000)
+        let sleepEnd = sleepStart.addingTimeInterval(3_600)
+
+        harness.model.load(performLaunchSync: false)
+
+        #expect(harness.model.startSleep(startedAt: sleepStart))
+
+        var profile = try #require(harness.model.profile)
+        let activeSleep = try #require(profile.activeSleepSession)
+        let currentSleep = try #require(profile.currentStateSummary?.lastSleep)
+
+        #expect(activeSleep.startedAt == sleepStart)
+        #expect(currentSleep.isActive)
+        #expect(currentSleep.startedAt == sleepStart)
+        #expect(profile.recentSleepEvents.isEmpty)
+
+        harness.model.load(performLaunchSync: false)
+
+        profile = try #require(harness.model.profile)
+        let recoveredSleep = try #require(profile.activeSleepSession)
+        #expect(recoveredSleep.id == activeSleep.id)
+
+        #expect(
+            harness.model.endSleep(
+                id: recoveredSleep.id,
+                startedAt: recoveredSleep.startedAt,
+                endedAt: sleepEnd
+            )
+        )
+
+        let loadedEvent = try #require(try harness.eventRepository.loadEvent(id: recoveredSleep.id))
+        switch loadedEvent {
+        case let .sleep(event):
+            #expect(event.id == recoveredSleep.id)
+            #expect(event.startedAt == sleepStart)
+            #expect(event.endedAt == sleepEnd)
+            #expect(event.metadata.occurredAt == sleepEnd)
+        default:
+            Issue.record("Expected a completed sleep event")
+        }
+
+        profile = try #require(harness.model.profile)
+        #expect(profile.activeSleepSession == nil)
+        #expect(profile.recentSleepEvents.map(\.id) == [recoveredSleep.id])
+        #expect(profile.currentStateSummary?.lastSleep?.isActive == false)
+        #expect(profile.currentStateSummary?.lastSleep?.endedAt == sleepEnd)
+
+        let visibleTimeline = try harness.eventRepository.loadTimeline(
+            for: seed.child.id,
+            includingDeleted: false
+        )
+        #expect(visibleTimeline.count == 1)
+    }
+
+    @Test
+    func startSleepFailsWhenAnotherActiveSleepExists() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        let initialStart = Date(timeIntervalSince1970: 8_500)
+
+        harness.model.load(performLaunchSync: false)
+
+        #expect(harness.model.startSleep(startedAt: initialStart))
+        #expect(harness.model.startSleep(startedAt: initialStart.addingTimeInterval(600)) == false)
+        #expect(harness.model.errorMessage == BabyEventError.activeSleepAlreadyInProgress.errorDescription)
+    }
+
+    @Test
+    func completedSleepCanBeEditedDeletedAndUndone() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let sleep = try harness.saveSleep(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            startedAt: Date(timeIntervalSince1970: 9_000),
+            endedAt: Date(timeIntervalSince1970: 9_900)
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        #expect(
+            harness.model.updateSleep(
+                id: sleep.id,
+                startedAt: Date(timeIntervalSince1970: 9_300),
+                endedAt: Date(timeIntervalSince1970: 10_200)
+            )
+        )
+
+        let updatedEvent = try #require(try harness.eventRepository.loadEvent(id: sleep.id))
+        switch updatedEvent {
+        case let .sleep(event):
+            #expect(event.startedAt == Date(timeIntervalSince1970: 9_300))
+            #expect(event.endedAt == Date(timeIntervalSince1970: 10_200))
+            #expect(event.metadata.occurredAt == Date(timeIntervalSince1970: 10_200))
+        default:
+            Issue.record("Expected an updated sleep event")
+        }
+
+        #expect(harness.model.deleteEvent(id: sleep.id))
+        #expect(harness.model.undoDeleteMessage == "Sleep deleted")
+
+        let deletedTimeline = try harness.eventRepository.loadTimeline(
+            for: seed.child.id,
+            includingDeleted: false
+        )
+        #expect(deletedTimeline.isEmpty)
+
+        harness.model.undoLastDeletedEvent()
+
+        let visibleTimeline = try harness.eventRepository.loadTimeline(
+            for: seed.child.id,
+            includingDeleted: false
+        )
+        #expect(visibleTimeline.count == 1)
+        #expect(visibleTimeline.first?.id == sleep.id)
+    }
+
+    @Test
+    func sleepMutationsDoNotChangeLiveActivityFeedSnapshot() throws {
+        let liveActivityManager = LiveActivityManagerSpy()
+        let harness = try Harness(liveActivityManager: liveActivityManager)
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let feed = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 120,
+            occurredAt: Date(timeIntervalSince1970: 11_000),
+            milkType: .formula
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        let originalSnapshot = try #require(liveActivityManager.latestSnapshot)
+        #expect(originalSnapshot.lastFeedAt == feed.metadata.occurredAt)
+
+        #expect(
+            harness.model.startSleep(startedAt: Date(timeIntervalSince1970: 11_500))
+        )
+        #expect(liveActivityManager.latestSnapshot == originalSnapshot)
+
+        let activeSleep = try #require(harness.model.profile?.activeSleepSession)
+
+        #expect(
+            harness.model.endSleep(
+                id: activeSleep.id,
+                startedAt: activeSleep.startedAt,
+                endedAt: Date(timeIntervalSince1970: 12_100)
+            )
+        )
+        #expect(liveActivityManager.latestSnapshot == originalSnapshot)
+
+        #expect(
+            harness.model.updateSleep(
+                id: activeSleep.id,
+                startedAt: Date(timeIntervalSince1970: 11_600),
+                endedAt: Date(timeIntervalSince1970: 12_300)
+            )
+        )
+        #expect(liveActivityManager.latestSnapshot == originalSnapshot)
+
+        #expect(harness.model.deleteEvent(id: activeSleep.id))
+        #expect(liveActivityManager.latestSnapshot == originalSnapshot)
+    }
+
+    @Test
     func undoRestoresDeletedFeedAndClearsBannerState() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }

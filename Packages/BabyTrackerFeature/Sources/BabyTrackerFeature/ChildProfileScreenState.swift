@@ -12,8 +12,10 @@ public struct ChildProfileScreenState: Equatable, Sendable {
     public let canSwitchChildren: Bool
     public let canLogEvents: Bool
     public let canManageEvents: Bool
+    public let activeSleepSession: ActiveSleepSessionViewState?
     public let currentStateSummary: CurrentStateSummaryViewState?
     public let recentFeedEvents: [RecentFeedEventViewState]
+    public let recentSleepEvents: [RecentSleepEventViewState]
     public let recentNappyEvents: [RecentNappyEventViewState]
     public let cloudKitStatus: CloudKitStatusViewState
     public let canShareChild: Bool
@@ -41,8 +43,10 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         canSwitchChildren: Bool,
         canLogEvents: Bool,
         canManageEvents: Bool,
+        activeSleepSession: ActiveSleepSessionViewState?,
         currentStateSummary: CurrentStateSummaryViewState?,
         recentFeedEvents: [RecentFeedEventViewState],
+        recentSleepEvents: [RecentSleepEventViewState],
         recentNappyEvents: [RecentNappyEventViewState],
         cloudKitStatus: CloudKitStatusViewState,
         canShareChild: Bool
@@ -57,8 +61,10 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         self.canSwitchChildren = canSwitchChildren
         self.canLogEvents = canLogEvents
         self.canManageEvents = canManageEvents
+        self.activeSleepSession = activeSleepSession
         self.currentStateSummary = currentStateSummary
         self.recentFeedEvents = recentFeedEvents
+        self.recentSleepEvents = recentSleepEvents
         self.recentNappyEvents = recentNappyEvents
         self.cloudKitStatus = cloudKitStatus
         self.canShareChild = canShareChild
