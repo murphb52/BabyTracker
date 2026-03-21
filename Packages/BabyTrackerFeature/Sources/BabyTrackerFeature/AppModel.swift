@@ -763,10 +763,8 @@ public final class AppModel {
             canLogEvents: canLogEvents,
             canManageEvents: canManageEvents,
             activeSleepSession: activeSleep.map(ActiveSleepSessionViewState.init),
-            currentStateSummary: makeCurrentStateSummary(from: visibleEvents, activeSleep: activeSleep),
-            recentFeedEvents: makeRecentFeedEvents(from: visibleEvents),
-            recentSleepEvents: makeRecentSleepEvents(from: visibleEvents),
-            recentNappyEvents: makeRecentNappyEvents(from: visibleEvents),
+            home: makeHomeScreenState(from: visibleEvents, activeSleep: activeSleep),
+            eventHistory: makeEventHistoryScreenState(from: visibleEvents),
             timeline: makeTimelineScreenState(
                 from: timelineEvents,
                 selectedDay: timelineSelectedDay,
@@ -820,22 +818,26 @@ public final class AppModel {
         )
     }
 
-    private func makeRecentFeedEvents(
-        from events: [BabyEvent]
-    ) -> [RecentFeedEventViewState] {
-        Array(events.compactMap(RecentFeedEventViewState.init).prefix(5))
+    private func makeHomeScreenState(
+        from events: [BabyEvent],
+        activeSleep: SleepEvent?
+    ) -> HomeScreenState {
+        HomeScreenState(
+            currentStateSummary: makeCurrentStateSummary(from: events, activeSleep: activeSleep),
+            recentEvents: Array(events.compactMap { EventCardViewState(event: $0) }.prefix(6)),
+            emptyStateTitle: "No recent activity",
+            emptyStateMessage: "Use Quick Log to add the first event."
+        )
     }
 
-    private func makeRecentSleepEvents(
+    private func makeEventHistoryScreenState(
         from events: [BabyEvent]
-    ) -> [RecentSleepEventViewState] {
-        Array(events.compactMap(RecentSleepEventViewState.init).prefix(5))
-    }
-
-    private func makeRecentNappyEvents(
-        from events: [BabyEvent]
-    ) -> [RecentNappyEventViewState] {
-        Array(events.compactMap(RecentNappyEventViewState.init).prefix(5))
+    ) -> EventHistoryScreenState {
+        EventHistoryScreenState(
+            events: events.compactMap { EventCardViewState(event: $0) },
+            emptyStateTitle: "No events logged yet",
+            emptyStateMessage: "Use Quick Log on Home to add the first event."
+        )
     }
 
     private func makeFeedLiveActivitySnapshot(

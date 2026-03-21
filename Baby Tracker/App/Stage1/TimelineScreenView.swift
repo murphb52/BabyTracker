@@ -4,9 +4,10 @@ import SwiftUI
 
 struct TimelineScreenView: View {
     let model: AppModel
+    let profile: ChildProfileScreenState
+    let openEvent: (TimelineEventBlockViewState) -> Void
+    let deleteEvent: (TimelineEventBlockViewState) -> Void
 
-    @State private var activeEvent: TimelineEventBlockViewState?
-    @State private var deleteCandidate: TimelineEventBlockViewState?
     @State private var showingDayPicker = false
 
     private let hourRowHeight: CGFloat = 72
@@ -15,38 +16,12 @@ struct TimelineScreenView: View {
     private let blockCornerRadius: CGFloat = 12
 
     var body: some View {
-        if let profile = model.profile {
-            timelineContent(
-                timeline: profile.timeline,
-                canManageEvents: profile.canManageEvents
-            )
-            .navigationTitle("Timeline")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .sheet(item: $activeEvent) { event in
-                eventSheet(for: event, canManageEvents: profile.canManageEvents)
-            }
-            .sheet(isPresented: $showingDayPicker) {
-                dayPickerSheet
-            }
-            .confirmationDialog(
-                deleteDialogTitle,
-                isPresented: deleteConfirmationIsPresented,
-                titleVisibility: .visible,
-                presenting: deleteCandidate
-            ) { event in
-                Button(deleteConfirmTitle(for: event), role: .destructive) {
-                    _ = model.deleteEvent(id: event.id)
-                    deleteCandidate = nil
-                }
-            } message: { event in
-                Text("Delete \(event.title.lowercased()) from \(event.timeText)?")
-            }
-        } else {
-            ProgressView("Loading timeline…")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .navigationTitle("Timeline")
-                .toolbarBackground(.hidden, for: .navigationBar)
+        timelineContent(
+            timeline: profile.timeline,
+            canManageEvents: profile.canManageEvents
+        )
+        .sheet(isPresented: $showingDayPicker) {
+            dayPickerSheet
         }
     }
 
@@ -295,7 +270,7 @@ struct TimelineScreenView: View {
 
         if canManageEvents {
             Button {
-                activeEvent = event
+                openEvent(event)
             } label: {
                 content
             }
@@ -311,18 +286,18 @@ struct TimelineScreenView: View {
             .position(x: xPosition, y: yPosition)
             .simultaneousGesture(
                 TapGesture().onEnded {
-                    activeEvent = event
+                    openEvent(event)
                 }
             )
             .accessibilityIdentifier("timeline-event-\(event.id.uuidString)")
             .accessibilityLabel("\(event.title), \(event.detailText), \(event.timeText)")
             .contextMenu {
                 Button(primaryActionTitle(for: event)) {
-                    activeEvent = event
+                    openEvent(event)
                 }
 
                 Button("Delete", role: .destructive) {
-                    deleteCandidate = event
+                    deleteEvent(event)
                 }
             }
         } else {
@@ -399,165 +374,6 @@ struct TimelineScreenView: View {
         }
     }
 
-    @ViewBuilder
-    private func eventSheet(
-        for event: TimelineEventBlockViewState,
-        canManageEvents: Bool
-    ) -> some View {
-        switch event.actionPayload {
-        case let .editBreastFeed(durationMinutes, endTime, side):
-            BreastFeedEditorSheetView(
-                navigationTitle: "Edit Breast Feed",
-                primaryActionTitle: "Update",
-                initialDurationMinutes: durationMinutes,
-                initialEndTime: endTime,
-                initialSide: side
-            ) { updatedDuration, updatedEndTime, updatedSide in
-                let didSave = model.updateBreastFeed(
-                    id: event.id,
-                    durationMinutes: updatedDuration,
-                    endTime: updatedEndTime,
-                    side: updatedSide
-                )
-                if didSave {
-                    activeEvent = nil
-                }
-                return didSave
-            }
-        case let .editBottleFeed(amountMilliliters, occurredAt, milkType):
-            BottleFeedEditorSheetView(
-                navigationTitle: "Edit Bottle Feed",
-                primaryActionTitle: "Update",
-                initialAmountMilliliters: amountMilliliters,
-                initialOccurredAt: occurredAt,
-                initialMilkType: milkType
-            ) { updatedAmount, updatedOccurredAt, updatedMilkType in
-                let didSave = model.updateBottleFeed(
-                    id: event.id,
-                    amountMilliliters: updatedAmount,
-                    occurredAt: updatedOccurredAt,
-                    milkType: updatedMilkType
-                )
-                if didSave {
-                    activeEvent = nil
-                }
-                return didSave
-            }
-        case let .editNappy(type, occurredAt, intensity, pooColor):
-            NappyEditorSheetView(
-                navigationTitle: "Edit Nappy",
-                primaryActionTitle: "Update",
-                initialType: type,
-                initialOccurredAt: occurredAt,
-                initialIntensity: intensity,
-                initialPooColor: pooColor
-            ) { updatedType, updatedOccurredAt, updatedIntensity, updatedPooColor in
-                let didSave = model.updateNappy(
-                    id: event.id,
-                    type: updatedType,
-                    occurredAt: updatedOccurredAt,
-                    intensity: updatedIntensity,
-                    pooColor: updatedPooColor
-                )
-                if didSave {
-                    activeEvent = nil
-                }
-                return didSave
-            }
-        case let .editSleep(startedAt, endedAt):
-            SleepEditorSheetView(
-                mode: .edit,
-                initialStartedAt: startedAt,
-                initialEndedAt: endedAt
-            ) { updatedStartedAt, updatedEndedAt in
-                guard let updatedEndedAt else {
-                    return false
-                }
-
-                let didSave = model.updateSleep(
-                    id: event.id,
-                    startedAt: updatedStartedAt,
-                    endedAt: updatedEndedAt
-                )
-                if didSave {
-                    activeEvent = nil
-                }
-                return didSave
-            }
-        case let .endSleep(startedAt):
-            SleepEditorSheetView(
-                mode: .end,
-                initialStartedAt: startedAt,
-                initialEndedAt: defaultSleepEndTime(for: startedAt),
-                saveAction: { updatedStartedAt, updatedEndedAt in
-                    guard let updatedEndedAt else {
-                        return false
-                    }
-
-                    let didSave = model.endSleep(
-                        id: event.id,
-                        startedAt: updatedStartedAt,
-                        endedAt: updatedEndedAt
-                    )
-                    if didSave {
-                        activeEvent = nil
-                    }
-                    return didSave
-                },
-                deleteAction: canManageEvents ? {
-                    if model.deleteEvent(id: event.id) {
-                        activeEvent = nil
-                    }
-                } : nil
-            )
-        }
-    }
-
-    private var deleteDialogTitle: String {
-        guard let deleteCandidate else {
-            return "Delete Event?"
-        }
-
-        return deleteDialogTitleText(for: deleteCandidate.kind)
-    }
-
-    private var deleteConfirmationIsPresented: Binding<Bool> {
-        Binding(
-            get: { deleteCandidate != nil },
-            set: { isPresented in
-                if !isPresented {
-                    deleteCandidate = nil
-                }
-            }
-        )
-    }
-
-    private func deleteDialogTitleText(
-        for kind: BabyEventKind
-    ) -> String {
-        switch kind {
-        case .breastFeed, .bottleFeed:
-            return "Delete Feed?"
-        case .sleep:
-            return "Delete Sleep?"
-        case .nappy:
-            return "Delete Nappy?"
-        }
-    }
-
-    private func deleteConfirmTitle(
-        for event: TimelineEventBlockViewState
-    ) -> String {
-        switch event.kind {
-        case .breastFeed, .bottleFeed:
-            return "Delete Feed"
-        case .sleep:
-            return "Delete Sleep"
-        case .nappy:
-            return "Delete Nappy"
-        }
-    }
-
     private func blockWidth(
         for event: TimelineEventBlockViewState,
         contentWidth: CGFloat
@@ -592,7 +408,7 @@ struct TimelineScreenView: View {
 
     private var timelineDayBinding: Binding<Date> {
         Binding(
-            get: { model.profile?.timeline.selectedDay ?? Date() },
+            get: { profile.timeline.selectedDay },
             set: { day in
                 model.showTimelineDay(day)
             }
@@ -677,15 +493,5 @@ struct TimelineScreenView: View {
                     model.showPreviousTimelineDay()
                 }
             }
-    }
-
-    private func defaultSleepEndTime(for startedAt: Date) -> Date {
-        let now = Date()
-
-        if startedAt > now {
-            return now
-        }
-
-        return max(now, startedAt.addingTimeInterval(60))
     }
 }

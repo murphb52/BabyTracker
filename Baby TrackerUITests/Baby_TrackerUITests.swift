@@ -22,16 +22,17 @@ final class Baby_TrackerUITests: XCTestCase {
         childField.typeText("Poppy")
         app.buttons["create-child-button"].tap()
 
-        let profileName = app.staticTexts["child-profile-name"]
-        scrollToElement(profileName, in: app)
-        XCTAssertTrue(profileName.exists)
-        XCTAssertEqual(profileName.label, "Poppy")
+        let homeTab = app.tabBars.buttons["Home"]
+        XCTAssertTrue(homeTab.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["quick-log-breast-feed-button"].waitForExistence(timeout: 5))
     }
 
     @MainActor
     func testOwnerSeesStage2SharingUIWithoutActivationControls() throws {
         let app = makeApp(scenario: "ownerPreview")
         app.launch()
+
+        openProfileTab(in: app)
 
         let profileName = app.staticTexts["child-profile-name"]
         scrollToElement(profileName, in: app)
@@ -54,6 +55,7 @@ final class Baby_TrackerUITests: XCTestCase {
     @MainActor
     func testOwnerCanArchiveAndRestoreOnlyChild() throws {
         let app = launchOwnerFlow()
+        openProfileTab(in: app)
 
         let archiveButton = app.buttons["archive-child-button"]
         scrollToElement(archiveButton, in: app)
@@ -69,6 +71,8 @@ final class Baby_TrackerUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(restoreButton.waitForExistence(timeout: 5))
         restoreButton.tap()
+
+        openProfileTab(in: app)
 
         let profileName = app.staticTexts["child-profile-name"]
         scrollToElement(profileName, in: app)
@@ -133,11 +137,11 @@ final class Baby_TrackerUITests: XCTestCase {
         XCTAssertEqual(latestEventValue.label, "Nappy")
         XCTAssertTrue(app.staticTexts["current-status-last-nappy-value"].waitForExistence(timeout: 5))
 
-        let recentNappyButton = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "recent-nappy-")
+        let recentEventButton = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "home-event-")
         ).firstMatch
-        scrollToElement(recentNappyButton, in: app, maxSwipes: 10)
-        XCTAssertTrue(recentNappyButton.waitForExistence(timeout: 5))
+        scrollToElement(recentEventButton, in: app, maxSwipes: 10)
+        XCTAssertTrue(recentEventButton.waitForExistence(timeout: 5))
     }
 
     @MainActor
@@ -162,10 +166,11 @@ final class Baby_TrackerUITests: XCTestCase {
         XCTAssertTrue(app.buttons["save-sleep-button"].waitForExistence(timeout: 5))
         app.buttons["save-sleep-button"].tap()
 
+        openEventsTab(in: app)
+
         let recentSleepButton = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "recent-sleep-")
+            NSPredicate(format: "identifier BEGINSWITH %@", "event-history-event-")
         ).firstMatch
-        scrollToElement(recentSleepButton, in: app, maxSwipes: 10)
         XCTAssertTrue(recentSleepButton.waitForExistence(timeout: 5))
         XCTAssertEqual(app.buttons["quick-log-sleep-button"].label, "Start Sleep")
     }
@@ -193,11 +198,11 @@ final class Baby_TrackerUITests: XCTestCase {
         app.launch()
 
         createCompletedSleep(in: app)
+        openEventsTab(in: app)
 
         let recentSleepButton = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "recent-sleep-")
+            NSPredicate(format: "identifier BEGINSWITH %@", "event-history-event-")
         ).firstMatch
-        scrollToElement(recentSleepButton, in: app, maxSwipes: 10)
         XCTAssertTrue(recentSleepButton.waitForExistence(timeout: 5))
         recentSleepButton.swipeRight()
         app.buttons["Edit"].tap()
@@ -215,11 +220,11 @@ final class Baby_TrackerUITests: XCTestCase {
         app.launch()
 
         createCompletedSleep(in: app)
+        openEventsTab(in: app)
 
         let recentSleepButton = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "recent-sleep-")
+            NSPredicate(format: "identifier BEGINSWITH %@", "event-history-event-")
         ).firstMatch
-        scrollToElement(recentSleepButton, in: app, maxSwipes: 10)
         XCTAssertTrue(recentSleepButton.waitForExistence(timeout: 5))
         recentSleepButton.swipeLeft()
         app.buttons["Delete"].tap()
@@ -230,7 +235,7 @@ final class Baby_TrackerUITests: XCTestCase {
 
         let undoButton = app.buttons["undo-delete-button"]
         XCTAssertTrue(undoButton.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["recent-sleep-empty-state"].exists)
+        XCTAssertTrue(app.staticTexts["event-history-empty-state"].exists)
 
         undoButton.tap()
 
@@ -286,6 +291,7 @@ final class Baby_TrackerUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.buttons["quick-log-bottle-feed-button"].waitForExistence(timeout: 5))
+        openProfileTab(in: app)
         XCTAssertFalse(app.buttons["edit-child-button"].exists)
         XCTAssertFalse(app.buttons["share-child-button"].exists)
         XCTAssertFalse(app.buttons["archive-child-button"].exists)
@@ -335,11 +341,11 @@ final class Baby_TrackerUITests: XCTestCase {
         app.buttons["quick-log-breast-feed-button"].tap()
         XCTAssertTrue(app.buttons["save-breast-feed-button"].waitForExistence(timeout: 5))
         app.buttons["save-breast-feed-button"].tap()
+        openEventsTab(in: app)
 
         let recentFeedButton = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "recent-feed-")
+            NSPredicate(format: "identifier BEGINSWITH %@", "event-history-event-")
         ).firstMatch
-        scrollToElement(recentFeedButton, in: app, maxSwipes: 10)
         XCTAssertTrue(recentFeedButton.waitForExistence(timeout: 5))
         recentFeedButton.swipeRight()
         app.buttons["Edit"].tap()
@@ -361,11 +367,11 @@ final class Baby_TrackerUITests: XCTestCase {
         app.buttons["quick-log-bottle-feed-button"].tap()
         XCTAssertTrue(app.buttons["save-bottle-feed-button"].waitForExistence(timeout: 5))
         app.buttons["save-bottle-feed-button"].tap()
+        openEventsTab(in: app)
 
         let recentFeedButton = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "recent-feed-")
+            NSPredicate(format: "identifier BEGINSWITH %@", "event-history-event-")
         ).firstMatch
-        scrollToElement(recentFeedButton, in: app, maxSwipes: 10)
         XCTAssertTrue(recentFeedButton.waitForExistence(timeout: 5))
         recentFeedButton.swipeRight()
         app.buttons["Edit"].tap()
@@ -387,11 +393,11 @@ final class Baby_TrackerUITests: XCTestCase {
         app.buttons["quick-log-bottle-feed-button"].tap()
         XCTAssertTrue(app.buttons["save-bottle-feed-button"].waitForExistence(timeout: 5))
         app.buttons["save-bottle-feed-button"].tap()
+        openEventsTab(in: app)
 
         let recentFeedButton = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "recent-feed-")
+            NSPredicate(format: "identifier BEGINSWITH %@", "event-history-event-")
         ).firstMatch
-        scrollToElement(recentFeedButton, in: app, maxSwipes: 10)
         XCTAssertTrue(recentFeedButton.waitForExistence(timeout: 5))
         recentFeedButton.swipeLeft()
         app.buttons["Delete"].tap()
@@ -402,7 +408,7 @@ final class Baby_TrackerUITests: XCTestCase {
 
         let undoButton = app.buttons["undo-delete-button"]
         XCTAssertTrue(undoButton.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["recent-feeds-empty-state"].exists)
+        XCTAssertTrue(app.staticTexts["event-history-empty-state"].exists)
 
         undoButton.tap()
 
@@ -418,11 +424,11 @@ final class Baby_TrackerUITests: XCTestCase {
         app.sheets.buttons["Mixed"].tap()
         XCTAssertTrue(app.buttons["save-nappy-button"].waitForExistence(timeout: 5))
         app.buttons["save-nappy-button"].tap()
+        openEventsTab(in: app)
 
         let recentNappyButton = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "recent-nappy-")
+            NSPredicate(format: "identifier BEGINSWITH %@", "event-history-event-")
         ).firstMatch
-        scrollToElement(recentNappyButton, in: app, maxSwipes: 10)
         XCTAssertTrue(recentNappyButton.waitForExistence(timeout: 5))
         recentNappyButton.swipeLeft()
         app.buttons["Delete"].tap()
@@ -433,7 +439,7 @@ final class Baby_TrackerUITests: XCTestCase {
 
         let undoButton = app.buttons["undo-delete-button"]
         XCTAssertTrue(undoButton.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["recent-nappies-empty-state"].exists)
+        XCTAssertTrue(app.staticTexts["event-history-empty-state"].exists)
 
         undoButton.tap()
 
@@ -441,20 +447,20 @@ final class Baby_TrackerUITests: XCTestCase {
     }
 
     @MainActor
-    func testRecentFeedsEmptyStateAppearsBeforeLogging() throws {
+    func testRecentActivityEmptyStateAppearsBeforeLogging() throws {
         let app = makeApp(scenario: "ownerPreview")
         app.launch()
 
-        let emptyState = app.staticTexts["recent-feeds-empty-state"]
+        let emptyState = app.staticTexts["home-recent-events-empty-state"]
         XCTAssertTrue(emptyState.waitForExistence(timeout: 5))
         XCTAssertEqual(
             emptyState.label,
-            "No feeds logged yet. Use Quick Log above to add the first feed."
+            "No recent activity"
         )
     }
 
     @MainActor
-    func testMixedEventsScenarioShowsLatestEventButKeepsFeedHistoryFeedOnly() throws {
+    func testMixedEventsScenarioShowsLatestEventAndMixedRecentActivity() throws {
         let app = makeApp(scenario: "mixedEventsPreview")
         app.launch()
 
@@ -464,13 +470,13 @@ final class Baby_TrackerUITests: XCTestCase {
         XCTAssertEqual(app.staticTexts["current-status-feeds-today-value"].label, "1")
         XCTAssertFalse(app.staticTexts["current-status-since-last-feed-value"].label.isEmpty)
 
-        let recentFeedButton = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "recent-feed-")
+        let recentEventButton = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "home-event-")
         ).firstMatch
-        scrollToElement(recentFeedButton, in: app, maxSwipes: 10)
-        XCTAssertTrue(recentFeedButton.waitForExistence(timeout: 5))
+        scrollToElement(recentEventButton, in: app, maxSwipes: 10)
+        XCTAssertTrue(recentEventButton.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Bottle Feed"].exists)
-        XCTAssertFalse(app.staticTexts["Sleep"].exists && recentFeedButton.label == "Sleep")
+        XCTAssertTrue(app.staticTexts["Sleep"].exists)
     }
 
     @MainActor
@@ -626,9 +632,7 @@ final class Baby_TrackerUITests: XCTestCase {
         childField.typeText("Poppy")
         app.buttons["create-child-button"].tap()
 
-        let profileName = app.staticTexts["child-profile-name"]
-        scrollToElement(profileName, in: app)
-        XCTAssertTrue(profileName.exists)
+        XCTAssertTrue(app.buttons["quick-log-breast-feed-button"].waitForExistence(timeout: 5))
 
         return app
     }
@@ -689,5 +693,19 @@ final class Baby_TrackerUITests: XCTestCase {
         let timelineTab = app.tabBars.buttons["Timeline"]
         XCTAssertTrue(timelineTab.waitForExistence(timeout: 5))
         timelineTab.tap()
+    }
+
+    @MainActor
+    private func openEventsTab(in app: XCUIApplication) {
+        let eventsTab = app.tabBars.buttons["Events"]
+        XCTAssertTrue(eventsTab.waitForExistence(timeout: 5))
+        eventsTab.tap()
+    }
+
+    @MainActor
+    private func openProfileTab(in app: XCUIApplication) {
+        let profileTab = app.tabBars.buttons["Profile"]
+        XCTAssertTrue(profileTab.waitForExistence(timeout: 5))
+        profileTab.tap()
     }
 }

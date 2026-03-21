@@ -11,7 +11,7 @@ public struct TimelineEventBlockViewState: Equatable, Identifiable, Sendable {
     public let endMinute: Int
     public let laneIndex: Int
     public let laneCount: Int
-    public let actionPayload: TimelineEventActionPayload
+    public let actionPayload: EventActionPayload
 
     public init(
         id: UUID,
@@ -23,7 +23,7 @@ public struct TimelineEventBlockViewState: Equatable, Identifiable, Sendable {
         endMinute: Int,
         laneIndex: Int,
         laneCount: Int,
-        actionPayload: TimelineEventActionPayload
+        actionPayload: EventActionPayload
     ) {
         self.id = id
         self.kind = kind

@@ -1,7 +1,7 @@
 import BabyTrackerDomain
 import Foundation
 
-public enum TimelineEventActionPayload: Equatable, Sendable {
+public enum EventActionPayload: Equatable, Sendable {
     case editBreastFeed(
         durationMinutes: Int,
         endTime: Date,

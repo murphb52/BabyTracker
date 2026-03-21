@@ -13,10 +13,8 @@ public struct ChildProfileScreenState: Equatable, Sendable {
     public let canLogEvents: Bool
     public let canManageEvents: Bool
     public let activeSleepSession: ActiveSleepSessionViewState?
-    public let currentStateSummary: CurrentStateSummaryViewState?
-    public let recentFeedEvents: [RecentFeedEventViewState]
-    public let recentSleepEvents: [RecentSleepEventViewState]
-    public let recentNappyEvents: [RecentNappyEventViewState]
+    public let home: HomeScreenState
+    public let eventHistory: EventHistoryScreenState
     public let timeline: TimelineScreenState
     public let cloudKitStatus: CloudKitStatusViewState
     public let canShareChild: Bool
@@ -45,10 +43,8 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         canLogEvents: Bool,
         canManageEvents: Bool,
         activeSleepSession: ActiveSleepSessionViewState?,
-        currentStateSummary: CurrentStateSummaryViewState?,
-        recentFeedEvents: [RecentFeedEventViewState],
-        recentSleepEvents: [RecentSleepEventViewState],
-        recentNappyEvents: [RecentNappyEventViewState],
+        home: HomeScreenState,
+        eventHistory: EventHistoryScreenState,
         timeline: TimelineScreenState,
         cloudKitStatus: CloudKitStatusViewState,
         canShareChild: Bool
@@ -64,10 +60,8 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         self.canLogEvents = canLogEvents
         self.canManageEvents = canManageEvents
         self.activeSleepSession = activeSleepSession
-        self.currentStateSummary = currentStateSummary
-        self.recentFeedEvents = recentFeedEvents
-        self.recentSleepEvents = recentSleepEvents
-        self.recentNappyEvents = recentNappyEvents
+        self.home = home
+        self.eventHistory = eventHistory
         self.timeline = timeline
         self.cloudKitStatus = cloudKitStatus
         self.canShareChild = canShareChild
