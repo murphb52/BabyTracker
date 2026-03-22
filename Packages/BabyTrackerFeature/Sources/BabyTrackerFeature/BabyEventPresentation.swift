@@ -1,7 +1,7 @@
 import BabyTrackerDomain
 import Foundation
 
-enum BabyEventPresentation {
+public enum BabyEventPresentation {
     static func title(for event: BabyEvent) -> String {
         title(for: event.kind)
     }
@@ -45,16 +45,16 @@ enum BabyEventPresentation {
         }
     }
 
-    static func systemImage(for kind: BabyEventKind) -> String {
+    public static func systemImage(for kind: BabyEventKind) -> String {
         switch kind {
         case .breastFeed:
-            "heart.text.square"
+            "figure.seated.side.air.upper"
         case .bottleFeed:
-            "drop.circle"
+            "waterbottle.fill"
         case .sleep:
-            "bed.double"
+            "moon.zzz.fill"
         case .nappy:
-            "checklist"
+            "checklist.checked"
         }
     }
 

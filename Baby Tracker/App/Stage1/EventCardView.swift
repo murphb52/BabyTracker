@@ -7,10 +7,15 @@ struct EventCardView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: systemImageName(for: event.kind))
-                .font(.title3)
-                .foregroundStyle(accentColor(for: event.kind))
-                .frame(width: 28)
+            ZStack {
+                Circle()
+                    .fill(BabyEventStyle.backgroundColor(for: event.kind))
+                    .frame(width: 36, height: 36)
+
+                Image(systemName: BabyEventStyle.systemImage(for: event.kind))
+                    .font(.headline)
+                    .foregroundStyle(BabyEventStyle.accentColor(for: event.kind))
+            }
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(event.title)
@@ -32,33 +37,11 @@ struct EventCardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(BabyEventStyle.cardFillColor(for: event.kind))
         )
-    }
-
-    private func systemImageName(for kind: BabyEventKind) -> String {
-        switch kind {
-        case .breastFeed:
-            "heart.text.square"
-        case .bottleFeed:
-            "drop.circle"
-        case .sleep:
-            "bed.double"
-        case .nappy:
-            "checklist"
-        }
-    }
-
-    private func accentColor(for kind: BabyEventKind) -> Color {
-        switch kind {
-        case .breastFeed:
-            .pink
-        case .bottleFeed:
-            .teal
-        case .sleep:
-            .indigo
-        case .nappy:
-            .orange
-        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(BabyEventStyle.accentColor(for: event.kind).opacity(0.16), lineWidth: 1)
+        )
     }
 }

@@ -5,6 +5,9 @@ struct EventHistoryView: View {
     let profile: ChildProfileScreenState
     let openEvent: (EventCardViewState) -> Void
     let deleteEvent: (EventCardViewState) -> Void
+    let pendingDeleteEvent: EventDeleteCandidate?
+    let confirmDelete: () -> Void
+    let cancelDelete: () -> Void
 
     var body: some View {
         List {
@@ -29,22 +32,36 @@ struct EventHistoryView: View {
 
     @ViewBuilder
     private func eventRow(for event: EventCardViewState) -> some View {
+        let isPendingDelete = pendingDeleteEvent?.id == event.id
+
         if profile.canManageEvents {
-            Button {
-                openEvent(event)
-            } label: {
-                EventCardView(event: event)
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("event-history-event-\(event.id.uuidString)")
-            .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                Button(primaryActionTitle(for: event)) {
+            VStack(alignment: .leading, spacing: 8) {
+                Button {
                     openEvent(event)
+                } label: {
+                    EventCardView(event: event)
                 }
-            }
-            .swipeActions {
-                Button("Delete", role: .destructive) {
-                    deleteEvent(event)
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("event-history-event-\(event.id.uuidString)")
+                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                    Button(primaryActionTitle(for: event)) {
+                        openEvent(event)
+                    }
+                }
+                .swipeActions {
+                    Button("Delete", role: .destructive) {
+                        deleteEvent(event)
+                    }
+                }
+
+                if isPendingDelete, let pendingDeleteEvent {
+                    AnchoredDeletePromptView(
+                        title: "Delete \(pendingDeleteEvent.title.lowercased())?",
+                        confirmTitle: pendingDeleteEvent.confirmButtonTitle,
+                        confirmAction: confirmDelete,
+                        cancelAction: cancelDelete
+                    )
+                    .accessibilityIdentifier("event-history-delete-confirm-\(event.id.uuidString)")
                 }
             }
         } else {

@@ -11,6 +11,8 @@ struct BreastFeedEditorSheetView: View {
     @State private var endTime: Date
     @State private var side: BreastSideChoice
 
+    private let quickDurations = [5, 10, 15]
+
     init(
         navigationTitle: String,
         primaryActionTitle: String,
@@ -30,6 +32,10 @@ struct BreastFeedEditorSheetView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section("Quick Duration") {
+                    quickDurationButtons
+                }
+
                 Section("Feed") {
                     TextField("Duration (minutes)", text: $durationMinutes)
                         .keyboardType(.numberPad)
@@ -85,6 +91,28 @@ struct BreastFeedEditorSheetView: View {
         }
     }
 
+    private var quickDurationButtons: some View {
+        HStack(spacing: 8) {
+            ForEach(quickDurations, id: \.self) { duration in
+                Button {
+                    durationMinutes = "\(duration)"
+                } label: {
+                    Text("\(duration) min")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(isSelected(duration: duration) ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                        )
+                        .foregroundStyle(isSelected(duration: duration) ? Color.white : Color.primary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("breast-feed-duration-preset-\(duration)")
+            }
+        }
+    }
+
     private var parsedDurationMinutes: Int? {
         guard let durationValue = Int(durationMinutes.trimmingCharacters(in: .whitespacesAndNewlines)),
               durationValue > 0 else {
@@ -100,6 +128,10 @@ struct BreastFeedEditorSheetView: View {
         }
 
         return "Enter a duration greater than 0 minutes."
+    }
+
+    private func isSelected(duration: Int) -> Bool {
+        parsedDurationMinutes == duration
     }
 }
 

@@ -1,3 +1,4 @@
+import BabyTrackerDomain
 import BabyTrackerFeature
 import SwiftUI
 
@@ -6,9 +7,7 @@ struct ChildHomeView: View {
     let quickLogBreastFeed: () -> Void
     let quickLogBottleFeed: () -> Void
     let quickLogSleep: () -> Void
-    let quickLogNappy: () -> Void
-    let openEvent: (EventCardViewState) -> Void
-    let deleteEvent: (EventCardViewState) -> Void
+    let quickLogNappy: (NappyType) -> Void
 
     private let gridColumns = [
         GridItem(.flexible(), spacing: 12),
@@ -23,8 +22,6 @@ struct ChildHomeView: View {
                 if profile.canLogEvents {
                     quickLogSection
                 }
-
-                recentActivitySection
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
@@ -50,80 +47,40 @@ struct ChildHomeView: View {
             LazyVGrid(columns: gridColumns, spacing: 12) {
                 quickLogButton(
                     title: "Breast Feed",
-                    systemImage: "heart.text.square",
-                    tint: .pink,
+                    systemImage: BabyEventStyle.systemImage(for: .breastFeed),
+                    tint: BabyEventStyle.accentColor(for: .breastFeed),
                     accessibilityIdentifier: "quick-log-breast-feed-button",
                     action: quickLogBreastFeed
                 )
 
                 quickLogButton(
                     title: "Bottle Feed",
-                    systemImage: "drop.circle",
-                    tint: .teal,
+                    systemImage: BabyEventStyle.systemImage(for: .bottleFeed),
+                    tint: BabyEventStyle.accentColor(for: .bottleFeed),
                     accessibilityIdentifier: "quick-log-bottle-feed-button",
                     action: quickLogBottleFeed
                 )
 
                 quickLogButton(
                     title: sleepQuickLogTitle,
-                    systemImage: "bed.double",
-                    tint: .indigo,
+                    systemImage: BabyEventStyle.systemImage(for: .sleep),
+                    tint: BabyEventStyle.accentColor(for: .sleep),
                     accessibilityIdentifier: "quick-log-sleep-button",
                     action: quickLogSleep
                 )
 
-                quickLogButton(
+                quickLogMenuButton(
                     title: "Nappy",
-                    systemImage: "checklist",
-                    tint: .orange,
+                    systemImage: BabyEventStyle.systemImage(for: .nappy),
+                    tint: BabyEventStyle.accentColor(for: .nappy),
                     accessibilityIdentifier: "quick-log-nappy-button",
-                    action: quickLogNappy
+                    actions: NappyType.allCases.map { type in
+                        (nappyTypeTitle(for: type), {
+                            quickLogNappy(type)
+                        })
+                    }
                 )
             }
-        }
-    }
-
-    private var recentActivitySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Recent Activity")
-                .font(.headline)
-
-            if profile.home.recentEvents.isEmpty {
-                emptyState(
-                    title: profile.home.emptyStateTitle,
-                    message: profile.home.emptyStateMessage
-                )
-                .accessibilityIdentifier("home-recent-events-empty-state")
-            } else {
-                ForEach(profile.home.recentEvents) { event in
-                    eventCard(for: event)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func eventCard(for event: EventCardViewState) -> some View {
-        if profile.canManageEvents {
-            Button {
-                openEvent(event)
-            } label: {
-                EventCardView(event: event)
-            }
-            .buttonStyle(.plain)
-            .contextMenu {
-                Button(primaryActionTitle(for: event)) {
-                    openEvent(event)
-                }
-
-                Button("Delete", role: .destructive) {
-                    deleteEvent(event)
-                }
-            }
-            .accessibilityIdentifier("home-event-\(event.id.uuidString)")
-        } else {
-            EventCardView(event: event)
-                .accessibilityIdentifier("home-event-\(event.id.uuidString)")
         }
     }
 
@@ -149,35 +106,47 @@ struct ChildHomeView: View {
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
-    private func emptyState(
+    private func quickLogMenuButton(
         title: String,
-        message: String
+        systemImage: String,
+        tint: Color,
+        accessibilityIdentifier: String,
+        actions: [(String, () -> Void)]
     ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
+        Menu {
+            ForEach(Array(actions.enumerated()), id: \.offset) { _, action in
+                Button(action.0) {
+                    action.1()
+                }
+            }
+        } label: {
+            Label(title, systemImage: systemImage)
                 .font(.headline)
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                .padding(.horizontal, 14)
+                .foregroundStyle(.white)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(tint)
+                )
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var sleepQuickLogTitle: String {
         profile.activeSleepSession == nil ? "Start Sleep" : "End Sleep"
     }
 
-    private func primaryActionTitle(for event: EventCardViewState) -> String {
-        switch event.actionPayload {
-        case .endSleep:
-            "End"
-        case .editBreastFeed, .editBottleFeed, .editNappy, .editSleep:
-            "Edit"
+    private func nappyTypeTitle(for type: NappyType) -> String {
+        switch type {
+        case .dry:
+            "Dry"
+        case .wee:
+            "Wee"
+        case .poo:
+            "Poo"
+        case .mixed:
+            "Mixed"
         }
     }
 }

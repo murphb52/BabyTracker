@@ -7,16 +7,25 @@ struct CurrentStateCardView: View {
 
     var body: some View {
         if let summary {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: symbolName(for: summary.lastEvent.kind))
-                        .font(.title3)
-                        .foregroundStyle(Color.accentColor)
-                        .frame(width: 28)
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(alignment: .top, spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(BabyEventStyle.backgroundColor(for: summary.lastEvent.kind))
+                            .frame(width: 46, height: 46)
 
-                    VStack(alignment: .leading, spacing: 4) {
+                        Image(systemName: BabyEventStyle.systemImage(for: summary.lastEvent.kind))
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(BabyEventStyle.accentColor(for: summary.lastEvent.kind))
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Latest Event")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
                         Text(summary.lastEvent.title)
-                            .font(.headline)
+                            .font(.title3.weight(.semibold))
                             .accessibilityIdentifier("current-status-last-event-value")
 
                         if let detailText = summary.lastEvent.detailText {
@@ -28,9 +37,11 @@ struct CurrentStateCardView: View {
                     }
 
                     Spacer()
-                }
 
-                Divider()
+                    Text(summary.lastEvent.occurredAt, format: .dateTime.hour().minute())
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                }
 
                 statusRow(
                     title: "Last logged",
@@ -38,92 +49,123 @@ struct CurrentStateCardView: View {
                 ) {
                     Text(summary.lastEvent.occurredAt, format: .dateTime.month(.abbreviated).day().hour().minute())
                 }
- 
-                if let lastFeed = summary.lastFeed {
-                    statusRow(
-                        title: "Since last feed",
-                        identifier: "current-status-since-last-feed-value"
-                    ) {
-                        relativeTimeText(for: lastFeed.lastFeedAt)
-                    }
-                    statusRow(
-                        title: "Feeds today",
-                        identifier: "current-status-feeds-today-value"
-                    ) {
-                        Text("\(lastFeed.feedsTodayCount)")
-                    }
-                } else {
-                    statusRow(
-                        title: "Since last feed",
-                        identifier: "current-status-since-last-feed-value"
-                    ) {
-                        Text("No feeds yet")
-                    }
-                    statusRow(
-                        title: "Feeds today",
-                        identifier: "current-status-feeds-today-value"
-                    ) {
-                        Text("0")
-                    }
-                }
 
-                if let lastNappy = summary.lastNappy {
-                    statusRow(
-                        title: "Last nappy",
-                        identifier: "current-status-last-nappy-value"
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: 12),
+                        GridItem(.flexible(), spacing: 12),
+                    ],
+                    spacing: 12
+                ) {
+                    metricTile(
+                        title: "Since last feed",
+                        valueIdentifier: "current-status-since-last-feed-value"
                     ) {
-                        relativeTimeText(for: lastNappy.occurredAt)
-                    }
-                } else {
-                    statusRow(
-                        title: "Last nappy",
-                        identifier: "current-status-last-nappy-value"
-                    ) {
-                        Text("No nappies yet")
-                    }
-                }
-
-                if let lastSleep = summary.lastSleep {
-                    statusRow(
-                        title: "Last sleep",
-                        identifier: "current-status-last-sleep-value"
-                    ) {
-                        if lastSleep.isActive {
-                            Text("In progress")
-                        } else if let endedAt = lastSleep.endedAt {
-                            relativeTimeText(for: endedAt)
+                        if let lastFeed = summary.lastFeed {
+                            relativeTimeText(for: lastFeed.lastFeedAt)
+                        } else {
+                            Text("No feeds yet")
                         }
                     }
 
-                    if lastSleep.isActive {
-                        statusRow(
-                            title: "Since sleep started",
-                            identifier: "current-status-since-sleep-started-value"
-                        ) {
-                            relativeTimeText(for: lastSleep.startedAt)
+                    metricTile(
+                        title: "Feeds today",
+                        valueIdentifier: "current-status-feeds-today-value"
+                    ) {
+                        Text("\(summary.lastFeed?.feedsTodayCount ?? 0)")
+                    }
+
+                    metricTile(
+                        title: "Last nappy",
+                        valueIdentifier: "current-status-last-nappy-value"
+                    ) {
+                        if let lastNappy = summary.lastNappy {
+                            relativeTimeText(for: lastNappy.occurredAt)
+                        } else {
+                            Text("No nappies yet")
                         }
                     }
-                } else {
-                    statusRow(
-                        title: "Last sleep",
-                        identifier: "current-status-last-sleep-value"
+
+                    metricTile(
+                        title: summary.lastSleep?.isActive == true ? "Sleep now" : "Last sleep",
+                        valueIdentifier: "current-status-last-sleep-value"
                     ) {
-                        Text("No sleep sessions yet")
+                        if let lastSleep = summary.lastSleep {
+                            if lastSleep.isActive {
+                                Text("In progress")
+                            } else if let endedAt = lastSleep.endedAt {
+                                relativeTimeText(for: endedAt)
+                            }
+                        } else {
+                            Text("No sleep yet")
+                        }
+                    }
+                }
+
+                if let lastSleep = summary.lastSleep, lastSleep.isActive {
+                    metricTile(
+                        title: "Since sleep started",
+                        valueIdentifier: "current-status-since-sleep-started-value"
+                    ) {
+                        relativeTimeText(for: lastSleep.startedAt)
                     }
                 }
             }
-            .padding(16)
+            .padding(20)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(.thinMaterial)
+                    .fill(Color(.systemBackground))
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.accentColor.opacity(0.14), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.06), radius: 16, y: 6)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("current-status-card")
         } else {
-            Text("No events logged yet. Use Quick Log below to add the first event.")
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("No events logged yet")
+                    .font(.headline)
+
+                Text("Use Quick Log below to add the first event.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color(.systemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color(.separator), lineWidth: 1)
+            )
                 .accessibilityIdentifier("current-status-empty-state")
         }
+    }
+
+    private func metricTile<Value: View>(
+        title: String,
+        valueIdentifier: String,
+        @ViewBuilder value: () -> Value
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            value()
+                .font(.headline)
+                .accessibilityIdentifier(valueIdentifier)
+        }
+        .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
     }
 
     private func statusRow<Value: View>(
@@ -153,18 +195,5 @@ struct CurrentStateCardView: View {
         relativeTo referenceDate: Date
     ) -> String {
         RelativeDateTimeFormatter().localizedString(for: date, relativeTo: referenceDate)
-    }
-
-    private func symbolName(for kind: BabyEventKind) -> String {
-        switch kind {
-        case .breastFeed:
-            "heart.text.square"
-        case .bottleFeed:
-            "drop.circle"
-        case .sleep:
-            "bed.double"
-        case .nappy:
-            "checklist"
-        }
     }
 }

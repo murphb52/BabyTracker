@@ -9,9 +9,7 @@ struct ChildWorkspaceTabView: View {
     @State private var selectedTab: Tab = .home
     @State private var activeEventSheet: ChildEventSheet?
     @State private var deleteCandidate: EventDeleteCandidate?
-    @State private var showingQuickLogNappyTypeDialog = false
     @State private var showingEditChildSheet = false
-    @State private var showingArchiveConfirmation = false
 
     var body: some View {
         @Bindable var bindableModel = model
@@ -22,9 +20,9 @@ struct ChildWorkspaceTabView: View {
                 quickLogBreastFeed: { activeEventSheet = .quickLogBreastFeed },
                 quickLogBottleFeed: { activeEventSheet = .quickLogBottleFeed },
                 quickLogSleep: showSleepSheet,
-                quickLogNappy: { showingQuickLogNappyTypeDialog = true },
-                openEvent: showEventSheet(for:),
-                deleteEvent: confirmDelete(for:)
+                quickLogNappy: { type in
+                    activeEventSheet = .quickLogNappy(type)
+                }
             )
             .tag(Tab.home)
             .tabItem {
@@ -34,7 +32,10 @@ struct ChildWorkspaceTabView: View {
             EventHistoryView(
                 profile: profile,
                 openEvent: showEventSheet(for:),
-                deleteEvent: confirmDelete(for:)
+                deleteEvent: confirmDelete(for:),
+                pendingDeleteEvent: deleteCandidate,
+                confirmDelete: performDelete,
+                cancelDelete: cancelDelete
             )
             .tag(Tab.events)
             .tabItem {
@@ -45,7 +46,10 @@ struct ChildWorkspaceTabView: View {
                 model: model,
                 profile: profile,
                 openEvent: showEventSheet(for:),
-                deleteEvent: confirmDelete(for:)
+                deleteEvent: confirmDelete(for:),
+                pendingDeleteEvent: deleteCandidate,
+                confirmDelete: performDelete,
+                cancelDelete: cancelDelete
             )
             .tag(Tab.timeline)
             .tabItem {
@@ -55,12 +59,14 @@ struct ChildWorkspaceTabView: View {
             ChildProfileView(
                 model: model,
                 profile: profile,
-                archiveAction: { showingArchiveConfirmation = true }
+                editChildAction: { showingEditChildSheet = true },
+                shareChildAction: { model.presentShareSheet() },
+                archiveAction: { model.archiveCurrentChild() }
             )
-                .tag(Tab.profile)
-                .tabItem {
-                    Label("Profile", systemImage: "person.crop.circle")
-                }
+            .tag(Tab.profile)
+            .tabItem {
+                Label("Profile", systemImage: "person.crop.circle")
+            }
         }
         .navigationTitle(profile.child.name)
         .navigationBarTitleDisplayMode(.inline)
@@ -83,72 +89,6 @@ struct ChildWorkspaceTabView: View {
                     model.refreshAfterShareSheet()
                 }
         }
-        .confirmationDialog(
-            "Log Nappy",
-            isPresented: $showingQuickLogNappyTypeDialog,
-            titleVisibility: .visible
-        ) {
-            ForEach(NappyType.allCases, id: \.self) { type in
-                Button(nappyTypeTitle(for: type)) {
-                    activeEventSheet = .quickLogNappy(type)
-                }
-            }
-        }
-        .confirmationDialog(
-            "Archive \(profile.child.name)?",
-            isPresented: $showingArchiveConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Archive Child", role: .destructive) {
-                model.archiveCurrentChild()
-            }
-        } message: {
-            Text("Archived child profiles are hidden from the main flow until restored.")
-        }
-        .confirmationDialog(
-            deleteCandidate?.dialogTitle ?? "Delete Event?",
-            isPresented: deleteConfirmationIsPresented,
-            titleVisibility: .visible,
-            presenting: deleteCandidate
-        ) { event in
-            Button(event.confirmButtonTitle, role: .destructive) {
-                _ = model.deleteEvent(id: event.id)
-                deleteCandidate = nil
-            }
-        } message: { event in
-            Text("Delete \(event.title.lowercased()) from \(event.timestampText)?")
-        }
-        .toolbar {
-            if selectedTab == .profile && profile.canEditChild {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Edit Child") {
-                        showingEditChildSheet = true
-                    }
-                    .accessibilityIdentifier("edit-child-button")
-                }
-            }
-
-            if selectedTab == .profile && profile.canManageSharing {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Share", systemImage: "square.and.arrow.up") {
-                        model.presentShareSheet()
-                    }
-                    .disabled(!profile.canShareChild)
-                    .accessibilityIdentifier("share-child-button")
-                }
-            }
-        }
-    }
-
-    private var deleteConfirmationIsPresented: Binding<Bool> {
-        Binding(
-            get: { deleteCandidate != nil },
-            set: { isPresented in
-                if !isPresented {
-                    deleteCandidate = nil
-                }
-            }
-        )
     }
 
     private func showSleepSheet() {
@@ -176,6 +116,19 @@ struct ChildWorkspaceTabView: View {
 
     private func confirmDelete(for event: TimelineEventBlockViewState) {
         deleteCandidate = EventDeleteCandidate(event: event)
+    }
+
+    private func performDelete() {
+        guard let deleteCandidate else {
+            return
+        }
+
+        _ = model.deleteEvent(id: deleteCandidate.id)
+        self.deleteCandidate = nil
+    }
+
+    private func cancelDelete() {
+        deleteCandidate = nil
     }
 
     @ViewBuilder
@@ -361,23 +314,10 @@ struct ChildWorkspaceTabView: View {
         let now = Date()
 
         if startedAt > now {
-            return now
+            return startedAt.addingTimeInterval(1)
         }
 
-        return max(now, startedAt.addingTimeInterval(60))
-    }
-
-    private func nappyTypeTitle(for type: NappyType) -> String {
-        switch type {
-        case .dry:
-            "Dry"
-        case .wee:
-            "Wee"
-        case .poo:
-            "Poo"
-        case .mixed:
-            "Mixed"
-        }
+        return max(now, startedAt.addingTimeInterval(1))
     }
 }
 

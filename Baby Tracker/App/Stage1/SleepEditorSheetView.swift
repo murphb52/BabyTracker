@@ -30,6 +30,7 @@ struct SleepEditorSheetView: View {
                     DatePicker(
                         "Start",
                         selection: $startedAt,
+                        in: ...Date(),
                         displayedComponents: [.date, .hourAndMinute]
                     )
                     .accessibilityIdentifier("sleep-start-time-picker")
@@ -38,6 +39,7 @@ struct SleepEditorSheetView: View {
                         DatePicker(
                             "End",
                             selection: $endedAt,
+                            in: ...Date(),
                             displayedComponents: [.date, .hourAndMinute]
                         )
                         .accessibilityIdentifier("sleep-end-time-picker")
@@ -64,6 +66,11 @@ struct SleepEditorSheetView: View {
             .navigationTitle(mode.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .presentationDetents([.medium])
+            .onChange(of: startedAt) { _, updatedStart in
+                if endedAt < updatedStart {
+                    endedAt = updatedStart
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

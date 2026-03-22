@@ -140,16 +140,26 @@ struct AppModelTests {
         harness.model.load(performLaunchSync: false)
 
         let timeline = try #require(harness.model.profile?.timeline)
-        let blocks = timeline.blocks
+        let blocks = selectedTimelineBlocks(in: timeline)
+        let firstWeekday = Calendar.autoupdatingCurrent.component(
+            .weekday,
+            from: try #require(timeline.pages.first?.date)
+        )
 
         #expect(blocks.map(\.id) == [breastFeed.id, sleep.id, bottleFeed.id, nappy.id])
+        #expect(timeline.pages.count == 7)
+        #expect(firstWeekday == 1)
         #expect(blocks[0].startMinute == 360)
         #expect(blocks[0].endMinute == 380)
+        #expect(blocks[0].compactText == "20 min")
         #expect(blocks[1].startMinute == 540)
         #expect(blocks[1].endMinute == 660)
         #expect(blocks[1].laneCount == 2)
+        #expect(blocks[1].compactText == "120 min")
         #expect(blocks[2].laneIndex == 1)
         #expect(blocks[2].laneCount == 2)
+        #expect(blocks[2].compactText == "150 mL")
+        #expect(blocks[3].compactText == "Mixed")
         #expect(blocks[2].actionPayload == .editBottleFeed(
             amountMilliliters: 150,
             occurredAt: bottleTime,
@@ -187,21 +197,22 @@ struct AppModelTests {
         harness.model.load(performLaunchSync: false)
 
         var timeline = try #require(harness.model.profile?.timeline)
-        #expect(timeline.blocks.map(\.id) == [todayEvent.id])
+        #expect(selectedTimelineBlocks(in: timeline).map(\.id) == [todayEvent.id])
         #expect(timeline.canMoveToNextDay == false)
         #expect(timeline.showsJumpToToday == false)
+        #expect(timeline.pages.count == 7)
 
         harness.model.showPreviousTimelineDay()
 
         timeline = try #require(harness.model.profile?.timeline)
-        #expect(timeline.blocks.map(\.id) == [yesterdayEvent.id])
+        #expect(selectedTimelineBlocks(in: timeline).map(\.id) == [yesterdayEvent.id])
         #expect(timeline.canMoveToNextDay)
         #expect(timeline.showsJumpToToday)
 
         harness.model.showNextTimelineDay()
 
         timeline = try #require(harness.model.profile?.timeline)
-        #expect(timeline.blocks.map(\.id) == [todayEvent.id])
+        #expect(selectedTimelineBlocks(in: timeline).map(\.id) == [todayEvent.id])
         #expect(timeline.canMoveToNextDay == false)
     }
 
@@ -237,13 +248,13 @@ struct AppModelTests {
         harness.model.showTimelineDay(yesterday)
 
         var timeline = try #require(harness.model.profile?.timeline)
-        #expect(timeline.blocks.map(\.id) == [yesterdayEvent.id])
+        #expect(selectedTimelineBlocks(in: timeline).map(\.id) == [yesterdayEvent.id])
         #expect(calendar.isDate(timeline.selectedDay, inSameDayAs: yesterday))
 
         harness.model.showTimelineDay(tomorrow)
 
         timeline = try #require(harness.model.profile?.timeline)
-        #expect(timeline.blocks.map(\.id) == [todayEvent.id])
+        #expect(selectedTimelineBlocks(in: timeline).map(\.id) == [todayEvent.id])
         #expect(calendar.isDateInToday(timeline.selectedDay))
         #expect(timeline.canMoveToNextDay == false)
     }
@@ -267,8 +278,9 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
+        let timeline = try #require(harness.model.profile?.timeline)
         let block = try #require(
-            harness.model.profile?.timeline.blocks.first(where: { $0.id == activeSleep.id })
+            selectedTimelineBlocks(in: timeline).first(where: { $0.id == activeSleep.id })
         )
 
         #expect(block.startMinute == 420)
@@ -858,6 +870,12 @@ struct AppModelTests {
         harness.model.selectChild(id: secondChild.id)
         #expect(liveActivityManager.latestSnapshot?.childID == secondChild.id)
         #expect(liveActivityManager.latestSnapshot?.lastFeedKind == .breastFeed)
+    }
+
+    private func selectedTimelineBlocks(
+        in timeline: TimelineScreenState
+    ) -> [TimelineEventBlockViewState] {
+        timeline.pages[timeline.selectedPageIndex].blocks
     }
 }
 

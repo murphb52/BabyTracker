@@ -11,6 +11,8 @@ struct BottleFeedEditorSheetView: View {
     @State private var occurredAt: Date
     @State private var milkType: MilkTypeChoice
 
+    private let quickAmounts = Array(stride(from: 10, through: 70, by: 10))
+
     init(
         navigationTitle: String,
         primaryActionTitle: String,
@@ -30,6 +32,10 @@ struct BottleFeedEditorSheetView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section("Quick Amount") {
+                    quickAmountButtons
+                }
+
                 Section("Feed") {
                     TextField("Amount (mL)", text: $amountMilliliters)
                         .keyboardType(.numberPad)
@@ -85,6 +91,36 @@ struct BottleFeedEditorSheetView: View {
         }
     }
 
+    private var quickAmountButtons: some View {
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(), spacing: 8),
+                GridItem(.flexible(), spacing: 8),
+                GridItem(.flexible(), spacing: 8),
+                GridItem(.flexible(), spacing: 8),
+            ],
+            spacing: 8
+        ) {
+            ForEach(quickAmounts, id: \.self) { amount in
+                Button {
+                    amountMilliliters = "\(amount)"
+                } label: {
+                    Text("\(amount)")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(isSelected(amount: amount) ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                        )
+                        .foregroundStyle(isSelected(amount: amount) ? Color.white : Color.primary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("bottle-feed-amount-preset-\(amount)")
+            }
+        }
+    }
+
     private var parsedAmountMilliliters: Int? {
         guard let amountValue = Int(amountMilliliters.trimmingCharacters(in: .whitespacesAndNewlines)),
               amountValue > 0 else {
@@ -100,6 +136,10 @@ struct BottleFeedEditorSheetView: View {
         }
 
         return "Enter an amount greater than 0 mL."
+    }
+
+    private func isSelected(amount: Int) -> Bool {
+        parsedAmountMilliliters == amount
     }
 }
 

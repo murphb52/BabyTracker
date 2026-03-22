@@ -66,6 +66,13 @@ public final class AppModel {
         }
     }
 
+    public func refreshSyncStatus() {
+        Task { @MainActor in
+            _ = await syncEngine.refreshForeground()
+            refresh(selecting: repository.loadSelectedChildID())
+        }
+    }
+
     public func createLocalUser(displayName: String) {
         perform {
             let user = try UserIdentity(displayName: displayName)
@@ -648,16 +655,16 @@ public final class AppModel {
             repository.saveSelectedChildID(currentSummary.child.id)
             synchronizeTimelineSelection(for: currentSummary.child.id)
             let visibleEvents = try loadVisibleEvents(for: currentSummary.child.id)
-            let timelineEvents = try loadTimelineEvents(
+            let timelinePages = try loadTimelinePages(
                 for: currentSummary.child.id,
-                on: timelineSelectedDay
+                days: timelineVisibleDays(for: timelineSelectedDay)
             )
             let activeSleep = try eventRepository.loadActiveSleepEvent(for: currentSummary.child.id)
             profile = try makeProfile(
                 child: currentSummary.child,
                 localUser: localUser,
                 visibleEvents: visibleEvents,
-                timelineEvents: timelineEvents,
+                timelinePages: timelinePages,
                 activeSleep: activeSleep
             )
             route = .childProfile
@@ -700,7 +707,7 @@ public final class AppModel {
         child: Child,
         localUser: UserIdentity,
         visibleEvents: [BabyEvent],
-        timelineEvents: [BabyEvent],
+        timelinePages: [TimelineDayPageState],
         activeSleep: SleepEvent?
     ) throws -> ChildProfileScreenState {
         let memberships = try repository.loadMemberships(for: child.id)
@@ -766,7 +773,7 @@ public final class AppModel {
             home: makeHomeScreenState(from: visibleEvents, activeSleep: activeSleep),
             eventHistory: makeEventHistoryScreenState(from: visibleEvents),
             timeline: makeTimelineScreenState(
-                from: timelineEvents,
+                from: timelinePages,
                 selectedDay: timelineSelectedDay,
                 cloudKitStatus: cloudKitStatus
             ),
@@ -791,6 +798,25 @@ public final class AppModel {
             includingDeleted: false
         ).sorted { left, right in
             timelineStartDate(for: left) < timelineStartDate(for: right)
+        }
+    }
+
+    private func loadTimelinePages(
+        for childID: UUID,
+        days: [Date]
+    ) throws -> [TimelineDayPageState] {
+        try days.map { day in
+            let events = try loadTimelineEvents(for: childID, on: day)
+
+            return TimelineDayPageState(
+                date: day,
+                dayTitle: timelineDayTitle(for: day),
+                shortWeekdayTitle: shortWeekdayTitle(for: day),
+                isToday: calendar.isDateInToday(day),
+                blocks: makeTimelineBlocks(from: events, on: day),
+                emptyStateTitle: "No events for this day",
+                emptyStateMessage: "Try another day or use Quick Log to add the next event."
+            )
         }
     }
 
@@ -922,20 +948,23 @@ public final class AppModel {
     }
 
     private func makeTimelineScreenState(
-        from events: [BabyEvent],
+        from pages: [TimelineDayPageState],
         selectedDay: Date,
         cloudKitStatus: CloudKitStatusViewState
     ) -> TimelineScreenState {
         let today = normalizedTimelineDay(for: .now)
+        let selectedPageIndex = pages.firstIndex(where: { page in
+            calendar.isDate(page.date, inSameDayAs: selectedDay)
+        }) ?? 0
 
         return TimelineScreenState(
             selectedDay: selectedDay,
-            dayTitle: timelineDayTitle(for: selectedDay),
+            selectedDayTitle: timelineDayTitle(for: selectedDay),
+            weekTitle: timelineWeekTitle(for: pages.map(\.date)),
+            pages: pages,
+            selectedPageIndex: selectedPageIndex,
             showsJumpToToday: selectedDay != today,
             canMoveToNextDay: selectedDay < today,
-            blocks: makeTimelineBlocks(from: events, on: selectedDay),
-            emptyStateTitle: "No events for this day",
-            emptyStateMessage: "Try another day or use Quick Log to add the next event.",
             syncMessage: timelineSyncMessage(for: cloudKitStatus)
         )
     }
@@ -971,6 +1000,7 @@ public final class AppModel {
                 title: BabyEventPresentation.title(for: event),
                 detailText: BabyEventPresentation.detailText(for: event) ?? "",
                 timeText: "\(shortTimeText(for: feed.startedAt))-\(shortTimeText(for: feed.endedAt))",
+                compactText: compactTimelineText(for: event),
                 startMinute: startMinute,
                 endMinute: endMinute,
                 laneIndex: 0,
@@ -988,6 +1018,7 @@ public final class AppModel {
                 title: BabyEventPresentation.title(for: event),
                 detailText: BabyEventPresentation.detailText(for: event) ?? "",
                 timeText: shortTimeText(for: feed.metadata.occurredAt),
+                compactText: compactTimelineText(for: event),
                 startMinute: startMinute,
                 endMinute: endMinute,
                 laneIndex: 0,
@@ -1006,6 +1037,7 @@ public final class AppModel {
                     title: BabyEventPresentation.title(for: event),
                     detailText: BabyEventPresentation.detailText(for: event) ?? "",
                     timeText: "\(shortTimeText(for: sleep.startedAt))-\(shortTimeText(for: endedAt))",
+                    compactText: compactTimelineText(for: event),
                     startMinute: startMinute,
                     endMinute: endMinute,
                     laneIndex: 0,
@@ -1023,6 +1055,7 @@ public final class AppModel {
                 title: BabyEventPresentation.title(for: event),
                 detailText: BabyEventPresentation.detailText(for: event) ?? "",
                 timeText: "Started \(shortTimeText(for: sleep.startedAt))",
+                compactText: compactTimelineText(for: event),
                 startMinute: startMinute,
                 endMinute: endMinute,
                 laneIndex: 0,
@@ -1036,6 +1069,7 @@ public final class AppModel {
                 title: BabyEventPresentation.title(for: event),
                 detailText: BabyEventPresentation.detailText(for: event) ?? "",
                 timeText: shortTimeText(for: nappy.metadata.occurredAt),
+                compactText: compactTimelineText(for: event),
                 startMinute: startMinute,
                 endMinute: endMinute,
                 laneIndex: 0,
@@ -1166,6 +1200,39 @@ public final class AppModel {
         return day.formatted(date: .numeric, time: .omitted)
     }
 
+    private func timelineVisibleDays(
+        for selectedDay: Date
+    ) -> [Date] {
+        let normalizedDay = normalizedTimelineDay(for: selectedDay)
+        var sundayCalendar = calendar
+        sundayCalendar.firstWeekday = 1
+
+        let components = sundayCalendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: normalizedDay)
+        guard let weekStart = sundayCalendar.date(from: components) else {
+            return [normalizedDay]
+        }
+
+        return (0..<7).compactMap { offset in
+            sundayCalendar.date(byAdding: .day, value: offset, to: weekStart).map(normalizedTimelineDay(for:))
+        }
+    }
+
+    private func shortWeekdayTitle(for day: Date) -> String {
+        day.formatted(.dateTime.weekday(.abbreviated))
+    }
+
+    private func timelineWeekTitle(for days: [Date]) -> String {
+        guard let start = days.first, let end = days.last else {
+            return ""
+        }
+
+        if calendar.isDate(start, equalTo: end, toGranularity: .month) {
+            return "\(start.formatted(.dateTime.month(.abbreviated))) \(start.formatted(.dateTime.day()))-\(end.formatted(.dateTime.day()))"
+        }
+
+        return "\(start.formatted(.dateTime.month(.abbreviated).day()))-\(end.formatted(.dateTime.month(.abbreviated).day()))"
+    }
+
     private func timelineSyncMessage(
         for cloudKitStatus: CloudKitStatusViewState
     ) -> String? {
@@ -1181,5 +1248,39 @@ public final class AppModel {
 
     private func shortTimeText(for date: Date) -> String {
         date.formatted(date: .omitted, time: .shortened)
+    }
+
+    private func compactTimelineText(for event: BabyEvent) -> String {
+        switch event {
+        case let .breastFeed(feed):
+            let durationMinutes = max(
+                1,
+                Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60)
+            )
+            return "\(durationMinutes) min"
+        case let .bottleFeed(feed):
+            return "\(feed.amountMilliliters) mL"
+        case let .sleep(sleep):
+            guard let endedAt = sleep.endedAt else {
+                return "Sleep"
+            }
+
+            let durationMinutes = max(
+                1,
+                Int(endedAt.timeIntervalSince(sleep.startedAt) / 60)
+            )
+            return "\(durationMinutes) min"
+        case let .nappy(event):
+            switch event.type {
+            case .dry:
+                return "Dry"
+            case .wee:
+                return "Wee"
+            case .poo:
+                return "Poo"
+            case .mixed:
+                return "Mixed"
+            }
+        }
     }
 }

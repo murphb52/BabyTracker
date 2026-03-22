@@ -32,6 +32,9 @@ struct AppRootView: View {
             }
             .navigationTitle("Baby Tracker")
         }
+        // Reset the stack when the app moves between top-level flows so stale
+        // detail screens do not remain visible above a new root route.
+        .id(model.route)
         .overlay(alignment: .top) {
             if let errorMessage = model.errorMessage {
                 Stage1ErrorBannerView(

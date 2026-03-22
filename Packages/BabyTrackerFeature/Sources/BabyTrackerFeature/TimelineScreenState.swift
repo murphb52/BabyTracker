@@ -2,31 +2,31 @@ import Foundation
 
 public struct TimelineScreenState: Equatable, Sendable {
     public let selectedDay: Date
-    public let dayTitle: String
+    public let selectedDayTitle: String
+    public let weekTitle: String
+    public let pages: [TimelineDayPageState]
+    public let selectedPageIndex: Int
     public let showsJumpToToday: Bool
     public let canMoveToNextDay: Bool
-    public let blocks: [TimelineEventBlockViewState]
-    public let emptyStateTitle: String
-    public let emptyStateMessage: String
     public let syncMessage: String?
 
     public init(
         selectedDay: Date,
-        dayTitle: String,
+        selectedDayTitle: String,
+        weekTitle: String,
+        pages: [TimelineDayPageState],
+        selectedPageIndex: Int,
         showsJumpToToday: Bool,
         canMoveToNextDay: Bool,
-        blocks: [TimelineEventBlockViewState],
-        emptyStateTitle: String,
-        emptyStateMessage: String,
         syncMessage: String?
     ) {
         self.selectedDay = selectedDay
-        self.dayTitle = dayTitle
+        self.selectedDayTitle = selectedDayTitle
+        self.weekTitle = weekTitle
+        self.pages = pages
+        self.selectedPageIndex = selectedPageIndex
         self.showsJumpToToday = showsJumpToToday
         self.canMoveToNextDay = canMoveToNextDay
-        self.blocks = blocks
-        self.emptyStateTitle = emptyStateTitle
-        self.emptyStateMessage = emptyStateMessage
         self.syncMessage = syncMessage
     }
 }
