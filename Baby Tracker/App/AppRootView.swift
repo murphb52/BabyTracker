@@ -15,12 +15,16 @@ struct AppRootView: View {
                 case .loading:
                     ProgressView("Loading profile…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .toolbar(.hidden, for: .navigationBar)
                 case .identityOnboarding:
                     IdentityOnboardingView(model: model)
-                case .childCreation:
-                    ChildCreationView(model: model)
+                        .toolbar(.hidden, for: .navigationBar)
+                case .noChildren:
+                    NoChildrenView(model: model)
+                        .toolbar(.hidden, for: .navigationBar)
                 case .childPicker:
                     ChildPickerView(model: model)
+                        .navigationTitle("Baby Tracker")
                 case .childProfile:
                     if let profile = model.profile {
                         ChildWorkspaceTabView(model: model, profile: profile)
@@ -30,7 +34,6 @@ struct AppRootView: View {
                     }
                 }
             }
-            .navigationTitle("Baby Tracker")
         }
         // Reset the stack when the app moves between top-level flows so stale
         // detail screens do not remain visible above a new root route.

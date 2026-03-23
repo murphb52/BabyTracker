@@ -159,6 +159,21 @@ public final class CloudKitSyncEngine {
         _ = await refresh(reason: .foreground)
     }
 
+    public func leaveShare(childID: UUID) async throws {
+        guard let context = try childRepository.loadCloudKitChildContext(id: childID) else {
+            return
+        }
+        guard context.databaseScope == .shared else {
+            return
+        }
+        try await client.modifyRecordZones(
+            saving: [],
+            deleting: [context.zoneID],
+            databaseScope: .shared
+        )
+        logger.info("Left shared zone for child \(childID)")
+    }
+
     public func accept(metadata: CKShare.Metadata) async throws {
         let shareTitle = metadata.share[CKShare.SystemFieldKey.title] as? String ?? "unknown"
         let zoneName = metadata.share.recordID.zoneID.zoneName

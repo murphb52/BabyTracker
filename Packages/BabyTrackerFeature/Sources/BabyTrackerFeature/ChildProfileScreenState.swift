@@ -5,7 +5,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
     public let child: Child
     public let localUser: UserIdentity
     public let currentMembership: Membership
-    public let owner: CaregiverMembershipViewState
+    public let owner: CaregiverMembershipViewState?
     public let activeCaregivers: [CaregiverMembershipViewState]
     public let pendingShareInvites: [PendingShareInviteViewState]
     public let removedCaregivers: [CaregiverMembershipViewState]
@@ -31,11 +31,15 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership)
     }
 
+    public var canLeaveShare: Bool {
+        currentMembership.role == .caregiver && currentMembership.status == .active
+    }
+
     public init(
         child: Child,
         localUser: UserIdentity,
         currentMembership: Membership,
-        owner: CaregiverMembershipViewState,
+        owner: CaregiverMembershipViewState?,
         activeCaregivers: [CaregiverMembershipViewState],
         pendingShareInvites: [PendingShareInviteViewState],
         removedCaregivers: [CaregiverMembershipViewState],

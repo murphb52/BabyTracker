@@ -3,7 +3,7 @@ import Foundation
 public enum AppRoute: Equatable, Sendable {
     case loading
     case identityOnboarding
-    case childCreation
+    case noChildren
     case childPicker
     case childProfile
 }

@@ -51,5 +51,7 @@ struct ChildCreationView: View {
                 }
             }
         }
+        .navigationTitle("Add a Child")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

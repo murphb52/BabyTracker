@@ -7,6 +7,8 @@ struct ChildProfileSharingView: View {
     let profile: ChildProfileScreenState
     let shareChildAction: () -> Void
 
+    @State private var showingLeaveConfirmation = false
+
     var body: some View {
         List {
             if profile.canManageSharing {
@@ -21,8 +23,10 @@ struct ChildProfileSharingView: View {
                 }
             }
 
-            Section("Owner") {
-                caregiverRow(for: profile.owner, showsRemoval: false)
+            if let owner = profile.owner {
+                Section("Owner") {
+                    caregiverRow(for: owner, showsRemoval: false)
+                }
             }
 
             if !profile.activeCaregivers.isEmpty {
@@ -59,10 +63,30 @@ struct ChildProfileSharingView: View {
                     }
                 }
             }
+            if profile.canLeaveShare {
+                Section {
+                    Button("Leave Profile", role: .destructive) {
+                        showingLeaveConfirmation = true
+                    }
+                    .accessibilityIdentifier("leave-share-button")
+                }
+            }
         }
         .navigationTitle("Sharing")
         .navigationBarTitleDisplayMode(.inline)
         .listStyle(.insetGrouped)
+        .confirmationDialog(
+            "Leave \(profile.child.name)?",
+            isPresented: $showingLeaveConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Leave Profile", role: .destructive) {
+                model.leaveChildShare()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("All data for \(profile.child.name) will be removed from this device. You can rejoin if the owner invites you again.")
+        }
     }
 
     @ViewBuilder

@@ -220,7 +220,7 @@ public final class AppModel {
 
             let candidateMemberships = profile.activeCaregivers.map(\.membership) +
                 profile.removedCaregivers.map(\.membership) +
-                [profile.owner.membership]
+                (profile.owner.map { [$0.membership] } ?? [])
 
             guard let membership = candidateMemberships.first(where: { $0.id == membershipID }) else {
                 return
@@ -237,6 +237,20 @@ public final class AppModel {
                 try? await syncEngine.removeParticipant(membership: removedMembership)
                 refresh(selecting: repository.loadSelectedChildID())
             }
+        }
+    }
+
+    public func leaveChildShare() {
+        guard let profile, profile.canLeaveShare else { return }
+        let childID = profile.child.id
+        Task { @MainActor in
+            do {
+                try await syncEngine.leaveShare(childID: childID)
+                try repository.purgeChildData(id: childID)
+            } catch {
+                errorMessage = resolveErrorMessage(for: error)
+            }
+            refresh(selecting: repository.loadSelectedChildID())
         }
     }
 
@@ -626,7 +640,7 @@ public final class AppModel {
             )
 
             guard !activeChildren.isEmpty else {
-                route = .childCreation
+                route = .noChildren
                 profile = nil
                 timelineChildID = nil
                 liveActivityManager.synchronize(with: nil)
@@ -732,11 +746,9 @@ public final class AppModel {
             return CaregiverMembershipViewState(user: user, membership: membership)
         }
 
-        guard let owner = pairs.first(where: { pair in
+        let owner = pairs.first(where: { pair in
             pair.membership.role == .owner && pair.membership.status == .active
-        }) else {
-            throw ChildProfileValidationError.missingOwner
-        }
+        })
 
         let activeCaregivers = pairs.filter { pair in
             pair.membership.role == .caregiver && pair.membership.status == .active
