@@ -492,6 +492,13 @@ public final class CloudKitSyncEngine {
              CloudKitConfiguration.sleepRecordType,
              CloudKitConfiguration.nappyRecordType:
             let event = try CloudKitRecordMapper.event(from: record)
+            if let localEvent = try eventRepository.loadEvent(id: event.id),
+               LastWriteWinsResolver.prefersLocal(localEvent.metadata, over: event.metadata) {
+                // If our local copy is newer, keep it. This avoids stale CloudKit pulls
+                // overwriting edits that haven't been pushed yet.
+                return
+            }
+
             try eventRepository.saveEvent(event)
             try syncStateRepository.updateSyncState(
                 for: SyncRecordReference(

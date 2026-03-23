@@ -186,7 +186,7 @@ struct CurrentStateCardView: View {
 
     private func relativeTimeText(for date: Date) -> some View {
         TimelineView(.everyMinute) { context in
-            Text(relativeText(for: date, relativeTo: context.date))
+            Text(relativeText(for: date, relativeTo: Date()))
         }
     }
 

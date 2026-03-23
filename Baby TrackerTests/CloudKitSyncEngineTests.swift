@@ -52,6 +52,141 @@ struct CloudKitSyncEngineTests {
         #expect(await client.createdZoneIDs == [expectedZoneID])
         #expect(!(await client.queriedZoneIDs.contains(expectedZoneID)))
     }
+
+    @Test
+    func pullDoesNotOverwriteNewerLocalBottleFeedEvent() async throws {
+        let store = try BabyTrackerModelStore(isStoredInMemoryOnly: true)
+        let userDefaults = UserDefaults(suiteName: "CloudKitSyncEngineTests.pullDoesNotOverwriteNewerLocalBottleFeedEvent")!
+        userDefaults.removePersistentDomain(forName: "CloudKitSyncEngineTests.pullDoesNotOverwriteNewerLocalBottleFeedEvent")
+        defer {
+            userDefaults.removePersistentDomain(forName: "CloudKitSyncEngineTests.pullDoesNotOverwriteNewerLocalBottleFeedEvent")
+        }
+
+        let childRepository = SwiftDataChildProfileRepository(
+            store: store,
+            userDefaults: userDefaults
+        )
+        let eventRepository = SwiftDataEventRepository(store: store)
+        let syncStateRepository = SwiftDataSyncStateRepository(store: store)
+        let client = CloudKitClientSpy()
+        let syncEngine = CloudKitSyncEngine(
+            childRepository: childRepository,
+            eventRepository: eventRepository,
+            syncStateRepository: syncStateRepository,
+            client: client
+        )
+
+        let localUser = try UserIdentity(displayName: "Alex Parent")
+        let child = try Child(name: "Poppy", createdBy: localUser.id)
+        let membership = Membership.owner(
+            childID: child.id,
+            userID: localUser.id,
+            createdAt: child.createdAt
+        )
+
+        try childRepository.saveLocalUser(localUser)
+        try childRepository.saveChild(child)
+        try childRepository.saveMembership(membership)
+
+        // Ensure `pullKnownChildZones()` pulls (not pushes) by pre-saving the CloudKit context.
+        let zoneID = CloudKitRecordNames.zoneID(for: child.id)
+        let context = CloudKitChildContext(
+            childID: child.id,
+            zoneID: zoneID,
+            databaseScope: .private
+        )
+        try childRepository.saveCloudKitChildContext(context)
+
+        // Seed the spy with a known zone so `recordZoneChanges` succeeds.
+        try await client.modifyRecordZones(
+            saving: [CKRecordZone(zoneID: zoneID)],
+            deleting: [],
+            databaseScope: .private
+        )
+
+        let eventID = UUID()
+        let localOccurredAt = Date(timeIntervalSince1970: 9_000)
+        let remoteOccurredAt = Date(timeIntervalSince1970: 9_000 + 2_400)
+        let localUpdatedAt = Date(timeIntervalSince1970: 10_000)
+        let remoteUpdatedAt = Date(timeIntervalSince1970: 9_500)
+        let remoteUpdatedBy = UUID()
+
+        let localEvent = try BottleFeedEvent(
+            metadata: EventMetadata(
+                id: eventID,
+                childID: child.id,
+                occurredAt: localOccurredAt,
+                createdAt: localOccurredAt,
+                createdBy: localUser.id,
+                updatedAt: localUpdatedAt,
+                updatedBy: localUser.id
+            ),
+            amountMilliliters: 120
+        )
+
+        try eventRepository.saveEvent(.bottleFeed(localEvent))
+
+        // Only the edited event should be pending; all other sync states should appear up-to-date.
+        try syncStateRepository.updateSyncState(
+            for: SyncRecordReference(recordType: .child, recordID: child.id, childID: child.id),
+            state: .upToDate,
+            lastSyncedAt: .now,
+            lastSyncErrorCode: nil
+        )
+        try syncStateRepository.updateSyncState(
+            for: SyncRecordReference(recordType: .user, recordID: localUser.id),
+            state: .upToDate,
+            lastSyncedAt: .now,
+            lastSyncErrorCode: nil
+        )
+        try syncStateRepository.updateSyncState(
+            for: SyncRecordReference(recordType: .membership, recordID: membership.id, childID: membership.childID),
+            state: .upToDate,
+            lastSyncedAt: .now,
+            lastSyncErrorCode: nil
+        )
+
+        #expect(
+            (try syncStateRepository.loadPendingRecords()).contains(where: { $0.recordType == .bottleFeedEvent })
+        )
+
+        let remoteEvent = try BottleFeedEvent(
+            metadata: EventMetadata(
+                id: eventID,
+                childID: child.id,
+                occurredAt: remoteOccurredAt,
+                createdAt: remoteOccurredAt,
+                createdBy: localUser.id,
+                updatedAt: remoteUpdatedAt,
+                updatedBy: remoteUpdatedBy
+            ),
+            amountMilliliters: 120
+        )
+
+        let remoteRecord = CloudKitRecordMapper.eventRecord(
+            from: .bottleFeed(remoteEvent),
+            zoneID: zoneID
+        )
+        _ = try await client.modifyRecords(
+            saving: [remoteRecord],
+            deleting: [],
+            databaseScope: .private,
+            savePolicy: .changedKeys
+        )
+
+        _ = await syncEngine.refreshAfterLocalWrite()
+
+        let reloadedEvent = try #require(try eventRepository.loadEvent(id: eventID))
+        switch reloadedEvent {
+        case let .bottleFeed(feed):
+            #expect(feed.metadata.occurredAt == localOccurredAt)
+        default:
+            Issue.record("Expected a bottle feed event")
+        }
+
+        let pendingAfterRefresh = try syncStateRepository.loadPendingRecords()
+        #expect(!pendingAfterRefresh.contains { $0.recordType == .bottleFeedEvent })
+    }
 }
 
 private actor CloudKitClientSpy: CloudKitClient {
