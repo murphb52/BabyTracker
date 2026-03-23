@@ -671,8 +671,13 @@ public final class AppModel {
             )
         } catch {
             errorMessage = resolveErrorMessage(for: error)
-            route = .identityOnboarding
-            liveActivityManager.synchronize(with: nil)
+            // Only redirect to identity onboarding when there is genuinely no
+            // local user. Data errors (e.g. owner membership not yet synced on a
+            // shared child) must not wipe out the user's session.
+            if localUser == nil {
+                route = .identityOnboarding
+                liveActivityManager.synchronize(with: nil)
+            }
         }
     }
 

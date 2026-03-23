@@ -154,6 +154,14 @@ public final class SwiftDataChildProfileRepository: ChildProfileRepository {
 
         try MembershipValidator.validateOwnerMemberships(memberships)
 
+        try upsertMembership(membership)
+    }
+
+    public func saveCloudKitMembership(_ membership: Membership) throws {
+        try upsertMembership(membership)
+    }
+
+    private func upsertMembership(_ membership: Membership) throws {
         let existingStoredMembership = try fetchStoredMembership(id: membership.id)
         let storedMembership = existingStoredMembership ?? StoredMembership(
             id: membership.id,

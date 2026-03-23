@@ -2,6 +2,7 @@ import BabyTrackerDomain
 import BabyTrackerPersistence
 import CloudKit
 import Foundation
+import os
 
 @MainActor
 public final class CloudKitSyncEngine {
@@ -13,6 +14,8 @@ public final class CloudKitSyncEngine {
     private let client: CloudKitClient
 
     private var pendingInvitesByChildID: [UUID: [CloudKitPendingInvite]] = [:]
+
+    private let logger = Logger(subsystem: "com.adappt.BabyTracker", category: "CloudKitSync")
 
     public init(
         childRepository: ChildProfileRepository,
@@ -157,16 +160,33 @@ public final class CloudKitSyncEngine {
     }
 
     public func accept(metadata: CKShare.Metadata) async throws {
+        let shareTitle = metadata.share[CKShare.SystemFieldKey.title] as? String ?? "unknown"
+        let zoneName = metadata.share.recordID.zoneID.zoneName
+        print("[BabyTracker][4/5] CloudKitSyncEngine.accept — title: \(shareTitle), zone: \(zoneName)")
+        logger.info("[4/5] Sync engine accept — title: '\(shareTitle, privacy: .private)', zone: \(zoneName, privacy: .public)")
+        logger.info("[4/5] Calling client.accept (registers share with CloudKit)")
         try await client.accept([metadata])
+        logger.info("[4/5] client.accept succeeded — running foreground refresh")
         _ = await refresh(reason: .foreground)
+        logger.info("[4/5] Foreground refresh done — ensuring local membership record")
         try await ensureMembershipForAcceptedShare(metadata: metadata)
+        logger.info("[4/5] Membership ensured — running post-write refresh")
         _ = await refresh(reason: .localWrite)
+        logger.info("[5/5] Share acceptance complete")
     }
 
     private func refresh(reason: RefreshReason) async -> SyncStatusSummary {
         do {
+            if reason == .launch {
+                logger.info("Launch sync starting")
+            }
+
             try childRepository.removeLegacyPlaceholderCaregivers()
             let accountStatus = try await client.accountStatus()
+
+            if reason == .launch {
+                logger.info("iCloud account status: \(accountStatus.logDescription, privacy: .public)")
+            }
 
             guard accountStatus == .available else {
                 statusSummary = try syncUnavailableSummary(for: accountStatus)
@@ -174,6 +194,9 @@ public final class CloudKitSyncEngine {
             }
 
             let userRecordID = try await client.userRecordID()
+            if reason == .launch {
+                logger.info("iCloud user record ID: \(userRecordID.recordName, privacy: .private(mask: .hash))")
+            }
             _ = try childRepository.linkLocalUser(
                 toCloudKitUserRecordName: userRecordID.recordName
             )
@@ -190,6 +213,8 @@ public final class CloudKitSyncEngine {
             statusSummary = try syncStateRepository.loadStatusSummary()
             return statusSummary
         } catch {
+            logger.error("Refresh(\(reason.logDescription, privacy: .public)) failed: \(error.localizedDescription, privacy: .public) [\(String(describing: error), privacy: .public)]")
+            print("[BabyTracker] Refresh(\(reason.logDescription)) FAILED: \(error)")
             let localSummary = (try? syncStateRepository.loadStatusSummary()) ?? SyncStatusSummary()
             statusSummary = SyncStatusSummary(
                 state: .failed,
@@ -217,18 +242,22 @@ public final class CloudKitSyncEngine {
             zoneName: nil,
             ownerName: nil
         )
+        logger.info("Checking shared database for changes (token: \(anchor == nil ? "none — full fetch" : "incremental", privacy: .public))")
         let changes = try await client.databaseChanges(
             in: .shared,
             since: anchor?.tokenData
         )
+        logger.info("Shared database: \(changes.modifiedZoneIDs.count, privacy: .public) modified zone(s), \(changes.deletedZoneIDs.count, privacy: .public) deleted zone(s)")
 
         for deletedZoneID in changes.deletedZoneIDs {
+            logger.info("Shared zone deleted (access removed): \(deletedZoneID.zoneName, privacy: .public)")
             let childID = childID(from: deletedZoneID.zoneName)
             try childRepository.purgeChildData(id: childID)
             pendingInvitesByChildID[childID] = []
         }
 
         for zoneID in changes.modifiedZoneIDs {
+            logger.info("Shared zone modified (new/updated share): \(zoneID.zoneName, privacy: .public)")
             let childID = childID(from: zoneID.zoneName)
             let context = CloudKitChildContext(
                 childID: childID,
@@ -254,13 +283,18 @@ public final class CloudKitSyncEngine {
 
     private func pullKnownChildZones() async throws {
         let children = try childRepository.loadAllChildren()
+        logger.info("Found \(children.count, privacy: .public) child(ren) in local store")
 
         for child in children {
             if let context = try childRepository.loadCloudKitChildContext(id: child.id) {
+                logger.info(
+                    "Child '\(child.name, privacy: .private)' — zone: \(context.zoneID.zoneName, privacy: .public), scope: \(context.databaseScope.logDescription, privacy: .public)"
+                )
                 try await pullZoneSnapshot(context: context)
                 continue
             }
 
+            logger.info("Child '\(child.name, privacy: .private)' — no CloudKit zone yet, creating private zone")
             let context = try await ensureZoneContext(for: child.id, preferredScope: .private)
             try await pushZoneSnapshot(for: child.id, context: context)
         }
@@ -415,6 +449,9 @@ public final class CloudKitSyncEngine {
             since: anchor?.tokenData
         )
 
+        let recordTypes = changes.modifiedRecords.map(\.recordType)
+        logger.info("pullZoneSnapshot \(context.zoneID.zoneName, privacy: .public) (\(databaseScope, privacy: .public)): \(changes.modifiedRecords.count, privacy: .public) modified, \(changes.deletions.count, privacy: .public) deleted — types: \(recordTypes.joined(separator: ", "), privacy: .public)")
+
         for record in changes.modifiedRecords {
             try save(record: record, within: context)
         }
@@ -476,7 +513,14 @@ public final class CloudKitSyncEngine {
             )
         case CloudKitConfiguration.membershipRecordType:
             let membership = CloudKitRecordMapper.membership(from: record)
-            try childRepository.saveMembership(membership)
+            logger.info("Saving membership from CloudKit — role: \(membership.role.rawValue, privacy: .public), status: \(membership.status.rawValue, privacy: .public), childID: \(membership.childID, privacy: .public)")
+            do {
+                try childRepository.saveMembership(membership)
+            } catch {
+                logger.error("Failed to save membership (role: \(membership.role.rawValue, privacy: .public), status: \(membership.status.rawValue, privacy: .public)): \(error.localizedDescription, privacy: .public)")
+                print("[BabyTracker] saveMembership FAILED role=\(membership.role.rawValue) status=\(membership.status.rawValue): \(error)")
+                throw error
+            }
             try syncStateRepository.updateSyncState(
                 for: SyncRecordReference(
                     recordType: .membership,
@@ -566,10 +610,12 @@ public final class CloudKitSyncEngine {
         metadata: CKShare.Metadata
     ) async throws {
         guard let localUser = try childRepository.loadLocalUser() else {
+            logger.warning("[4/5] ensureMembership — no local user found, skipping membership creation")
             return
         }
 
         guard let rootRecordID = metadata.hierarchicalRootRecordID else {
+            logger.warning("[4/5] ensureMembership — no hierarchicalRootRecordID in metadata, skipping")
             return
         }
 
@@ -578,9 +624,14 @@ public final class CloudKitSyncEngine {
         guard !existingMemberships.contains(where: { membership in
             membership.userID == localUser.id && membership.status == .active
         }) else {
+            logger.info("[4/5] ensureMembership — active membership already exists, skipping")
             return
         }
 
+        let existingRoles = existingMemberships.map { "\($0.role.rawValue)/\($0.status.rawValue)" }.joined(separator: ", ")
+        logger.info("[4/5] ensureMembership — existing memberships for child: [\(existingRoles.isEmpty ? "none" : existingRoles, privacy: .public)]")
+        print("[BabyTracker][4/5] ensureMembership — existing memberships: [\(existingRoles.isEmpty ? "none" : existingRoles)]")
+        logger.info("[4/5] ensureMembership — creating caregiver membership for zone: \(rootRecordID.zoneID.zoneName, privacy: .public)")
         let membership = Membership(
             childID: childID,
             userID: localUser.id,
@@ -591,7 +642,7 @@ public final class CloudKitSyncEngine {
         )
 
         try childRepository.saveUser(localUser)
-        try childRepository.saveMembership(membership)
+        try childRepository.saveCloudKitMembership(membership)
         let context = CloudKitChildContext(
             childID: childID,
             zoneID: rootRecordID.zoneID,
@@ -599,6 +650,7 @@ public final class CloudKitSyncEngine {
             databaseScope: .shared
         )
         try childRepository.saveCloudKitChildContext(context)
+        logger.info("[4/5] ensureMembership — membership and CloudKit context saved")
     }
 
     private func cachePendingInvites(
@@ -673,5 +725,37 @@ extension CloudKitSyncEngine {
         case launch
         case foreground
         case localWrite
+
+        var logDescription: String {
+            switch self {
+            case .launch: return "launch"
+            case .foreground: return "foreground"
+            case .localWrite: return "localWrite"
+            }
+        }
+    }
+}
+
+private extension CKAccountStatus {
+    var logDescription: String {
+        switch self {
+        case .available: return "available"
+        case .noAccount: return "no account"
+        case .restricted: return "restricted"
+        case .couldNotDetermine: return "could not determine"
+        case .temporarilyUnavailable: return "temporarily unavailable"
+        @unknown default: return "unknown"
+        }
+    }
+}
+
+private extension CKDatabase.Scope {
+    var logDescription: String {
+        switch self {
+        case .private: return "private"
+        case .shared: return "shared"
+        case .public: return "public"
+        @unknown default: return "unknown"
+        }
     }
 }
