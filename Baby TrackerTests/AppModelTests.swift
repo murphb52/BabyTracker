@@ -148,7 +148,7 @@ struct AppModelTests {
 
         #expect(blocks.map(\.id) == [breastFeed.id, sleep.id, bottleFeed.id, nappy.id])
         #expect(timeline.pages.count == 7)
-        #expect(firstWeekday == 1)
+        #expect(firstWeekday == 2)
         #expect(blocks[0].startMinute == 360)
         #expect(blocks[0].endMinute == 380)
         #expect(blocks[0].compactText == "20 min")

@@ -160,10 +160,6 @@ public final class AppModel {
     }
 
     public func showNextTimelineDay() {
-        let today = normalizedTimelineDay(for: .now)
-        guard timelineSelectedDay < today else {
-            return
-        }
         guard let nextDay = calendar.date(
             byAdding: .day,
             value: 1,
@@ -172,7 +168,7 @@ public final class AppModel {
             return
         }
 
-        timelineSelectedDay = min(normalizedTimelineDay(for: nextDay), today)
+        timelineSelectedDay = normalizedTimelineDay(for: nextDay)
         refresh(selecting: repository.loadSelectedChildID())
     }
 
@@ -182,8 +178,7 @@ public final class AppModel {
     }
 
     public func showTimelineDay(_ day: Date) {
-        let today = normalizedTimelineDay(for: .now)
-        timelineSelectedDay = min(normalizedTimelineDay(for: day), today)
+        timelineSelectedDay = normalizedTimelineDay(for: day)
         refresh(selecting: repository.loadSelectedChildID())
     }
 
@@ -964,7 +959,7 @@ public final class AppModel {
             pages: pages,
             selectedPageIndex: selectedPageIndex,
             showsJumpToToday: selectedDay != today,
-            canMoveToNextDay: selectedDay < today,
+            canMoveToNextDay: true,
             syncMessage: timelineSyncMessage(for: cloudKitStatus)
         )
     }
@@ -1205,7 +1200,7 @@ public final class AppModel {
     ) -> [Date] {
         let normalizedDay = normalizedTimelineDay(for: selectedDay)
         var sundayCalendar = calendar
-        sundayCalendar.firstWeekday = 1
+        sundayCalendar.firstWeekday = 2
 
         let components = sundayCalendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: normalizedDay)
         guard let weekStart = sundayCalendar.date(from: components) else {

@@ -11,6 +11,7 @@ struct TimelineScreenView: View {
     let cancelDelete: () -> Void
 
     @State private var showingDayPicker = false
+    @State private var dragStartPageIndex: Int = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -38,6 +39,22 @@ struct TimelineScreenView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 20)
+                    .onChanged { _ in
+                        if dragStartPageIndex != profile.timeline.selectedPageIndex {
+                            dragStartPageIndex = profile.timeline.selectedPageIndex
+                        }
+                    }
+                    .onEnded { value in
+                        let swipe = value.translation.width
+                        if swipe > 60 && dragStartPageIndex == 0 {
+                            model.showPreviousTimelineDay()
+                        } else if swipe < -60 && dragStartPageIndex == profile.timeline.pages.count - 1 {
+                            model.showNextTimelineDay()
+                        }
+                    }
+            )
         }
         .sheet(isPresented: $showingDayPicker) {
             dayPickerSheet
@@ -97,34 +114,32 @@ struct TimelineScreenView: View {
                 .accessibilityIdentifier("timeline-next-day-button")
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(Array(timeline.pages.enumerated()), id: \.offset) { index, page in
-                        Button {
-                            model.showTimelineDay(page.date)
-                        } label: {
-                            VStack(spacing: 4) {
-                                Text(page.shortWeekdayTitle)
-                                    .font(.caption.weight(.semibold))
+            HStack(spacing: 8) {
+                ForEach(Array(timeline.pages.enumerated()), id: \.offset) { index, page in
+                    Button {
+                        model.showTimelineDay(page.date)
+                    } label: {
+                        VStack(spacing: 4) {
+                            Text(page.shortWeekdayTitle)
+                                .font(.caption.weight(.semibold))
 
-                                Text(page.date.formatted(.dateTime.day()))
-                                    .font(.subheadline.weight(.semibold))
-                            }
-                            .foregroundStyle(index == timeline.selectedPageIndex ? Color.white : Color.primary)
-                            .frame(width: 56)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(
-                                        index == timeline.selectedPageIndex ?
-                                            Color.accentColor :
-                                            Color(.secondarySystemGroupedBackground)
-                                )
-                            )
+                            Text(page.date.formatted(.dateTime.day()))
+                                .font(.subheadline.weight(.semibold))
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("timeline-weekday-\(index)")
+                        .foregroundStyle(index == timeline.selectedPageIndex ? Color.white : Color.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(
+                                    index == timeline.selectedPageIndex ?
+                                        Color.accentColor :
+                                        Color(.secondarySystemGroupedBackground)
+                            )
+                        )
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("timeline-weekday-\(index)")
                 }
             }
         }
