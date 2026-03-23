@@ -3,6 +3,7 @@ import BabyTrackerPersistence
 import BabyTrackerSync
 import Foundation
 import Observation
+import os
 
 @MainActor
 @Observable
@@ -16,6 +17,7 @@ public final class AppModel {
     public private(set) var undoDeleteMessage: String?
     public var shareSheetState: ShareSheetState?
 
+    private let logger = Logger(subsystem: "com.adappt.BabyTracker", category: "AppModel")
     private let repository: ChildProfileRepository
     private let eventRepository: EventRepository
     private let syncEngine: CloudKitSyncEngine
@@ -638,6 +640,7 @@ public final class AppModel {
                 children: repository.loadArchivedChildren(for: localUser.id),
                 userID: localUser.id
             )
+            logger.info("refresh — localUserID: \(localUser.id, privacy: .public), active: \(self.activeChildren.count, privacy: .public), archived: \(self.archivedChildren.count, privacy: .public)")
 
             guard !activeChildren.isEmpty else {
                 route = .noChildren
@@ -706,6 +709,16 @@ public final class AppModel {
             guard let membership = memberships.first(where: { membership in
                 membership.userID == userID && membership.status == .active
             }) else {
+                let statuses = memberships
+                    .filter { $0.userID == userID }
+                    .map { "\($0.status)" }
+                    .joined(separator: ", ")
+                let allRoles = memberships
+                    .map { "userID=\($0.userID == userID ? "self" : "other") role=\($0.role) status=\($0.status)" }
+                    .joined(separator: "; ")
+                logger.warning(
+                    "loadChildSummaries — skipping child '\(child.name, privacy: .private)': no active membership for local user. Self statuses: [\(statuses, privacy: .public)]. All memberships: [\(allRoles, privacy: .public)]"
+                )
                 continue
             }
 
@@ -769,6 +782,18 @@ public final class AppModel {
             ChildAccessPolicy.canPerform(.editEvent, membership: currentMembership) &&
             ChildAccessPolicy.canPerform(.deleteEvent, membership: currentMembership)
         let cloudKitStatus = CloudKitStatusViewState(summary: syncEngine.statusSummary)
+        let pendingCounts = (try? syncEngine.loadPendingChangeCounts()) ?? [:]
+        let pendingChanges: [PendingChangeSummaryItem] = [
+            (.breastFeedEvent, "figure.seated.side.air.upper", "Breast feeds"),
+            (.bottleFeedEvent, "waterbottle.fill",             "Bottle feeds"),
+            (.sleepEvent,      "moon.zzz.fill",                "Sleep sessions"),
+            (.nappyEvent,      "checklist.checked",            "Nappy changes"),
+            (.membership,      "person.2.fill",                "Sharing info"),
+            (.child,           "person.fill",                  "Profile data"),
+        ].compactMap { (type, icon, label) in
+            guard let count = pendingCounts[type], count > 0 else { return nil }
+            return PendingChangeSummaryItem(icon: icon, label: label, count: count)
+        }
 
         return ChildProfileScreenState(
             child: child,
@@ -791,7 +816,8 @@ public final class AppModel {
             ),
             cloudKitStatus: cloudKitStatus,
             canShareChild: ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership) &&
-                syncEngine.statusSummary.state != .failed
+                syncEngine.statusSummary.state != .failed,
+            pendingChanges: pendingChanges
         )
     }
 

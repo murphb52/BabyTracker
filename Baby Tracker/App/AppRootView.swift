@@ -3,6 +3,7 @@ import SwiftUI
 
 struct AppRootView: View {
     @State private var model: AppModel
+    @Environment(\.scenePhase) private var scenePhase
 
     init(container: AppContainer) {
         _model = State(initialValue: container.appModel)
@@ -46,6 +47,11 @@ struct AppRootView: View {
                 )
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                model.refreshSyncStatus()
             }
         }
         .safeAreaInset(edge: .bottom) {

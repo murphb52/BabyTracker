@@ -31,6 +31,19 @@ struct ChildProfileSyncView: View {
                 }
             }
 
+            if !profile.pendingChanges.isEmpty {
+                Section("Pending Changes") {
+                    ForEach(profile.pendingChanges, id: \.label) { item in
+                        LabeledContent {
+                            Text("\(item.count)")
+                                .foregroundStyle(.secondary)
+                        } label: {
+                            Label(item.label, systemImage: item.icon)
+                        }
+                    }
+                }
+            }
+
             if let detailMessage = profile.cloudKitStatus.detailMessage {
                 Section("Details") {
                     Text(detailMessage)
@@ -49,6 +62,7 @@ struct ChildProfileSyncView: View {
         .navigationTitle("iCloud Sync")
         .navigationBarTitleDisplayMode(.inline)
         .listStyle(.insetGrouped)
+        .task { model.refreshSyncStatus() }
     }
 
     private func syncStatusColor(for state: CloudKitStatusViewState) -> Color {
