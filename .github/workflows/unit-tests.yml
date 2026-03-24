@@ -1,0 +1,24 @@
+name: Unit Tests
+
+on:
+  pull_request:
+
+jobs:
+  unit-tests:
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26.3
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.3'
+
+      - name: Run unit tests
+        run: |
+          xcodebuild test \
+            -project "Baby Tracker.xcodeproj" \
+            -scheme "Baby Tracker" \
+            -testPlan UnitTests \
+            -destination "platform=iOS Simulator,OS=26.2,name=iPhone 17"
