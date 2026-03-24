@@ -10,11 +10,11 @@ Source plan: `docs/babytracker-clean-architecture-plan.md`
 - [ ] **Step 3 — Phase 2:** Extract `SharingModel` from `AppModel`
 - [ ] **Step 4 — Phase 2:** Extract `ChildContextModel` + `EventLoggingModel` from `AppModel`
 - [ ] **Step 5 — Phase 3:** Introduce first use cases (`SelectChild`, `LoadTimeline`)
-- [ ] **Step 6 — Phase 4:** Split `ChildProfileRepository` into focused protocols + implementations
+- [x] **Step 6 — Phase 4:** Split `ChildProfileRepository` into focused protocols + implementations
 - [ ] **Step 7 — Phase 5:** Move repository protocols to Domain, break `Feature → Persistence` dependency
 - [ ] **Step 8 — Phase 6:** Audit Sync for CloudKit leakage into Domain
 - [ ] **Step 9 — Phase 7:** Simplify `AppContainer`, separate preview/seeding concerns
 
 ## Notes
 
-<!-- Add per-step notes here as work progresses -->
+**Step 6:** Split into `SwiftDataChildRepository`, `SwiftDataUserIdentityRepository`, `SwiftDataMembershipRepository`, `UserDefaultsChildSelectionStore`. `AppModel` and `CloudKitSyncEngine` updated to inject the focused protocols directly. `SwiftDataChildProfileRepository` deleted. `purgeChildData` no longer clears selected child ID — callers own that responsibility (`AppModel.leaveChildShare` handles it explicitly).

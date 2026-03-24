@@ -885,7 +885,10 @@ extension AppModelTests {
         let suiteName = "BabyTrackerAppModelTests.\(UUID().uuidString)"
         let userDefaults: UserDefaults
         let store: BabyTrackerModelStore
-        let childRepository: SwiftDataChildProfileRepository
+        let childRepository: SwiftDataChildRepository
+        let userIdentityRepository: SwiftDataUserIdentityRepository
+        let membershipRepository: SwiftDataMembershipRepository
+        let childSelectionStore: UserDefaultsChildSelectionStore
         let eventRepository: SwiftDataEventRepository
         let syncStateRepository: SwiftDataSyncStateRepository
         let syncEngine: CloudKitSyncEngine
@@ -899,20 +902,25 @@ extension AppModelTests {
 
             self.userDefaults = userDefaults
             self.store = try BabyTrackerModelStore(isStoredInMemoryOnly: true)
-            self.childRepository = SwiftDataChildProfileRepository(
-                store: store,
-                userDefaults: userDefaults
-            )
+            self.childRepository = SwiftDataChildRepository(store: store)
+            self.userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
+            self.membershipRepository = SwiftDataMembershipRepository(store: store)
+            self.childSelectionStore = UserDefaultsChildSelectionStore(userDefaults: userDefaults)
             self.eventRepository = SwiftDataEventRepository(store: store)
             self.syncStateRepository = SwiftDataSyncStateRepository(store: store)
             self.syncEngine = CloudKitSyncEngine(
                 childRepository: childRepository,
+                userIdentityRepository: userIdentityRepository,
+                membershipRepository: membershipRepository,
                 eventRepository: eventRepository,
                 syncStateRepository: syncStateRepository,
                 client: UnavailableCloudKitClient()
             )
             self.model = AppModel(
-                repository: childRepository,
+                childRepository: childRepository,
+                userIdentityRepository: userIdentityRepository,
+                membershipRepository: membershipRepository,
+                childSelectionStore: childSelectionStore,
                 eventRepository: eventRepository,
                 syncEngine: syncEngine,
                 liveActivityManager: liveActivityManager
@@ -927,16 +935,16 @@ extension AppModelTests {
             let owner = try UserIdentity(displayName: "Alex Parent")
             let child = try Child(name: "Poppy", createdBy: owner.id)
 
-            try childRepository.saveLocalUser(owner)
+            try userIdentityRepository.saveLocalUser(owner)
             try childRepository.saveChild(child)
-            try childRepository.saveMembership(
+            try membershipRepository.saveMembership(
                 .owner(
                     childID: child.id,
                     userID: owner.id,
                     createdAt: child.createdAt
                 )
             )
-            childRepository.saveSelectedChildID(child.id)
+            childSelectionStore.saveSelectedChildID(child.id)
 
             return OwnerSeed(localUser: owner, child: child)
         }
@@ -946,18 +954,18 @@ extension AppModelTests {
             let caregiver = try UserIdentity(displayName: "Jamie Caregiver")
             let child = try Child(name: "Robin", createdBy: owner.id)
 
-            try childRepository.saveUser(owner)
-            try childRepository.saveLocalUser(caregiver)
-            try childRepository.saveUser(caregiver)
+            try userIdentityRepository.saveUser(owner)
+            try userIdentityRepository.saveLocalUser(caregiver)
+            try userIdentityRepository.saveUser(caregiver)
             try childRepository.saveChild(child)
-            try childRepository.saveMembership(
+            try membershipRepository.saveMembership(
                 .owner(
                     childID: child.id,
                     userID: owner.id,
                     createdAt: child.createdAt
                 )
             )
-            try childRepository.saveMembership(
+            try membershipRepository.saveMembership(
                 Membership(
                     childID: child.id,
                     userID: caregiver.id,
@@ -967,7 +975,7 @@ extension AppModelTests {
                     acceptedAt: child.createdAt
                 )
             )
-            childRepository.saveSelectedChildID(child.id)
+            childSelectionStore.saveSelectedChildID(child.id)
 
             return ActiveCaregiverSeed(
                 owner: owner,
@@ -982,7 +990,7 @@ extension AppModelTests {
         ) throws -> Child {
             let child = try Child(name: name, createdBy: owner.id)
             try childRepository.saveChild(child)
-            try childRepository.saveMembership(
+            try membershipRepository.saveMembership(
                 .owner(
                     childID: child.id,
                     userID: owner.id,

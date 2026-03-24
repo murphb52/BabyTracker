@@ -16,15 +16,16 @@ struct CloudKitSyncEngineTests {
             userDefaults.removePersistentDomain(forName: "CloudKitSyncEngineTests.prepareForLaunch")
         }
 
-        let childRepository = SwiftDataChildProfileRepository(
-            store: store,
-            userDefaults: userDefaults
-        )
+        let childRepository = SwiftDataChildRepository(store: store)
+        let userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
+        let membershipRepository = SwiftDataMembershipRepository(store: store)
         let eventRepository = SwiftDataEventRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
         let client = CloudKitClientSpy()
         let syncEngine = CloudKitSyncEngine(
             childRepository: childRepository,
+            userIdentityRepository: userIdentityRepository,
+            membershipRepository: membershipRepository,
             eventRepository: eventRepository,
             syncStateRepository: syncStateRepository,
             client: client
@@ -33,9 +34,9 @@ struct CloudKitSyncEngineTests {
         let localUser = try UserIdentity(displayName: "Alex Parent")
         let child = try Child(name: "Poppy", createdBy: localUser.id)
 
-        try childRepository.saveLocalUser(localUser)
+        try userIdentityRepository.saveLocalUser(localUser)
         try childRepository.saveChild(child)
-        try childRepository.saveMembership(
+        try membershipRepository.saveMembership(
             .owner(
                 childID: child.id,
                 userID: localUser.id,
@@ -62,15 +63,16 @@ struct CloudKitSyncEngineTests {
             userDefaults.removePersistentDomain(forName: "CloudKitSyncEngineTests.pullDoesNotOverwriteNewerLocalBottleFeedEvent")
         }
 
-        let childRepository = SwiftDataChildProfileRepository(
-            store: store,
-            userDefaults: userDefaults
-        )
+        let childRepository = SwiftDataChildRepository(store: store)
+        let userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
+        let membershipRepository = SwiftDataMembershipRepository(store: store)
         let eventRepository = SwiftDataEventRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
         let client = CloudKitClientSpy()
         let syncEngine = CloudKitSyncEngine(
             childRepository: childRepository,
+            userIdentityRepository: userIdentityRepository,
+            membershipRepository: membershipRepository,
             eventRepository: eventRepository,
             syncStateRepository: syncStateRepository,
             client: client
@@ -84,9 +86,9 @@ struct CloudKitSyncEngineTests {
             createdAt: child.createdAt
         )
 
-        try childRepository.saveLocalUser(localUser)
+        try userIdentityRepository.saveLocalUser(localUser)
         try childRepository.saveChild(child)
-        try childRepository.saveMembership(membership)
+        try membershipRepository.saveMembership(membership)
 
         // Ensure `pullKnownChildZones()` pulls (not pushes) by pre-saving the CloudKit context.
         let zoneID = CloudKitRecordNames.zoneID(for: child.id)

@@ -23,9 +23,9 @@ struct SyncStateRepositoryTests {
             amountMilliliters: 90
         )
 
-        try harness.childRepository.saveLocalUser(owner)
+        try harness.userIdentityRepository.saveLocalUser(owner)
         try harness.childRepository.saveChild(child)
-        try harness.childRepository.saveMembership(
+        try harness.membershipRepository.saveMembership(
             .owner(
                 childID: child.id,
                 userID: owner.id,
@@ -87,7 +87,9 @@ struct SyncStateRepositoryTests {
 extension SyncStateRepositoryTests {
     @MainActor
     private struct RepositoryHarness {
-        let childRepository: SwiftDataChildProfileRepository
+        let childRepository: SwiftDataChildRepository
+        let userIdentityRepository: SwiftDataUserIdentityRepository
+        let membershipRepository: SwiftDataMembershipRepository
         let eventRepository: SwiftDataEventRepository
         let syncRepository: SwiftDataSyncStateRepository
         private let userDefaults: UserDefaults
@@ -99,10 +101,9 @@ extension SyncStateRepositoryTests {
             let userDefaults = UserDefaults(suiteName: suiteName)!
             userDefaults.removePersistentDomain(forName: suiteName)
 
-            self.childRepository = SwiftDataChildProfileRepository(
-                store: store,
-                userDefaults: userDefaults
-            )
+            self.childRepository = SwiftDataChildRepository(store: store)
+            self.userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
+            self.membershipRepository = SwiftDataMembershipRepository(store: store)
             self.eventRepository = SwiftDataEventRepository(store: store)
             self.syncRepository = SwiftDataSyncStateRepository(store: store)
             self.userDefaults = userDefaults

@@ -18,7 +18,10 @@ public final class AppModel {
     public var shareSheetState: ShareSheetState?
 
     private let logger = Logger(subsystem: "com.adappt.BabyTracker", category: "AppModel")
-    private let repository: ChildProfileRepository
+    private let childRepository: any ChildRepository
+    private let userIdentityRepository: any UserIdentityRepository
+    private let membershipRepository: any MembershipRepository
+    private let childSelectionStore: any ChildSelectionStore
     private let eventRepository: EventRepository
     private let syncEngine: CloudKitSyncEngine
     private let liveActivityManager: any FeedLiveActivityManaging
@@ -29,12 +32,18 @@ public final class AppModel {
     private var undoDeleteTask: Task<Void, Never>?
 
     public init(
-        repository: ChildProfileRepository,
+        childRepository: any ChildRepository,
+        userIdentityRepository: any UserIdentityRepository,
+        membershipRepository: any MembershipRepository,
+        childSelectionStore: any ChildSelectionStore,
         eventRepository: EventRepository,
         syncEngine: CloudKitSyncEngine,
         liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager()
     ) {
-        self.repository = repository
+        self.childRepository = childRepository
+        self.userIdentityRepository = userIdentityRepository
+        self.membershipRepository = membershipRepository
+        self.childSelectionStore = childSelectionStore
         self.eventRepository = eventRepository
         self.syncEngine = syncEngine
         self.liveActivityManager = liveActivityManager
@@ -49,7 +58,7 @@ public final class AppModel {
 
         Task { @MainActor in
             _ = await syncEngine.prepareForLaunch()
-            refresh(selecting: repository.loadSelectedChildID())
+            refresh(selecting: childSelectionStore.loadSelectedChildID())
         }
     }
 
@@ -64,21 +73,21 @@ public final class AppModel {
     public func refreshAfterShareSheet() {
         Task { @MainActor in
             _ = await syncEngine.refreshForeground()
-            refresh(selecting: repository.loadSelectedChildID())
+            refresh(selecting: childSelectionStore.loadSelectedChildID())
         }
     }
 
     public func refreshSyncStatus() {
         Task { @MainActor in
             _ = await syncEngine.refreshForeground()
-            refresh(selecting: repository.loadSelectedChildID())
+            refresh(selecting: childSelectionStore.loadSelectedChildID())
         }
     }
 
     public func createLocalUser(displayName: String) {
         perform {
             let user = try UserIdentity(displayName: displayName)
-            try repository.saveLocalUser(user)
+            try userIdentityRepository.saveLocalUser(user)
         }
     }
 
@@ -97,9 +106,9 @@ public final class AppModel {
                 createdAt: child.createdAt
             )
 
-            try repository.saveChild(child)
-            try repository.saveMembership(ownerMembership)
-            repository.saveSelectedChildID(child.id)
+            try childRepository.saveChild(child)
+            try membershipRepository.saveMembership(ownerMembership)
+            childSelectionStore.saveSelectedChildID(child.id)
         }
     }
 
@@ -111,7 +120,7 @@ public final class AppModel {
             }
 
             let updatedChild = try profile.child.updating(name: name, birthDate: birthDate)
-            try repository.saveChild(updatedChild)
+            try childRepository.saveChild(updatedChild)
         }
     }
 
@@ -124,25 +133,25 @@ public final class AppModel {
 
             var archivedChild = profile.child
             archivedChild.isArchived = true
-            try repository.saveChild(archivedChild)
+            try childRepository.saveChild(archivedChild)
 
-            if repository.loadSelectedChildID() == archivedChild.id {
-                repository.saveSelectedChildID(nil)
+            if childSelectionStore.loadSelectedChildID() == archivedChild.id {
+                childSelectionStore.saveSelectedChildID(nil)
             }
         }
     }
 
     public func restoreChild(id: UUID) {
         perform {
-            guard var restoredChild = try repository.loadChild(id: id) else { return }
+            guard var restoredChild = try childRepository.loadChild(id: id) else { return }
             restoredChild.isArchived = false
-            try repository.saveChild(restoredChild)
-            repository.saveSelectedChildID(id)
+            try childRepository.saveChild(restoredChild)
+            childSelectionStore.saveSelectedChildID(id)
         }
     }
 
     public func selectChild(id: UUID) {
-        repository.saveSelectedChildID(id)
+        childSelectionStore.saveSelectedChildID(id)
         timelineChildID = id
         timelineSelectedDay = normalizedTimelineDay(for: .now)
         refresh(selecting: id)
@@ -158,7 +167,7 @@ public final class AppModel {
         }
 
         timelineSelectedDay = normalizedTimelineDay(for: previousDay)
-        refresh(selecting: repository.loadSelectedChildID())
+        refresh(selecting: childSelectionStore.loadSelectedChildID())
     }
 
     public func showNextTimelineDay() {
@@ -171,17 +180,17 @@ public final class AppModel {
         }
 
         timelineSelectedDay = normalizedTimelineDay(for: nextDay)
-        refresh(selecting: repository.loadSelectedChildID())
+        refresh(selecting: childSelectionStore.loadSelectedChildID())
     }
 
     public func jumpTimelineToToday() {
         timelineSelectedDay = normalizedTimelineDay(for: .now)
-        refresh(selecting: repository.loadSelectedChildID())
+        refresh(selecting: childSelectionStore.loadSelectedChildID())
     }
 
     public func showTimelineDay(_ day: Date) {
         timelineSelectedDay = normalizedTimelineDay(for: day)
-        refresh(selecting: repository.loadSelectedChildID())
+        refresh(selecting: childSelectionStore.loadSelectedChildID())
     }
 
     public func showChildPicker() {
@@ -203,7 +212,7 @@ public final class AppModel {
                     for: profile.child.id
                 )
                 shareSheetState = ShareSheetState(presentation: presentation)
-                refresh(selecting: repository.loadSelectedChildID())
+                refresh(selecting: childSelectionStore.loadSelectedChildID())
             } catch {
                 errorMessage = resolveErrorMessage(for: error)
             }
@@ -233,11 +242,11 @@ public final class AppModel {
                 within: candidateMemberships
             )
             let removedMembership = try membership.removed()
-            try repository.saveMembership(removedMembership)
+            try membershipRepository.saveMembership(removedMembership)
 
             Task { @MainActor in
                 try? await syncEngine.removeParticipant(membership: removedMembership)
-                refresh(selecting: repository.loadSelectedChildID())
+                refresh(selecting: childSelectionStore.loadSelectedChildID())
             }
         }
     }
@@ -248,11 +257,14 @@ public final class AppModel {
         Task { @MainActor in
             do {
                 try await syncEngine.leaveShare(childID: childID)
-                try repository.purgeChildData(id: childID)
+                try childRepository.purgeChildData(id: childID)
+                if childSelectionStore.loadSelectedChildID() == childID {
+                    childSelectionStore.saveSelectedChildID(nil)
+                }
             } catch {
                 errorMessage = resolveErrorMessage(for: error)
             }
-            refresh(selecting: repository.loadSelectedChildID())
+            refresh(selecting: childSelectionStore.loadSelectedChildID())
         }
     }
 
@@ -605,22 +617,22 @@ public final class AppModel {
     private func perform(_ operation: () throws -> Void) -> Bool {
         do {
             try operation()
-            refresh(selecting: repository.loadSelectedChildID())
+            refresh(selecting: childSelectionStore.loadSelectedChildID())
             Task { @MainActor in
                 _ = await syncEngine.refreshAfterLocalWrite()
-                refresh(selecting: repository.loadSelectedChildID())
+                refresh(selecting: childSelectionStore.loadSelectedChildID())
             }
             return true
         } catch {
             errorMessage = resolveErrorMessage(for: error)
-            refresh(selecting: repository.loadSelectedChildID())
+            refresh(selecting: childSelectionStore.loadSelectedChildID())
             return false
         }
     }
 
     private func refresh(selecting selectedChildID: UUID?) {
         do {
-            localUser = try repository.loadLocalUser()
+            localUser = try userIdentityRepository.loadLocalUser()
 
             guard let localUser else {
                 route = .identityOnboarding
@@ -633,11 +645,11 @@ public final class AppModel {
             }
 
             activeChildren = try loadChildSummaries(
-                children: repository.loadActiveChildren(for: localUser.id),
+                children: childRepository.loadActiveChildren(for: localUser.id),
                 userID: localUser.id
             )
             archivedChildren = try loadChildSummaries(
-                children: repository.loadArchivedChildren(for: localUser.id),
+                children: childRepository.loadArchivedChildren(for: localUser.id),
                 userID: localUser.id
             )
             logger.info("refresh — localUserID: \(localUser.id, privacy: .public), active: \(self.activeChildren.count, privacy: .public), archived: \(self.archivedChildren.count, privacy: .public)")
@@ -650,7 +662,7 @@ public final class AppModel {
                 return
             }
 
-            let effectiveSelectedChildID = selectedChildID ?? repository.loadSelectedChildID()
+            let effectiveSelectedChildID = selectedChildID ?? childSelectionStore.loadSelectedChildID()
             let selectedSummary = activeChildren.first(where: { summary in
                 summary.child.id == effectiveSelectedChildID
             })
@@ -664,7 +676,7 @@ public final class AppModel {
             }
 
             let currentSummary = selectedSummary ?? activeChildren[0]
-            repository.saveSelectedChildID(currentSummary.child.id)
+            childSelectionStore.saveSelectedChildID(currentSummary.child.id)
             synchronizeTimelineSelection(for: currentSummary.child.id)
             let visibleEvents = try loadVisibleEvents(for: currentSummary.child.id)
             let timelinePages = try loadTimelinePages(
@@ -705,7 +717,7 @@ public final class AppModel {
         var summaries: [ChildSummary] = []
 
         for child in children {
-            let memberships = try repository.loadMemberships(for: child.id)
+            let memberships = try membershipRepository.loadMemberships(for: child.id)
             guard let membership = memberships.first(where: { membership in
                 membership.userID == userID && membership.status == .active
             }) else {
@@ -737,9 +749,9 @@ public final class AppModel {
         timelinePages: [TimelineDayPageState],
         activeSleep: SleepEvent?
     ) throws -> ChildProfileScreenState {
-        let memberships = try repository.loadMemberships(for: child.id)
+        let memberships = try membershipRepository.loadMemberships(for: child.id)
         let userIDs = memberships.map(\.userID)
-        let users = try repository.loadUsers(for: userIDs)
+        let users = try userIdentityRepository.loadUsers(for: userIDs)
         let usersByID = Dictionary(uniqueKeysWithValues: users.map { ($0.id, $0) })
 
         guard let currentMembership = memberships.first(where: { membership in

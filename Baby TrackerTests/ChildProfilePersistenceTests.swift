@@ -12,9 +12,9 @@ struct ChildProfilePersistenceTests {
 
         let user = try UserIdentity(displayName: "Alex Parent")
 
-        try harness.repository.saveLocalUser(user)
+        try harness.userIdentityRepository.saveLocalUser(user)
 
-        let loadedUser = try #require(try harness.repository.loadLocalUser())
+        let loadedUser = try #require(try harness.userIdentityRepository.loadLocalUser())
 
         #expect(loadedUser == user)
     }
@@ -27,12 +27,12 @@ struct ChildProfilePersistenceTests {
         let owner = try UserIdentity(displayName: "Alex Parent")
         let child = try Child(name: "Poppy", createdBy: owner.id)
 
-        try harness.repository.saveLocalUser(owner)
-        try harness.repository.saveChild(child)
-        try harness.repository.saveMembership(.owner(childID: child.id, userID: owner.id, createdAt: child.createdAt))
+        try harness.userIdentityRepository.saveLocalUser(owner)
+        try harness.childRepository.saveChild(child)
+        try harness.membershipRepository.saveMembership(.owner(childID: child.id, userID: owner.id, createdAt: child.createdAt))
 
-        let activeChildren = try harness.repository.loadActiveChildren(for: owner.id)
-        let memberships = try harness.repository.loadMemberships(for: child.id)
+        let activeChildren = try harness.childRepository.loadActiveChildren(for: owner.id)
+        let memberships = try harness.membershipRepository.loadMemberships(for: child.id)
 
         #expect(activeChildren == [child])
         #expect(memberships.count == 1)
@@ -51,31 +51,31 @@ struct ChildProfilePersistenceTests {
         let ownerMembership = Membership.owner(childID: child.id, userID: owner.id, createdAt: child.createdAt)
         let invitedMembership = Membership.invitedCaregiver(childID: child.id, userID: caregiver.id)
 
-        try harness.repository.saveLocalUser(owner)
-        try harness.repository.saveUser(caregiver)
-        try harness.repository.saveChild(child)
-        try harness.repository.saveMembership(ownerMembership)
-        try harness.repository.saveMembership(invitedMembership)
+        try harness.userIdentityRepository.saveLocalUser(owner)
+        try harness.userIdentityRepository.saveUser(caregiver)
+        try harness.childRepository.saveChild(child)
+        try harness.membershipRepository.saveMembership(ownerMembership)
+        try harness.membershipRepository.saveMembership(invitedMembership)
 
         let activeMembership = try invitedMembership.activated()
-        try harness.repository.saveMembership(activeMembership)
-        try harness.repository.saveMembership(try activeMembership.removed())
+        try harness.membershipRepository.saveMembership(activeMembership)
+        try harness.membershipRepository.saveMembership(try activeMembership.removed())
 
         child.isArchived = true
-        try harness.repository.saveChild(child)
+        try harness.childRepository.saveChild(child)
 
-        let activeChildren = try harness.repository.loadActiveChildren(for: owner.id)
-        let archivedChildren = try harness.repository.loadArchivedChildren(for: owner.id)
-        let memberships = try harness.repository.loadMemberships(for: child.id)
+        let activeChildren = try harness.childRepository.loadActiveChildren(for: owner.id)
+        let archivedChildren = try harness.childRepository.loadArchivedChildren(for: owner.id)
+        let memberships = try harness.membershipRepository.loadMemberships(for: child.id)
 
         #expect(activeChildren.isEmpty)
         #expect(archivedChildren == [child])
         #expect(memberships.map(\.status) == [.active, .removed])
 
         child.isArchived = false
-        try harness.repository.saveChild(child)
+        try harness.childRepository.saveChild(child)
 
-        let restoredChildren = try harness.repository.loadActiveChildren(for: owner.id)
+        let restoredChildren = try harness.childRepository.loadActiveChildren(for: owner.id)
 
         #expect(restoredChildren == [child])
     }
@@ -87,9 +87,9 @@ struct ChildProfilePersistenceTests {
 
         let childID = UUID()
 
-        harness.repository.saveSelectedChildID(childID)
+        harness.childSelectionStore.saveSelectedChildID(childID)
 
-        #expect(harness.repository.loadSelectedChildID() == childID)
+        #expect(harness.childSelectionStore.loadSelectedChildID() == childID)
     }
 
     @Test
@@ -104,10 +104,10 @@ struct ChildProfilePersistenceTests {
         )
         let child = try Child(name: "Poppy", createdBy: localOwner.id)
 
-        try harness.repository.saveUser(canonicalOwner)
-        try harness.repository.saveLocalUser(localOwner)
-        try harness.repository.saveChild(child)
-        try harness.repository.saveMembership(
+        try harness.userIdentityRepository.saveUser(canonicalOwner)
+        try harness.userIdentityRepository.saveLocalUser(localOwner)
+        try harness.childRepository.saveChild(child)
+        try harness.membershipRepository.saveMembership(
             .owner(
                 childID: child.id,
                 userID: localOwner.id,
@@ -116,12 +116,12 @@ struct ChildProfilePersistenceTests {
         )
 
         let linkedUser = try #require(
-            try harness.repository.linkLocalUser(
+            try harness.userIdentityRepository.linkLocalUser(
                 toCloudKitUserRecordName: "owner.record"
             )
         )
-        let memberships = try harness.repository.loadMemberships(for: child.id)
-        let activeChildren = try harness.repository.loadActiveChildren(for: canonicalOwner.id)
+        let memberships = try harness.membershipRepository.loadMemberships(for: child.id)
+        let activeChildren = try harness.childRepository.loadActiveChildren(for: canonicalOwner.id)
 
         #expect(linkedUser.id == canonicalOwner.id)
         #expect(linkedUser.displayName == localOwner.displayName)
@@ -144,18 +144,18 @@ struct ChildProfilePersistenceTests {
         )
         let child = try Child(name: "Robin", createdBy: owner.id)
 
-        try harness.repository.saveLocalUser(owner)
-        try harness.repository.saveUser(placeholderCaregiver)
-        try harness.repository.saveUser(cloudLinkedCaregiver)
-        try harness.repository.saveChild(child)
-        try harness.repository.saveMembership(
+        try harness.userIdentityRepository.saveLocalUser(owner)
+        try harness.userIdentityRepository.saveUser(placeholderCaregiver)
+        try harness.userIdentityRepository.saveUser(cloudLinkedCaregiver)
+        try harness.childRepository.saveChild(child)
+        try harness.membershipRepository.saveMembership(
             .owner(
                 childID: child.id,
                 userID: owner.id,
                 createdAt: child.createdAt
             )
         )
-        try harness.repository.saveMembership(
+        try harness.membershipRepository.saveMembership(
             Membership(
                 childID: child.id,
                 userID: placeholderCaregiver.id,
@@ -165,7 +165,7 @@ struct ChildProfilePersistenceTests {
                 acceptedAt: child.createdAt
             )
         )
-        try harness.repository.saveMembership(
+        try harness.membershipRepository.saveMembership(
             Membership(
                 childID: child.id,
                 userID: cloudLinkedCaregiver.id,
@@ -176,10 +176,10 @@ struct ChildProfilePersistenceTests {
             )
         )
 
-        try harness.repository.removeLegacyPlaceholderCaregivers()
+        try harness.userIdentityRepository.removeLegacyPlaceholderCaregivers()
 
-        let memberships = try harness.repository.loadMemberships(for: child.id)
-        let remainingUsers = try harness.repository.loadUsers(
+        let memberships = try harness.membershipRepository.loadMemberships(for: child.id)
+        let remainingUsers = try harness.userIdentityRepository.loadUsers(
             for: [owner.id, placeholderCaregiver.id, cloudLinkedCaregiver.id]
         )
 
@@ -196,17 +196,21 @@ extension ChildProfilePersistenceTests {
     private struct RepositoryHarness {
         let suiteName = "BabyTrackerTests.\(UUID().uuidString)"
         let userDefaults: UserDefaults
-        let repository: SwiftDataChildProfileRepository
+        let childRepository: SwiftDataChildRepository
+        let userIdentityRepository: SwiftDataUserIdentityRepository
+        let membershipRepository: SwiftDataMembershipRepository
+        let childSelectionStore: UserDefaultsChildSelectionStore
 
         init() throws {
             let userDefaults = UserDefaults(suiteName: suiteName)!
             userDefaults.removePersistentDomain(forName: suiteName)
+            let store = try BabyTrackerModelStore(isStoredInMemoryOnly: true)
 
             self.userDefaults = userDefaults
-            self.repository = try SwiftDataChildProfileRepository(
-                isStoredInMemoryOnly: true,
-                userDefaults: userDefaults
-            )
+            self.childRepository = SwiftDataChildRepository(store: store)
+            self.userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
+            self.membershipRepository = SwiftDataMembershipRepository(store: store)
+            self.childSelectionStore = UserDefaultsChildSelectionStore(userDefaults: userDefaults)
         }
 
         func cleanUp() {

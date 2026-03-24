@@ -15,17 +15,20 @@ struct AppContainer {
         let store = try! BabyTrackerModelStore(
             isStoredInMemoryOnly: launchConfiguration.usesInMemoryStore
         )
-        let repository = SwiftDataChildProfileRepository(
-            store: store,
-            userDefaults: userDefaults
-        )
+        let childRepository = SwiftDataChildRepository(store: store)
+        let userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
+        let membershipRepository = SwiftDataMembershipRepository(store: store)
+        let childSelectionStore = UserDefaultsChildSelectionStore(userDefaults: userDefaults)
         let eventRepository = SwiftDataEventRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
 
         if let scenario = launchConfiguration.scenario {
             try? Self.seed(
                 scenario: scenario,
-                repository: repository,
+                childRepository: childRepository,
+                userIdentityRepository: userIdentityRepository,
+                membershipRepository: membershipRepository,
+                childSelectionStore: childSelectionStore,
                 eventRepository: eventRepository
             )
         }
@@ -37,13 +40,18 @@ struct AppContainer {
             NoOpFeedLiveActivityManager() :
             FeedLiveActivityManager()
         let syncEngine = CloudKitSyncEngine(
-            childRepository: repository,
+            childRepository: childRepository,
+            userIdentityRepository: userIdentityRepository,
+            membershipRepository: membershipRepository,
             eventRepository: eventRepository,
             syncStateRepository: syncStateRepository,
             client: cloudKitClient
         )
         let appModel = AppModel(
-            repository: repository,
+            childRepository: childRepository,
+            userIdentityRepository: userIdentityRepository,
+            membershipRepository: membershipRepository,
+            childSelectionStore: childSelectionStore,
             eventRepository: eventRepository,
             syncEngine: syncEngine,
             liveActivityManager: liveActivityManager
@@ -68,27 +76,35 @@ struct AppContainer {
         )
         let userDefaults = launchConfiguration.makeUserDefaults()
         let store = try! BabyTrackerModelStore(isStoredInMemoryOnly: true)
-        let repository = SwiftDataChildProfileRepository(
-            store: store,
-            userDefaults: userDefaults
-        )
+        let childRepository = SwiftDataChildRepository(store: store)
+        let userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
+        let membershipRepository = SwiftDataMembershipRepository(store: store)
+        let childSelectionStore = UserDefaultsChildSelectionStore(userDefaults: userDefaults)
         let eventRepository = SwiftDataEventRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
 
         try? seed(
             scenario: .mixedEventsPreview,
-            repository: repository,
+            childRepository: childRepository,
+            userIdentityRepository: userIdentityRepository,
+            membershipRepository: membershipRepository,
+            childSelectionStore: childSelectionStore,
             eventRepository: eventRepository
         )
 
         let syncEngine = CloudKitSyncEngine(
-            childRepository: repository,
+            childRepository: childRepository,
+            userIdentityRepository: userIdentityRepository,
+            membershipRepository: membershipRepository,
             eventRepository: eventRepository,
             syncStateRepository: syncStateRepository,
             client: UnavailableCloudKitClient()
         )
         let appModel = AppModel(
-            repository: repository,
+            childRepository: childRepository,
+            userIdentityRepository: userIdentityRepository,
+            membershipRepository: membershipRepository,
+            childSelectionStore: childSelectionStore,
             eventRepository: eventRepository,
             syncEngine: syncEngine,
             liveActivityManager: NoOpFeedLiveActivityManager()
@@ -115,10 +131,13 @@ struct AppContainer {
 
     private static func seed(
         scenario: LaunchScenario,
-        repository: SwiftDataChildProfileRepository,
+        childRepository: SwiftDataChildRepository,
+        userIdentityRepository: SwiftDataUserIdentityRepository,
+        membershipRepository: SwiftDataMembershipRepository,
+        childSelectionStore: UserDefaultsChildSelectionStore,
         eventRepository: SwiftDataEventRepository
     ) throws {
-        try repository.resetAllData()
+        try userIdentityRepository.resetAllData()
 
         switch scenario {
         case .activeCaregiver:
@@ -132,11 +151,11 @@ struct AppContainer {
             )
             let child = try Child(name: "Robin", birthDate: .now, createdBy: owner.id)
 
-            try repository.saveUser(owner)
-            try repository.saveUser(caregiver)
-            try repository.saveChild(child)
-            try repository.saveMembership(.owner(childID: child.id, userID: owner.id, createdAt: child.createdAt))
-            try repository.saveMembership(Membership(
+            try userIdentityRepository.saveUser(owner)
+            try userIdentityRepository.saveUser(caregiver)
+            try childRepository.saveChild(child)
+            try membershipRepository.saveMembership(.owner(childID: child.id, userID: owner.id, createdAt: child.createdAt))
+            try membershipRepository.saveMembership(Membership(
                 childID: child.id,
                 userID: caregiver.id,
                 role: .caregiver,
@@ -144,8 +163,8 @@ struct AppContainer {
                 invitedAt: child.createdAt,
                 acceptedAt: child.createdAt
             ))
-            try repository.saveLocalUser(caregiver)
-            repository.saveSelectedChildID(child.id)
+            try userIdentityRepository.saveLocalUser(caregiver)
+            childSelectionStore.saveSelectedChildID(child.id)
         case .ownerPreview:
             let owner = try UserIdentity(
                 displayName: "Alex Parent",
@@ -161,12 +180,12 @@ struct AppContainer {
             )
             let child = try Child(name: "Poppy", birthDate: .now, createdBy: owner.id)
 
-            try repository.saveUser(owner)
-            try repository.saveUser(activeCaregiver)
-            try repository.saveUser(removedCaregiver)
-            try repository.saveChild(child)
-            try repository.saveMembership(.owner(childID: child.id, userID: owner.id, createdAt: child.createdAt))
-            try repository.saveMembership(Membership(
+            try userIdentityRepository.saveUser(owner)
+            try userIdentityRepository.saveUser(activeCaregiver)
+            try userIdentityRepository.saveUser(removedCaregiver)
+            try childRepository.saveChild(child)
+            try membershipRepository.saveMembership(.owner(childID: child.id, userID: owner.id, createdAt: child.createdAt))
+            try membershipRepository.saveMembership(Membership(
                 childID: child.id,
                 userID: activeCaregiver.id,
                 role: .caregiver,
@@ -174,7 +193,7 @@ struct AppContainer {
                 invitedAt: child.createdAt,
                 acceptedAt: child.createdAt
             ))
-            try repository.saveMembership(Membership(
+            try membershipRepository.saveMembership(Membership(
                 childID: child.id,
                 userID: removedCaregiver.id,
                 role: .caregiver,
@@ -182,8 +201,8 @@ struct AppContainer {
                 invitedAt: child.createdAt,
                 acceptedAt: child.createdAt
             ))
-            try repository.saveLocalUser(owner)
-            repository.saveSelectedChildID(child.id)
+            try userIdentityRepository.saveLocalUser(owner)
+            childSelectionStore.saveSelectedChildID(child.id)
         case .futureActiveSleepPreview:
             let owner = try UserIdentity(
                 displayName: "Alex Parent",
@@ -192,11 +211,11 @@ struct AppContainer {
             let child = try Child(name: "Poppy", birthDate: .now, createdBy: owner.id)
             let sleepStart = Date(timeIntervalSinceNow: 3_600)
 
-            try repository.saveUser(owner)
-            try repository.saveChild(child)
-            try repository.saveMembership(.owner(childID: child.id, userID: owner.id, createdAt: child.createdAt))
-            try repository.saveLocalUser(owner)
-            repository.saveSelectedChildID(child.id)
+            try userIdentityRepository.saveUser(owner)
+            try childRepository.saveChild(child)
+            try membershipRepository.saveMembership(.owner(childID: child.id, userID: owner.id, createdAt: child.createdAt))
+            try userIdentityRepository.saveLocalUser(owner)
+            childSelectionStore.saveSelectedChildID(child.id)
 
             let sleep = try SleepEvent(
                 metadata: EventMetadata(
@@ -218,11 +237,11 @@ struct AppContainer {
             let feedTime = Date(timeIntervalSinceNow: -7_200)
             let sleepEnd = Date(timeIntervalSinceNow: -1_800)
 
-            try repository.saveUser(owner)
-            try repository.saveChild(child)
-            try repository.saveMembership(.owner(childID: child.id, userID: owner.id, createdAt: child.createdAt))
-            try repository.saveLocalUser(owner)
-            repository.saveSelectedChildID(child.id)
+            try userIdentityRepository.saveUser(owner)
+            try childRepository.saveChild(child)
+            try membershipRepository.saveMembership(.owner(childID: child.id, userID: owner.id, createdAt: child.createdAt))
+            try userIdentityRepository.saveLocalUser(owner)
+            childSelectionStore.saveSelectedChildID(child.id)
 
             let bottleFeed = try BottleFeedEvent(
                 metadata: EventMetadata(

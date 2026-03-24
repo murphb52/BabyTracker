@@ -8,7 +8,9 @@ import os
 public final class CloudKitSyncEngine {
     public private(set) var statusSummary = SyncStatusSummary()
 
-    private let childRepository: ChildProfileRepository
+    private let childRepository: any ChildRepository
+    private let userIdentityRepository: any UserIdentityRepository
+    private let membershipRepository: any MembershipRepository
     private let eventRepository: EventRepository
     private let syncStateRepository: SyncStateRepository
     private let client: CloudKitClient
@@ -18,12 +20,16 @@ public final class CloudKitSyncEngine {
     private let logger = Logger(subsystem: "com.adappt.BabyTracker", category: "CloudKitSync")
 
     public init(
-        childRepository: ChildProfileRepository,
+        childRepository: any ChildRepository,
+        userIdentityRepository: any UserIdentityRepository,
+        membershipRepository: any MembershipRepository,
         eventRepository: EventRepository,
         syncStateRepository: SyncStateRepository,
         client: CloudKitClient = LiveCloudKitClient()
     ) {
         self.childRepository = childRepository
+        self.userIdentityRepository = userIdentityRepository
+        self.membershipRepository = membershipRepository
         self.eventRepository = eventRepository
         self.syncStateRepository = syncStateRepository
         self.client = client
@@ -140,7 +146,7 @@ public final class CloudKitSyncEngine {
             return
         }
 
-        let users = try childRepository.loadUsers(for: [membership.userID])
+        let users = try userIdentityRepository.loadUsers(for: [membership.userID])
         let cloudRecordName = users.first?.cloudKitUserRecordName
 
         if let participant = share.participants.first(where: { participant in
@@ -201,7 +207,7 @@ public final class CloudKitSyncEngine {
                 logger.info("Launch sync starting")
             }
 
-            try childRepository.removeLegacyPlaceholderCaregivers()
+            try userIdentityRepository.removeLegacyPlaceholderCaregivers()
             let accountStatus = try await client.accountStatus()
 
             if reason == .launch {
@@ -217,7 +223,7 @@ public final class CloudKitSyncEngine {
             if reason == .launch {
                 logger.info("iCloud user record ID: \(userRecordID.recordName, privacy: .private(mask: .hash))")
             }
-            _ = try childRepository.linkLocalUser(
+            _ = try userIdentityRepository.linkLocalUser(
                 toCloudKitUserRecordName: userRecordID.recordName
             )
 
@@ -314,7 +320,7 @@ public final class CloudKitSyncEngine {
                     "Child '\(child.name, privacy: .private)' — zone: \(context.zoneID.zoneName, privacy: .public), scope: \(context.databaseScope.logDescription, privacy: .public), isArchived: \(child.isArchived, privacy: .public)"
                 )
                 try await pullZoneSnapshot(context: context)
-                let memberships = try childRepository.loadMemberships(for: child.id)
+                let memberships = try membershipRepository.loadMemberships(for: child.id)
                 logger.info(
                     "Child '\(child.name, privacy: .private)' — \(memberships.count, privacy: .public) membership(s) in local store: \(memberships.map { "userID=\($0.userID) role=\($0.role) status=\($0.status)" }.joined(separator: ", "), privacy: .public)"
                 )
@@ -340,9 +346,9 @@ public final class CloudKitSyncEngine {
         context: CloudKitChildContext
     ) throws -> Bool {
         guard context.databaseScope == .private else { return false }
-        guard let localUser = try childRepository.loadLocalUser() else { return false }
+        guard let localUser = try userIdentityRepository.loadLocalUser() else { return false }
 
-        let memberships = try childRepository.loadMemberships(for: child.id)
+        let memberships = try membershipRepository.loadMemberships(for: child.id)
         guard !memberships.contains(where: { $0.userID == localUser.id }) else { return false }
 
         guard let orphaned = memberships.first(where: { $0.role == .owner }) else { return false }
@@ -356,7 +362,7 @@ public final class CloudKitSyncEngine {
             invitedAt: orphaned.invitedAt,
             acceptedAt: orphaned.acceptedAt
         )
-        try childRepository.saveMembership(repaired)
+        try membershipRepository.saveMembership(repaired)
         logger.warning(
             "Repaired orphaned membership for child '\(child.name, privacy: .private)': reassigned userID from \(orphaned.userID, privacy: .public) to \(localUser.id, privacy: .public)"
         )
@@ -395,7 +401,7 @@ public final class CloudKitSyncEngine {
 
         let children = try childRepository.loadAllChildren()
         for child in children {
-            let memberships = try childRepository.loadMemberships(for: child.id)
+            let memberships = try membershipRepository.loadMemberships(for: child.id)
             let childHasPending = pendingRecords.contains { $0.childID == child.id || $0.recordID == child.id }
             let childHasPendingUsers = memberships.contains { pendingUserIDs.contains($0.userID) }
 
@@ -419,8 +425,8 @@ public final class CloudKitSyncEngine {
             return
         }
 
-        let memberships = try childRepository.loadMemberships(for: childID)
-        let users = try childRepository.loadUsers(for: memberships.map(\.userID) + [child.createdBy])
+        let memberships = try membershipRepository.loadMemberships(for: childID)
+        let users = try userIdentityRepository.loadUsers(for: memberships.map(\.userID) + [child.createdBy])
         let events = try eventRepository.loadTimeline(
             for: childID,
             includingDeleted: true
@@ -596,7 +602,7 @@ public final class CloudKitSyncEngine {
             )
         case CloudKitConfiguration.userRecordType:
             let user = try CloudKitRecordMapper.user(from: record)
-            try childRepository.saveUser(user)
+            try userIdentityRepository.saveUser(user)
             try syncStateRepository.updateSyncState(
                 for: SyncRecordReference(recordType: .user, recordID: user.id),
                 state: .upToDate,
@@ -607,7 +613,7 @@ public final class CloudKitSyncEngine {
             let membership = CloudKitRecordMapper.membership(from: record)
             logger.info("Saving membership from CloudKit — role: \(membership.role.rawValue, privacy: .public), status: \(membership.status.rawValue, privacy: .public), childID: \(membership.childID, privacy: .public)")
             do {
-                try childRepository.saveMembership(membership)
+                try membershipRepository.saveMembership(membership)
             } catch {
                 logger.error("Failed to save membership (role: \(membership.role.rawValue, privacy: .public), status: \(membership.status.rawValue, privacy: .public)): \(error.localizedDescription, privacy: .public)")
                 print("[BabyTracker] saveMembership FAILED role=\(membership.role.rawValue) status=\(membership.status.rawValue): \(error)")
@@ -701,7 +707,7 @@ public final class CloudKitSyncEngine {
     private func ensureMembershipForAcceptedShare(
         metadata: CKShare.Metadata
     ) async throws {
-        guard let localUser = try childRepository.loadLocalUser() else {
+        guard let localUser = try userIdentityRepository.loadLocalUser() else {
             logger.warning("[4/5] ensureMembership — no local user found, skipping membership creation")
             return
         }
@@ -712,7 +718,7 @@ public final class CloudKitSyncEngine {
         }
 
         let childID = childID(fromRecordName: rootRecordID.recordName)
-        let existingMemberships = try childRepository.loadMemberships(for: childID)
+        let existingMemberships = try membershipRepository.loadMemberships(for: childID)
         guard !existingMemberships.contains(where: { membership in
             membership.userID == localUser.id && membership.status == .active
         }) else {
@@ -733,8 +739,8 @@ public final class CloudKitSyncEngine {
             acceptedAt: .now
         )
 
-        try childRepository.saveUser(localUser)
-        try childRepository.saveCloudKitMembership(membership)
+        try userIdentityRepository.saveUser(localUser)
+        try membershipRepository.saveCloudKitMembership(membership)
         logger.info("[4/5] ensureMembership — saved local membership id=\(membership.id, privacy: .public), marking upToDate immediately (received from CloudKit, not a local write)")
         try syncStateRepository.updateSyncState(
             for: SyncRecordReference(
