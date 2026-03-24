@@ -1,8 +1,7 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import SwiftUI
 
-struct ChildHomeView: View {
+public struct ChildHomeView: View {
     let profile: ChildProfileScreenState
     let quickLogBreastFeed: () -> Void
     let quickLogBottleFeed: () -> Void
@@ -14,7 +13,21 @@ struct ChildHomeView: View {
         GridItem(.flexible(), spacing: 12),
     ]
 
-    var body: some View {
+    public init(
+        profile: ChildProfileScreenState,
+        quickLogBreastFeed: @escaping () -> Void,
+        quickLogBottleFeed: @escaping () -> Void,
+        quickLogSleep: @escaping () -> Void,
+        quickLogNappy: @escaping (NappyType) -> Void
+    ) {
+        self.profile = profile
+        self.quickLogBreastFeed = quickLogBreastFeed
+        self.quickLogBottleFeed = quickLogBottleFeed
+        self.quickLogSleep = quickLogSleep
+        self.quickLogNappy = quickLogNappy
+    }
+
+    public var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
                 statusSection

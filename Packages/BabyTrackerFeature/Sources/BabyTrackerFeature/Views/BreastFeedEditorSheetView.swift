@@ -1,7 +1,7 @@
 import BabyTrackerDomain
 import SwiftUI
 
-struct BreastFeedEditorSheetView: View {
+public struct BreastFeedEditorSheetView: View {
     let navigationTitle: String
     let primaryActionTitle: String
     let saveAction: (_ durationMinutes: Int, _ endTime: Date, _ side: BreastSide?) -> Bool
@@ -13,7 +13,7 @@ struct BreastFeedEditorSheetView: View {
 
     private let quickDurations = [5, 10, 15]
 
-    init(
+    public init(
         navigationTitle: String,
         primaryActionTitle: String,
         initialDurationMinutes: Int,
@@ -29,7 +29,7 @@ struct BreastFeedEditorSheetView: View {
         _side = State(initialValue: BreastSideChoice(side: initialSide))
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             Form {
                 Section("Quick Duration") {

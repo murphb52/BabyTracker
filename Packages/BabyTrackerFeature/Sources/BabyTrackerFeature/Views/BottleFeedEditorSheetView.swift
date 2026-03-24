@@ -1,7 +1,7 @@
 import BabyTrackerDomain
 import SwiftUI
 
-struct BottleFeedEditorSheetView: View {
+public struct BottleFeedEditorSheetView: View {
     let navigationTitle: String
     let primaryActionTitle: String
     let saveAction: (_ amountMilliliters: Int, _ occurredAt: Date, _ milkType: MilkType?) -> Bool
@@ -13,7 +13,7 @@ struct BottleFeedEditorSheetView: View {
 
     private let quickAmounts = Array(stride(from: 10, through: 70, by: 10))
 
-    init(
+    public init(
         navigationTitle: String,
         primaryActionTitle: String,
         initialAmountMilliliters: Int,
@@ -29,7 +29,7 @@ struct BottleFeedEditorSheetView: View {
         _milkType = State(initialValue: MilkTypeChoice(milkType: initialMilkType))
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             Form {
                 Section("Quick Amount") {

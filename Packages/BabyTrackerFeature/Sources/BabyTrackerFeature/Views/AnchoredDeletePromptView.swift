@@ -1,12 +1,24 @@
 import SwiftUI
 
-struct AnchoredDeletePromptView: View {
+public struct AnchoredDeletePromptView: View {
     let title: String
     let confirmTitle: String
     let confirmAction: () -> Void
     let cancelAction: () -> Void
 
-    var body: some View {
+    public init(
+        title: String,
+        confirmTitle: String,
+        confirmAction: @escaping () -> Void,
+        cancelAction: @escaping () -> Void
+    ) {
+        self.title = title
+        self.confirmTitle = confirmTitle
+        self.confirmAction = confirmAction
+        self.cancelAction = cancelAction
+    }
+
+    public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.subheadline.weight(.semibold))

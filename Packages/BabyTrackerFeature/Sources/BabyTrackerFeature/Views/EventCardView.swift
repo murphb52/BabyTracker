@@ -1,11 +1,14 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import SwiftUI
 
-struct EventCardView: View {
+public struct EventCardView: View {
     let event: EventCardViewState
 
-    var body: some View {
+    public init(event: EventCardViewState) {
+        self.event = event
+    }
+
+    public var body: some View {
         HStack(alignment: .top, spacing: 12) {
             ZStack {
                 Circle()

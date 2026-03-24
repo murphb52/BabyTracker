@@ -1,15 +1,18 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import SwiftUI
 
-struct ChildCreationView: View {
+public struct ChildCreationView: View {
     let model: AppModel
+
+    public init(model: AppModel) {
+        self.model = model
+    }
 
     @State private var childName = ""
     @State private var includesBirthDate = false
     @State private var birthDate = Date()
 
-    var body: some View {
+    public var body: some View {
         Form {
             Section {
                 Text("Create the first child profile. You can add a birth date now or leave it for later.")

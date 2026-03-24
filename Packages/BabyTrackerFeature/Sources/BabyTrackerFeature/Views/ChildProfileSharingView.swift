@@ -1,15 +1,24 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import SwiftUI
 
-struct ChildProfileSharingView: View {
+public struct ChildProfileSharingView: View {
     let model: AppModel
     let profile: ChildProfileScreenState
     let shareChildAction: () -> Void
 
     @State private var showingLeaveConfirmation = false
 
-    var body: some View {
+    public init(
+        model: AppModel,
+        profile: ChildProfileScreenState,
+        shareChildAction: @escaping () -> Void
+    ) {
+        self.model = model
+        self.profile = profile
+        self.shareChildAction = shareChildAction
+    }
+
+    public var body: some View {
         List {
             if profile.canManageSharing {
                 Section {

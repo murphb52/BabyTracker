@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct SleepEditorSheetView: View {
+public struct SleepEditorSheetView: View {
     let mode: Mode
     let saveAction: (_ startedAt: Date, _ endedAt: Date?) -> Bool
     let deleteAction: (() -> Void)?
@@ -9,7 +9,7 @@ struct SleepEditorSheetView: View {
     @State private var startedAt: Date
     @State private var endedAt: Date
 
-    init(
+    public init(
         mode: Mode,
         initialStartedAt: Date,
         initialEndedAt: Date?,
@@ -23,7 +23,7 @@ struct SleepEditorSheetView: View {
         _endedAt = State(initialValue: initialEndedAt ?? Date())
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             Form {
                 Section("Sleep") {
@@ -110,12 +110,12 @@ struct SleepEditorSheetView: View {
 }
 
 extension SleepEditorSheetView {
-    enum Mode {
+    public enum Mode {
         case start
         case end
         case edit
 
-        var navigationTitle: String {
+        public var navigationTitle: String {
             switch self {
             case .start:
                 "Start Sleep"
@@ -126,7 +126,7 @@ extension SleepEditorSheetView {
             }
         }
 
-        var primaryActionTitle: String {
+        public var primaryActionTitle: String {
             switch self {
             case .start:
                 "Start Sleep"
@@ -137,7 +137,7 @@ extension SleepEditorSheetView {
             }
         }
 
-        var showsEndTime: Bool {
+        public var showsEndTime: Bool {
             switch self {
             case .start:
                 false

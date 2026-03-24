@@ -1,7 +1,6 @@
-import BabyTrackerFeature
 import SwiftUI
 
-struct TimelineScreenView: View {
+public struct TimelineScreenView: View {
     let model: AppModel
     let profile: ChildProfileScreenState
     let openEvent: (TimelineEventBlockViewState) -> Void
@@ -13,7 +12,25 @@ struct TimelineScreenView: View {
     @State private var showingDayPicker = false
     @State private var dragStartPageIndex: Int = 0
 
-    var body: some View {
+    public init(
+        model: AppModel,
+        profile: ChildProfileScreenState,
+        openEvent: @escaping (TimelineEventBlockViewState) -> Void,
+        deleteEvent: @escaping (TimelineEventBlockViewState) -> Void,
+        pendingDeleteEvent: EventDeleteCandidate?,
+        confirmDelete: @escaping () -> Void,
+        cancelDelete: @escaping () -> Void
+    ) {
+        self.model = model
+        self.profile = profile
+        self.openEvent = openEvent
+        self.deleteEvent = deleteEvent
+        self.pendingDeleteEvent = pendingDeleteEvent
+        self.confirmDelete = confirmDelete
+        self.cancelDelete = cancelDelete
+    }
+
+    public var body: some View {
         VStack(spacing: 0) {
             pinnedDayNavigationHeader(for: profile.timeline)
 

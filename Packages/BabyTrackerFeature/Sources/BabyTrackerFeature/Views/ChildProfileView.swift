@@ -1,15 +1,28 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import SwiftUI
 
-struct ChildProfileView: View {
+public struct ChildProfileView: View {
     let model: AppModel
     let profile: ChildProfileScreenState
     let editChildAction: () -> Void
     let shareChildAction: () -> Void
     let archiveAction: () -> Void
 
-    var body: some View {
+    public init(
+        model: AppModel,
+        profile: ChildProfileScreenState,
+        editChildAction: @escaping () -> Void,
+        shareChildAction: @escaping () -> Void,
+        archiveAction: @escaping () -> Void
+    ) {
+        self.model = model
+        self.profile = profile
+        self.editChildAction = editChildAction
+        self.shareChildAction = shareChildAction
+        self.archiveAction = archiveAction
+    }
+
+    public var body: some View {
         List {
             Section {
                 NavigationLink {

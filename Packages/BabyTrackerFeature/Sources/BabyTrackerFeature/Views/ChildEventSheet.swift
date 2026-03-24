@@ -1,8 +1,7 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import Foundation
 
-enum ChildEventSheet: Identifiable {
+public enum ChildEventSheet: Identifiable {
     case quickLogBreastFeed
     case quickLogBottleFeed
     case startSleep
@@ -33,7 +32,7 @@ enum ChildEventSheet: Identifiable {
         pooColor: PooColor?
     )
 
-    init(id: UUID, actionPayload: EventActionPayload) {
+    public init(id: UUID, actionPayload: EventActionPayload) {
         switch actionPayload {
         case let .editBreastFeed(durationMinutes, endTime, side):
             self = .editBreastFeed(
@@ -68,7 +67,7 @@ enum ChildEventSheet: Identifiable {
         }
     }
 
-    var id: String {
+    public var id: String {
         switch self {
         case .quickLogBreastFeed:
             "quick-log-breast-feed"

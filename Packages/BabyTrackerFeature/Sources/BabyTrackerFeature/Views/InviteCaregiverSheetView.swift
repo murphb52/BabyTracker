@@ -1,12 +1,16 @@
 import SwiftUI
 
-struct InviteCaregiverSheetView: View {
+public struct InviteCaregiverSheetView: View {
     let inviteAction: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var displayName = ""
 
-    var body: some View {
+    public init(inviteAction: @escaping (String) -> Void) {
+        self.inviteAction = inviteAction
+    }
+
+    public var body: some View {
         NavigationStack {
             Form {
                 Section {

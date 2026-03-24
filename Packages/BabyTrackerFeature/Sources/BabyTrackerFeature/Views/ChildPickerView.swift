@@ -1,11 +1,14 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import SwiftUI
 
-struct ChildPickerView: View {
+public struct ChildPickerView: View {
     let model: AppModel
 
-    var body: some View {
+    public init(model: AppModel) {
+        self.model = model
+    }
+
+    public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Text("Who are you tracking today?")

@@ -1,7 +1,6 @@
-import BabyTrackerFeature
 import SwiftUI
 
-struct EventHistoryView: View {
+public struct EventHistoryView: View {
     let profile: ChildProfileScreenState
     let openEvent: (EventCardViewState) -> Void
     let deleteEvent: (EventCardViewState) -> Void
@@ -9,7 +8,23 @@ struct EventHistoryView: View {
     let confirmDelete: () -> Void
     let cancelDelete: () -> Void
 
-    var body: some View {
+    public init(
+        profile: ChildProfileScreenState,
+        openEvent: @escaping (EventCardViewState) -> Void,
+        deleteEvent: @escaping (EventCardViewState) -> Void,
+        pendingDeleteEvent: EventDeleteCandidate?,
+        confirmDelete: @escaping () -> Void,
+        cancelDelete: @escaping () -> Void
+    ) {
+        self.profile = profile
+        self.openEvent = openEvent
+        self.deleteEvent = deleteEvent
+        self.pendingDeleteEvent = pendingDeleteEvent
+        self.confirmDelete = confirmDelete
+        self.cancelDelete = cancelDelete
+    }
+
+    public var body: some View {
         List {
             if profile.eventHistory.events.isEmpty {
                 emptyState

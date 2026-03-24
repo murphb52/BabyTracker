@@ -1,11 +1,14 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import SwiftUI
 
-struct CurrentStateCardView: View {
+public struct CurrentStateCardView: View {
     let summary: CurrentStateSummaryViewState?
 
-    var body: some View {
+    public init(summary: CurrentStateSummaryViewState?) {
+        self.summary = summary
+    }
+
+    public var body: some View {
         if let summary {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(alignment: .top, spacing: 14) {
