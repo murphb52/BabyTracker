@@ -67,7 +67,8 @@
       </MacroExpansion>
       <TestPlans>
          <TestPlanReference
-            reference = "container:UITests.xctestplan">
+            reference = "container:UITests.xctestplan"
+            default = "YES">
          </TestPlanReference>
          <TestPlanReference
             reference = "container:UnitTests.xctestplan">

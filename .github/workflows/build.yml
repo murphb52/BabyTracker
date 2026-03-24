@@ -19,7 +19,7 @@ jobs:
 
       - name: Build
         run: |
-          xcodebuild build \
+          xcodebuild test \
             -project "Baby Tracker.xcodeproj" \
             -scheme "Baby Tracker" \
             -testPlan UnitTests \
