@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct Stage1ErrorBannerView: View {
+struct ErrorBannerView: View {
     let message: String
     let dismissAction: () -> Void
 
@@ -23,6 +23,6 @@ struct Stage1ErrorBannerView: View {
         .padding(16)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .shadow(radius: 8, y: 4)
-        .accessibilityIdentifier("stage1-error-banner")
+        .accessibilityIdentifier("error-banner")
     }
 }

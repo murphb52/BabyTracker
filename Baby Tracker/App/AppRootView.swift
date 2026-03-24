@@ -41,7 +41,7 @@ struct AppRootView: View {
         .id(model.route)
         .overlay(alignment: .top) {
             if let errorMessage = model.errorMessage {
-                Stage1ErrorBannerView(
+                ErrorBannerView(
                     message: errorMessage,
                     dismissAction: model.dismissError
                 )
