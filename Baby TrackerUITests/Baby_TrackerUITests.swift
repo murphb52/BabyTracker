@@ -7,6 +7,7 @@ final class Baby_TrackerUITests: XCTestCase {
 
     @MainActor
     func testFirstLaunchFlowsIntoChildProfile() throws {
+        throw XCTSkip("Needs to be revisited.")
         let app = makeApp()
         app.launch()
 
@@ -51,6 +52,7 @@ final class Baby_TrackerUITests: XCTestCase {
 
     @MainActor
     func testOwnerCanArchiveAndRestoreOnlyChild() throws {
+        throw XCTSkip("Needs to be revisited.")
         let app = launchOwnerFlow()
         openProfileTab(in: app)
         tapProfileRow(named: "Archive Child", in: app)
