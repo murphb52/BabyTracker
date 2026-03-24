@@ -1,7 +1,6 @@
 name: Build
 
 on:
-  pull_request:
   push:
     branches:
       - main
@@ -23,4 +22,5 @@ jobs:
           xcodebuild build \
             -project "Baby Tracker.xcodeproj" \
             -scheme "Baby Tracker" \
+            -testPlan UnitTests \
             -destination "platform=iOS Simulator,OS=26.2,name=iPhone 17"

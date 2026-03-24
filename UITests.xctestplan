@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "037A210D-2CA2-442A-BA24-7ECCDB460FCC",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Baby Tracker.xcodeproj",
+        "identifier" : "C934258A2F6BEA40009ECD88",
+        "name" : "Baby TrackerUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

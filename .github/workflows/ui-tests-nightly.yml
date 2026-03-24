@@ -1,0 +1,54 @@
+name: UI Tests Nightly
+
+on:
+  schedule:
+    - cron: '30 1 * * *'
+  workflow_dispatch:
+
+jobs:
+  check-for-merges:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+
+    steps:
+      - name: Check for merged PRs today
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COUNT=$(gh pr list \
+            --state merged \
+            --search "merged:>=$(date -u +%Y-%m-%d)" \
+            --base main \
+            --json number \
+            --jq 'length')
+
+          echo "Merged PRs today: $COUNT"
+
+          if [ "$COUNT" -gt 0 ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  ui-tests:
+    needs: check-for-merges
+    if: needs.check-for-merges.outputs.should_run == 'true'
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26.3
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.3'
+
+      - name: Run UI tests
+        run: |
+          xcodebuild test \
+            -project "Baby Tracker.xcodeproj" \
+            -scheme "Baby Tracker" \
+            -testPlan UITests \
+            -destination "platform=iOS Simulator,OS=26.2,name=iPhone 17"
