@@ -194,8 +194,10 @@ public struct BreastFeedEditorSheetView: View {
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("breast-feed-side-picker")
 
-                if side == .both, let total = parsedDurationMinutes {
-                    perSideBreakdown(total: total)
+                if side == .both {
+                    if let total = parsedDurationMinutes {
+                        perSideBreakdown(total: total)
+                    }
                 }
             }
 
@@ -234,7 +236,6 @@ public struct BreastFeedEditorSheetView: View {
         }
     }
 
-    @ViewBuilder
     @ViewBuilder
     private func perSideBreakdown(total: Int) -> some View {
         Toggle("Show per-side breakdown", isOn: $showPerSideBreakdown)
