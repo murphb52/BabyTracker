@@ -1,8 +1,7 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import SwiftUI
 
-struct TimelineDayPageView: View {
+public struct TimelineDayPageView: View {
     let page: TimelineDayPageState
     let canManageEvents: Bool
     let openEvent: (TimelineEventBlockViewState) -> Void
@@ -16,7 +15,25 @@ struct TimelineDayPageView: View {
     private let laneSpacing: CGFloat = 6
     private let blockCornerRadius: CGFloat = 14
 
-    var body: some View {
+    public init(
+        page: TimelineDayPageState,
+        canManageEvents: Bool,
+        openEvent: @escaping (TimelineEventBlockViewState) -> Void,
+        deleteEvent: @escaping (TimelineEventBlockViewState) -> Void,
+        pendingDeleteEvent: EventDeleteCandidate?,
+        confirmDelete: @escaping () -> Void,
+        cancelDelete: @escaping () -> Void
+    ) {
+        self.page = page
+        self.canManageEvents = canManageEvents
+        self.openEvent = openEvent
+        self.deleteEvent = deleteEvent
+        self.pendingDeleteEvent = pendingDeleteEvent
+        self.confirmDelete = confirmDelete
+        self.cancelDelete = cancelDelete
+    }
+
+    public var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {

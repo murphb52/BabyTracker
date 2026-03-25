@@ -1,17 +1,21 @@
-import BabyTrackerFeature
 import BabyTrackerSync
 import SwiftUI
 import UIKit
 
-struct CloudKitShareSheetView: UIViewControllerRepresentable {
+public struct CloudKitShareSheetView: UIViewControllerRepresentable {
     let shareState: ShareSheetState
     let childName: String
 
-    func makeCoordinator() -> Coordinator {
+    public init(shareState: ShareSheetState, childName: String) {
+        self.shareState = shareState
+        self.childName = childName
+    }
+
+    public func makeCoordinator() -> Coordinator {
         Coordinator(childName: childName)
     }
 
-    func makeUIViewController(context: Context) -> UICloudSharingController {
+    public func makeUIViewController(context: Context) -> UICloudSharingController {
         let factory = DefaultCloudKitShareControllerFactory()
         return factory.makeShareController(
             share: shareState.presentation.share,
@@ -20,30 +24,30 @@ struct CloudKitShareSheetView: UIViewControllerRepresentable {
         )
     }
 
-    func updateUIViewController(
+    public func updateUIViewController(
         _ uiViewController: UICloudSharingController,
         context: Context
     ) {}
 }
 
 extension CloudKitShareSheetView {
-    final class Coordinator: NSObject, UICloudSharingControllerDelegate {
+    public final class Coordinator: NSObject, UICloudSharingControllerDelegate {
         private let childName: String
 
-        init(childName: String) {
+        public init(childName: String) {
             self.childName = childName
         }
 
-        func cloudSharingController(
+        public func cloudSharingController(
             _ csc: UICloudSharingController,
             failedToSaveShareWithError error: Error
         ) {}
 
-        func itemTitle(for csc: UICloudSharingController) -> String? {
+        public func itemTitle(for csc: UICloudSharingController) -> String? {
             childName
         }
 
-        func itemTitleForCloudSharingController(
+        public func itemTitleForCloudSharingController(
             _ csc: UICloudSharingController
         ) -> String? {
             childName

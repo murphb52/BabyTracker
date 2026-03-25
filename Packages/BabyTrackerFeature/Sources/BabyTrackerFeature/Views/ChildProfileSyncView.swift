@@ -1,12 +1,19 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import SwiftUI
 
-struct ChildProfileSyncView: View {
+public struct ChildProfileSyncView: View {
     let model: AppModel
     let profile: ChildProfileScreenState
 
-    var body: some View {
+    public init(
+        model: AppModel,
+        profile: ChildProfileScreenState
+    ) {
+        self.model = model
+        self.profile = profile
+    }
+
+    public var body: some View {
         List {
             Section("Status") {
                 LabeledContent("Sync") {

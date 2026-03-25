@@ -1,12 +1,15 @@
-import BabyTrackerFeature
 import SwiftUI
 
-struct NoChildrenView: View {
+public struct NoChildrenView: View {
     let model: AppModel
 
     @State private var showingShareInstructions = false
 
-    var body: some View {
+    public init(model: AppModel) {
+        self.model = model
+    }
+
+    public var body: some View {
         ZStack {
             Color(.systemGroupedBackground).ignoresSafeArea()
 

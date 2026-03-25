@@ -1,7 +1,7 @@
 import BabyTrackerDomain
 import SwiftUI
 
-struct NappyEditorSheetView: View {
+public struct NappyEditorSheetView: View {
     let navigationTitle: String
     let primaryActionTitle: String
     let saveAction: (_ type: NappyType, _ occurredAt: Date, _ intensity: NappyIntensity?, _ pooColor: PooColor?) -> Bool
@@ -12,7 +12,7 @@ struct NappyEditorSheetView: View {
     @State private var intensity: NappyIntensityChoice
     @State private var pooColor: PooColorChoice
 
-    init(
+    public init(
         navigationTitle: String,
         primaryActionTitle: String,
         initialType: NappyType,
@@ -30,7 +30,7 @@ struct NappyEditorSheetView: View {
         _pooColor = State(initialValue: PooColorChoice(color: initialPooColor))
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             Form {
                 Section("Nappy") {

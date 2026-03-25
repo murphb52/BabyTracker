@@ -1,13 +1,12 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import SwiftUI
 
-enum BabyEventStyle {
-    static func systemImage(for kind: BabyEventKind) -> String {
+public enum BabyEventStyle {
+    public static func systemImage(for kind: BabyEventKind) -> String {
         BabyEventPresentation.systemImage(for: kind)
     }
 
-    static func accentColor(for kind: BabyEventKind) -> Color {
+    public static func accentColor(for kind: BabyEventKind) -> Color {
         switch kind {
         case .breastFeed:
             Color(red: 0.84, green: 0.29, blue: 0.42)
@@ -20,11 +19,11 @@ enum BabyEventStyle {
         }
     }
 
-    static func backgroundColor(for kind: BabyEventKind) -> Color {
+    public static func backgroundColor(for kind: BabyEventKind) -> Color {
         accentColor(for: kind).opacity(0.14)
     }
 
-    static func cardFillColor(for kind: BabyEventKind) -> Color {
+    public static func cardFillColor(for kind: BabyEventKind) -> Color {
         switch kind {
         case .breastFeed:
             Color(red: 0.98, green: 0.93, blue: 0.95)
@@ -37,11 +36,11 @@ enum BabyEventStyle {
         }
     }
 
-    static func timelineFillColor(for kind: BabyEventKind) -> Color {
+    public static func timelineFillColor(for kind: BabyEventKind) -> Color {
         accentColor(for: kind)
     }
 
-    static func timelineBorderColor(for kind: BabyEventKind) -> Color {
+    public static func timelineBorderColor(for kind: BabyEventKind) -> Color {
         accentColor(for: kind).opacity(0.8)
     }
 }

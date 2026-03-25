@@ -1,9 +1,11 @@
 import SwiftUI
 
-struct JoinChildShareInstructionsView: View {
+public struct JoinChildShareInstructionsView: View {
     @Environment(\.dismiss) private var dismiss
 
-    var body: some View {
+    public init() {}
+
+    public var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {

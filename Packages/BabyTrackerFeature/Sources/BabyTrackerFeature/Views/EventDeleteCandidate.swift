@@ -1,28 +1,27 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import Foundation
 
-struct EventDeleteCandidate: Identifiable {
-    let id: UUID
-    let kind: BabyEventKind
-    let title: String
-    let timestampText: String
+public struct EventDeleteCandidate: Identifiable {
+    public let id: UUID
+    public let kind: BabyEventKind
+    public let title: String
+    public let timestampText: String
 
-    init(event: EventCardViewState) {
+    public init(event: EventCardViewState) {
         id = event.id
         kind = event.kind
         title = event.title
         timestampText = event.timestampText
     }
 
-    init(event: TimelineEventBlockViewState) {
+    public init(event: TimelineEventBlockViewState) {
         id = event.id
         kind = event.kind
         title = event.title
         timestampText = event.timeText
     }
 
-    var dialogTitle: String {
+    public var dialogTitle: String {
         switch kind {
         case .breastFeed, .bottleFeed:
             return "Delete Feed?"
@@ -33,7 +32,7 @@ struct EventDeleteCandidate: Identifiable {
         }
     }
 
-    var confirmButtonTitle: String {
+    public var confirmButtonTitle: String {
         switch kind {
         case .breastFeed, .bottleFeed:
             return "Delete Feed"

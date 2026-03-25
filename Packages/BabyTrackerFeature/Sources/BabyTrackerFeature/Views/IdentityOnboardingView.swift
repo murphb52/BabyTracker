@@ -1,7 +1,6 @@
-import BabyTrackerFeature
 import SwiftUI
 
-struct IdentityOnboardingView: View {
+public struct IdentityOnboardingView: View {
     let model: AppModel
 
     @State private var displayName = ""
@@ -10,7 +9,11 @@ struct IdentityOnboardingView: View {
         displayName.trimmingCharacters(in: .whitespaces)
     }
 
-    var body: some View {
+    public init(model: AppModel) {
+        self.model = model
+    }
+
+    public var body: some View {
         ZStack {
             Color(.systemGroupedBackground).ignoresSafeArea()
 

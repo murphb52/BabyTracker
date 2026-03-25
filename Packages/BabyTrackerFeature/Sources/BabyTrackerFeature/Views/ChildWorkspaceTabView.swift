@@ -1,8 +1,7 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import SwiftUI
 
-struct ChildWorkspaceTabView: View {
+public struct ChildWorkspaceTabView: View {
     let model: AppModel
     let profile: ChildProfileScreenState
 
@@ -11,7 +10,15 @@ struct ChildWorkspaceTabView: View {
     @State private var deleteCandidate: EventDeleteCandidate?
     @State private var showingEditChildSheet = false
 
-    var body: some View {
+    public init(
+        model: AppModel,
+        profile: ChildProfileScreenState
+    ) {
+        self.model = model
+        self.profile = profile
+    }
+
+    public var body: some View {
         @Bindable var bindableModel = model
 
         TabView(selection: $selectedTab) {
@@ -322,7 +329,7 @@ struct ChildWorkspaceTabView: View {
 }
 
 extension ChildWorkspaceTabView {
-    enum Tab: Hashable {
+    public enum Tab: Hashable {
         case home
         case events
         case timeline

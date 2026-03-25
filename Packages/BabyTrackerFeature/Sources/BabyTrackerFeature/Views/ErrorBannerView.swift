@@ -1,10 +1,18 @@
 import SwiftUI
 
-struct ErrorBannerView: View {
+public struct ErrorBannerView: View {
     let message: String
     let dismissAction: () -> Void
 
-    var body: some View {
+    public init(
+        message: String,
+        dismissAction: @escaping () -> Void
+    ) {
+        self.message = message
+        self.dismissAction = dismissAction
+    }
+
+    public var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Something went wrong")

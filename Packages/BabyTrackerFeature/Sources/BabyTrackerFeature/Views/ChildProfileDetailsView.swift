@@ -1,12 +1,19 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import SwiftUI
 
-struct ChildProfileDetailsView: View {
+public struct ChildProfileDetailsView: View {
     let profile: ChildProfileScreenState
     let editChildAction: () -> Void
 
-    var body: some View {
+    public init(
+        profile: ChildProfileScreenState,
+        editChildAction: @escaping () -> Void
+    ) {
+        self.profile = profile
+        self.editChildAction = editChildAction
+    }
+
+    public var body: some View {
         List {
             Section("Child") {
                 LabeledContent("Name") {

@@ -1,12 +1,19 @@
 import BabyTrackerDomain
-import BabyTrackerFeature
 import SwiftUI
 
-struct ChildProfileArchiveView: View {
+public struct ChildProfileArchiveView: View {
     let profile: ChildProfileScreenState
     let archiveAction: () -> Void
 
-    var body: some View {
+    public init(
+        profile: ChildProfileScreenState,
+        archiveAction: @escaping () -> Void
+    ) {
+        self.profile = profile
+        self.archiveAction = archiveAction
+    }
+
+    public var body: some View {
         List {
             Section {
                 Text("Archived child profiles are removed from the main flow until restored.")

@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ChildEditSheetView: View {
+public struct ChildEditSheetView: View {
     let initialName: String
     let initialBirthDate: Date?
     let saveAction: (_ name: String, _ birthDate: Date?) -> Void
@@ -10,7 +10,17 @@ struct ChildEditSheetView: View {
     @State private var includesBirthDate = false
     @State private var birthDate = Date()
 
-    var body: some View {
+    public init(
+        initialName: String,
+        initialBirthDate: Date?,
+        saveAction: @escaping (_ name: String, _ birthDate: Date?) -> Void
+    ) {
+        self.initialName = initialName
+        self.initialBirthDate = initialBirthDate
+        self.saveAction = saveAction
+    }
+
+    public var body: some View {
         NavigationStack {
             Form {
                 Section("Child") {
