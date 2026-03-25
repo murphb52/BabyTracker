@@ -1,16 +1,13 @@
 import BabyTrackerDomain
 import Foundation
 
-/// Persistence operations for child profiles and their associated CloudKit sync context.
+// ChildRepository (core CRUD) has been moved to BabyTrackerDomain.
+// This file defines the CloudKit-extended refinement used by CloudKitSyncEngine.
+
+/// Extends ChildRepository with CloudKit zone context persistence.
+/// Only consumed by CloudKitSyncEngine — domain use cases depend on ChildRepository directly.
 @MainActor
-public protocol ChildRepository: AnyObject {
-    func loadAllChildren() throws -> [Child]
-    func loadActiveChildren(for userID: UUID) throws -> [Child]
-    func loadArchivedChildren(for userID: UUID) throws -> [Child]
-    func loadChild(id: UUID) throws -> Child?
-    func saveChild(_ child: Child) throws
+public protocol CloudKitChildRepository: ChildRepository {
     func loadCloudKitChildContext(id: UUID) throws -> CloudKitChildContext?
     func saveCloudKitChildContext(_ context: CloudKitChildContext) throws
-    /// Deletes all data associated with a child (memberships, events, the child record itself).
-    func purgeChildData(id: UUID) throws
 }

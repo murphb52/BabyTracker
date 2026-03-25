@@ -8,9 +8,9 @@ import os
 public final class CloudKitSyncEngine {
     public private(set) var statusSummary = SyncStatusSummary()
 
-    private let childRepository: any ChildRepository
-    private let userIdentityRepository: any UserIdentityRepository
-    private let membershipRepository: any MembershipRepository
+    private let childRepository: any CloudKitChildRepository
+    private let userIdentityRepository: any CloudKitUserIdentityRepository
+    private let membershipRepository: any CloudKitMembershipRepository
     private let eventRepository: EventRepository
     private let syncStateRepository: SyncStateRepository
     private let client: CloudKitClient
@@ -20,9 +20,9 @@ public final class CloudKitSyncEngine {
     private let logger = Logger(subsystem: "com.adappt.BabyTracker", category: "CloudKitSync")
 
     public init(
-        childRepository: any ChildRepository,
-        userIdentityRepository: any UserIdentityRepository,
-        membershipRepository: any MembershipRepository,
+        childRepository: any CloudKitChildRepository,
+        userIdentityRepository: any CloudKitUserIdentityRepository,
+        membershipRepository: any CloudKitMembershipRepository,
         eventRepository: EventRepository,
         syncStateRepository: SyncStateRepository,
         client: CloudKitClient = LiveCloudKitClient()
