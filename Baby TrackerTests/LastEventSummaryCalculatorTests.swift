@@ -38,7 +38,7 @@ struct LastEventSummaryCalculatorTests {
                         createdBy: userID
                     ),
                     type: .mixed,
-                    intensity: .high
+                    pooVolume: .heavy
                 )
             ),
         ]
@@ -47,7 +47,7 @@ struct LastEventSummaryCalculatorTests {
 
         #expect(summary.kind == .nappy)
         #expect(summary.title == "Nappy")
-        #expect(summary.detailText == "Mixed • High")
+        #expect(summary.detailText == "Mixed • Poo: Heavy")
         #expect(summary.occurredAt == nappyTime)
     }
 

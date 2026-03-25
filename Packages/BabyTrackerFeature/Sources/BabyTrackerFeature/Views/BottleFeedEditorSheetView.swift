@@ -41,12 +41,8 @@ public struct BottleFeedEditorSheetView: View {
                         .keyboardType(.numberPad)
                         .accessibilityIdentifier("bottle-feed-amount-field")
 
-                    DatePicker(
-                        "Time",
-                        selection: $occurredAt,
-                        displayedComponents: [.date, .hourAndMinute]
-                    )
-                    .accessibilityIdentifier("bottle-feed-time-picker")
+                    QuickTimeSelectorView(selection: $occurredAt)
+                        .accessibilityIdentifier("bottle-feed-time-selector")
 
                     Picker("Milk Type", selection: $milkType) {
                         ForEach(MilkTypeChoice.allCases) { option in

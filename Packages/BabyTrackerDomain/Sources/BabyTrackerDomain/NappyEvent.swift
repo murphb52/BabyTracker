@@ -3,7 +3,8 @@ import Foundation
 public struct NappyEvent: Equatable, Identifiable, Sendable {
     public var metadata: EventMetadata
     public var type: NappyType
-    public var intensity: NappyIntensity?
+    public var peeVolume: NappyVolume?
+    public var pooVolume: NappyVolume?
     public var pooColor: PooColor?
 
     public var id: UUID {
@@ -13,25 +14,29 @@ public struct NappyEvent: Equatable, Identifiable, Sendable {
     public init(
         metadata: EventMetadata,
         type: NappyType,
-        intensity: NappyIntensity? = nil,
+        peeVolume: NappyVolume? = nil,
+        pooVolume: NappyVolume? = nil,
         pooColor: PooColor? = nil
     ) throws {
         _ = try NappyEntry(
             type: type,
-            intensity: intensity,
+            peeVolume: peeVolume,
+            pooVolume: pooVolume,
             pooColor: pooColor
         )
 
         self.metadata = metadata
         self.type = type
-        self.intensity = intensity
+        self.peeVolume = peeVolume
+        self.pooVolume = pooVolume
         self.pooColor = pooColor
     }
 
     public func updating(
         type: NappyType,
         occurredAt: Date,
-        intensity: NappyIntensity?,
+        peeVolume: NappyVolume?,
+        pooVolume: NappyVolume?,
         pooColor: PooColor?,
         updatedAt: Date = Date(),
         updatedBy: UUID
@@ -43,7 +48,8 @@ public struct NappyEvent: Equatable, Identifiable, Sendable {
         return try NappyEvent(
             metadata: metadata,
             type: type,
-            intensity: intensity,
+            peeVolume: peeVolume,
+            pooVolume: pooVolume,
             pooColor: pooColor
         )
     }

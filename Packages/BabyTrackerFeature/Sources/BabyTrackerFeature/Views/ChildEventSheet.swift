@@ -4,14 +4,16 @@ import Foundation
 public enum ChildEventSheet: Identifiable {
     case quickLogBreastFeed
     case quickLogBottleFeed
-    case startSleep
+    case startSleep(suggestions: [(label: String, date: Date)])
     case endSleep(id: UUID, startedAt: Date)
     case quickLogNappy(NappyType)
     case editBreastFeed(
         id: UUID,
         durationMinutes: Int,
         endTime: Date,
-        side: BreastSide?
+        side: BreastSide?,
+        leftDurationSeconds: Int?,
+        rightDurationSeconds: Int?
     )
     case editBottleFeed(
         id: UUID,
@@ -28,18 +30,21 @@ public enum ChildEventSheet: Identifiable {
         id: UUID,
         type: NappyType,
         occurredAt: Date,
-        intensity: NappyIntensity?,
+        peeVolume: NappyVolume?,
+        pooVolume: NappyVolume?,
         pooColor: PooColor?
     )
 
     public init(id: UUID, actionPayload: EventActionPayload) {
         switch actionPayload {
-        case let .editBreastFeed(durationMinutes, endTime, side):
+        case let .editBreastFeed(durationMinutes, endTime, side, leftDurationSeconds, rightDurationSeconds):
             self = .editBreastFeed(
                 id: id,
                 durationMinutes: durationMinutes,
                 endTime: endTime,
-                side: side
+                side: side,
+                leftDurationSeconds: leftDurationSeconds,
+                rightDurationSeconds: rightDurationSeconds
             )
         case let .editBottleFeed(amountMilliliters, occurredAt, milkType):
             self = .editBottleFeed(
@@ -48,12 +53,13 @@ public enum ChildEventSheet: Identifiable {
                 occurredAt: occurredAt,
                 milkType: milkType
             )
-        case let .editNappy(type, occurredAt, intensity, pooColor):
+        case let .editNappy(type, occurredAt, peeVolume, pooVolume, pooColor):
             self = .editNappy(
                 id: id,
                 type: type,
                 occurredAt: occurredAt,
-                intensity: intensity,
+                peeVolume: peeVolume,
+                pooVolume: pooVolume,
                 pooColor: pooColor
             )
         case let .editSleep(startedAt, endedAt):
@@ -79,13 +85,13 @@ public enum ChildEventSheet: Identifiable {
             "end-sleep-\(id.uuidString)"
         case let .quickLogNappy(type):
             "quick-log-nappy-\(type.rawValue)"
-        case let .editBreastFeed(id, _, _, _):
+        case let .editBreastFeed(id, _, _, _, _, _):
             "edit-breast-feed-\(id.uuidString)"
         case let .editBottleFeed(id, _, _, _):
             "edit-bottle-feed-\(id.uuidString)"
         case let .editSleep(id, _, _):
             "edit-sleep-\(id.uuidString)"
-        case let .editNappy(id, _, _, _, _):
+        case let .editNappy(id, _, _, _, _, _):
             "edit-nappy-\(id.uuidString)"
         }
     }

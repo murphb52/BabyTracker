@@ -5,6 +5,8 @@ public struct BreastFeedEvent: Equatable, Identifiable, Sendable {
     public var side: BreastSide?
     public var startedAt: Date
     public var endedAt: Date
+    public var leftDurationSeconds: Int?
+    public var rightDurationSeconds: Int?
 
     public var id: UUID {
         metadata.id
@@ -14,7 +16,9 @@ public struct BreastFeedEvent: Equatable, Identifiable, Sendable {
         metadata: EventMetadata,
         side: BreastSide?,
         startedAt: Date,
-        endedAt: Date
+        endedAt: Date,
+        leftDurationSeconds: Int? = nil,
+        rightDurationSeconds: Int? = nil
     ) throws {
         guard endedAt > startedAt else {
             throw BabyEventError.invalidDateRange
@@ -24,12 +28,16 @@ public struct BreastFeedEvent: Equatable, Identifiable, Sendable {
         self.side = side
         self.startedAt = startedAt
         self.endedAt = endedAt
+        self.leftDurationSeconds = leftDurationSeconds
+        self.rightDurationSeconds = rightDurationSeconds
     }
 
     public func updating(
         durationMinutes: Int,
         endTime: Date,
         side: BreastSide?,
+        leftDurationSeconds: Int? = nil,
+        rightDurationSeconds: Int? = nil,
         updatedAt: Date = Date(),
         updatedBy: UUID
     ) throws -> BreastFeedEvent {
@@ -43,7 +51,9 @@ public struct BreastFeedEvent: Equatable, Identifiable, Sendable {
             metadata: metadata,
             side: side,
             startedAt: startedAt,
-            endedAt: endTime
+            endedAt: endTime,
+            leftDurationSeconds: leftDurationSeconds,
+            rightDurationSeconds: rightDurationSeconds
         )
     }
 }

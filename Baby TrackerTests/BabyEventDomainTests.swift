@@ -212,20 +212,21 @@ struct BabyEventDomainTests {
                 createdBy: userID
             ),
             type: .poo,
-            intensity: .medium,
+            pooVolume: .medium,
             pooColor: .brown
         )
 
         let updated = try original.updating(
             type: .mixed,
             occurredAt: occurredAt.addingTimeInterval(300),
-            intensity: .high,
+            peeVolume: nil,
+            pooVolume: .heavy,
             pooColor: .green,
             updatedBy: userID
         )
 
         #expect(updated.type == .mixed)
-        #expect(updated.intensity == .high)
+        #expect(updated.pooVolume == .heavy)
         #expect(updated.pooColor == .green)
         #expect(updated.metadata.occurredAt == occurredAt.addingTimeInterval(300))
 
@@ -233,7 +234,8 @@ struct BabyEventDomainTests {
             _ = try original.updating(
                 type: .dry,
                 occurredAt: occurredAt.addingTimeInterval(600),
-                intensity: .low,
+                peeVolume: nil,
+                pooVolume: nil,
                 pooColor: .yellow,
                 updatedBy: userID
             )

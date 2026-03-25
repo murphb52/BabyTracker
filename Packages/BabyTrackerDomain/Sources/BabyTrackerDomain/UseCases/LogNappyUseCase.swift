@@ -7,7 +7,8 @@ public struct LogNappyUseCase: UseCase {
         public let localUserID: UUID
         public let type: NappyType
         public let occurredAt: Date
-        public let intensity: NappyIntensity?
+        public let peeVolume: NappyVolume?
+        public let pooVolume: NappyVolume?
         public let pooColor: PooColor?
         public let membership: Membership
 
@@ -16,7 +17,8 @@ public struct LogNappyUseCase: UseCase {
             localUserID: UUID,
             type: NappyType,
             occurredAt: Date,
-            intensity: NappyIntensity?,
+            peeVolume: NappyVolume?,
+            pooVolume: NappyVolume?,
             pooColor: PooColor?,
             membership: Membership
         ) {
@@ -24,7 +26,8 @@ public struct LogNappyUseCase: UseCase {
             self.localUserID = localUserID
             self.type = type
             self.occurredAt = occurredAt
-            self.intensity = intensity
+            self.peeVolume = peeVolume
+            self.pooVolume = pooVolume
             self.pooColor = pooColor
             self.membership = membership
         }
@@ -49,7 +52,8 @@ public struct LogNappyUseCase: UseCase {
                 createdBy: input.localUserID
             ),
             type: input.type,
-            intensity: input.intensity,
+            peeVolume: input.peeVolume,
+            pooVolume: input.pooVolume,
             pooColor: input.pooColor
         )
 

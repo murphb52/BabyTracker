@@ -80,11 +80,11 @@ struct ChildProfileDomainTests {
         }
 
         #expect(throws: Never.self) {
-            _ = try NappyEntry(type: .poo, intensity: .medium, pooColor: .brown)
+            _ = try NappyEntry(type: .poo, pooVolume: .medium, pooColor: .brown)
         }
 
         #expect(throws: Never.self) {
-            _ = try NappyEntry(type: .mixed, intensity: .high, pooColor: .green)
+            _ = try NappyEntry(type: .mixed, pooVolume: .heavy, pooColor: .green)
         }
     }
 }

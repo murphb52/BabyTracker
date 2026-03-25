@@ -8,6 +8,8 @@ public struct UpdateBreastFeedUseCase: UseCase {
         public let durationMinutes: Int
         public let endTime: Date
         public let side: BreastSide?
+        public let leftDurationSeconds: Int?
+        public let rightDurationSeconds: Int?
         public let membership: Membership
 
         public init(
@@ -16,6 +18,8 @@ public struct UpdateBreastFeedUseCase: UseCase {
             durationMinutes: Int,
             endTime: Date,
             side: BreastSide?,
+            leftDurationSeconds: Int? = nil,
+            rightDurationSeconds: Int? = nil,
             membership: Membership
         ) {
             self.eventID = eventID
@@ -23,6 +27,8 @@ public struct UpdateBreastFeedUseCase: UseCase {
             self.durationMinutes = durationMinutes
             self.endTime = endTime
             self.side = side
+            self.leftDurationSeconds = leftDurationSeconds
+            self.rightDurationSeconds = rightDurationSeconds
             self.membership = membership
         }
     }
@@ -46,6 +52,8 @@ public struct UpdateBreastFeedUseCase: UseCase {
             durationMinutes: input.durationMinutes,
             endTime: input.endTime,
             side: input.side,
+            leftDurationSeconds: input.leftDurationSeconds,
+            rightDurationSeconds: input.rightDurationSeconds,
             updatedBy: input.localUserID
         )
         try eventRepository.saveEvent(.breastFeed(updatedEvent))

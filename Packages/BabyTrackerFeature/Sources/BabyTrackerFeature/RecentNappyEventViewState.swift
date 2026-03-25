@@ -23,7 +23,8 @@ public struct RecentNappyEventViewState: Equatable, Identifiable, Sendable {
         editPayload = EditPayload(
             type: nappyEvent.type,
             occurredAt: nappyEvent.metadata.occurredAt,
-            intensity: nappyEvent.intensity,
+            peeVolume: nappyEvent.peeVolume,
+            pooVolume: nappyEvent.pooVolume,
             pooColor: nappyEvent.pooColor
         )
     }
@@ -33,18 +34,21 @@ extension RecentNappyEventViewState {
     public struct EditPayload: Equatable, Sendable {
         public let type: NappyType
         public let occurredAt: Date
-        public let intensity: NappyIntensity?
+        public let peeVolume: NappyVolume?
+        public let pooVolume: NappyVolume?
         public let pooColor: PooColor?
 
         public init(
             type: NappyType,
             occurredAt: Date,
-            intensity: NappyIntensity?,
+            peeVolume: NappyVolume?,
+            pooVolume: NappyVolume?,
             pooColor: PooColor?
         ) {
             self.type = type
             self.occurredAt = occurredAt
-            self.intensity = intensity
+            self.peeVolume = peeVolume
+            self.pooVolume = pooVolume
             self.pooColor = pooColor
         }
     }

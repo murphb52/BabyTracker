@@ -43,7 +43,7 @@ struct LastNappySummaryCalculatorTests {
                         createdBy: userID
                     ),
                     type: .wee,
-                    intensity: .low
+                    peeVolume: .light
                 )
             ),
             .nappy(
@@ -55,7 +55,7 @@ struct LastNappySummaryCalculatorTests {
                         createdBy: userID
                     ),
                     type: .mixed,
-                    intensity: .high,
+                    pooVolume: .heavy,
                     pooColor: .green
                 )
             ),
@@ -64,7 +64,7 @@ struct LastNappySummaryCalculatorTests {
         let summary = try #require(LastNappySummaryCalculator.makeSummary(from: events))
 
         #expect(summary.title == "Nappy")
-        #expect(summary.detailText == "Mixed • High • Green")
+        #expect(summary.detailText == "Mixed • Poo: Heavy • Green")
         #expect(summary.occurredAt == laterTime)
     }
 }

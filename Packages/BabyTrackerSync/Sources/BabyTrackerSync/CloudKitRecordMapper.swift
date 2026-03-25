@@ -143,6 +143,8 @@ public enum CloudKitRecordMapper {
         }
         record["startedAt"] = event.startedAt
         record["endedAt"] = event.endedAt
+        record["leftDurationSeconds"] = event.leftDurationSeconds
+        record["rightDurationSeconds"] = event.rightDurationSeconds
         return record
     }
 
@@ -193,7 +195,8 @@ public enum CloudKitRecordMapper {
         )
         applyMetadata(event.metadata, to: record)
         record["type"] = event.type.rawValue
-        record["intensity"] = event.intensity?.rawValue
+        record["peeVolume"] = event.peeVolume?.rawValue
+        record["pooVolume"] = event.pooVolume?.rawValue
         record["pooColor"] = event.pooColor?.rawValue
         return record
     }
@@ -203,7 +206,9 @@ public enum CloudKitRecordMapper {
             metadata: metadata(from: record, prefix: "breastFeed."),
             side: (record["side"] as? String).flatMap(BreastSide.init(rawValue:)),
             startedAt: record["startedAt"] as? Date ?? .now,
-            endedAt: record["endedAt"] as? Date ?? .now
+            endedAt: record["endedAt"] as? Date ?? .now,
+            leftDurationSeconds: record["leftDurationSeconds"] as? Int,
+            rightDurationSeconds: record["rightDurationSeconds"] as? Int
         )
     }
 
@@ -227,7 +232,8 @@ public enum CloudKitRecordMapper {
         try NappyEvent(
             metadata: metadata(from: record, prefix: "nappy."),
             type: NappyType(rawValue: record["type"] as? String ?? "") ?? .dry,
-            intensity: (record["intensity"] as? String).flatMap(NappyIntensity.init(rawValue:)),
+            peeVolume: (record["peeVolume"] as? String).flatMap(NappyVolume.init(rawValue:)),
+            pooVolume: (record["pooVolume"] as? String).flatMap(NappyVolume.init(rawValue:)),
             pooColor: (record["pooColor"] as? String).flatMap(PooColor.init(rawValue:))
         )
     }

@@ -5,7 +5,9 @@ public enum EventActionPayload: Equatable, Sendable {
     case editBreastFeed(
         durationMinutes: Int,
         endTime: Date,
-        side: BreastSide?
+        side: BreastSide?,
+        leftDurationSeconds: Int?,
+        rightDurationSeconds: Int?
     )
     case editBottleFeed(
         amountMilliliters: Int,
@@ -15,7 +17,8 @@ public enum EventActionPayload: Equatable, Sendable {
     case editNappy(
         type: NappyType,
         occurredAt: Date,
-        intensity: NappyIntensity?,
+        peeVolume: NappyVolume?,
+        pooVolume: NappyVolume?,
         pooColor: PooColor?
     )
     case editSleep(
