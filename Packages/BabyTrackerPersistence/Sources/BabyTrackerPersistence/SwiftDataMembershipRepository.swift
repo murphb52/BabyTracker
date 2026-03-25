@@ -3,7 +3,7 @@ import Foundation
 import SwiftData
 
 @MainActor
-public final class SwiftDataMembershipRepository: MembershipRepository {
+public final class SwiftDataMembershipRepository: CloudKitMembershipRepository {
     private let store: BabyTrackerModelStore
 
     public init(store: BabyTrackerModelStore) {

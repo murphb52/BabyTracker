@@ -86,67 +86,55 @@ public final class AppModel {
 
     public func createLocalUser(displayName: String) {
         perform {
-            let user = try UserIdentity(displayName: displayName)
-            try userIdentityRepository.saveLocalUser(user)
+            _ = try CreateLocalUserUseCase(userIdentityRepository: userIdentityRepository)
+                .execute(.init(displayName: displayName))
         }
     }
 
     public func createChild(name: String, birthDate: Date?) {
         perform {
             guard let localUser else { return }
-
-            let child = try Child(
-                name: name,
-                birthDate: birthDate,
-                createdBy: localUser.id
-            )
-            let ownerMembership = Membership.owner(
-                childID: child.id,
-                userID: localUser.id,
-                createdAt: child.createdAt
-            )
-
-            try childRepository.saveChild(child)
-            try membershipRepository.saveMembership(ownerMembership)
-            childSelectionStore.saveSelectedChildID(child.id)
+            _ = try CreateChildUseCase(
+                childRepository: childRepository,
+                membershipRepository: membershipRepository,
+                childSelectionStore: childSelectionStore
+            ).execute(.init(name: name, birthDate: birthDate, localUser: localUser))
         }
     }
 
     public func updateCurrentChild(name: String, birthDate: Date?) {
         perform {
             guard let profile else { return }
-            guard profile.canEditChild else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-
-            let updatedChild = try profile.child.updating(name: name, birthDate: birthDate)
-            try childRepository.saveChild(updatedChild)
+            _ = try UpdateCurrentChildUseCase(childRepository: childRepository)
+                .execute(.init(
+                    child: profile.child,
+                    name: name,
+                    birthDate: birthDate,
+                    membership: profile.currentMembership
+                ))
         }
     }
 
     public func archiveCurrentChild() {
         perform {
             guard let profile else { return }
-            guard profile.canArchiveChild else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-
-            var archivedChild = profile.child
-            archivedChild.isArchived = true
-            try childRepository.saveChild(archivedChild)
-
-            if childSelectionStore.loadSelectedChildID() == archivedChild.id {
-                childSelectionStore.saveSelectedChildID(nil)
-            }
+            try ArchiveCurrentChildUseCase(
+                childRepository: childRepository,
+                childSelectionStore: childSelectionStore
+            ).execute(.init(
+                child: profile.child,
+                membership: profile.currentMembership,
+                currentSelectedChildID: childSelectionStore.loadSelectedChildID()
+            ))
         }
     }
 
     public func restoreChild(id: UUID) {
         perform {
-            guard var restoredChild = try childRepository.loadChild(id: id) else { return }
-            restoredChild.isArchived = false
-            try childRepository.saveChild(restoredChild)
-            childSelectionStore.saveSelectedChildID(id)
+            _ = try RestoreChildUseCase(
+                childRepository: childRepository,
+                childSelectionStore: childSelectionStore
+            ).execute(.init(childID: id))
         }
     }
 
@@ -225,24 +213,12 @@ public final class AppModel {
         }
 
         perform {
-            guard profile.canManageSharing else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-
-            let candidateMemberships = profile.activeCaregivers.map(\.membership) +
-                profile.removedCaregivers.map(\.membership) +
-                (profile.owner.map { [$0.membership] } ?? [])
-
-            guard let membership = candidateMemberships.first(where: { $0.id == membershipID }) else {
-                return
-            }
-
-            try MembershipValidator.validateRemoval(
-                of: membership,
-                within: candidateMemberships
-            )
-            let removedMembership = try membership.removed()
-            try membershipRepository.saveMembership(removedMembership)
+            let removedMembership = try RemoveCaregiverUseCase(membershipRepository: membershipRepository)
+                .execute(.init(
+                    membershipID: membershipID,
+                    childID: profile.child.id,
+                    actingMembership: profile.currentMembership
+                ))
 
             Task { @MainActor in
                 try? await syncEngine.removeParticipant(membership: removedMembership)
@@ -275,30 +251,17 @@ public final class AppModel {
         side: BreastSide?
     ) -> Bool {
         perform {
-            guard let profile else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let localUser else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard profile.canLogEvents else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-
-            let startedAt = endTime.addingTimeInterval(TimeInterval(durationMinutes * -60))
-            let event = try BreastFeedEvent(
-                metadata: EventMetadata(
+            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            _ = try LogBreastFeedUseCase(eventRepository: eventRepository)
+                .execute(.init(
                     childID: profile.child.id,
-                    occurredAt: endTime,
-                    createdAt: .now,
-                    createdBy: localUser.id
-                ),
-                side: side,
-                startedAt: startedAt,
-                endedAt: endTime
-            )
-
-            try eventRepository.saveEvent(.breastFeed(event))
+                    localUserID: localUser.id,
+                    durationMinutes: durationMinutes,
+                    endTime: endTime,
+                    side: side,
+                    membership: profile.currentMembership
+                ))
         }
     }
 
@@ -309,28 +272,17 @@ public final class AppModel {
         milkType: MilkType?
     ) -> Bool {
         perform {
-            guard let profile else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let localUser else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard profile.canLogEvents else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-
-            let event = try BottleFeedEvent(
-                metadata: EventMetadata(
+            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            _ = try LogBottleFeedUseCase(eventRepository: eventRepository)
+                .execute(.init(
                     childID: profile.child.id,
+                    localUserID: localUser.id,
+                    amountMilliliters: amountMilliliters,
                     occurredAt: occurredAt,
-                    createdAt: .now,
-                    createdBy: localUser.id
-                ),
-                amountMilliliters: amountMilliliters,
-                milkType: milkType
-            )
-
-            try eventRepository.saveEvent(.bottleFeed(event))
+                    milkType: milkType,
+                    membership: profile.currentMembership
+                ))
         }
     }
 
@@ -342,60 +294,33 @@ public final class AppModel {
         pooColor: PooColor?
     ) -> Bool {
         perform {
-            guard let profile else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let localUser else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard profile.canLogEvents else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-
-            let event = try NappyEvent(
-                metadata: EventMetadata(
+            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            _ = try LogNappyUseCase(eventRepository: eventRepository)
+                .execute(.init(
                     childID: profile.child.id,
+                    localUserID: localUser.id,
+                    type: type,
                     occurredAt: occurredAt,
-                    createdAt: .now,
-                    createdBy: localUser.id
-                ),
-                type: type,
-                intensity: intensity,
-                pooColor: pooColor
-            )
-
-            try eventRepository.saveEvent(.nappy(event))
+                    intensity: intensity,
+                    pooColor: pooColor,
+                    membership: profile.currentMembership
+                ))
         }
     }
 
     @discardableResult
     public func startSleep(startedAt: Date) -> Bool {
         perform {
-            guard let profile else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let localUser else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard profile.canLogEvents else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard try eventRepository.loadActiveSleepEvent(for: profile.child.id) == nil else {
-                throw BabyEventError.activeSleepAlreadyInProgress
-            }
-
-            let event = try SleepEvent(
-                metadata: EventMetadata(
+            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            _ = try StartSleepUseCase(eventRepository: eventRepository)
+                .execute(.init(
                     childID: profile.child.id,
-                    occurredAt: startedAt,
-                    createdAt: .now,
-                    createdBy: localUser.id
-                ),
-                startedAt: startedAt,
-                endedAt: nil
-            )
-
-            try eventRepository.saveEvent(.sleep(event))
+                    localUserID: localUser.id,
+                    startedAt: startedAt,
+                    membership: profile.currentMembership
+                ))
         }
     }
 
@@ -406,28 +331,16 @@ public final class AppModel {
         endedAt: Date
     ) -> Bool {
         perform {
-            guard let profile else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let localUser else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard profile.canLogEvents else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let event = try eventRepository.loadEvent(id: id) else {
-                throw BabyEventError.noActiveSleepInProgress
-            }
-            guard case let .sleep(sleepEvent) = event, sleepEvent.endedAt == nil else {
-                throw BabyEventError.noActiveSleepInProgress
-            }
-
-            let updatedEvent = try sleepEvent.updating(
-                startedAt: startedAt,
-                endedAt: endedAt,
-                updatedBy: localUser.id
-            )
-            try eventRepository.saveEvent(.sleep(updatedEvent))
+            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            _ = try EndSleepUseCase(eventRepository: eventRepository)
+                .execute(.init(
+                    eventID: id,
+                    localUserID: localUser.id,
+                    startedAt: startedAt,
+                    endedAt: endedAt,
+                    membership: profile.currentMembership
+                ))
         }
     }
 
@@ -439,29 +352,17 @@ public final class AppModel {
         side: BreastSide?
     ) -> Bool {
         perform {
-            guard let profile else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let localUser else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard profile.canManageEvents else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let event = try eventRepository.loadEvent(id: id) else {
-                return
-            }
-            guard case let .breastFeed(feed) = event else {
-                return
-            }
-
-            let updatedEvent = try feed.updating(
-                durationMinutes: durationMinutes,
-                endTime: endTime,
-                side: side,
-                updatedBy: localUser.id
-            )
-            try eventRepository.saveEvent(.breastFeed(updatedEvent))
+            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            try UpdateBreastFeedUseCase(eventRepository: eventRepository)
+                .execute(.init(
+                    eventID: id,
+                    localUserID: localUser.id,
+                    durationMinutes: durationMinutes,
+                    endTime: endTime,
+                    side: side,
+                    membership: profile.currentMembership
+                ))
         }
     }
 
@@ -473,29 +374,17 @@ public final class AppModel {
         milkType: MilkType?
     ) -> Bool {
         perform {
-            guard let profile else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let localUser else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard profile.canManageEvents else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let event = try eventRepository.loadEvent(id: id) else {
-                return
-            }
-            guard case let .bottleFeed(feed) = event else {
-                return
-            }
-
-            let updatedEvent = try feed.updating(
-                amountMilliliters: amountMilliliters,
-                occurredAt: occurredAt,
-                milkType: milkType,
-                updatedBy: localUser.id
-            )
-            try eventRepository.saveEvent(.bottleFeed(updatedEvent))
+            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            try UpdateBottleFeedUseCase(eventRepository: eventRepository)
+                .execute(.init(
+                    eventID: id,
+                    localUserID: localUser.id,
+                    amountMilliliters: amountMilliliters,
+                    occurredAt: occurredAt,
+                    milkType: milkType,
+                    membership: profile.currentMembership
+                ))
         }
     }
 
@@ -508,30 +397,18 @@ public final class AppModel {
         pooColor: PooColor?
     ) -> Bool {
         perform {
-            guard let profile else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let localUser else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard profile.canManageEvents else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let event = try eventRepository.loadEvent(id: id) else {
-                return
-            }
-            guard case let .nappy(nappyEvent) = event else {
-                return
-            }
-
-            let updatedEvent = try nappyEvent.updating(
-                type: type,
-                occurredAt: occurredAt,
-                intensity: intensity,
-                pooColor: pooColor,
-                updatedBy: localUser.id
-            )
-            try eventRepository.saveEvent(.nappy(updatedEvent))
+            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            try UpdateNappyUseCase(eventRepository: eventRepository)
+                .execute(.init(
+                    eventID: id,
+                    localUserID: localUser.id,
+                    type: type,
+                    occurredAt: occurredAt,
+                    intensity: intensity,
+                    pooColor: pooColor,
+                    membership: profile.currentMembership
+                ))
         }
     }
 
@@ -542,73 +419,44 @@ public final class AppModel {
         endedAt: Date
     ) -> Bool {
         perform {
-            guard let profile else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let localUser else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard profile.canManageEvents else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let event = try eventRepository.loadEvent(id: id) else {
-                return
-            }
-            guard case let .sleep(sleepEvent) = event, sleepEvent.endedAt != nil else {
-                return
-            }
-
-            let updatedEvent = try sleepEvent.updating(
-                startedAt: startedAt,
-                endedAt: endedAt,
-                updatedBy: localUser.id
-            )
-            try eventRepository.saveEvent(.sleep(updatedEvent))
+            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            try UpdateSleepUseCase(eventRepository: eventRepository)
+                .execute(.init(
+                    eventID: id,
+                    localUserID: localUser.id,
+                    startedAt: startedAt,
+                    endedAt: endedAt,
+                    membership: profile.currentMembership
+                ))
         }
     }
 
     @discardableResult
     public func deleteEvent(id: UUID) -> Bool {
         perform {
-            guard let profile else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let localUser else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard profile.canManageEvents else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let event = try eventRepository.loadEvent(id: id) else {
-                return
-            }
-
+            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             clearUndoDeleteState()
-            try eventRepository.softDeleteEvent(
-                id: id,
-                deletedAt: .now,
-                deletedBy: localUser.id
-            )
-            pendingUndoDeletedEvent = event
-            undoDeleteMessage = "\(eventTitle(for: event)) deleted"
-            startUndoDeleteExpiryTask()
+            if let event = try DeleteEventUseCase(eventRepository: eventRepository)
+                .execute(.init(
+                    eventID: id,
+                    localUserID: localUser.id,
+                    membership: profile.currentMembership
+                )) {
+                pendingUndoDeletedEvent = event
+                undoDeleteMessage = "\(eventTitle(for: event)) deleted"
+                startUndoDeleteExpiryTask()
+            }
         }
     }
 
     public func undoLastDeletedEvent() {
         perform {
-            guard let localUser else {
-                throw ChildProfileValidationError.insufficientPermissions
-            }
-            guard let pendingUndoDeletedEvent else {
-                return
-            }
-
-            let restoredEvent = restoreDeletedEvent(
-                pendingUndoDeletedEvent,
-                restoredBy: localUser.id
-            )
-            try eventRepository.saveEvent(restoredEvent)
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let pendingUndoDeletedEvent else { return }
+            _ = try RestoreDeletedEventUseCase(eventRepository: eventRepository)
+                .execute(.init(event: pendingUndoDeletedEvent, restoredBy: localUser.id))
             clearUndoDeleteState()
         }
     }
@@ -934,26 +782,6 @@ public final class AppModel {
 
     private func eventTitle(for event: BabyEvent) -> String {
         BabyEventPresentation.title(for: event)
-    }
-
-    private func restoreDeletedEvent(
-        _ event: BabyEvent,
-        restoredBy userID: UUID
-    ) -> BabyEvent {
-        switch event {
-        case var .breastFeed(feed):
-            feed.metadata.restoreDeleted(by: userID)
-            return .breastFeed(feed)
-        case var .bottleFeed(feed):
-            feed.metadata.restoreDeleted(by: userID)
-            return .bottleFeed(feed)
-        case var .sleep(feed):
-            feed.metadata.restoreDeleted(by: userID)
-            return .sleep(feed)
-        case var .nappy(feed):
-            feed.metadata.restoreDeleted(by: userID)
-            return .nappy(feed)
-        }
     }
 
     private func startUndoDeleteExpiryTask() {

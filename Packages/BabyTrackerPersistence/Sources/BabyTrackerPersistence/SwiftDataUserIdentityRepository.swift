@@ -3,7 +3,7 @@ import Foundation
 import SwiftData
 
 @MainActor
-public final class SwiftDataUserIdentityRepository: UserIdentityRepository {
+public final class SwiftDataUserIdentityRepository: CloudKitUserIdentityRepository {
     private enum DefaultsKey {
         static let localUserID = "stage1.localUserID"
     }

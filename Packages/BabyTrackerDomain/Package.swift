@@ -17,5 +17,9 @@ let package = Package(
         .target(
             name: "BabyTrackerDomain"
         ),
+        .testTarget(
+            name: "BabyTrackerDomainTests",
+            dependencies: ["BabyTrackerDomain"]
+        ),
     ]
 )
