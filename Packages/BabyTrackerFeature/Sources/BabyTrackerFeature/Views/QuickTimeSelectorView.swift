@@ -6,29 +6,19 @@ public struct QuickTimeSelectorView: View {
     @State private var selectedPreset: TimePreset = .now
     @State private var showCustomPicker: Bool = false
 
+    private let columns = [
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+    ]
+
     public init(selection: Binding<Date>) {
         _selection = selection
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            presetButtons
-            if showCustomPicker {
-                DatePicker(
-                    "Custom time",
-                    selection: $selection,
-                    in: ...Date(),
-                    displayedComponents: [.date, .hourAndMinute]
-                )
-                .labelsHidden()
-                .accessibilityIdentifier("time-preset-custom-picker")
-            }
-        }
-    }
-
-    private var presetButtons: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            LazyVGrid(columns: columns, spacing: 8) {
                 ForEach(TimePreset.allCases) { preset in
                     Button {
                         selectedPreset = preset
@@ -41,7 +31,7 @@ public struct QuickTimeSelectorView: View {
                     } label: {
                         Text(preset.label)
                             .font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, 14)
+                            .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -53,7 +43,16 @@ public struct QuickTimeSelectorView: View {
                     .accessibilityIdentifier("time-preset-\(preset.rawValue)")
                 }
             }
-            .padding(.vertical, 2)
+            if showCustomPicker {
+                DatePicker(
+                    "Custom time",
+                    selection: $selection,
+                    in: ...Date(),
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .labelsHidden()
+                .accessibilityIdentifier("time-preset-custom-picker")
+            }
         }
     }
 }

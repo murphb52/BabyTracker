@@ -11,7 +11,14 @@ public struct BottleFeedEditorSheetView: View {
     @State private var occurredAt: Date
     @State private var milkType: MilkTypeChoice
 
-    private let quickAmounts = Array(stride(from: 10, through: 70, by: 10))
+    private let quickAmounts = Array(stride(from: 10, through: 240, by: 10))
+
+    private let amountColumns = [
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+    ]
 
     public init(
         navigationTitle: String,
@@ -24,7 +31,7 @@ public struct BottleFeedEditorSheetView: View {
         self.navigationTitle = navigationTitle
         self.primaryActionTitle = primaryActionTitle
         self.saveAction = saveAction
-        _amountMilliliters = State(initialValue: "\(initialAmountMilliliters)")
+        _amountMilliliters = State(initialValue: initialAmountMilliliters > 0 ? "\(initialAmountMilliliters)" : "")
         _occurredAt = State(initialValue: initialOccurredAt)
         _milkType = State(initialValue: MilkTypeChoice(milkType: initialMilkType))
     }
@@ -32,24 +39,39 @@ public struct BottleFeedEditorSheetView: View {
     public var body: some View {
         NavigationStack {
             Form {
-                Section("Quick Amount") {
-                    quickAmountButtons
-                }
-
-                Section("Feed") {
-                    TextField("Amount (mL)", text: $amountMilliliters)
-                        .keyboardType(.numberPad)
-                        .accessibilityIdentifier("bottle-feed-amount-field")
-
+                Section("When was the feed?") {
                     QuickTimeSelectorView(selection: $occurredAt)
                         .accessibilityIdentifier("bottle-feed-time-selector")
+                }
 
-                    Picker("Milk Type", selection: $milkType) {
-                        ForEach(MilkTypeChoice.allCases) { option in
-                            Text(option.title).tag(option)
+                Section("What milk?") {
+                    milkTypeButtons
+                }
+
+                Section("Amount") {
+                    LazyVGrid(columns: amountColumns, spacing: 8) {
+                        ForEach(quickAmounts, id: \.self) { amount in
+                            Button {
+                                amountMilliliters = "\(amount)"
+                            } label: {
+                                Text("\(amount) mL")
+                                    .font(.subheadline.weight(.semibold))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .fill(isSelected(amount: amount) ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                                    )
+                                    .foregroundStyle(isSelected(amount: amount) ? Color.white : Color.primary)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("bottle-feed-amount-preset-\(amount)")
                         }
                     }
-                    .accessibilityIdentifier("bottle-feed-milk-type-picker")
+
+                    TextField("Custom amount (mL)", text: $amountMilliliters)
+                        .keyboardType(.numberPad)
+                        .accessibilityIdentifier("bottle-feed-amount-field")
                 }
 
                 if let validationMessage {
@@ -61,7 +83,7 @@ public struct BottleFeedEditorSheetView: View {
             }
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .presentationDetents([.medium])
+            .presentationDetents([.large])
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -74,7 +96,6 @@ public struct BottleFeedEditorSheetView: View {
                         guard let amountValue = parsedAmountMilliliters else {
                             return
                         }
-
                         let didSave = saveAction(amountValue, occurredAt, milkType.value)
                         if didSave {
                             dismiss()
@@ -87,34 +108,36 @@ public struct BottleFeedEditorSheetView: View {
         }
     }
 
-    private var quickAmountButtons: some View {
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: 8),
-                GridItem(.flexible(), spacing: 8),
-                GridItem(.flexible(), spacing: 8),
-                GridItem(.flexible(), spacing: 8),
-            ],
-            spacing: 8
-        ) {
-            ForEach(quickAmounts, id: \.self) { amount in
-                Button {
-                    amountMilliliters = "\(amount)"
-                } label: {
-                    Text("\(amount)")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(isSelected(amount: amount) ? Color.accentColor : Color(.secondarySystemGroupedBackground))
-                        )
-                        .foregroundStyle(isSelected(amount: amount) ? Color.white : Color.primary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("bottle-feed-amount-preset-\(amount)")
+    private var milkTypeButtons: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                milkTypePill(.breastMilk)
+                milkTypePill(.formula)
+            }
+            HStack(spacing: 8) {
+                milkTypePill(.mixed)
+                milkTypePill(.other)
+                milkTypePill(.notSet)
             }
         }
+    }
+
+    private func milkTypePill(_ option: MilkTypeChoice) -> some View {
+        Button {
+            milkType = option
+        } label: {
+            Text(option.title)
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(milkType == option ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                )
+                .foregroundStyle(milkType == option ? Color.white : Color.primary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("bottle-feed-milk-type-\(option.rawValue)")
     }
 
     private var parsedAmountMilliliters: Int? {
@@ -122,7 +145,6 @@ public struct BottleFeedEditorSheetView: View {
               amountValue > 0 else {
             return nil
         }
-
         return amountValue
     }
 
@@ -130,7 +152,6 @@ public struct BottleFeedEditorSheetView: View {
         guard !amountMilliliters.isEmpty, parsedAmountMilliliters == nil else {
             return nil
         }
-
         return "Enter an amount greater than 0 mL."
     }
 
@@ -140,7 +161,7 @@ public struct BottleFeedEditorSheetView: View {
 }
 
 extension BottleFeedEditorSheetView {
-    private enum MilkTypeChoice: String, CaseIterable, Identifiable {
+    enum MilkTypeChoice: String, CaseIterable, Identifiable {
         case notSet
         case breastMilk
         case formula
@@ -149,57 +170,44 @@ extension BottleFeedEditorSheetView {
 
         init(milkType: MilkType?) {
             switch milkType {
-            case nil:
-                self = .notSet
-            case .breastMilk?:
-                self = .breastMilk
-            case .formula?:
-                self = .formula
-            case .mixed?:
-                self = .mixed
-            case .other?:
-                self = .other
+            case nil: self = .notSet
+            case .breastMilk?: self = .breastMilk
+            case .formula?: self = .formula
+            case .mixed?: self = .mixed
+            case .other?: self = .other
             }
         }
 
-        var id: String {
-            rawValue
-        }
+        var id: String { rawValue }
 
         var title: String {
             switch self {
-            case .notSet:
-                "Not Set"
-            case .breastMilk:
-                "Breast Milk"
-            case .formula:
-                "Formula"
-            case .mixed:
-                "Mixed"
-            case .other:
-                "Other"
+            case .notSet: "Not Set"
+            case .breastMilk: "Breast Milk"
+            case .formula: "Formula"
+            case .mixed: "Mixed"
+            case .other: "Other"
             }
         }
 
         var value: MilkType? {
             switch self {
-            case .notSet:
-                nil
-            case .breastMilk:
-                .breastMilk
-            case .formula:
-                .formula
-            case .mixed:
-                .mixed
-            case .other:
-                .other
+            case .notSet: nil
+            case .breastMilk: .breastMilk
+            case .formula: .formula
+            case .mixed: .mixed
+            case .other: .other
             }
         }
     }
 }
 
 #Preview {
-    BottleFeedEditorSheetView(navigationTitle: "Title", primaryActionTitle: "Save", initialAmountMilliliters: 30, initialOccurredAt: Date(), initialMilkType: .breastMilk) { amountMilliliters, occurredAt, milkType in
-        return true
-    }
+    BottleFeedEditorSheetView(
+        navigationTitle: "Bottle Feed",
+        primaryActionTitle: "Save",
+        initialAmountMilliliters: 0,
+        initialOccurredAt: Date(),
+        initialMilkType: nil
+    ) { _, _, _ in true }
 }

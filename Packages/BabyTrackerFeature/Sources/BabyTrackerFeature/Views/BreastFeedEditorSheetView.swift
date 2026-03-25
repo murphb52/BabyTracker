@@ -24,10 +24,10 @@ public struct BreastFeedEditorSheetView: View {
     @State private var endTime: Date
     @State private var side: BreastSideChoice
     @State private var showPerSideBreakdown: Bool = false
-    @State private var leftDurationMinutes: String = ""
-    @State private var rightDurationMinutes: String = ""
+    // leftFraction: 0.0 = all right, 0.5 = 50/50, 1.0 = all left
+    @State private var leftFraction: Double = 0.5
 
-    private let quickDurations = [5, 10, 15]
+    private let quickDurations = [5, 10, 15, 20, 30]
 
     public init(
         navigationTitle: String,
@@ -42,16 +42,16 @@ public struct BreastFeedEditorSheetView: View {
         self.navigationTitle = navigationTitle
         self.primaryActionTitle = primaryActionTitle
         self.saveAction = saveAction
-        _durationMinutes = State(initialValue: "\(initialDurationMinutes)")
+        _durationMinutes = State(initialValue: initialDurationMinutes > 0 ? "\(initialDurationMinutes)" : "")
         _endTime = State(initialValue: initialEndTime)
         _side = State(initialValue: BreastSideChoice(side: initialSide))
-        if let left = initialLeftDurationSeconds {
-            _leftDurationMinutes = State(initialValue: "\(left / 60)")
-        }
-        if let right = initialRightDurationSeconds {
-            _rightDurationMinutes = State(initialValue: "\(right / 60)")
-        }
-        if initialLeftDurationSeconds != nil || initialRightDurationSeconds != nil {
+
+        if let left = initialLeftDurationSeconds,
+           let right = initialRightDurationSeconds,
+           left + right > 0 {
+            _leftFraction = State(initialValue: Double(left) / Double(left + right))
+            _showPerSideBreakdown = State(initialValue: true)
+        } else if initialLeftDurationSeconds != nil || initialRightDurationSeconds != nil {
             _showPerSideBreakdown = State(initialValue: true)
         }
     }
@@ -105,20 +105,10 @@ public struct BreastFeedEditorSheetView: View {
         Group {
             Section {
                 HStack(spacing: 16) {
-                    sideTimerButton(
-                        label: "Left",
-                        elapsed: leftElapsed,
-                        isRunning: leftRunning,
-                        identifier: "left"
-                    ) {
+                    sideTimerButton(label: "Left", elapsed: leftElapsed, isRunning: leftRunning, identifier: "left") {
                         toggleLeft()
                     }
-                    sideTimerButton(
-                        label: "Right",
-                        elapsed: rightElapsed,
-                        isRunning: rightRunning,
-                        identifier: "right"
-                    ) {
+                    sideTimerButton(label: "Right", elapsed: rightElapsed, isRunning: rightRunning, identifier: "right") {
                         toggleRight()
                     }
                 }
@@ -128,11 +118,9 @@ public struct BreastFeedEditorSheetView: View {
             if timerStarted {
                 Section {
                     HStack {
-                        Text("Total")
-                            .foregroundStyle(.secondary)
+                        Text("Total").foregroundStyle(.secondary)
                         Spacer()
-                        Text(formatDuration(leftElapsed + rightElapsed))
-                            .monospacedDigit()
+                        Text(formatDuration(leftElapsed + rightElapsed)).monospacedDigit()
                     }
                 }
             }
@@ -148,8 +136,7 @@ public struct BreastFeedEditorSheetView: View {
     ) -> some View {
         Button(action: action) {
             VStack(spacing: 8) {
-                Text(label)
-                    .font(.headline)
+                Text(label).font(.headline)
                 Text(formatDuration(elapsed))
                     .font(.title2.monospacedDigit())
                     .foregroundStyle(isRunning ? Color.accentColor : Color.primary)
@@ -169,45 +156,22 @@ public struct BreastFeedEditorSheetView: View {
     }
 
     private func toggleLeft() {
-        if !timerStarted {
-            sessionStartedAt = Date()
-            timerStarted = true
-        }
-        if leftRunning {
-            leftRunning = false
-        } else {
-            rightRunning = false
-            leftRunning = true
-        }
+        if !timerStarted { sessionStartedAt = Date(); timerStarted = true }
+        leftRunning ? (leftRunning = false) : { rightRunning = false; leftRunning = true }()
     }
 
     private func toggleRight() {
-        if !timerStarted {
-            sessionStartedAt = Date()
-            timerStarted = true
-        }
-        if rightRunning {
-            rightRunning = false
-        } else {
-            leftRunning = false
-            rightRunning = true
-        }
+        if !timerStarted { sessionStartedAt = Date(); timerStarted = true }
+        rightRunning ? (rightRunning = false) : { leftRunning = false; rightRunning = true }()
     }
 
     // MARK: - Manual Mode
 
     private var manualModeContent: some View {
         Group {
-            Section("Time") {
-                QuickTimeSelectorView(selection: $endTime)
-                    .accessibilityIdentifier("breast-feed-time-selector")
-            }
-
-            Section("Quick Duration") {
-                quickDurationButtons
-            }
-
             Section("Duration") {
+                quickDurationButtons
+
                 TextField("Total duration (minutes)", text: $durationMinutes)
                     .keyboardType(.numberPad)
                     .accessibilityIdentifier("breast-feed-duration-field")
@@ -217,20 +181,17 @@ public struct BreastFeedEditorSheetView: View {
                         Text(option.title).tag(option)
                     }
                 }
+                .pickerStyle(.segmented)
                 .accessibilityIdentifier("breast-feed-side-picker")
+
+                if side == .both, let total = parsedDurationMinutes {
+                    perSideBreakdown(total: total)
+                }
             }
 
-            Section {
-                Toggle("Add per-side breakdown", isOn: $showPerSideBreakdown)
-                    .accessibilityIdentifier("breast-feed-per-side-toggle")
-                if showPerSideBreakdown {
-                    TextField("Left boob (minutes)", text: $leftDurationMinutes)
-                        .keyboardType(.numberPad)
-                        .accessibilityIdentifier("breast-feed-left-duration-field")
-                    TextField("Right boob (minutes)", text: $rightDurationMinutes)
-                        .keyboardType(.numberPad)
-                        .accessibilityIdentifier("breast-feed-right-duration-field")
-                }
+            Section("When was the feed?") {
+                QuickTimeSelectorView(selection: $endTime)
+                    .accessibilityIdentifier("breast-feed-time-selector")
             }
 
             if let msg = manualValidationMessage {
@@ -247,7 +208,7 @@ public struct BreastFeedEditorSheetView: View {
                 Button {
                     durationMinutes = "\(duration)"
                 } label: {
-                    Text("\(duration) min")
+                    Text("\(duration)m")
                         .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -263,6 +224,40 @@ public struct BreastFeedEditorSheetView: View {
         }
     }
 
+    @ViewBuilder
+    private func perSideBreakdown(total: Int) -> some View {
+        Toggle("Show per-side breakdown", isOn: $showPerSideBreakdown)
+            .accessibilityIdentifier("breast-feed-per-side-toggle")
+
+        if showPerSideBreakdown {
+            let leftMins = leftMinutes(total: total)
+            let rightMins = total - leftMins
+
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Left").font(.caption).foregroundStyle(.secondary)
+                    Text("\(leftMins) min").font(.subheadline.weight(.semibold)).monospacedDigit()
+                }
+                Spacer()
+                if leftMins == rightMins {
+                    Text("50/50").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                }
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("Right").font(.caption).foregroundStyle(.secondary)
+                    Text("\(rightMins) min").font(.subheadline.weight(.semibold)).monospacedDigit()
+                }
+            }
+
+            Slider(value: $leftFraction, in: 0...1, step: 1.0 / Double(max(total, 1)))
+                .accessibilityIdentifier("breast-feed-split-slider")
+        }
+    }
+
+    private func leftMinutes(total: Int) -> Int {
+        min(total, max(0, Int(round(leftFraction * Double(total)))))
+    }
+
     // MARK: - Helpers
 
     private var parsedDurationMinutes: Int? {
@@ -276,11 +271,7 @@ public struct BreastFeedEditorSheetView: View {
     }
 
     private var canSave: Bool {
-        if mode == .timer {
-            return timerStarted && (leftElapsed + rightElapsed) > 0
-        } else {
-            return parsedDurationMinutes != nil
-        }
+        mode == .timer ? (timerStarted && (leftElapsed + rightElapsed) > 0) : parsedDurationMinutes != nil
     }
 
     private func handleSave() {
@@ -289,25 +280,27 @@ public struct BreastFeedEditorSheetView: View {
             rightRunning = false
             let totalSeconds = Int(leftElapsed + rightElapsed)
             let durationMins = max(1, totalSeconds / 60)
-            let endTimeNow = Date()
             let derivedSide: BreastSide?
             if leftElapsed > 0 && rightElapsed > 0 { derivedSide = .both }
             else if leftElapsed > 0 { derivedSide = .left }
             else if rightElapsed > 0 { derivedSide = .right }
             else { derivedSide = nil }
             let didSave = saveAction(
-                durationMins,
-                endTimeNow,
-                derivedSide,
+                durationMins, Date(), derivedSide,
                 leftElapsed > 0 ? Int(leftElapsed) : nil,
                 rightElapsed > 0 ? Int(rightElapsed) : nil
             )
             if didSave { dismiss() }
         } else {
-            guard let durationValue = parsedDurationMinutes else { return }
-            let leftSecs: Int? = showPerSideBreakdown ? Int(leftDurationMinutes.trimmingCharacters(in: .whitespacesAndNewlines)).map { $0 * 60 } : nil
-            let rightSecs: Int? = showPerSideBreakdown ? Int(rightDurationMinutes.trimmingCharacters(in: .whitespacesAndNewlines)).map { $0 * 60 } : nil
-            let didSave = saveAction(durationValue, endTime, side.value, leftSecs, rightSecs)
+            guard let total = parsedDurationMinutes else { return }
+            var leftSecs: Int?
+            var rightSecs: Int?
+            if showPerSideBreakdown && side == .both {
+                let leftMins = leftMinutes(total: total)
+                leftSecs = leftMins * 60
+                rightSecs = (total - leftMins) * 60
+            }
+            let didSave = saveAction(total, endTime, side.value, leftSecs, rightSecs)
             if didSave { dismiss() }
         }
     }
@@ -330,11 +323,11 @@ extension BreastFeedEditorSheetView {
         }
     }
 
-    private enum BreastSideChoice: String, CaseIterable, Identifiable {
-        case notSet
+    enum BreastSideChoice: String, CaseIterable, Identifiable {
         case left
         case right
         case both
+        case notSet
 
         init(side: BreastSide?) {
             switch side {
@@ -349,10 +342,10 @@ extension BreastFeedEditorSheetView {
 
         var title: String {
             switch self {
-            case .notSet: "Not Set"
             case .left: "Left"
             case .right: "Right"
             case .both: "Both"
+            case .notSet: "—"
             }
         }
 
