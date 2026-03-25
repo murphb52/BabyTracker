@@ -426,7 +426,7 @@ public final class AppModel {
 
     public func sleepStartSuggestions() -> [(label: String, date: Date)] {
         guard let profile else { return [] }
-        let timeline = (try? eventRepository.loadTimeline(for: profile.child.id)) ?? []
+        let timeline = (try? eventRepository.loadTimeline(for: profile.child.id, includingDeleted: false)) ?? []
 
         var suggestions: [(label: String, date: Date)] = []
         let timeFormatter = Date.FormatStyle(date: .omitted, time: .shortened)
