@@ -294,9 +294,9 @@ public final class AppModel {
     public func logNappy(
         type: NappyType,
         occurredAt: Date,
-        peeVolume: NappyVolume?,
-        pooVolume: NappyVolume?,
-        pooColor: PooColor?
+        peeVolume: NappyVolume? = nil,
+        pooVolume: NappyVolume? = nil,
+        pooColor: PooColor? = nil
     ) -> Bool {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
@@ -403,9 +403,9 @@ public final class AppModel {
         id: UUID,
         type: NappyType,
         occurredAt: Date,
-        peeVolume: NappyVolume?,
-        pooVolume: NappyVolume?,
-        pooColor: PooColor?
+        peeVolume: NappyVolume? = nil,
+        pooVolume: NappyVolume? = nil,
+        pooColor: PooColor? = nil
     ) -> Bool {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
