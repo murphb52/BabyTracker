@@ -157,12 +157,22 @@ public struct BreastFeedEditorSheetView: View {
 
     private func toggleLeft() {
         if !timerStarted { sessionStartedAt = Date(); timerStarted = true }
-        leftRunning ? (leftRunning = false) : { rightRunning = false; leftRunning = true }()
+        if leftRunning {
+            leftRunning = false
+        } else {
+            rightRunning = false
+            leftRunning = true
+        }
     }
 
     private func toggleRight() {
         if !timerStarted { sessionStartedAt = Date(); timerStarted = true }
-        rightRunning ? (rightRunning = false) : { leftRunning = false; rightRunning = true }()
+        if rightRunning {
+            rightRunning = false
+        } else {
+            leftRunning = false
+            rightRunning = true
+        }
     }
 
     // MARK: - Manual Mode
@@ -224,6 +234,7 @@ public struct BreastFeedEditorSheetView: View {
         }
     }
 
+    @ViewBuilder
     @ViewBuilder
     private func perSideBreakdown(total: Int) -> some View {
         Toggle("Show per-side breakdown", isOn: $showPerSideBreakdown)
