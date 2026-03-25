@@ -65,6 +65,16 @@ public struct ChildProfileView: View {
                     )
                 }
 
+                NavigationLink {
+                    LoggingView(appLogger: AppLogger.shared)
+                } label: {
+                    settingsRow(
+                        title: "Logs",
+                        value: nil,
+                        accessibilityIdentifier: "profile-logs-row"
+                    )
+                }
+
                 if profile.canSwitchChildren {
                     Button {
                         model.showChildPicker()

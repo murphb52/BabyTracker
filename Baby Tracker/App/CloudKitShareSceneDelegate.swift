@@ -1,3 +1,4 @@
+import BabyTrackerDomain
 import CloudKit
 import os
 import UIKit
@@ -17,6 +18,7 @@ final class CloudKitShareSceneDelegate: NSObject, UIWindowSceneDelegate {
         print("[BabyTracker][1/5] SceneDelegate fired — title: \(title), zone: \(zone)")
         logger.info("[1/5] SceneDelegate fired — share title: '\(title, privacy: .private)', zone: \(zone, privacy: .public)")
         Task { @MainActor in
+            AppLogger.shared.log(.info, category: "ShareAcceptance", "[1/5] SceneDelegate fired — zone: \(zone)")
             CloudKitShareAcceptanceBridge.shared.handle(metadata: cloudKitShareMetadata)
         }
     }

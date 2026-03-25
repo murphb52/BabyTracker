@@ -501,6 +501,7 @@ public final class AppModel {
                 userID: localUser.id
             )
             logger.info("refresh — localUserID: \(localUser.id, privacy: .public), active: \(self.activeChildren.count, privacy: .public), archived: \(self.archivedChildren.count, privacy: .public)")
+            AppLogger.shared.log(.info, category: "AppModel", "refresh — active: \(self.activeChildren.count), archived: \(self.archivedChildren.count)")
 
             guard !activeChildren.isEmpty else {
                 route = .noChildren
@@ -579,6 +580,7 @@ public final class AppModel {
                 logger.warning(
                     "loadChildSummaries — skipping child '\(child.name, privacy: .private)': no active membership for local user. Self statuses: [\(statuses, privacy: .public)]. All memberships: [\(allRoles, privacy: .public)]"
                 )
+                AppLogger.shared.log(.warning, category: "AppModel", "loadChildSummaries — skipping child: no active membership for local user. Self statuses: [\(statuses)]. All memberships: [\(allRoles)]")
                 continue
             }
 
