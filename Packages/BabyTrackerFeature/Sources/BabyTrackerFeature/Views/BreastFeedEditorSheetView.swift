@@ -186,3 +186,9 @@ extension BreastFeedEditorSheetView {
         }
     }
 }
+
+#Preview {
+    BreastFeedEditorSheetView(navigationTitle: "Title", primaryActionTitle: "Save", initialDurationMinutes: 15, initialEndTime: Date(), initialSide: .both) { durationMinutes, endTime, side in
+        return true
+    }
+}

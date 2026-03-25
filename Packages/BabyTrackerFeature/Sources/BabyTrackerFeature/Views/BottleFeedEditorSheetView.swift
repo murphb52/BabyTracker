@@ -201,3 +201,9 @@ extension BottleFeedEditorSheetView {
         }
     }
 }
+
+#Preview {
+    BottleFeedEditorSheetView(navigationTitle: "Title", primaryActionTitle: "Save", initialAmountMilliliters: 30, initialOccurredAt: Date(), initialMilkType: .breastMilk) { amountMilliliters, occurredAt, milkType in
+        return true
+    }
+}

@@ -47,3 +47,12 @@ public struct AnchoredDeletePromptView: View {
         )
     }
 }
+
+#Preview {
+    AnchoredDeletePromptView(title: "Delete?", confirmTitle: "Are you sure?") {
+        
+    } cancelAction: {
+    
+    }
+}
+
