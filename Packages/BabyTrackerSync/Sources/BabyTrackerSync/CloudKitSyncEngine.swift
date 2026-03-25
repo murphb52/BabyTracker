@@ -183,6 +183,7 @@ public final class CloudKitSyncEngine {
             databaseScope: .shared
         )
         logger.info("Left shared zone for child \(childID)")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "Left shared zone for child \(childID)")
     }
 
     public func accept(metadata: CKShare.Metadata) async throws {
@@ -190,21 +191,28 @@ public final class CloudKitSyncEngine {
         let zoneName = metadata.share.recordID.zoneID.zoneName
         print("[BabyTracker][4/5] CloudKitSyncEngine.accept — title: \(shareTitle), zone: \(zoneName)")
         logger.info("[4/5] Sync engine accept — title: '\(shareTitle, privacy: .private)', zone: \(zoneName, privacy: .public)")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] Sync engine accept — title: '\(shareTitle)', zone: \(zoneName)")
         logger.info("[4/5] Calling client.accept (registers share with CloudKit)")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] Calling client.accept (registers share with CloudKit)")
         try await client.accept([metadata])
         logger.info("[4/5] client.accept succeeded — running foreground refresh")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] client.accept succeeded — running foreground refresh")
         _ = await refresh(reason: .foreground)
         logger.info("[4/5] Foreground refresh done — ensuring local membership record")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] Foreground refresh done — ensuring local membership record")
         try await ensureMembershipForAcceptedShare(metadata: metadata)
         logger.info("[4/5] Membership ensured — running post-write refresh")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] Membership ensured — running post-write refresh")
         _ = await refresh(reason: .localWrite)
         logger.info("[5/5] Share acceptance complete")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "[5/5] Share acceptance complete")
     }
 
     private func refresh(reason: RefreshReason) async -> SyncStatusSummary {
         do {
             if reason == .launch {
                 logger.info("Launch sync starting")
+                AppLogger.shared.log(.info, category: "CloudKitSync", "Launch sync starting")
             }
 
             try userIdentityRepository.removeLegacyPlaceholderCaregivers()
@@ -212,6 +220,7 @@ public final class CloudKitSyncEngine {
 
             if reason == .launch {
                 logger.info("iCloud account status: \(accountStatus.logDescription, privacy: .public)")
+                AppLogger.shared.log(.info, category: "CloudKitSync", "iCloud account status: \(accountStatus.logDescription)")
             }
 
             guard accountStatus == .available else {
@@ -222,6 +231,7 @@ public final class CloudKitSyncEngine {
             let userRecordID = try await client.userRecordID()
             if reason == .launch {
                 logger.info("iCloud user record ID: \(userRecordID.recordName, privacy: .private(mask: .hash))")
+                AppLogger.shared.log(.info, category: "CloudKitSync", "iCloud user record ID obtained")
             }
             _ = try userIdentityRepository.linkLocalUser(
                 toCloudKitUserRecordName: userRecordID.recordName
@@ -244,6 +254,7 @@ public final class CloudKitSyncEngine {
         } catch {
             logger.error("Refresh(\(reason.logDescription, privacy: .public)) failed: \(error.localizedDescription, privacy: .public) [\(String(describing: error), privacy: .public)]")
             print("[BabyTracker] Refresh(\(reason.logDescription)) FAILED: \(error)")
+            AppLogger.shared.log(.error, category: "CloudKitSync", "Refresh(\(reason.logDescription)) failed: \(error.localizedDescription)")
             let localSummary = (try? syncStateRepository.loadStatusSummary()) ?? SyncStatusSummary()
             statusSummary = SyncStatusSummary(
                 state: .failed,
@@ -271,15 +282,19 @@ public final class CloudKitSyncEngine {
             zoneName: nil,
             ownerName: nil
         )
-        logger.info("Checking shared database for changes (token: \(anchor == nil ? "none — full fetch" : "incremental", privacy: .public))")
+        let tokenDescription = anchor == nil ? "none — full fetch" : "incremental"
+        logger.info("Checking shared database for changes (token: \(tokenDescription, privacy: .public))")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "Checking shared database for changes (token: \(tokenDescription))")
         let changes = try await client.databaseChanges(
             in: .shared,
             since: anchor?.tokenData
         )
         logger.info("Shared database: \(changes.modifiedZoneIDs.count, privacy: .public) modified zone(s), \(changes.deletedZoneIDs.count, privacy: .public) deleted zone(s)")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "Shared database: \(changes.modifiedZoneIDs.count) modified zone(s), \(changes.deletedZoneIDs.count) deleted zone(s)")
 
         for deletedZoneID in changes.deletedZoneIDs {
             logger.info("Shared zone deleted (access removed): \(deletedZoneID.zoneName, privacy: .public)")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "Shared zone deleted (access removed): \(deletedZoneID.zoneName)")
             let childID = childID(from: deletedZoneID.zoneName)
             try childRepository.purgeChildData(id: childID)
             pendingInvitesByChildID[childID] = []
@@ -287,6 +302,7 @@ public final class CloudKitSyncEngine {
 
         for zoneID in changes.modifiedZoneIDs {
             logger.info("Shared zone modified (new/updated share): \(zoneID.zoneName, privacy: .public)")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "Shared zone modified (new/updated share): \(zoneID.zoneName)")
             let childID = childID(from: zoneID.zoneName)
             let context = CloudKitChildContext(
                 childID: childID,
@@ -313,17 +329,20 @@ public final class CloudKitSyncEngine {
     private func pullKnownChildZones() async throws {
         let children = try childRepository.loadAllChildren()
         logger.info("Found \(children.count, privacy: .public) child(ren) in local store")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "Found \(children.count) child(ren) in local store")
 
         for child in children {
             if let context = try childRepository.loadCloudKitChildContext(id: child.id) {
                 logger.info(
                     "Child '\(child.name, privacy: .private)' — zone: \(context.zoneID.zoneName, privacy: .public), scope: \(context.databaseScope.logDescription, privacy: .public), isArchived: \(child.isArchived, privacy: .public)"
                 )
+                AppLogger.shared.log(.info, category: "CloudKitSync", "Child — zone: \(context.zoneID.zoneName), scope: \(context.databaseScope.logDescription), isArchived: \(child.isArchived)")
                 try await pullZoneSnapshot(context: context)
                 let memberships = try membershipRepository.loadMemberships(for: child.id)
                 logger.info(
                     "Child '\(child.name, privacy: .private)' — \(memberships.count, privacy: .public) membership(s) in local store: \(memberships.map { "userID=\($0.userID) role=\($0.role) status=\($0.status)" }.joined(separator: ", "), privacy: .public)"
                 )
+                AppLogger.shared.log(.info, category: "CloudKitSync", "Child — \(memberships.count) membership(s) in local store")
                 if try repairOrphanedMembershipIfNeeded(for: child, context: context) {
                     try await pushZoneSnapshot(for: child.id, context: context)
                 }
@@ -331,6 +350,7 @@ public final class CloudKitSyncEngine {
             }
 
             logger.info("Child '\(child.name, privacy: .private)' — no CloudKit zone yet, creating private zone")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "Child — no CloudKit zone yet, creating private zone")
             let context = try await ensureZoneContext(for: child.id, preferredScope: .private)
             try await pushZoneSnapshot(for: child.id, context: context)
         }
@@ -366,6 +386,7 @@ public final class CloudKitSyncEngine {
         logger.warning(
             "Repaired orphaned membership for child '\(child.name, privacy: .private)': reassigned userID from \(orphaned.userID, privacy: .public) to \(localUser.id, privacy: .public)"
         )
+        AppLogger.shared.log(.warning, category: "CloudKitSync", "Repaired orphaned membership: reassigned userID from \(orphaned.userID) to \(localUser.id)")
         return true
     }
 
@@ -374,9 +395,11 @@ public final class CloudKitSyncEngine {
 
         if pendingRecords.isEmpty {
             logger.info("pushPendingChanges — nothing pending, skipping")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — nothing pending, skipping")
         } else {
             let summary = pendingRecords.map { "\($0.recordType.rawValue):\($0.recordID)" }.joined(separator: ", ")
             logger.info("pushPendingChanges — \(pendingRecords.count, privacy: .public) pending record(s): \(summary, privacy: .public)")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — \(pendingRecords.count) pending record(s): \(summary)")
         }
 
         // Clear any pending records whose childID no longer has a corresponding child in
@@ -385,6 +408,7 @@ public final class CloudKitSyncEngine {
         let knownChildIDs = Set(try childRepository.loadAllChildren().map(\.id))
         for record in pendingRecords where record.childID != nil && !knownChildIDs.contains(record.childID!) {
             logger.warning("pushPendingChanges — orphaned pending record \(record.recordType.rawValue):\(record.recordID, privacy: .public) has unknown childID \(record.childID!, privacy: .public), marking upToDate")
+            AppLogger.shared.log(.warning, category: "CloudKitSync", "pushPendingChanges — orphaned pending record \(record.recordType.rawValue):\(record.recordID), marking upToDate")
             try syncStateRepository.updateSyncState(
                 for: record,
                 state: .upToDate,
@@ -407,13 +431,16 @@ public final class CloudKitSyncEngine {
 
             guard childHasPending || childHasPendingUsers else {
                 logger.info("pushPendingChanges — '\(child.name, privacy: .private)': nothing pending, skipping")
+                AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — child: nothing pending, skipping")
                 continue
             }
 
             let context = try await ensureZoneContext(for: child.id, preferredScope: .private)
             logger.info("pushPendingChanges — '\(child.name, privacy: .private)': pushing zone (scope: \(context.databaseScope.logDescription, privacy: .public))")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — pushing zone (scope: \(context.databaseScope.logDescription))")
             try await pushZoneSnapshot(for: child.id, context: context)
             logger.info("pushPendingChanges — '\(child.name, privacy: .private)': zone push complete")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — zone push complete")
         }
     }
 
@@ -468,6 +495,7 @@ public final class CloudKitSyncEngine {
 
         let savedTypes = filteredSaves.map(\.recordType).joined(separator: ", ")
         logger.info("pushZoneSnapshot '\(child.name, privacy: .private)' — saving \(filteredSaves.count, privacy: .public) record(s) to \(context.databaseScope.logDescription, privacy: .public): [\(savedTypes, privacy: .public)]")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "pushZoneSnapshot — saving \(filteredSaves.count) record(s) to \(context.databaseScope.logDescription): [\(savedTypes)]")
         _ = try await client.modifyRecords(
             saving: filteredSaves,
             deleting: [],
@@ -475,6 +503,7 @@ public final class CloudKitSyncEngine {
             savePolicy: .changedKeys
         )
         logger.info("pushZoneSnapshot '\(child.name, privacy: .private)' — modifyRecords succeeded")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "pushZoneSnapshot — modifyRecords succeeded")
 
         try syncStateRepository.updateSyncState(
             for: SyncRecordReference(recordType: .child, recordID: child.id, childID: child.id),
@@ -485,6 +514,7 @@ public final class CloudKitSyncEngine {
 
         for membership in memberships {
             logger.info("pushZoneSnapshot — marking membership upToDate: id=\(membership.id, privacy: .public) role=\(membership.role.rawValue, privacy: .public)")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "pushZoneSnapshot — marking membership upToDate: id=\(membership.id) role=\(membership.role.rawValue)")
             try syncStateRepository.updateSyncState(
                 for: SyncRecordReference(
                     recordType: .membership,
@@ -549,6 +579,7 @@ public final class CloudKitSyncEngine {
 
         let recordTypes = changes.modifiedRecords.map(\.recordType)
         logger.info("pullZoneSnapshot \(context.zoneID.zoneName, privacy: .public) (\(databaseScope, privacy: .public)): \(changes.modifiedRecords.count, privacy: .public) modified, \(changes.deletions.count, privacy: .public) deleted — types: \(recordTypes.joined(separator: ", "), privacy: .public)")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "pullZoneSnapshot \(context.zoneID.zoneName) (\(databaseScope)): \(changes.modifiedRecords.count) modified, \(changes.deletions.count) deleted — types: \(recordTypes.joined(separator: ", "))")
 
         for record in changes.modifiedRecords {
             try save(record: record, within: context)
@@ -612,11 +643,13 @@ public final class CloudKitSyncEngine {
         case CloudKitConfiguration.membershipRecordType:
             let membership = CloudKitRecordMapper.membership(from: record)
             logger.info("Saving membership from CloudKit — role: \(membership.role.rawValue, privacy: .public), status: \(membership.status.rawValue, privacy: .public), childID: \(membership.childID, privacy: .public)")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "Saving membership from CloudKit — role: \(membership.role.rawValue), status: \(membership.status.rawValue), childID: \(membership.childID)")
             do {
                 try membershipRepository.saveMembership(membership)
             } catch {
                 logger.error("Failed to save membership (role: \(membership.role.rawValue, privacy: .public), status: \(membership.status.rawValue, privacy: .public)): \(error.localizedDescription, privacy: .public)")
                 print("[BabyTracker] saveMembership FAILED role=\(membership.role.rawValue) status=\(membership.status.rawValue): \(error)")
+                AppLogger.shared.log(.error, category: "CloudKitSync", "Failed to save membership (role: \(membership.role.rawValue), status: \(membership.status.rawValue)): \(error.localizedDescription)")
                 throw error
             }
             try syncStateRepository.updateSyncState(
@@ -709,11 +742,13 @@ public final class CloudKitSyncEngine {
     ) async throws {
         guard let localUser = try userIdentityRepository.loadLocalUser() else {
             logger.warning("[4/5] ensureMembership — no local user found, skipping membership creation")
+            AppLogger.shared.log(.warning, category: "CloudKitSync", "[4/5] ensureMembership — no local user found, skipping membership creation")
             return
         }
 
         guard let rootRecordID = metadata.hierarchicalRootRecordID else {
             logger.warning("[4/5] ensureMembership — no hierarchicalRootRecordID in metadata, skipping")
+            AppLogger.shared.log(.warning, category: "CloudKitSync", "[4/5] ensureMembership — no hierarchicalRootRecordID in metadata, skipping")
             return
         }
 
@@ -723,13 +758,16 @@ public final class CloudKitSyncEngine {
             membership.userID == localUser.id && membership.status == .active
         }) else {
             logger.info("[4/5] ensureMembership — active membership already exists, skipping")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] ensureMembership — active membership already exists, skipping")
             return
         }
 
         let existingRoles = existingMemberships.map { "\($0.role.rawValue)/\($0.status.rawValue)" }.joined(separator: ", ")
         logger.info("[4/5] ensureMembership — existing memberships for child: [\(existingRoles.isEmpty ? "none" : existingRoles, privacy: .public)]")
         print("[BabyTracker][4/5] ensureMembership — existing memberships: [\(existingRoles.isEmpty ? "none" : existingRoles)]")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] ensureMembership — existing memberships: [\(existingRoles.isEmpty ? "none" : existingRoles)]")
         logger.info("[4/5] ensureMembership — creating caregiver membership for zone: \(rootRecordID.zoneID.zoneName, privacy: .public)")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] ensureMembership — creating caregiver membership for zone: \(rootRecordID.zoneID.zoneName)")
         let membership = Membership(
             childID: childID,
             userID: localUser.id,
@@ -742,6 +780,7 @@ public final class CloudKitSyncEngine {
         try userIdentityRepository.saveUser(localUser)
         try membershipRepository.saveCloudKitMembership(membership)
         logger.info("[4/5] ensureMembership — saved local membership id=\(membership.id, privacy: .public), marking upToDate immediately (received from CloudKit, not a local write)")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] ensureMembership — saved local membership id=\(membership.id), marking upToDate immediately")
         try syncStateRepository.updateSyncState(
             for: SyncRecordReference(
                 recordType: .membership,
@@ -760,6 +799,7 @@ public final class CloudKitSyncEngine {
         )
         try childRepository.saveCloudKitChildContext(context)
         logger.info("[4/5] ensureMembership — membership and CloudKit context saved")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] ensureMembership — membership and CloudKit context saved")
     }
 
     private func cachePendingInvites(

@@ -1,3 +1,4 @@
+import BabyTrackerDomain
 import BabyTrackerSync
 import CloudKit
 import Foundation
@@ -12,6 +13,7 @@ final class CloudKitShareAcceptanceBridge {
             guard let handler, let queued = queuedMetadata else { return }
             print("[BabyTracker][2/5] Handler set — flushing queued share metadata")
             logger.info("[2/5] Handler set — flushing queued share metadata")
+            AppLogger.shared.log(.info, category: "ShareAcceptance", "[2/5] Handler set — flushing queued share metadata")
             queuedMetadata = nil
             handler.accept(metadata: queued)
         }
@@ -23,14 +25,18 @@ final class CloudKitShareAcceptanceBridge {
     private init() {}
 
     func handle(metadata: CKShare.Metadata) {
-        print("[BabyTracker][2/5] Bridge.handle called — handler is \(handler == nil ? "nil (queuing)" : "ready")")
+        let handlerState = handler == nil ? "nil (queuing)" : "ready"
+        print("[BabyTracker][2/5] Bridge.handle called — handler is \(handlerState)")
         logger.info("[2/5] Bridge.handle called — handler is \(self.handler == nil ? "nil (queuing)" : "ready", privacy: .public)")
+        AppLogger.shared.log(.info, category: "ShareAcceptance", "[2/5] Bridge.handle called — handler is \(handlerState)")
         guard let handler else {
             logger.warning("[2/5] Handler not set yet — queuing metadata for when handler is assigned")
+            AppLogger.shared.log(.warning, category: "ShareAcceptance", "[2/5] Handler not set yet — queuing metadata for when handler is assigned")
             queuedMetadata = metadata
             return
         }
         logger.info("[2/5] Forwarding share metadata to ShareAcceptanceHandler")
+        AppLogger.shared.log(.info, category: "ShareAcceptance", "[2/5] Forwarding share metadata to ShareAcceptanceHandler")
         handler.accept(metadata: metadata)
     }
 }
