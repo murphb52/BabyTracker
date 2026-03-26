@@ -27,8 +27,8 @@ public struct ChildWorkspaceTabView: View {
                 quickLogBreastFeed: { activeEventSheet = .quickLogBreastFeed },
                 quickLogBottleFeed: { activeEventSheet = .quickLogBottleFeed },
                 quickLogSleep: showSleepSheet,
-                quickLogNappy: { type in
-                    activeEventSheet = .quickLogNappy(type)
+                quickLogNappy: {
+                    activeEventSheet = .quickLogNappy(.wee)
                 }
             )
             .tag(Tab.home)
