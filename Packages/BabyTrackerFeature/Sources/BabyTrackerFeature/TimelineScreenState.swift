@@ -1,6 +1,11 @@
 import Foundation
 
 public struct TimelineScreenState: Equatable, Sendable {
+    public enum DisplayMode: Equatable, Sendable {
+        case day
+        case weekStrip
+    }
+
     public let selectedDay: Date
     public let selectedDayTitle: String
     public let weekTitle: String
@@ -9,6 +14,9 @@ public struct TimelineScreenState: Equatable, Sendable {
     public let showsJumpToToday: Bool
     public let canMoveToNextDay: Bool
     public let syncMessage: String?
+    public let displayMode: DisplayMode
+    public let stripColumns: [TimelineStripDayColumnViewState]
+    public let selectedStripColumnIndex: Int
 
     public init(
         selectedDay: Date,
@@ -18,7 +26,10 @@ public struct TimelineScreenState: Equatable, Sendable {
         selectedPageIndex: Int,
         showsJumpToToday: Bool,
         canMoveToNextDay: Bool,
-        syncMessage: String?
+        syncMessage: String?,
+        displayMode: DisplayMode,
+        stripColumns: [TimelineStripDayColumnViewState],
+        selectedStripColumnIndex: Int
     ) {
         self.selectedDay = selectedDay
         self.selectedDayTitle = selectedDayTitle
@@ -28,5 +39,8 @@ public struct TimelineScreenState: Equatable, Sendable {
         self.showsJumpToToday = showsJumpToToday
         self.canMoveToNextDay = canMoveToNextDay
         self.syncMessage = syncMessage
+        self.displayMode = displayMode
+        self.stripColumns = stripColumns
+        self.selectedStripColumnIndex = selectedStripColumnIndex
     }
 }
