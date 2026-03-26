@@ -34,6 +34,7 @@ public struct TimelineWeekView: View {
                 hourAxis(slotHeight: slotHeight)
                     .frame(width: hourLabelWidth)
                     .padding(.top, 28)
+                    .padding(.trailing, 8)
 
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal, showsIndicators: false) {
