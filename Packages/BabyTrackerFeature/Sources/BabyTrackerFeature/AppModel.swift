@@ -84,6 +84,32 @@ public final class AppModel {
         }
     }
 
+    public func hardDeleteAllData() {
+        Task { @MainActor in
+            var cloudDeleteError: Error?
+
+            do {
+                try await syncEngine.hardDeleteAllCloudData()
+            } catch {
+                cloudDeleteError = error
+                AppLogger.shared.log(.error, category: "CloudKitSync", "Hard delete cloud cleanup failed: \(error.localizedDescription)")
+            }
+
+            do {
+                try userIdentityRepository.resetAllData()
+                childSelectionStore.saveSelectedChildID(nil)
+                clearUndoDeleteState()
+                refresh(selecting: nil)
+                if let cloudDeleteError {
+                    errorMessage = "Local data was cleared, but iCloud cleanup failed: \(cloudDeleteError.localizedDescription)"
+                }
+            } catch {
+                errorMessage = resolveErrorMessage(for: error)
+                refresh(selecting: nil)
+            }
+        }
+    }
+
     public func createLocalUser(displayName: String) {
         perform {
             _ = try CreateLocalUserUseCase(userIdentityRepository: userIdentityRepository)

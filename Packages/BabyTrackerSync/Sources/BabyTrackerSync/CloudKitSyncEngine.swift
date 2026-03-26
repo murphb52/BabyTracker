@@ -186,6 +186,46 @@ public final class CloudKitSyncEngine {
         AppLogger.shared.log(.info, category: "CloudKitSync", "Left shared zone for child \(childID)")
     }
 
+    public func hardDeleteAllCloudData() async throws {
+        let children = try childRepository.loadAllChildren()
+        var privateZoneIDs = Set<CKRecordZone.ID>()
+        var sharedZoneIDs = Set<CKRecordZone.ID>()
+
+        for child in children {
+            if let context = try childRepository.loadCloudKitChildContext(id: child.id) {
+                if context.databaseScope == .shared {
+                    sharedZoneIDs.insert(context.zoneID)
+                } else {
+                    privateZoneIDs.insert(context.zoneID)
+                }
+            } else {
+                // If context is missing locally, still attempt to remove the
+                // default zone for this child from the private database.
+                privateZoneIDs.insert(CloudKitRecordNames.zoneID(for: child.id))
+            }
+        }
+
+        if !privateZoneIDs.isEmpty {
+            try await client.modifyRecordZones(
+                saving: [],
+                deleting: Array(privateZoneIDs),
+                databaseScope: .private
+            )
+        }
+
+        if !sharedZoneIDs.isEmpty {
+            try await client.modifyRecordZones(
+                saving: [],
+                deleting: Array(sharedZoneIDs),
+                databaseScope: .shared
+            )
+        }
+
+        pendingInvitesByChildID.removeAll()
+        logger.info("Hard delete removed \(privateZoneIDs.count, privacy: .public) private zone(s) and \(sharedZoneIDs.count, privacy: .public) shared zone(s)")
+        AppLogger.shared.log(.warning, category: "CloudKitSync", "Hard delete removed \(privateZoneIDs.count) private zone(s) and \(sharedZoneIDs.count) shared zone(s)")
+    }
+
     public func accept(metadata: CKShare.Metadata) async throws {
         let shareTitle = metadata.share[CKShare.SystemFieldKey.title] as? String ?? "unknown"
         let zoneName = metadata.share.recordID.zoneID.zoneName

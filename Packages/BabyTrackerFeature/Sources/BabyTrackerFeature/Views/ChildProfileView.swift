@@ -7,19 +7,22 @@ public struct ChildProfileView: View {
     let editChildAction: () -> Void
     let shareChildAction: () -> Void
     let archiveAction: () -> Void
+    let hardDeleteAction: () -> Void
 
     public init(
         model: AppModel,
         profile: ChildProfileScreenState,
         editChildAction: @escaping () -> Void,
         shareChildAction: @escaping () -> Void,
-        archiveAction: @escaping () -> Void
+        archiveAction: @escaping () -> Void,
+        hardDeleteAction: @escaping () -> Void
     ) {
         self.model = model
         self.profile = profile
         self.editChildAction = editChildAction
         self.shareChildAction = shareChildAction
         self.archiveAction = archiveAction
+        self.hardDeleteAction = hardDeleteAction
     }
 
     public var body: some View {
@@ -104,6 +107,21 @@ public struct ChildProfileView: View {
                             titleColor: .red
                         )
                     }
+                }
+            }
+
+            Section {
+                NavigationLink {
+                    ChildProfileHardDeleteView(
+                        hardDeleteAction: hardDeleteAction
+                    )
+                } label: {
+                    settingsRow(
+                        title: "Hard Delete",
+                        value: nil,
+                        accessibilityIdentifier: "profile-hard-delete-row",
+                        titleColor: .red
+                    )
                 }
             }
         }
