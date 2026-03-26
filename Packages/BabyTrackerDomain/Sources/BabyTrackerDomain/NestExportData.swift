@@ -159,6 +159,17 @@ public struct NestBreastFeedExport: Sendable {
     public let endedAt: Date
     public let leftDurationSeconds: Int?
     public let rightDurationSeconds: Int?
+
+    public init(id: UUID, occurredAt: Date, notes: String, side: BreastSide?, startedAt: Date, endedAt: Date, leftDurationSeconds: Int?, rightDurationSeconds: Int?) {
+        self.id = id
+        self.occurredAt = occurredAt
+        self.notes = notes
+        self.side = side
+        self.startedAt = startedAt
+        self.endedAt = endedAt
+        self.leftDurationSeconds = leftDurationSeconds
+        self.rightDurationSeconds = rightDurationSeconds
+    }
 }
 
 public struct NestBottleFeedExport: Sendable {
@@ -167,6 +178,14 @@ public struct NestBottleFeedExport: Sendable {
     public let notes: String
     public let amountMilliliters: Int
     public let milkType: MilkType?
+
+    public init(id: UUID, occurredAt: Date, notes: String, amountMilliliters: Int, milkType: MilkType?) {
+        self.id = id
+        self.occurredAt = occurredAt
+        self.notes = notes
+        self.amountMilliliters = amountMilliliters
+        self.milkType = milkType
+    }
 }
 
 public struct NestSleepExport: Sendable {
@@ -175,6 +194,14 @@ public struct NestSleepExport: Sendable {
     public let notes: String
     public let startedAt: Date
     public let endedAt: Date
+
+    public init(id: UUID, occurredAt: Date, notes: String, startedAt: Date, endedAt: Date) {
+        self.id = id
+        self.occurredAt = occurredAt
+        self.notes = notes
+        self.startedAt = startedAt
+        self.endedAt = endedAt
+    }
 }
 
 public struct NestNappyExport: Sendable {
@@ -185,4 +212,14 @@ public struct NestNappyExport: Sendable {
     public let peeVolume: NappyVolume?
     public let pooVolume: NappyVolume?
     public let pooColor: PooColor?
+
+    public init(id: UUID, occurredAt: Date, notes: String, nappyType: NappyType, peeVolume: NappyVolume?, pooVolume: NappyVolume?, pooColor: PooColor?) {
+        self.id = id
+        self.occurredAt = occurredAt
+        self.notes = notes
+        self.nappyType = nappyType
+        self.peeVolume = peeVolume
+        self.pooVolume = pooVolume
+        self.pooColor = pooColor
+    }
 }
