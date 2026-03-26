@@ -65,7 +65,7 @@ public enum NestEventExport: Codable, Sendable {
                 id: id,
                 occurredAt: occurredAt,
                 notes: notes,
-                side: try c.decodeIfPresent(BreastSide.self, forKey: .side),
+                side: try c.decodeIfPresent(String.self, forKey: .side).flatMap(BreastSide.init(rawValue:)),
                 startedAt: try c.decode(Date.self, forKey: .startedAt),
                 endedAt: try c.decode(Date.self, forKey: .endedAt),
                 leftDurationSeconds: try c.decodeIfPresent(Int.self, forKey: .leftDurationSeconds),
@@ -77,7 +77,7 @@ public enum NestEventExport: Codable, Sendable {
                 occurredAt: occurredAt,
                 notes: notes,
                 amountMilliliters: try c.decode(Int.self, forKey: .amountMilliliters),
-                milkType: try c.decodeIfPresent(MilkType.self, forKey: .milkType)
+                milkType: try c.decodeIfPresent(String.self, forKey: .milkType).flatMap(MilkType.init(rawValue:))
             ))
         case "sleep":
             self = .sleep(NestSleepExport(
@@ -88,14 +88,18 @@ public enum NestEventExport: Codable, Sendable {
                 endedAt: try c.decode(Date.self, forKey: .endedAt)
             ))
         case "nappy":
+            let nappyTypeRaw = try c.decode(String.self, forKey: .nappyType)
+            guard let nappyType = NappyType(rawValue: nappyTypeRaw) else {
+                throw DecodingError.dataCorruptedError(forKey: .nappyType, in: c, debugDescription: "Unknown nappyType: \(nappyTypeRaw)")
+            }
             self = .nappy(NestNappyExport(
                 id: id,
                 occurredAt: occurredAt,
                 notes: notes,
-                nappyType: try c.decode(NappyType.self, forKey: .nappyType),
-                peeVolume: try c.decodeIfPresent(NappyVolume.self, forKey: .peeVolume),
-                pooVolume: try c.decodeIfPresent(NappyVolume.self, forKey: .pooVolume),
-                pooColor: try c.decodeIfPresent(PooColor.self, forKey: .pooColor)
+                nappyType: nappyType,
+                peeVolume: try c.decodeIfPresent(String.self, forKey: .peeVolume).flatMap(NappyVolume.init(rawValue:)),
+                pooVolume: try c.decodeIfPresent(String.self, forKey: .pooVolume).flatMap(NappyVolume.init(rawValue:)),
+                pooColor: try c.decodeIfPresent(String.self, forKey: .pooColor).flatMap(PooColor.init(rawValue:))
             ))
         default:
             throw DecodingError.dataCorrupted(
@@ -113,7 +117,7 @@ public enum NestEventExport: Codable, Sendable {
             try c.encode(e.id, forKey: .id)
             try c.encode(e.occurredAt, forKey: .occurredAt)
             try c.encode(e.notes, forKey: .notes)
-            try c.encodeIfPresent(e.side, forKey: .side)
+            try c.encodeIfPresent(e.side?.rawValue, forKey: .side)
             try c.encode(e.startedAt, forKey: .startedAt)
             try c.encode(e.endedAt, forKey: .endedAt)
             try c.encodeIfPresent(e.leftDurationSeconds, forKey: .leftDurationSeconds)
@@ -125,7 +129,7 @@ public enum NestEventExport: Codable, Sendable {
             try c.encode(e.occurredAt, forKey: .occurredAt)
             try c.encode(e.notes, forKey: .notes)
             try c.encode(e.amountMilliliters, forKey: .amountMilliliters)
-            try c.encodeIfPresent(e.milkType, forKey: .milkType)
+            try c.encodeIfPresent(e.milkType?.rawValue, forKey: .milkType)
 
         case .sleep(let e):
             try c.encode("sleep", forKey: .type)
@@ -140,10 +144,10 @@ public enum NestEventExport: Codable, Sendable {
             try c.encode(e.id, forKey: .id)
             try c.encode(e.occurredAt, forKey: .occurredAt)
             try c.encode(e.notes, forKey: .notes)
-            try c.encode(e.nappyType, forKey: .nappyType)
-            try c.encodeIfPresent(e.peeVolume, forKey: .peeVolume)
-            try c.encodeIfPresent(e.pooVolume, forKey: .pooVolume)
-            try c.encodeIfPresent(e.pooColor, forKey: .pooColor)
+            try c.encode(e.nappyType.rawValue, forKey: .nappyType)
+            try c.encodeIfPresent(e.peeVolume?.rawValue, forKey: .peeVolume)
+            try c.encodeIfPresent(e.pooVolume?.rawValue, forKey: .pooVolume)
+            try c.encodeIfPresent(e.pooColor?.rawValue, forKey: .pooColor)
         }
     }
 }
