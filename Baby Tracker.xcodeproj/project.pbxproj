@@ -611,7 +611,6 @@
 			baseConfigurationReference = D0A000000000000000000024 /* Tests.xcconfig */;
 			buildSettings = {
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 			};
 			name = Debug;
 		};
@@ -620,7 +619,6 @@
 			baseConfigurationReference = D0A000000000000000000024 /* Tests.xcconfig */;
 			buildSettings = {
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 			};
 			name = Release;
 		};
