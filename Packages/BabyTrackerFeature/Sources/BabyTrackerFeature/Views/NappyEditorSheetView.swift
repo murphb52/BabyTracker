@@ -4,6 +4,7 @@ import SwiftUI
 public struct NappyEditorSheetView: View {
     let navigationTitle: String
     let primaryActionTitle: String
+    let childName: String
     let saveAction: (_ type: NappyType, _ occurredAt: Date, _ peeVolume: NappyVolume?, _ pooVolume: NappyVolume?, _ pooColor: PooColor?) -> Bool
 
     @Environment(\.dismiss) private var dismiss
@@ -16,6 +17,7 @@ public struct NappyEditorSheetView: View {
     public init(
         navigationTitle: String,
         primaryActionTitle: String,
+        childName: String,
         initialType: NappyType,
         initialOccurredAt: Date,
         initialPeeVolume: NappyVolume?,
@@ -25,6 +27,7 @@ public struct NappyEditorSheetView: View {
     ) {
         self.navigationTitle = navigationTitle
         self.primaryActionTitle = primaryActionTitle
+        self.childName = childName
         self.saveAction = saveAction
         _type = State(initialValue: NappyTypeChoice(type: initialType))
         _occurredAt = State(initialValue: initialOccurredAt)
@@ -80,6 +83,8 @@ public struct NappyEditorSheetView: View {
                         .accessibilityIdentifier("nappy-poo-color-picker")
                     }
                 }
+
+                LoggingSummaryView(sentence: summarySentence)
             }
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -153,6 +158,27 @@ public struct NappyEditorSheetView: View {
 
     private var supportsPooVolume: Bool {
         NappyEntry.supportsPooVolume(for: type.value)
+    }
+
+    private var summarySentence: String {
+        let timeStr = occurredAt.formatted(date: .omitted, time: .shortened)
+        switch type {
+        case .dry:
+            return "\(childName) had a dry nappy at \(timeStr)"
+        case .wee:
+            if peeVolume != .notSet {
+                return "\(childName) had a \(peeVolume.title.lowercased()) wet nappy at \(timeStr)"
+            }
+            return "\(childName) had a wet nappy at \(timeStr)"
+        case .poo:
+            var qualifiers: [String] = []
+            if pooVolume != .notSet { qualifiers.append(pooVolume.title.lowercased()) }
+            if pooColor != .notSet && pooColor != .other { qualifiers.append(pooColor.title.lowercased()) }
+            qualifiers.append("dirty")
+            return "\(childName) had a \(qualifiers.joined(separator: " ")) nappy at \(timeStr)"
+        case .mixed:
+            return "\(childName) had a mixed nappy at \(timeStr)"
+        }
     }
 }
 
@@ -272,6 +298,7 @@ extension NappyEditorSheetView {
     NappyEditorSheetView(
         navigationTitle: "Log Nappy",
         primaryActionTitle: "Save",
+        childName: "Robyn",
         initialType: .wee,
         initialOccurredAt: Date(),
         initialPeeVolume: .medium,

@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct SleepEditorSheetView: View {
     let mode: Mode
+    let childName: String
     let startSuggestions: [(label: String, date: Date)]
     let saveAction: (_ startedAt: Date, _ endedAt: Date?) -> Bool
     let deleteAction: (() -> Void)?
@@ -13,6 +14,7 @@ public struct SleepEditorSheetView: View {
 
     public init(
         mode: Mode,
+        childName: String,
         initialStartedAt: Date,
         initialEndedAt: Date?,
         startSuggestions: [(label: String, date: Date)] = [],
@@ -20,6 +22,7 @@ public struct SleepEditorSheetView: View {
         deleteAction: (() -> Void)? = nil
     ) {
         self.mode = mode
+        self.childName = childName
         self.startSuggestions = startSuggestions
         self.saveAction = saveAction
         self.deleteAction = deleteAction
@@ -45,6 +48,8 @@ public struct SleepEditorSheetView: View {
                 case .edit:
                     editModeContent
                 }
+
+                LoggingSummaryView(sentence: summarySentence)
 
                 if let validationMessage {
                     Section {
@@ -187,6 +192,39 @@ public struct SleepEditorSheetView: View {
                 }
             }
             .padding(.vertical, 2)
+        }
+    }
+
+    // MARK: - Summary
+
+    private var summarySentence: String {
+        switch mode {
+        case .start:
+            if entryMode == .timer {
+                return "\(childName) is about to fall asleep"
+            }
+            let timeStr = startedAt.formatted(date: .omitted, time: .shortened)
+            return "\(childName) fell asleep at \(timeStr)"
+        case .end:
+            let endTimeStr = endedAt.formatted(date: .omitted, time: .shortened)
+            return "\(childName) slept for \(sleepDurationString) until \(endTimeStr)"
+        case .edit:
+            let startTimeStr = startedAt.formatted(date: .omitted, time: .shortened)
+            let endTimeStr = endedAt.formatted(date: .omitted, time: .shortened)
+            return "\(childName) slept from \(startTimeStr) to \(endTimeStr) (\(sleepDurationString))"
+        }
+    }
+
+    private var sleepDurationString: String {
+        let mins = max(0, Int(endedAt.timeIntervalSince(startedAt) / 60))
+        let hours = mins / 60
+        let remaining = mins % 60
+        if hours > 0 {
+            return remaining > 0 ? "\(hours)h \(remaining)m" : "\(hours)h"
+        } else if mins > 0 {
+            return "\(mins) min"
+        } else {
+            return "less than a minute"
         }
     }
 

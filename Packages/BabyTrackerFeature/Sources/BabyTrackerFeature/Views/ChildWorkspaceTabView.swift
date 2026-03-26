@@ -145,6 +145,7 @@ public struct ChildWorkspaceTabView: View {
             BreastFeedEditorSheetView(
                 navigationTitle: "Breast Feed",
                 primaryActionTitle: "Save",
+                childName: profile.child.name,
                 initialDurationMinutes: 15,
                 initialEndTime: Date(),
                 initialSide: nil
@@ -165,6 +166,7 @@ public struct ChildWorkspaceTabView: View {
             BottleFeedEditorSheetView(
                 navigationTitle: "Bottle Feed",
                 primaryActionTitle: "Save",
+                childName: profile.child.name,
                 initialAmountMilliliters: 120,
                 initialOccurredAt: Date(),
                 initialMilkType: nil
@@ -182,6 +184,7 @@ public struct ChildWorkspaceTabView: View {
         case let .startSleep(suggestions):
             SleepEditorSheetView(
                 mode: .start,
+                childName: profile.child.name,
                 initialStartedAt: Date(),
                 initialEndedAt: nil,
                 startSuggestions: suggestions
@@ -195,6 +198,7 @@ public struct ChildWorkspaceTabView: View {
         case let .endSleep(id, startedAt):
             SleepEditorSheetView(
                 mode: .end,
+                childName: profile.child.name,
                 initialStartedAt: startedAt,
                 initialEndedAt: defaultSleepEndTime(for: startedAt),
                 saveAction: { updatedStartedAt, updatedEndedAt in
@@ -222,6 +226,7 @@ public struct ChildWorkspaceTabView: View {
             NappyEditorSheetView(
                 navigationTitle: "Nappy",
                 primaryActionTitle: "Save",
+                childName: profile.child.name,
                 initialType: type,
                 initialOccurredAt: Date(),
                 initialPeeVolume: nil,
@@ -244,6 +249,7 @@ public struct ChildWorkspaceTabView: View {
             BreastFeedEditorSheetView(
                 navigationTitle: "Edit Breast Feed",
                 primaryActionTitle: "Update",
+                childName: profile.child.name,
                 initialDurationMinutes: durationMinutes,
                 initialEndTime: endTime,
                 initialSide: side,
@@ -267,6 +273,7 @@ public struct ChildWorkspaceTabView: View {
             BottleFeedEditorSheetView(
                 navigationTitle: "Edit Bottle Feed",
                 primaryActionTitle: "Update",
+                childName: profile.child.name,
                 initialAmountMilliliters: amountMilliliters,
                 initialOccurredAt: occurredAt,
                 initialMilkType: milkType
@@ -285,6 +292,7 @@ public struct ChildWorkspaceTabView: View {
         case let .editSleep(id, startedAt, endedAt):
             SleepEditorSheetView(
                 mode: .edit,
+                childName: profile.child.name,
                 initialStartedAt: startedAt,
                 initialEndedAt: endedAt
             ) { updatedStartedAt, updatedEndedAt in
@@ -306,6 +314,7 @@ public struct ChildWorkspaceTabView: View {
             NappyEditorSheetView(
                 navigationTitle: "Edit Nappy",
                 primaryActionTitle: "Update",
+                childName: profile.child.name,
                 initialType: type,
                 initialOccurredAt: occurredAt,
                 initialPeeVolume: peeVolume,

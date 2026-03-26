@@ -4,6 +4,7 @@ import SwiftUI
 public struct BottleFeedEditorSheetView: View {
     let navigationTitle: String
     let primaryActionTitle: String
+    let childName: String
     let saveAction: (_ amountMilliliters: Int, _ occurredAt: Date, _ milkType: MilkType?) -> Bool
 
     @Environment(\.dismiss) private var dismiss
@@ -23,6 +24,7 @@ public struct BottleFeedEditorSheetView: View {
     public init(
         navigationTitle: String,
         primaryActionTitle: String,
+        childName: String,
         initialAmountMilliliters: Int,
         initialOccurredAt: Date,
         initialMilkType: MilkType?,
@@ -30,6 +32,7 @@ public struct BottleFeedEditorSheetView: View {
     ) {
         self.navigationTitle = navigationTitle
         self.primaryActionTitle = primaryActionTitle
+        self.childName = childName
         self.saveAction = saveAction
         _amountMilliliters = State(initialValue: initialAmountMilliliters > 0 ? "\(initialAmountMilliliters)" : "")
         _occurredAt = State(initialValue: initialOccurredAt)
@@ -73,6 +76,8 @@ public struct BottleFeedEditorSheetView: View {
                         .keyboardType(.numberPad)
                         .accessibilityIdentifier("bottle-feed-amount-field")
                 }
+
+                LoggingSummaryView(sentence: summarySentence)
 
                 if let validationMessage {
                     Section {
@@ -158,6 +163,23 @@ public struct BottleFeedEditorSheetView: View {
     private func isSelected(amount: Int) -> Bool {
         parsedAmountMilliliters == amount
     }
+
+    private var summarySentence: String {
+        let timeStr = occurredAt.formatted(date: .omitted, time: .shortened)
+        guard let amount = parsedAmountMilliliters else {
+            return "\(childName) had a bottle at \(timeStr)"
+        }
+        switch milkType {
+        case .breastMilk:
+            return "\(childName) drank \(amount) mL of breast milk at \(timeStr)"
+        case .formula:
+            return "\(childName) drank \(amount) mL of formula at \(timeStr)"
+        case .mixed:
+            return "\(childName) drank \(amount) mL of mixed milk at \(timeStr)"
+        case .notSet, .other:
+            return "\(childName) drank \(amount) mL at \(timeStr)"
+        }
+    }
 }
 
 extension BottleFeedEditorSheetView {
@@ -206,6 +228,7 @@ extension BottleFeedEditorSheetView {
     BottleFeedEditorSheetView(
         navigationTitle: "Bottle Feed",
         primaryActionTitle: "Save",
+        childName: "Robyn",
         initialAmountMilliliters: 0,
         initialOccurredAt: Date(),
         initialMilkType: nil

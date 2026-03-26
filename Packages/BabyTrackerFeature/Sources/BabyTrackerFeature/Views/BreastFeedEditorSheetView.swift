@@ -4,6 +4,7 @@ import SwiftUI
 public struct BreastFeedEditorSheetView: View {
     let navigationTitle: String
     let primaryActionTitle: String
+    let childName: String
     let saveAction: (_ durationMinutes: Int, _ endTime: Date, _ side: BreastSide?, _ leftDurationSeconds: Int?, _ rightDurationSeconds: Int?) -> Bool
 
     @Environment(\.dismiss) private var dismiss
@@ -32,6 +33,7 @@ public struct BreastFeedEditorSheetView: View {
     public init(
         navigationTitle: String,
         primaryActionTitle: String,
+        childName: String,
         initialDurationMinutes: Int,
         initialEndTime: Date,
         initialSide: BreastSide?,
@@ -41,6 +43,7 @@ public struct BreastFeedEditorSheetView: View {
     ) {
         self.navigationTitle = navigationTitle
         self.primaryActionTitle = primaryActionTitle
+        self.childName = childName
         self.saveAction = saveAction
         _durationMinutes = State(initialValue: initialDurationMinutes > 0 ? "\(initialDurationMinutes)" : "")
         _endTime = State(initialValue: initialEndTime)
@@ -74,6 +77,8 @@ public struct BreastFeedEditorSheetView: View {
                 } else {
                     manualModeContent
                 }
+
+                LoggingSummaryView(sentence: summarySentence)
             }
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -321,6 +326,42 @@ public struct BreastFeedEditorSheetView: View {
         let s = Int(seconds)
         return String(format: "%d:%02d", s / 60, s % 60)
     }
+
+    private var summarySentence: String {
+        if mode == .timer {
+            guard timerStarted else {
+                return "\(childName) is about to breast feed"
+            }
+            let total = leftElapsed + rightElapsed
+            let mins = Int(total / 60)
+            let durationStr = mins == 0 ? "less than a minute" : "\(mins) min"
+            let hasLeft = leftElapsed > 0
+            let hasRight = rightElapsed > 0
+            if hasLeft && hasRight {
+                return "\(childName) has fed on both sides for \(durationStr)"
+            } else if hasLeft {
+                return "\(childName) has fed on the left for \(durationStr)"
+            } else {
+                return "\(childName) has fed on the right for \(durationStr)"
+            }
+        } else {
+            let timeStr = endTime.formatted(date: .omitted, time: .shortened)
+            guard let total = parsedDurationMinutes else {
+                return "\(childName) breast fed at \(timeStr)"
+            }
+            let durationStr = total == 1 ? "1 minute" : "\(total) minutes"
+            switch side {
+            case .notSet:
+                return "\(childName) breast fed for \(durationStr) at \(timeStr)"
+            case .left:
+                return "\(childName) fed on the left for \(durationStr) at \(timeStr)"
+            case .right:
+                return "\(childName) fed on the right for \(durationStr) at \(timeStr)"
+            case .both:
+                return "\(childName) fed on both sides for \(durationStr) at \(timeStr)"
+            }
+        }
+    }
 }
 
 extension BreastFeedEditorSheetView {
@@ -376,6 +417,7 @@ extension BreastFeedEditorSheetView {
     BreastFeedEditorSheetView(
         navigationTitle: "Log Feed",
         primaryActionTitle: "Save",
+        childName: "Robyn",
         initialDurationMinutes: 15,
         initialEndTime: Date(),
         initialSide: .both
