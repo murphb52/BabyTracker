@@ -331,6 +331,22 @@ public final class AppModel {
     }
 
     @discardableResult
+    public func logSleep(startedAt: Date, endedAt: Date) -> Bool {
+        perform {
+            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            _ = try LogSleepUseCase(eventRepository: eventRepository)
+                .execute(.init(
+                    childID: profile.child.id,
+                    localUserID: localUser.id,
+                    startedAt: startedAt,
+                    endedAt: endedAt,
+                    membership: profile.currentMembership
+                ))
+        }
+    }
+
+    @discardableResult
     public func endSleep(
         id: UUID,
         startedAt: Date,

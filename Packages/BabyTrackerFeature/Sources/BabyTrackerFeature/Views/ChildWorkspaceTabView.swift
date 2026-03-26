@@ -188,8 +188,13 @@ public struct ChildWorkspaceTabView: View {
                 initialStartedAt: Date(),
                 initialEndedAt: nil,
                 startSuggestions: suggestions
-            ) { startedAt, _ in
-                let didSave = model.startSleep(startedAt: startedAt)
+            ) { startedAt, endedAt in
+                let didSave: Bool
+                if let endedAt {
+                    didSave = model.logSleep(startedAt: startedAt, endedAt: endedAt)
+                } else {
+                    didSave = model.startSleep(startedAt: startedAt)
+                }
                 if didSave {
                     activeEventSheet = nil
                 }
