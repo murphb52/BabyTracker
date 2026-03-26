@@ -68,7 +68,8 @@ public struct ChildWorkspaceTabView: View {
                 profile: profile,
                 editChildAction: { showingEditChildSheet = true },
                 shareChildAction: { model.presentShareSheet() },
-                archiveAction: { model.archiveCurrentChild() }
+                archiveAction: { model.archiveCurrentChild() },
+                hardDeleteAction: { model.hardDeleteAllData() }
             )
             .tag(Tab.profile)
             .tabItem {

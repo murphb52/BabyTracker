@@ -8,4 +8,5 @@ public protocol UserIdentityRepository: AnyObject {
     func loadUsers(for userIDs: [UUID]) throws -> [UserIdentity]
     func saveUser(_ user: UserIdentity) throws
     func removeLegacyPlaceholderCaregivers() throws
+    func resetAllData() throws
 }

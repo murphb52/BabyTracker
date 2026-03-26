@@ -127,8 +127,7 @@ public final class SwiftDataUserIdentityRepository: CloudKitUserIdentityReposito
     }
 
     /// Resets all stored data across all entity types and clears user defaults.
-    /// Intended for development seeding and test setup only.
-    public func resetAllData(clearingUserDefaults additionalUserDefaults: UserDefaults? = nil) throws {
+    public func resetAllData() throws {
         try deleteAll(StoredMembership.self)
         try deleteAll(StoredChild.self)
         try deleteAll(StoredUserIdentity.self)
