@@ -2,6 +2,8 @@ import BabyTrackerDomain
 import SwiftUI
 
 public struct BottleFeedEditorSheetView: View {
+    private static let eventColor = BabyEventStyle.accentColor(for: .bottleFeed)
+
     let navigationTitle: String
     let primaryActionTitle: String
     let childName: String
@@ -65,7 +67,7 @@ public struct BottleFeedEditorSheetView: View {
                                     .padding(.vertical, 10)
                                     .background(
                                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                            .fill(!showCustomAmount && isSelected(amount: amount) ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                                            .fill(!showCustomAmount && isSelected(amount: amount) ? Self.eventColor : Color(.secondarySystemGroupedBackground))
                                     )
                                     .foregroundStyle(!showCustomAmount && isSelected(amount: amount) ? Color.white : Color.primary)
                             }
@@ -83,7 +85,7 @@ public struct BottleFeedEditorSheetView: View {
                                 .padding(.vertical, 10)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .fill(showCustomAmount ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                                        .fill(showCustomAmount ? Self.eventColor : Color(.secondarySystemGroupedBackground))
                                 )
                                 .foregroundStyle(showCustomAmount ? Color.white : Color.primary)
                         }
@@ -107,6 +109,9 @@ public struct BottleFeedEditorSheetView: View {
                     }
                 }
             }
+            .tint(Self.eventColor)
+            .scrollContentBackground(.hidden)
+            .background(Self.eventColor.opacity(0.08))
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .presentationDetents([.large])
@@ -158,7 +163,7 @@ public struct BottleFeedEditorSheetView: View {
                 .padding(.vertical, 10)
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(milkType == option ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                        .fill(milkType == option ? Self.eventColor : Color(.secondarySystemGroupedBackground))
                 )
                 .foregroundStyle(milkType == option ? Color.white : Color.primary)
         }
@@ -187,15 +192,15 @@ public struct BottleFeedEditorSheetView: View {
 
     private var summarySentence: AttributedString {
         let timeStr = occurredAt.formatted(date: .omitted, time: .shortened)
-        var s = summaryVariable(childName)
+        var s = summaryVariable(childName, color: Self.eventColor)
         guard let amount = parsedAmountMilliliters else {
             s += AttributedString(" had a bottle at ")
-            s += summaryVariable(timeStr)
+            s += summaryVariable(timeStr, color: Self.eventColor)
             return s
         }
         let amountStr = "\(amount) mL"
         s += AttributedString(" drank ")
-        s += summaryVariable(amountStr)
+        s += summaryVariable(amountStr, color: Self.eventColor)
         switch milkType {
         case .breastMilk:
             s += AttributedString(" of breast milk at ")
@@ -206,7 +211,7 @@ public struct BottleFeedEditorSheetView: View {
         case .notSet, .other:
             s += AttributedString(" at ")
         }
-        s += summaryVariable(timeStr)
+        s += summaryVariable(timeStr, color: Self.eventColor)
         return s
     }
 }

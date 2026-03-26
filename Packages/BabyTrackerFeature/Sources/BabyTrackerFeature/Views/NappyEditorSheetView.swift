@@ -2,6 +2,8 @@ import BabyTrackerDomain
 import SwiftUI
 
 public struct NappyEditorSheetView: View {
+    private static let eventColor = BabyEventStyle.accentColor(for: .nappy)
+
     let navigationTitle: String
     let primaryActionTitle: String
     let childName: String
@@ -80,6 +82,9 @@ public struct NappyEditorSheetView: View {
 
                 LoggingSummaryView(sentence: summarySentence)
             }
+            .tint(Self.eventColor)
+            .scrollContentBackground(.hidden)
+            .background(Self.eventColor.opacity(0.08))
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .presentationDetents([.large])
@@ -132,7 +137,7 @@ public struct NappyEditorSheetView: View {
                         .padding(.vertical, 10)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(type == option ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                                .fill(type == option ? Self.eventColor : Color(.secondarySystemGroupedBackground))
                         )
                         .foregroundStyle(type == option ? Color.white : Color.primary)
                 }
@@ -159,7 +164,7 @@ public struct NappyEditorSheetView: View {
                         .padding(.vertical, 10)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(pooColor == option ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                                .fill(pooColor == option ? Self.eventColor : Color(.secondarySystemGroupedBackground))
                         )
                         .foregroundStyle(pooColor == option ? Color.white : Color.primary)
                 }
@@ -184,28 +189,28 @@ public struct NappyEditorSheetView: View {
 
     private var summarySentence: AttributedString {
         let timeStr = occurredAt.formatted(date: .omitted, time: .shortened)
-        var s = summaryVariable(childName)
+        var s = summaryVariable(childName, color: Self.eventColor)
         s += AttributedString(" had a ")
         switch type {
         case .dry:
-            s += summaryVariable("dry")
+            s += summaryVariable("dry", color: Self.eventColor)
         case .wee:
             if peeVolume != .notSet {
-                s += summaryVariable("\(peeVolume.title.lowercased()) wet")
+                s += summaryVariable("\(peeVolume.title.lowercased()) wet", color: Self.eventColor)
             } else {
-                s += summaryVariable("wet")
+                s += summaryVariable("wet", color: Self.eventColor)
             }
         case .poo:
             var qualifiers: [String] = []
             if pooVolume != .notSet { qualifiers.append(pooVolume.title.lowercased()) }
             if pooColor != .notSet && pooColor != .other { qualifiers.append(pooColor.title.lowercased()) }
             qualifiers.append("dirty")
-            s += summaryVariable(qualifiers.joined(separator: " "))
+            s += summaryVariable(qualifiers.joined(separator: " "), color: Self.eventColor)
         case .mixed:
-            s += summaryVariable("mixed")
+            s += summaryVariable("mixed", color: Self.eventColor)
         }
         s += AttributedString(" nappy at ")
-        s += summaryVariable(timeStr)
+        s += summaryVariable(timeStr, color: Self.eventColor)
         return s
     }
 }

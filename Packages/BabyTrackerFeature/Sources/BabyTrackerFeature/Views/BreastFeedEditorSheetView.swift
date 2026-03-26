@@ -2,6 +2,8 @@ import BabyTrackerDomain
 import SwiftUI
 
 public struct BreastFeedEditorSheetView: View {
+    private static let eventColor = BabyEventStyle.accentColor(for: .breastFeed)
+
     let navigationTitle: String
     let primaryActionTitle: String
     let childName: String
@@ -81,6 +83,9 @@ public struct BreastFeedEditorSheetView: View {
 
                 LoggingSummaryView(sentence: summarySentence)
             }
+            .tint(Self.eventColor)
+            .scrollContentBackground(.hidden)
+            .background(Self.eventColor.opacity(0.08))
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .presentationDetents([.large])
@@ -145,16 +150,16 @@ public struct BreastFeedEditorSheetView: View {
                 Text(label).font(.headline)
                 Text(formatDuration(elapsed))
                     .font(.title2.monospacedDigit())
-                    .foregroundStyle(isRunning ? Color.accentColor : Color.primary)
+                    .foregroundStyle(isRunning ? Self.eventColor : Color.primary)
                 Image(systemName: isRunning ? "pause.fill" : "play.fill")
                     .font(.title3)
-                    .foregroundStyle(isRunning ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(isRunning ? Self.eventColor : Color.secondary)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(isRunning ? Color.accentColor.opacity(0.12) : Color(.secondarySystemGroupedBackground))
+                    .fill(isRunning ? Self.eventColor.opacity(0.12) : Color(.secondarySystemGroupedBackground))
             )
         }
         .buttonStyle(.plain)
@@ -236,7 +241,7 @@ public struct BreastFeedEditorSheetView: View {
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(!showCustomDuration && parsedDurationMinutes == duration ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                                    .fill(!showCustomDuration && parsedDurationMinutes == duration ? Self.eventColor : Color(.secondarySystemGroupedBackground))
                             )
                             .foregroundStyle(!showCustomDuration && parsedDurationMinutes == duration ? Color.white : Color.primary)
                     }
@@ -254,7 +259,7 @@ public struct BreastFeedEditorSheetView: View {
                         .padding(.vertical, 10)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(showCustomDuration ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                                .fill(showCustomDuration ? Self.eventColor : Color(.secondarySystemGroupedBackground))
                         )
                         .foregroundStyle(showCustomDuration ? Color.white : Color.primary)
                 }
@@ -354,7 +359,7 @@ public struct BreastFeedEditorSheetView: View {
     private var summarySentence: AttributedString {
         if mode == .timer {
             guard timerStarted else {
-                var s = summaryVariable(childName)
+                var s = summaryVariable(childName, color: Self.eventColor)
                 s += AttributedString(" is about to breast feed")
                 return s
             }
@@ -363,56 +368,56 @@ public struct BreastFeedEditorSheetView: View {
             let durationStr = mins == 0 ? "less than a minute" : "\(mins) min"
             let hasLeft = leftElapsed > 0
             let hasRight = rightElapsed > 0
-            var s = summaryVariable(childName)
+            var s = summaryVariable(childName, color: Self.eventColor)
             if hasLeft && hasRight {
                 s += AttributedString(" has fed on both sides for ")
-                s += summaryVariable(durationStr)
+                s += summaryVariable(durationStr, color: Self.eventColor)
             } else if hasLeft {
                 s += AttributedString(" has fed on the ")
-                s += summaryVariable("left")
+                s += summaryVariable("left", color: Self.eventColor)
                 s += AttributedString(" for ")
-                s += summaryVariable(durationStr)
+                s += summaryVariable(durationStr, color: Self.eventColor)
             } else {
                 s += AttributedString(" has fed on the ")
-                s += summaryVariable("right")
+                s += summaryVariable("right", color: Self.eventColor)
                 s += AttributedString(" for ")
-                s += summaryVariable(durationStr)
+                s += summaryVariable(durationStr, color: Self.eventColor)
             }
             return s
         } else {
             let timeStr = endTime.formatted(date: .omitted, time: .shortened)
-            var s = summaryVariable(childName)
+            var s = summaryVariable(childName, color: Self.eventColor)
             guard let total = parsedDurationMinutes else {
                 s += AttributedString(" breast fed at ")
-                s += summaryVariable(timeStr)
+                s += summaryVariable(timeStr, color: Self.eventColor)
                 return s
             }
             let durationStr = total == 1 ? "1 minute" : "\(total) minutes"
             switch side {
             case .notSet:
                 s += AttributedString(" breast fed for ")
-                s += summaryVariable(durationStr)
+                s += summaryVariable(durationStr, color: Self.eventColor)
                 s += AttributedString(" at ")
-                s += summaryVariable(timeStr)
+                s += summaryVariable(timeStr, color: Self.eventColor)
             case .left:
                 s += AttributedString(" fed on the ")
-                s += summaryVariable("left")
+                s += summaryVariable("left", color: Self.eventColor)
                 s += AttributedString(" for ")
-                s += summaryVariable(durationStr)
+                s += summaryVariable(durationStr, color: Self.eventColor)
                 s += AttributedString(" at ")
-                s += summaryVariable(timeStr)
+                s += summaryVariable(timeStr, color: Self.eventColor)
             case .right:
                 s += AttributedString(" fed on the ")
-                s += summaryVariable("right")
+                s += summaryVariable("right", color: Self.eventColor)
                 s += AttributedString(" for ")
-                s += summaryVariable(durationStr)
+                s += summaryVariable(durationStr, color: Self.eventColor)
                 s += AttributedString(" at ")
-                s += summaryVariable(timeStr)
+                s += summaryVariable(timeStr, color: Self.eventColor)
             case .both:
                 s += AttributedString(" fed on both sides for ")
-                s += summaryVariable(durationStr)
+                s += summaryVariable(durationStr, color: Self.eventColor)
                 s += AttributedString(" at ")
-                s += summaryVariable(timeStr)
+                s += summaryVariable(timeStr, color: Self.eventColor)
             }
             return s
         }

@@ -1,8 +1,8 @@
 import SwiftUI
 
-func summaryVariable(_ text: String) -> AttributedString {
+func summaryVariable(_ text: String, color: Color = .accentColor) -> AttributedString {
     var a = AttributedString(text)
-    a.swiftUI.foregroundColor = Color.accentColor
+    a.swiftUI.foregroundColor = color
     return a
 }
 

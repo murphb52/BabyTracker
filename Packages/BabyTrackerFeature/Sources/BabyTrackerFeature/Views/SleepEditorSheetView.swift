@@ -1,6 +1,9 @@
+import BabyTrackerDomain
 import SwiftUI
 
 public struct SleepEditorSheetView: View {
+    private static let eventColor = BabyEventStyle.accentColor(for: .sleep)
+
     let mode: Mode
     let childName: String
     let startSuggestions: [(label: String, date: Date)]
@@ -62,6 +65,9 @@ public struct SleepEditorSheetView: View {
                     }
                 }
             }
+            .tint(Self.eventColor)
+            .scrollContentBackground(.hidden)
+            .background(Self.eventColor.opacity(0.08))
             .navigationTitle(mode.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .presentationDetents([.large])
@@ -195,7 +201,7 @@ public struct SleepEditorSheetView: View {
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(startedAt == suggestion.date ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                                    .fill(startedAt == suggestion.date ? Self.eventColor : Color(.secondarySystemGroupedBackground))
                             )
                             .foregroundStyle(startedAt == suggestion.date ? Color.white : Color.primary)
                     }
@@ -210,38 +216,38 @@ public struct SleepEditorSheetView: View {
     // MARK: - Summary
 
     private var summarySentence: AttributedString {
-        var s = summaryVariable(childName)
+        var s = summaryVariable(childName, color: Self.eventColor)
         switch mode {
         case .start:
             let startTimeStr = startedAt.formatted(date: .omitted, time: .shortened)
             if includesEndTime {
                 let endTimeStr = endedAt.formatted(date: .omitted, time: .shortened)
                 s += AttributedString(" slept from ")
-                s += summaryVariable(startTimeStr)
+                s += summaryVariable(startTimeStr, color: Self.eventColor)
                 s += AttributedString(" to ")
-                s += summaryVariable(endTimeStr)
+                s += summaryVariable(endTimeStr, color: Self.eventColor)
                 s += AttributedString(" (")
-                s += summaryVariable(sleepDurationString)
+                s += summaryVariable(sleepDurationString, color: Self.eventColor)
                 s += AttributedString(")")
             } else {
                 s += AttributedString(" fell asleep at ")
-                s += summaryVariable(startTimeStr)
+                s += summaryVariable(startTimeStr, color: Self.eventColor)
             }
         case .end:
             let endTimeStr = endedAt.formatted(date: .omitted, time: .shortened)
             s += AttributedString(" slept for ")
-            s += summaryVariable(sleepDurationString)
+            s += summaryVariable(sleepDurationString, color: Self.eventColor)
             s += AttributedString(" until ")
-            s += summaryVariable(endTimeStr)
+            s += summaryVariable(endTimeStr, color: Self.eventColor)
         case .edit:
             let startTimeStr = startedAt.formatted(date: .omitted, time: .shortened)
             let endTimeStr = endedAt.formatted(date: .omitted, time: .shortened)
             s += AttributedString(" slept from ")
-            s += summaryVariable(startTimeStr)
+            s += summaryVariable(startTimeStr, color: Self.eventColor)
             s += AttributedString(" to ")
-            s += summaryVariable(endTimeStr)
+            s += summaryVariable(endTimeStr, color: Self.eventColor)
             s += AttributedString(" (")
-            s += summaryVariable(sleepDurationString)
+            s += summaryVariable(sleepDurationString, color: Self.eventColor)
             s += AttributedString(")")
         }
         return s
