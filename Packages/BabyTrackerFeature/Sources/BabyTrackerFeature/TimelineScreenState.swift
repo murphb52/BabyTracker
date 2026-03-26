@@ -3,7 +3,7 @@ import Foundation
 public struct TimelineScreenState: Equatable, Sendable {
     public enum DisplayMode: Equatable, Sendable {
         case day
-        case weekStrip
+        case week
     }
 
     public let selectedDay: Date

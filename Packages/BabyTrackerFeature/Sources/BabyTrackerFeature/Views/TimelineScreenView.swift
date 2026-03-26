@@ -74,7 +74,7 @@ public struct TimelineScreenView: View {
                         }
                 )
             } else {
-                TimelineWeekStripView(
+                TimelineWeekView(
                     columns: profile.timeline.stripColumns,
                     selectedDay: profile.timeline.selectedDay,
                     showDay: model.showTimelineDay

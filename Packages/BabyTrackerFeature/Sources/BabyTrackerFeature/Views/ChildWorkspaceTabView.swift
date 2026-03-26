@@ -88,7 +88,7 @@ public struct ChildWorkspaceTabView: View {
         .toolbar {
             if selectedTab == .timeline {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(profile.timeline.displayMode == .day ? "Week Strip" : "Day View") {
+                    Button(profile.timeline.displayMode == .day ? "Week View" : "Day View") {
                         model.toggleTimelineDisplayMode()
                     }
                     .buttonStyle(.bordered)

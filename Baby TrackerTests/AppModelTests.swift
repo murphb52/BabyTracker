@@ -285,7 +285,7 @@ struct AppModelTests {
     }
 
     @Test
-    func timelineWeekStripUsesEventPrecedenceAndShowsAtLeastSevenColumns() throws {
+    func timelineWeekUsesEventPrecedenceAndShowsAtLeastSevenColumns() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }
 
@@ -323,7 +323,7 @@ struct AppModelTests {
         let todayColumn = try #require(timeline.stripColumns.last(where: { $0.isToday }))
         let tenAMSlot = (10 * 60) / BuildTimelineStripDatasetUseCase.defaultSlotMinutes
 
-        #expect(timeline.displayMode == .weekStrip)
+        #expect(timeline.displayMode == .week)
         #expect(timeline.stripColumns.count >= 7)
         #expect(
             todayColumn.slots.count ==

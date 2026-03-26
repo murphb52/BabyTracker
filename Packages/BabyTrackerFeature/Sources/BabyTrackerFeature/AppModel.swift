@@ -211,7 +211,7 @@ public final class AppModel {
     }
 
     public func toggleTimelineDisplayMode() {
-        timelineDisplayMode = timelineDisplayMode == .day ? .weekStrip : .day
+        timelineDisplayMode = timelineDisplayMode == .day ? .week : .day
         refresh(selecting: childSelectionStore.loadSelectedChildID())
     }
 

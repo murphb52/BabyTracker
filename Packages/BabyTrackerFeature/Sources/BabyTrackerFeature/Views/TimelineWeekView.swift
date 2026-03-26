@@ -1,7 +1,7 @@
 import BabyTrackerDomain
 import SwiftUI
 
-public struct TimelineWeekStripView: View {
+public struct TimelineWeekView: View {
     let columns: [TimelineStripDayColumnViewState]
     let selectedDay: Date
     let showDay: (Date) -> Void
