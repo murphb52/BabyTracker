@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		C92AF7D42F73061A003527C0 /* UITests.xctestplan in Resources */ = {isa = PBXBuildFile; fileRef = C92AF7D32F73061A003527C0 /* UITests.xctestplan */; };
 		C92AF7D62F730645003527C0 /* UnitTests.xctestplan in Resources */ = {isa = PBXBuildFile; fileRef = C92AF7D52F730645003527C0 /* UnitTests.xctestplan */; };
+		C9D3B9C32F7571CB00FE6C35 /* huckleberry_export.csv in Resources */ = {isa = PBXBuildFile; fileRef = C9D3B9C22F7571CB00FE6C35 /* huckleberry_export.csv */; };
 		D0A000000000000000000001 /* BabyTrackerFeature in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000040 /* BabyTrackerFeature */; };
 		D0A000000000000000000002 /* BabyTrackerDomain in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000041 /* BabyTrackerDomain */; };
 		D0A000000000000000000003 /* BabyTrackerPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000042 /* BabyTrackerPersistence */; };
@@ -67,6 +68,7 @@
 		C93425702F6BEA3F009ECD88 /* Baby Tracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Baby Tracker.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C93425812F6BEA40009ECD88 /* Baby TrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Baby TrackerTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C934258B2F6BEA40009ECD88 /* Baby TrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Baby TrackerUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C9D3B9C22F7571CB00FE6C35 /* huckleberry_export.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = huckleberry_export.csv; sourceTree = "<group>"; };
 		D0A000000000000000000021 /* Project-Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Project-Debug.xcconfig"; sourceTree = "<group>"; };
 		D0A000000000000000000022 /* Project-Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Project-Release.xcconfig"; sourceTree = "<group>"; };
 		D0A000000000000000000023 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = App.xcconfig; sourceTree = "<group>"; };
@@ -187,6 +189,7 @@
 		C93425672F6BEA3F009ECD88 = {
 			isa = PBXGroup;
 			children = (
+				C9D3B9C22F7571CB00FE6C35 /* huckleberry_export.csv */,
 				C92AF7D52F730645003527C0 /* UnitTests.xctestplan */,
 				C92AF7D32F73061A003527C0 /* UITests.xctestplan */,
 				C93425722F6BEA3F009ECD88 /* Baby Tracker */,
@@ -390,6 +393,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C9D3B9C32F7571CB00FE6C35 /* huckleberry_export.csv in Resources */,
 				C92AF7D42F73061A003527C0 /* UITests.xctestplan in Resources */,
 				C92AF7D62F730645003527C0 /* UnitTests.xctestplan in Resources */,
 			);
