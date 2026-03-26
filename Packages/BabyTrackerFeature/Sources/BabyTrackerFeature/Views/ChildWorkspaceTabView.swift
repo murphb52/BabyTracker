@@ -85,6 +85,17 @@ public struct ChildWorkspaceTabView: View {
         }
         .navigationTitle(profile.child.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if selectedTab == .timeline {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(profile.timeline.displayMode == .day ? "Week View" : "Day View") {
+                        model.toggleTimelineDisplayMode()
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("timeline-display-mode-button")
+                }
+            }
+        }
         .sheet(item: $activeEventSheet, onDismiss: {
             activeEventSheet = nil
         }) { sheet in

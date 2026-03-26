@@ -26,8 +26,10 @@ public final class AppModel {
     private let eventRepository: EventRepository
     private let syncEngine: CloudKitSyncEngine
     private let liveActivityManager: any FeedLiveActivityManaging
+    private let buildTimelineStripDatasetUseCase = BuildTimelineStripDatasetUseCase()
     private let calendar = Calendar.autoupdatingCurrent
     private var timelineSelectedDay = Calendar.autoupdatingCurrent.startOfDay(for: .now)
+    private var timelineDisplayMode: TimelineScreenState.DisplayMode = .day
     private var timelineChildID: UUID?
     private var pendingUndoDeletedEvent: BabyEvent?
     private var undoDeleteTask: Task<Void, Never>?
@@ -206,6 +208,11 @@ public final class AppModel {
 
     public func showTimelineDay(_ day: Date) {
         timelineSelectedDay = normalizedTimelineDay(for: day)
+        refresh(selecting: childSelectionStore.loadSelectedChildID())
+    }
+
+    public func toggleTimelineDisplayMode() {
+        timelineDisplayMode = timelineDisplayMode == .day ? .week : .day
         refresh(selecting: childSelectionStore.loadSelectedChildID())
     }
 
@@ -752,6 +759,7 @@ public final class AppModel {
             timeline: makeTimelineScreenState(
                 from: timelinePages,
                 selectedDay: timelineSelectedDay,
+                timelineEvents: visibleEvents,
                 cloudKitStatus: cloudKitStatus
             ),
             summary: makeSummaryScreenState(from: visibleEvents),
@@ -915,17 +923,27 @@ public final class AppModel {
 
         timelineChildID = childID
         timelineSelectedDay = normalizedTimelineDay(for: .now)
+        timelineDisplayMode = .day
     }
 
     private func makeTimelineScreenState(
         from pages: [TimelineDayPageState],
         selectedDay: Date,
+        timelineEvents: [BabyEvent],
         cloudKitStatus: CloudKitStatusViewState
     ) -> TimelineScreenState {
         let today = normalizedTimelineDay(for: .now)
         let selectedPageIndex = pages.firstIndex(where: { page in
             calendar.isDate(page.date, inSameDayAs: selectedDay)
         }) ?? 0
+        let stripDataset = buildTimelineStripDatasetUseCase.execute(
+            events: timelineEvents,
+            calendar: calendar
+        )
+        let stripColumns = makeTimelineStripColumns(from: stripDataset)
+        let selectedStripColumnIndex = stripColumns.firstIndex(where: { column in
+            calendar.isDate(column.date, inSameDayAs: selectedDay)
+        }) ?? stripDataset.todayIndex
 
         return TimelineScreenState(
             selectedDay: selectedDay,
@@ -935,8 +953,25 @@ public final class AppModel {
             selectedPageIndex: selectedPageIndex,
             showsJumpToToday: selectedDay != today,
             canMoveToNextDay: true,
-            syncMessage: timelineSyncMessage(for: cloudKitStatus)
+            syncMessage: timelineSyncMessage(for: cloudKitStatus),
+            displayMode: timelineDisplayMode,
+            stripColumns: stripColumns,
+            selectedStripColumnIndex: selectedStripColumnIndex
         )
+    }
+
+    private func makeTimelineStripColumns(
+        from dataset: TimelineStripDataset
+    ) -> [TimelineStripDayColumnViewState] {
+        dataset.columns.map { column in
+            TimelineStripDayColumnViewState(
+                date: column.date,
+                shortWeekdayTitle: shortWeekdayTitle(for: column.date),
+                dayNumberTitle: column.date.formatted(.dateTime.day()),
+                isToday: calendar.isDateInToday(column.date),
+                slots: column.slots.map(\.kind)
+            )
+        }
     }
 
     private func makeTimelineBlocks(

@@ -285,6 +285,54 @@ struct AppModelTests {
     }
 
     @Test
+    func timelineWeekUsesEventPrecedenceAndShowsAtLeastSevenColumns() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: .now)
+        let slotStart = try #require(calendar.date(byAdding: .hour, value: 10, to: today))
+        let slotEnd = try #require(calendar.date(byAdding: .minute, value: 45, to: slotStart))
+
+        _ = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 120,
+            occurredAt: slotStart,
+            milkType: nil
+        )
+        _ = try harness.saveNappy(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            type: .wee,
+            occurredAt: slotStart,
+            pooColor: nil
+        )
+        _ = try harness.saveSleep(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            startedAt: slotStart,
+            endedAt: slotEnd
+        )
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.toggleTimelineDisplayMode()
+
+        let timeline = try #require(harness.model.profile?.timeline)
+        let todayColumn = try #require(timeline.stripColumns.last(where: { $0.isToday }))
+        let tenAMSlot = (10 * 60) / BuildTimelineStripDatasetUseCase.defaultSlotMinutes
+
+        #expect(timeline.displayMode == .week)
+        #expect(timeline.stripColumns.count >= 7)
+        #expect(
+            todayColumn.slots.count ==
+                (24 * 60) / BuildTimelineStripDatasetUseCase.defaultSlotMinutes
+        )
+        #expect(todayColumn.slots[tenAMSlot] == .sleep)
+    }
+
+    @Test
     func mixedTimelineUsesLatestEventForCurrentStateAndLatestFeedForFeedStatus() throws {
         let liveActivityManager = LiveActivityManagerSpy()
         let harness = try Harness(liveActivityManager: liveActivityManager)
