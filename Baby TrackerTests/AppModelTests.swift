@@ -371,7 +371,10 @@ struct AppModelTests {
                 childID: seed.child.id,
                 childName: seed.child.name,
                 lastFeedKind: .bottleFeed,
-                lastFeedAt: feed.metadata.occurredAt
+                lastFeedAt: feed.metadata.occurredAt,
+                lastSleepAt: sleep.endedAt,
+                activeSleepStartedAt: nil,
+                lastNappyAt: nil
             )
         )
     }

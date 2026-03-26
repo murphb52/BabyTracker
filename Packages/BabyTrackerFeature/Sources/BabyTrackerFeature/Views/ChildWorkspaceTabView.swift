@@ -9,6 +9,7 @@ public struct ChildWorkspaceTabView: View {
     @State private var activeEventSheet: ChildEventSheet?
     @State private var deleteCandidate: EventDeleteCandidate?
     @State private var showingEditChildSheet = false
+    @State private var handledSleepSheetRequestToken = 0
 
     public init(
         model: AppModel,
@@ -118,6 +119,21 @@ public struct ChildWorkspaceTabView: View {
                     model.refreshAfterShareSheet()
                 }
         }
+        .onAppear {
+            processPendingSleepSheetRequest()
+        }
+        .onChange(of: model.sleepSheetRequestToken) { _, _ in
+            processPendingSleepSheetRequest()
+        }
+    }
+
+    private func processPendingSleepSheetRequest() {
+        guard model.sleepSheetRequestToken > handledSleepSheetRequestToken else {
+            return
+        }
+
+        handledSleepSheetRequestToken = model.sleepSheetRequestToken
+        showSleepSheet()
     }
 
     private func showSleepSheet() {
