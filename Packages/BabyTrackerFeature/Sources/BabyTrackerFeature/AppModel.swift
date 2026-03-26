@@ -17,6 +17,8 @@ public final class AppModel {
     public private(set) var undoDeleteMessage: String?
     public var shareSheetState: ShareSheetState?
     public private(set) var csvImportState: CSVImportState = .idle
+    public private(set) var nestImportState: NestImportState = .idle
+    public private(set) var dataExportState: DataExportState = .idle
 
     private let logger = Logger(subsystem: "com.adappt.BabyTracker", category: "AppModel")
     private let childRepository: any ChildRepository
@@ -1382,5 +1384,135 @@ public final class AppModel {
 
     public func dismissImportResult() {
         csvImportState = .idle
+    }
+
+    // MARK: - Export
+
+    public func exportData() {
+        guard let profile else {
+            dataExportState = .error("No active child selected")
+            return
+        }
+
+        dataExportState = .exporting
+
+        Task { @MainActor in
+            do {
+                let data = try ExportEventsUseCase(eventRepository: eventRepository)
+                    .execute(.init(child: profile.child, membership: profile.currentMembership))
+
+                let childName = profile.child.name
+                    .replacingOccurrences(of: " ", with: "-")
+                    .filter { $0.isLetter || $0 == "-" }
+                let dateStamp = Date().formatted(.iso8601.year().month().day())
+                let fileName = "Nest-\(childName)-\(dateStamp).json"
+
+                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+                try data.write(to: tempURL, options: .atomic)
+
+                dataExportState = .ready(tempURL)
+            } catch {
+                dataExportState = .error(resolveErrorMessage(for: error))
+            }
+        }
+    }
+
+    public func dismissExport() {
+        dataExportState = .idle
+    }
+
+    // MARK: - Nest Import
+
+    public func parseNestFileForImport(data: Data) {
+        guard let profile else {
+            nestImportState = .error("No active child selected")
+            return
+        }
+
+        let parseResult = NestJSONParser().parse(data: data)
+
+        guard !parseResult.events.isEmpty || parseResult.skippedCount > 0 else {
+            nestImportState = .error("The selected file contains no recognisable events")
+            return
+        }
+
+        do {
+            let taggedEvents = try CheckImportDuplicatesUseCase(eventRepository: eventRepository)
+                .execute(.init(events: parseResult.events, childID: profile.child.id))
+            nestImportState = .previewing(ImportPreviewState(parseResult: parseResult, taggedEvents: taggedEvents))
+        } catch {
+            let taggedEvents = parseResult.events.map { TaggedImportEvent(event: $0, duplicateStatus: .new) }
+            nestImportState = .previewing(ImportPreviewState(parseResult: parseResult, taggedEvents: taggedEvents))
+        }
+    }
+
+    public func reportNestImportFileError(_ message: String) {
+        nestImportState = .error(message)
+    }
+
+    public func toggleNestImportEvent(id: UUID) {
+        guard case .previewing(var previewState) = nestImportState else { return }
+        previewState.toggle(id)
+        nestImportState = .previewing(previewState)
+    }
+
+    public func skipAllNestDuplicates() {
+        guard case .previewing(var previewState) = nestImportState else { return }
+        previewState.skipAllDuplicates()
+        nestImportState = .previewing(previewState)
+    }
+
+    public func selectAllNestImportEvents() {
+        guard case .previewing(var previewState) = nestImportState else { return }
+        previewState.selectAllEvents()
+        nestImportState = .previewing(previewState)
+    }
+
+    public func confirmNestImport() {
+        guard case .previewing(let previewState) = nestImportState else { return }
+        guard let profile, let localUser else {
+            nestImportState = .error("No active child selected")
+            return
+        }
+
+        let eventsToImport = previewState.selectedEvents
+        guard !eventsToImport.isEmpty else {
+            nestImportState = .error("No events selected to import")
+            return
+        }
+
+        nestImportState = .importing
+
+        Task { @MainActor in
+            do {
+                let saveResult = try ImportEventsUseCase(eventRepository: eventRepository)
+                    .execute(.init(
+                        events: eventsToImport,
+                        childID: profile.child.id,
+                        localUserID: localUser.id,
+                        membership: profile.currentMembership
+                    ))
+                let result = CSVImportResult(
+                    importedCount: saveResult.importedCount,
+                    skippedParseCount: previewState.parseResult.skippedCount,
+                    skippedSaveCount: saveResult.skippedSaveCount,
+                    skippedReasons: previewState.parseResult.skippedReasons + saveResult.skippedReasons
+                )
+                nestImportState = .complete(result)
+                refresh(selecting: childSelectionStore.loadSelectedChildID())
+                _ = await syncEngine.refreshAfterLocalWrite()
+                refresh(selecting: childSelectionStore.loadSelectedChildID())
+            } catch {
+                nestImportState = .error(resolveErrorMessage(for: error))
+            }
+        }
+    }
+
+    public func cancelNestImport() {
+        nestImportState = .idle
+    }
+
+    public func dismissNestImportResult() {
+        nestImportState = .idle
     }
 }
