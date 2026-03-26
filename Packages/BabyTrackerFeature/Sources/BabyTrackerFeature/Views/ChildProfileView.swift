@@ -79,7 +79,17 @@ public struct ChildProfileView: View {
                 }
 
                 NavigationLink {
-                    ChildProfileImportView(model: model)
+                    ChildProfileExportView(model: model)
+                } label: {
+                    settingsRow(
+                        title: "Export Data",
+                        value: nil,
+                        accessibilityIdentifier: "profile-export-row"
+                    )
+                }
+
+                NavigationLink {
+                    ChildProfileImportChoiceView(model: model)
                 } label: {
                     settingsRow(
                         title: "Import Data",
