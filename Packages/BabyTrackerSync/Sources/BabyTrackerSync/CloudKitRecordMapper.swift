@@ -19,6 +19,14 @@ public enum CloudKitRecordMapper {
         record["createdAt"] = child.createdAt
         record["createdBy"] = child.createdBy.uuidString
         record["isArchived"] = child.isArchived
+        if let imageData = child.imageData {
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("child-image-\(child.id.uuidString).jpg")
+            try? imageData.write(to: tempURL)
+            record["imageAsset"] = CKAsset(fileURL: tempURL)
+        } else {
+            record["imageAsset"] = nil
+        }
         return record
     }
 
@@ -76,13 +84,19 @@ public enum CloudKitRecordMapper {
     }
 
     static func child(from record: CKRecord) throws -> Child {
-        try Child(
+        var imageData: Data?
+        if let asset = record["imageAsset"] as? CKAsset,
+           let url = asset.fileURL {
+            imageData = try? Data(contentsOf: url)
+        }
+        return try Child(
             id: extractUUID(prefix: "child.", from: record.recordID.recordName),
             name: record["name"] as? String ?? "",
             birthDate: record["birthDate"] as? Date,
             createdAt: record["createdAt"] as? Date ?? .now,
             createdBy: UUID(uuidString: record["createdBy"] as? String ?? "") ?? UUID(),
-            isArchived: record["isArchived"] as? Bool ?? false
+            isArchived: record["isArchived"] as? Bool ?? false,
+            imageData: imageData
         )
     }
 

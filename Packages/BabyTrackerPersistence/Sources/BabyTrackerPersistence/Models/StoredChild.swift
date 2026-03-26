@@ -9,6 +9,7 @@ final class StoredChild {
     var createdAt: Date = Date()
     var createdBy: UUID = UUID()
     var isArchived: Bool = false
+    var imageData: Data?
     var cloudKitZoneName: String?
     var cloudKitZoneOwnerName: String?
     var cloudKitShareRecordName: String?
@@ -24,6 +25,7 @@ final class StoredChild {
         createdAt: Date,
         createdBy: UUID,
         isArchived: Bool,
+        imageData: Data? = nil,
         cloudKitZoneName: String? = nil,
         cloudKitZoneOwnerName: String? = nil,
         cloudKitShareRecordName: String? = nil,
@@ -38,6 +40,7 @@ final class StoredChild {
         self.createdAt = createdAt
         self.createdBy = createdBy
         self.isArchived = isArchived
+        self.imageData = imageData
         self.cloudKitZoneName = cloudKitZoneName
         self.cloudKitZoneOwnerName = cloudKitZoneOwnerName
         self.cloudKitShareRecordName = cloudKitShareRecordName

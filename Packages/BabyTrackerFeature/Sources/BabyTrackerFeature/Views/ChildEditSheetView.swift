@@ -1,28 +1,53 @@
+import PhotosUI
 import SwiftUI
 
 public struct ChildEditSheetView: View {
     let initialName: String
     let initialBirthDate: Date?
-    let saveAction: (_ name: String, _ birthDate: Date?) -> Void
+    let initialImageData: Data?
+    let saveAction: (_ name: String, _ birthDate: Date?, _ imageData: Data?) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var includesBirthDate = false
     @State private var birthDate = Date()
+    @State private var selectedItem: PhotosPickerItem?
+    @State private var selectedImageData: Data?
 
     public init(
         initialName: String,
         initialBirthDate: Date?,
-        saveAction: @escaping (_ name: String, _ birthDate: Date?) -> Void
+        initialImageData: Data? = nil,
+        saveAction: @escaping (_ name: String, _ birthDate: Date?, _ imageData: Data?) -> Void
     ) {
         self.initialName = initialName
         self.initialBirthDate = initialBirthDate
+        self.initialImageData = initialImageData
         self.saveAction = saveAction
     }
 
     public var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    HStack {
+                        Spacer()
+                        PhotosPicker(selection: $selectedItem, matching: .images) {
+                            profileImageView
+                                .overlay(alignment: .bottomTrailing) {
+                                    Image(systemName: "pencil.circle.fill")
+                                        .font(.title3)
+                                        .symbolRenderingMode(.palette)
+                                        .foregroundStyle(.white, Color.accentColor)
+                                        .offset(x: 4, y: 4)
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+                }
+
                 Section("Child") {
                     TextField("Child name", text: $name)
                         .textInputAutocapitalization(.words)
@@ -46,7 +71,7 @@ public struct ChildEditSheetView: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        saveAction(name, includesBirthDate ? birthDate : nil)
+                        saveAction(name, includesBirthDate ? birthDate : nil, selectedImageData)
                         dismiss()
                     }
                     .accessibilityIdentifier("save-child-edit-button")
@@ -54,10 +79,39 @@ public struct ChildEditSheetView: View {
             }
             .onAppear {
                 name = initialName
+                selectedImageData = initialImageData
                 if let initialBirthDate {
                     includesBirthDate = true
                     birthDate = initialBirthDate
                 }
+            }
+            .onChange(of: selectedItem) { _, newItem in
+                Task {
+                    guard let data = try? await newItem?.loadTransferable(type: Data.self),
+                          let uiImage = UIImage(data: data),
+                          let compressed = ImageCompressor.compress(uiImage) else { return }
+                    selectedImageData = compressed
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var profileImageView: some View {
+        if let imageData = selectedImageData, let uiImage = UIImage(data: imageData) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 88, height: 88)
+                .clipShape(Circle())
+        } else {
+            ZStack {
+                Circle()
+                    .fill(Color.accentColor.opacity(0.15))
+                    .frame(width: 88, height: 88)
+                Image(systemName: "camera.fill")
+                    .font(.title2)
+                    .foregroundStyle(Color.accentColor)
             }
         }
     }

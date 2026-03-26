@@ -7,12 +7,14 @@ public struct UpdateCurrentChildUseCase: UseCase {
         public let name: String
         public let birthDate: Date?
         public let membership: Membership
+        public let imageData: Data?
 
-        public init(child: Child, name: String, birthDate: Date?, membership: Membership) {
+        public init(child: Child, name: String, birthDate: Date?, membership: Membership, imageData: Data? = nil) {
             self.child = child
             self.name = name
             self.birthDate = birthDate
             self.membership = membership
+            self.imageData = imageData
         }
     }
 
@@ -27,7 +29,7 @@ public struct UpdateCurrentChildUseCase: UseCase {
             throw ChildProfileValidationError.insufficientPermissions
         }
 
-        let updatedChild = try input.child.updating(name: input.name, birthDate: input.birthDate)
+        let updatedChild = try input.child.updating(name: input.name, birthDate: input.birthDate, imageData: input.imageData)
         try childRepository.saveChild(updatedChild)
         return updatedChild
     }

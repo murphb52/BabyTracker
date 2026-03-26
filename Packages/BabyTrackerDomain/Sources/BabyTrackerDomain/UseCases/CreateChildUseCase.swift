@@ -6,11 +6,13 @@ public struct CreateChildUseCase: UseCase {
         public let name: String
         public let birthDate: Date?
         public let localUser: UserIdentity
+        public let imageData: Data?
 
-        public init(name: String, birthDate: Date?, localUser: UserIdentity) {
+        public init(name: String, birthDate: Date?, localUser: UserIdentity, imageData: Data? = nil) {
             self.name = name
             self.birthDate = birthDate
             self.localUser = localUser
+            self.imageData = imageData
         }
     }
 
@@ -32,7 +34,8 @@ public struct CreateChildUseCase: UseCase {
         let child = try Child(
             name: input.name,
             birthDate: input.birthDate,
-            createdBy: input.localUser.id
+            createdBy: input.localUser.id,
+            imageData: input.imageData
         )
         let ownerMembership = Membership.owner(
             childID: child.id,

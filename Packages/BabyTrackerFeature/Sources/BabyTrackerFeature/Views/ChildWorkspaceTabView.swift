@@ -87,7 +87,10 @@ public struct ChildWorkspaceTabView: View {
             ChildEditSheetView(
                 initialName: profile.child.name,
                 initialBirthDate: profile.child.birthDate,
-                saveAction: model.updateCurrentChild(name:birthDate:)
+                initialImageData: profile.child.imageData,
+                saveAction: { name, birthDate, imageData in
+                    model.updateCurrentChild(name: name, birthDate: birthDate, imageData: imageData)
+                }
             )
         }
         .sheet(item: $bindableModel.shareSheetState) { shareState in
