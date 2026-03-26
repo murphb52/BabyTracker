@@ -306,7 +306,8 @@ struct AppModelTests {
             childID: seed.child.id,
             userID: seed.localUser.id,
             type: .wee,
-            occurredAt: slotStart
+            occurredAt: slotStart,
+            pooColor: nil
         )
         _ = try harness.saveSleep(
             childID: seed.child.id,
