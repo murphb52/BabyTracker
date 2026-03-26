@@ -34,28 +34,69 @@ public struct NestChildExport: Codable, Sendable {
 // MARK: - Event (type-discriminated union)
 
 /// A single exported event. Encoded as a flat JSON object with a `"type"` discriminator key.
+/// All serialisation is handled manually here so associated-value structs remain plain `Sendable` types.
 public enum NestEventExport: Codable, Sendable {
     case breastFeed(NestBreastFeedExport)
     case bottleFeed(NestBottleFeedExport)
     case sleep(NestSleepExport)
     case nappy(NestNappyExport)
 
-    private enum TypeKey: String, CodingKey {
+    private enum CodingKeys: String, CodingKey {
         case type
+        case id, occurredAt, notes
+        // breastFeed
+        case side, startedAt, endedAt, leftDurationSeconds, rightDurationSeconds
+        // bottleFeed
+        case amountMilliliters, milkType
+        // nappy
+        case nappyType, peeVolume, pooVolume, pooColor
     }
 
     public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: TypeKey.self)
-        let type = try container.decode(String.self, forKey: .type)
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try c.decode(String.self, forKey: .type)
+        let id = try c.decode(UUID.self, forKey: .id)
+        let occurredAt = try c.decode(Date.self, forKey: .occurredAt)
+        let notes = try c.decodeIfPresent(String.self, forKey: .notes) ?? ""
+
         switch type {
         case "breastFeed":
-            self = .breastFeed(try NestBreastFeedExport(from: decoder))
+            self = .breastFeed(NestBreastFeedExport(
+                id: id,
+                occurredAt: occurredAt,
+                notes: notes,
+                side: try c.decodeIfPresent(BreastSide.self, forKey: .side),
+                startedAt: try c.decode(Date.self, forKey: .startedAt),
+                endedAt: try c.decode(Date.self, forKey: .endedAt),
+                leftDurationSeconds: try c.decodeIfPresent(Int.self, forKey: .leftDurationSeconds),
+                rightDurationSeconds: try c.decodeIfPresent(Int.self, forKey: .rightDurationSeconds)
+            ))
         case "bottleFeed":
-            self = .bottleFeed(try NestBottleFeedExport(from: decoder))
+            self = .bottleFeed(NestBottleFeedExport(
+                id: id,
+                occurredAt: occurredAt,
+                notes: notes,
+                amountMilliliters: try c.decode(Int.self, forKey: .amountMilliliters),
+                milkType: try c.decodeIfPresent(MilkType.self, forKey: .milkType)
+            ))
         case "sleep":
-            self = .sleep(try NestSleepExport(from: decoder))
+            self = .sleep(NestSleepExport(
+                id: id,
+                occurredAt: occurredAt,
+                notes: notes,
+                startedAt: try c.decode(Date.self, forKey: .startedAt),
+                endedAt: try c.decode(Date.self, forKey: .endedAt)
+            ))
         case "nappy":
-            self = .nappy(try NestNappyExport(from: decoder))
+            self = .nappy(NestNappyExport(
+                id: id,
+                occurredAt: occurredAt,
+                notes: notes,
+                nappyType: try c.decode(NappyType.self, forKey: .nappyType),
+                peeVolume: try c.decodeIfPresent(NappyVolume.self, forKey: .peeVolume),
+                pooVolume: try c.decodeIfPresent(NappyVolume.self, forKey: .pooVolume),
+                pooColor: try c.decodeIfPresent(PooColor.self, forKey: .pooColor)
+            ))
         default:
             throw DecodingError.dataCorrupted(
                 .init(codingPath: decoder.codingPath, debugDescription: "Unknown event type: \(type)")
@@ -64,30 +105,52 @@ public enum NestEventExport: Codable, Sendable {
     }
 
     public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+
         switch self {
         case .breastFeed(let e):
-            try e.encode(to: encoder)
-            var c = encoder.container(keyedBy: TypeKey.self)
             try c.encode("breastFeed", forKey: .type)
+            try c.encode(e.id, forKey: .id)
+            try c.encode(e.occurredAt, forKey: .occurredAt)
+            try c.encode(e.notes, forKey: .notes)
+            try c.encodeIfPresent(e.side, forKey: .side)
+            try c.encode(e.startedAt, forKey: .startedAt)
+            try c.encode(e.endedAt, forKey: .endedAt)
+            try c.encodeIfPresent(e.leftDurationSeconds, forKey: .leftDurationSeconds)
+            try c.encodeIfPresent(e.rightDurationSeconds, forKey: .rightDurationSeconds)
+
         case .bottleFeed(let e):
-            try e.encode(to: encoder)
-            var c = encoder.container(keyedBy: TypeKey.self)
             try c.encode("bottleFeed", forKey: .type)
+            try c.encode(e.id, forKey: .id)
+            try c.encode(e.occurredAt, forKey: .occurredAt)
+            try c.encode(e.notes, forKey: .notes)
+            try c.encode(e.amountMilliliters, forKey: .amountMilliliters)
+            try c.encodeIfPresent(e.milkType, forKey: .milkType)
+
         case .sleep(let e):
-            try e.encode(to: encoder)
-            var c = encoder.container(keyedBy: TypeKey.self)
             try c.encode("sleep", forKey: .type)
+            try c.encode(e.id, forKey: .id)
+            try c.encode(e.occurredAt, forKey: .occurredAt)
+            try c.encode(e.notes, forKey: .notes)
+            try c.encode(e.startedAt, forKey: .startedAt)
+            try c.encode(e.endedAt, forKey: .endedAt)
+
         case .nappy(let e):
-            try e.encode(to: encoder)
-            var c = encoder.container(keyedBy: TypeKey.self)
             try c.encode("nappy", forKey: .type)
+            try c.encode(e.id, forKey: .id)
+            try c.encode(e.occurredAt, forKey: .occurredAt)
+            try c.encode(e.notes, forKey: .notes)
+            try c.encode(e.nappyType, forKey: .nappyType)
+            try c.encodeIfPresent(e.peeVolume, forKey: .peeVolume)
+            try c.encodeIfPresent(e.pooVolume, forKey: .pooVolume)
+            try c.encodeIfPresent(e.pooColor, forKey: .pooColor)
         }
     }
 }
 
-// MARK: - Per-event structs
+// MARK: - Per-event structs (plain data carriers — not Codable)
 
-public struct NestBreastFeedExport: Codable, Sendable {
+public struct NestBreastFeedExport: Sendable {
     public let id: UUID
     public let occurredAt: Date
     public let notes: String
@@ -98,7 +161,7 @@ public struct NestBreastFeedExport: Codable, Sendable {
     public let rightDurationSeconds: Int?
 }
 
-public struct NestBottleFeedExport: Codable, Sendable {
+public struct NestBottleFeedExport: Sendable {
     public let id: UUID
     public let occurredAt: Date
     public let notes: String
@@ -106,7 +169,7 @@ public struct NestBottleFeedExport: Codable, Sendable {
     public let milkType: MilkType?
 }
 
-public struct NestSleepExport: Codable, Sendable {
+public struct NestSleepExport: Sendable {
     public let id: UUID
     public let occurredAt: Date
     public let notes: String
@@ -114,7 +177,7 @@ public struct NestSleepExport: Codable, Sendable {
     public let endedAt: Date
 }
 
-public struct NestNappyExport: Codable, Sendable {
+public struct NestNappyExport: Sendable {
     public let id: UUID
     public let occurredAt: Date
     public let notes: String

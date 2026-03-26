@@ -15,12 +15,7 @@ public struct ChildProfileExportView: View {
             case .exporting:
                 exportingView
             case .ready(let url):
-                idleView
-                    .sheet(isPresented: .constant(true), onDismiss: {
-                        model.dismissExport()
-                    }) {
-                        ShareSheet(url: url)
-                    }
+                readyView(url: url)
             case .error(let message):
                 errorView(message)
             }
@@ -95,6 +90,49 @@ public struct ChildProfileExportView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // MARK: - Ready
+
+    private func readyView(url: URL) -> some View {
+        List {
+            Section {
+                VStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.green)
+
+                    Text("Export Ready")
+                        .font(.title2)
+                        .bold()
+
+                    Text("Your data has been prepared as a Nest JSON file.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+            }
+
+            Section {
+                ShareLink(item: url) {
+                    Label("Share Export File", systemImage: "square.and.arrow.up")
+                        .frame(maxWidth: .infinity)
+                        .bold()
+                }
+                .accessibilityIdentifier("share-export-file-button")
+
+                Button {
+                    model.dismissExport()
+                } label: {
+                    Text("Done")
+                        .frame(maxWidth: .infinity)
+                }
+                .accessibilityIdentifier("export-done-button")
+            }
+        }
+        .listStyle(.insetGrouped)
+    }
+
     // MARK: - Error
 
     private func errorView(_ message: String) -> some View {
@@ -141,16 +179,4 @@ public struct ChildProfileExportView: View {
                 .foregroundStyle(color)
         }
     }
-}
-
-// MARK: - ShareSheet wrapper
-
-private struct ShareSheet: UIViewControllerRepresentable {
-    let url: URL
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [url], applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
