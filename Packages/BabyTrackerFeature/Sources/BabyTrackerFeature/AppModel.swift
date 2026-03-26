@@ -15,6 +15,7 @@ public final class AppModel {
     public private(set) var profile: ChildProfileScreenState?
     public private(set) var errorMessage: String?
     public private(set) var undoDeleteMessage: String?
+    public private(set) var sleepSheetRequestToken: Int = 0
     public var shareSheetState: ShareSheetState?
     public private(set) var csvImportState: CSVImportState = .idle
     public private(set) var nestImportState: NestImportState = .idle
@@ -79,6 +80,10 @@ public final class AppModel {
 
     public func dismissShareSheet() {
         shareSheetState = nil
+    }
+
+    public func requestSleepSheetPresentation() {
+        sleepSheetRequestToken &+= 1
     }
 
     public func refreshAfterShareSheet() {
@@ -660,7 +665,8 @@ public final class AppModel {
             liveActivityManager.synchronize(
                 with: makeFeedLiveActivitySnapshot(
                     from: visibleEvents,
-                    child: currentSummary.child
+                    child: currentSummary.child,
+                    activeSleep: activeSleep
                 )
             )
         } catch {
@@ -931,7 +937,8 @@ public final class AppModel {
 
     private func makeFeedLiveActivitySnapshot(
         from events: [BabyEvent],
-        child: Child
+        child: Child,
+        activeSleep: SleepEvent?
     ) -> FeedLiveActivitySnapshot? {
         guard let summary = FeedSummaryCalculator.makeSummary(
             from: events,
@@ -940,11 +947,20 @@ public final class AppModel {
             return nil
         }
 
+        let lastSleep = LastSleepSummaryCalculator.makeSummary(
+            from: events,
+            activeSleep: activeSleep
+        )
+        let lastNappy = LastNappySummaryCalculator.makeSummary(from: events)
+
         return FeedLiveActivitySnapshot(
             childID: child.id,
             childName: child.name,
             lastFeedKind: summary.lastFeedKind,
-            lastFeedAt: summary.lastFeedAt
+            lastFeedAt: summary.lastFeedAt,
+            lastSleepAt: lastSleep?.endedAt ?? lastSleep?.startedAt,
+            activeSleepStartedAt: lastSleep?.isActive == true ? lastSleep?.startedAt : nil,
+            lastNappyAt: lastNappy?.occurredAt
         )
     }
 
