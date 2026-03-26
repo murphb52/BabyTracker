@@ -97,7 +97,7 @@ public struct EventHistoryView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(Color(.tertiarySystemGroupedBackground))
         )
         .accessibilityIdentifier("event-history-empty-state")
     }

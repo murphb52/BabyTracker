@@ -77,7 +77,7 @@ public struct TimelineDayPageView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(Color(.tertiarySystemGroupedBackground))
         )
         .accessibilityIdentifier("timeline-empty-state")
     }
@@ -222,7 +222,7 @@ public struct TimelineDayPageView: View {
                         .lineLimit(1)
                 }
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(BabyEventStyle.timelineForegroundColor(for: event.kind))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -245,7 +245,7 @@ public struct TimelineDayPageView: View {
                         .opacity(0.85)
                 }
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(BabyEventStyle.timelineForegroundColor(for: event.kind))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)

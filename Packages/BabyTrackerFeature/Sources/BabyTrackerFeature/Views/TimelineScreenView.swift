@@ -214,7 +214,7 @@ public struct TimelineScreenView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(.secondarySystemGroupedBackground))
+                    .fill(Color(.tertiarySystemGroupedBackground))
             )
             .accessibilityIdentifier("timeline-sync-message")
     }

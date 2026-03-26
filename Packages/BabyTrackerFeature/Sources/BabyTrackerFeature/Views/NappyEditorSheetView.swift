@@ -137,7 +137,7 @@ public struct NappyEditorSheetView: View {
                         .padding(.vertical, 10)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(type == option ? Self.eventColor : Color(.secondarySystemGroupedBackground))
+                                .fill(type == option ? Self.eventColor : Color(.tertiarySystemGroupedBackground))
                         )
                         .foregroundStyle(type == option ? Color.white : Color.primary)
                 }
@@ -164,7 +164,7 @@ public struct NappyEditorSheetView: View {
                         .padding(.vertical, 10)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(pooColor == option ? Self.eventColor : Color(.secondarySystemGroupedBackground))
+                                .fill(pooColor == option ? Self.eventColor : Color(.tertiarySystemGroupedBackground))
                         )
                         .foregroundStyle(pooColor == option ? Color.white : Color.primary)
                 }

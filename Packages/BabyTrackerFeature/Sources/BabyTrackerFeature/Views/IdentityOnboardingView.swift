@@ -50,7 +50,7 @@ public struct IdentityOnboardingView: View {
                         .padding(16)
                         .background(
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(Color(.systemBackground))
+                                .fill(Color(.secondarySystemGroupedBackground))
                         )
                         .accessibilityIdentifier("identity-name-field")
                 }

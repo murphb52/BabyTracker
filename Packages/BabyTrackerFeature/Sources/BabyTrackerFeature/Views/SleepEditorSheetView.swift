@@ -201,7 +201,7 @@ public struct SleepEditorSheetView: View {
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(startedAt == suggestion.date ? Self.eventColor : Color(.secondarySystemGroupedBackground))
+                                    .fill(startedAt == suggestion.date ? Self.eventColor : Color(.tertiarySystemGroupedBackground))
                             )
                             .foregroundStyle(startedAt == suggestion.date ? Color.white : Color.primary)
                     }

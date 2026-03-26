@@ -23,17 +23,18 @@ public struct EventCardView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(event.title)
                     .font(.headline)
+                    .foregroundStyle(BabyEventStyle.cardForegroundColor(for: event.kind))
 
                 Text(event.detailText)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(BabyEventStyle.cardSecondaryForegroundColor(for: event.kind))
             }
 
             Spacer(minLength: 12)
 
             Text(event.timestampText)
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(BabyEventStyle.cardSecondaryForegroundColor(for: event.kind))
                 .multilineTextAlignment(.trailing)
         }
         .padding(16)
@@ -44,7 +45,7 @@ public struct EventCardView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(BabyEventStyle.accentColor(for: event.kind).opacity(0.16), lineWidth: 1)
+                .stroke(BabyEventStyle.timelineBorderColor(for: event.kind), lineWidth: 1)
         )
     }
 }

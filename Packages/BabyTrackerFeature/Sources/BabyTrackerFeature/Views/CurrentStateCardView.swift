@@ -117,11 +117,11 @@ public struct CurrentStateCardView: View {
             .padding(20)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color(.systemBackground))
+                    .fill(Color(.secondarySystemGroupedBackground))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.accentColor.opacity(0.14), lineWidth: 1)
+                    .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
             )
             .shadow(color: Color.black.opacity(0.06), radius: 16, y: 6)
             .accessibilityElement(children: .contain)
@@ -139,7 +139,7 @@ public struct CurrentStateCardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color(.systemBackground))
+                    .fill(Color(.secondarySystemGroupedBackground))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -167,7 +167,7 @@ public struct CurrentStateCardView: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(Color(.tertiarySystemGroupedBackground))
         )
     }
 

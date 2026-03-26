@@ -159,7 +159,7 @@ public struct BreastFeedEditorSheetView: View {
             .padding(.vertical, 16)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(isRunning ? Self.eventColor.opacity(0.12) : Color(.secondarySystemGroupedBackground))
+                    .fill(isRunning ? Self.eventColor.opacity(0.16) : Color(.tertiarySystemGroupedBackground))
             )
         }
         .buttonStyle(.plain)
@@ -241,7 +241,7 @@ public struct BreastFeedEditorSheetView: View {
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(!showCustomDuration && parsedDurationMinutes == duration ? Self.eventColor : Color(.secondarySystemGroupedBackground))
+                                    .fill(!showCustomDuration && parsedDurationMinutes == duration ? Self.eventColor : Color(.tertiarySystemGroupedBackground))
                             )
                             .foregroundStyle(!showCustomDuration && parsedDurationMinutes == duration ? Color.white : Color.primary)
                     }
@@ -259,7 +259,7 @@ public struct BreastFeedEditorSheetView: View {
                         .padding(.vertical, 10)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(showCustomDuration ? Self.eventColor : Color(.secondarySystemGroupedBackground))
+                                .fill(showCustomDuration ? Self.eventColor : Color(.tertiarySystemGroupedBackground))
                         )
                         .foregroundStyle(showCustomDuration ? Color.white : Color.primary)
                 }

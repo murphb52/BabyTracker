@@ -67,7 +67,7 @@ public struct BottleFeedEditorSheetView: View {
                                     .padding(.vertical, 10)
                                     .background(
                                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                            .fill(!showCustomAmount && isSelected(amount: amount) ? Self.eventColor : Color(.secondarySystemGroupedBackground))
+                                            .fill(!showCustomAmount && isSelected(amount: amount) ? Self.eventColor : Color(.tertiarySystemGroupedBackground))
                                     )
                                     .foregroundStyle(!showCustomAmount && isSelected(amount: amount) ? Color.white : Color.primary)
                             }
@@ -85,7 +85,7 @@ public struct BottleFeedEditorSheetView: View {
                                 .padding(.vertical, 10)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .fill(showCustomAmount ? Self.eventColor : Color(.secondarySystemGroupedBackground))
+                                        .fill(showCustomAmount ? Self.eventColor : Color(.tertiarySystemGroupedBackground))
                                 )
                                 .foregroundStyle(showCustomAmount ? Color.white : Color.primary)
                         }
@@ -163,7 +163,7 @@ public struct BottleFeedEditorSheetView: View {
                 .padding(.vertical, 10)
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(milkType == option ? Self.eventColor : Color(.secondarySystemGroupedBackground))
+                        .fill(milkType == option ? Self.eventColor : Color(.tertiarySystemGroupedBackground))
                 )
                 .foregroundStyle(milkType == option ? Color.white : Color.primary)
         }

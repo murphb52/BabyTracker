@@ -35,7 +35,7 @@ public struct QuickTimeSelectorView: View {
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(selectedPreset == preset ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                                    .fill(selectedPreset == preset ? Color.accentColor : Color(.tertiarySystemGroupedBackground))
                             )
                             .foregroundStyle(selectedPreset == preset ? Color.white : Color.primary)
                     }

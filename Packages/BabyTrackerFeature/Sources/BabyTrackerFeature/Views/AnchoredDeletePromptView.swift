@@ -38,7 +38,7 @@ public struct AnchoredDeletePromptView: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.systemBackground))
+                .fill(Color(.secondarySystemGroupedBackground))
                 .shadow(color: Color.black.opacity(0.08), radius: 10, y: 4)
         )
         .overlay(
@@ -55,4 +55,3 @@ public struct AnchoredDeletePromptView: View {
     
     }
 }
-

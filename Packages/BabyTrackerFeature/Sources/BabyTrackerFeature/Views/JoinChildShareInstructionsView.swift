@@ -45,7 +45,7 @@ public struct JoinChildShareInstructionsView: View {
                     .padding(16)
                     .background(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.accentColor.opacity(0.08))
+                            .fill(Color(.secondarySystemGroupedBackground))
                     )
                 }
                 .padding(.horizontal, 20)
@@ -67,7 +67,7 @@ public struct JoinChildShareInstructionsView: View {
         HStack(alignment: .top, spacing: 16) {
             Text("\(number)")
                 .font(.headline.weight(.bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color(.systemBackground))
                 .frame(width: 28, height: 28)
                 .background(Circle().fill(Color.accentColor))
                 .accessibilityHidden(true)

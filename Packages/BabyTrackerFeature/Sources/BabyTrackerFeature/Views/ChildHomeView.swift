@@ -61,7 +61,7 @@ public struct ChildHomeView: View {
                 quickLogButton(
                     title: "Breast Feed",
                     systemImage: BabyEventStyle.systemImage(for: .breastFeed),
-                    tint: BabyEventStyle.accentColor(for: .breastFeed),
+                    kind: .breastFeed,
                     accessibilityIdentifier: "quick-log-breast-feed-button",
                     action: quickLogBreastFeed
                 )
@@ -69,7 +69,7 @@ public struct ChildHomeView: View {
                 quickLogButton(
                     title: "Bottle Feed",
                     systemImage: BabyEventStyle.systemImage(for: .bottleFeed),
-                    tint: BabyEventStyle.accentColor(for: .bottleFeed),
+                    kind: .bottleFeed,
                     accessibilityIdentifier: "quick-log-bottle-feed-button",
                     action: quickLogBottleFeed
                 )
@@ -77,7 +77,7 @@ public struct ChildHomeView: View {
                 quickLogButton(
                     title: sleepQuickLogTitle,
                     systemImage: BabyEventStyle.systemImage(for: .sleep),
-                    tint: BabyEventStyle.accentColor(for: .sleep),
+                    kind: .sleep,
                     accessibilityIdentifier: "quick-log-sleep-button",
                     action: quickLogSleep
                 )
@@ -85,7 +85,7 @@ public struct ChildHomeView: View {
                 quickLogButton(
                     title: "Nappy",
                     systemImage: BabyEventStyle.systemImage(for: .nappy),
-                    tint: BabyEventStyle.accentColor(for: .nappy),
+                    kind: .nappy,
                     accessibilityIdentifier: "quick-log-nappy-button",
                     action: quickLogNappy
                 )
@@ -96,7 +96,7 @@ public struct ChildHomeView: View {
     private func quickLogButton(
         title: String,
         systemImage: String,
-        tint: Color,
+        kind: BabyEventKind,
         accessibilityIdentifier: String,
         action: @escaping () -> Void
     ) -> some View {
@@ -105,10 +105,10 @@ public struct ChildHomeView: View {
                 .font(.headline)
                 .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
                 .padding(.horizontal, 14)
-                .foregroundStyle(.white)
+                .foregroundStyle(BabyEventStyle.buttonForegroundColor(for: kind))
                 .background(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(tint)
+                        .fill(BabyEventStyle.buttonFillColor(for: kind))
                 )
         }
         .buttonStyle(.plain)
