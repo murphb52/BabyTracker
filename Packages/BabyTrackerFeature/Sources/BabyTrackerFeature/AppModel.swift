@@ -16,6 +16,7 @@ public final class AppModel {
     public private(set) var errorMessage: String?
     public private(set) var undoDeleteMessage: String?
     public var shareSheetState: ShareSheetState?
+    public private(set) var csvImportState: CSVImportState = .idle
 
     private let logger = Logger(subsystem: "com.adappt.BabyTracker", category: "AppModel")
     private let childRepository: any ChildRepository
@@ -1254,5 +1255,97 @@ public final class AppModel {
                 return "Mixed"
             }
         }
+    }
+
+    // MARK: - CSV Import
+
+    public func parseCSVForImport(data: Data) {
+        guard let profile else {
+            csvImportState = .error("No active child selected")
+            return
+        }
+
+        let parseResult = HuckleberryCSVParser().parse(data: data)
+
+        do {
+            let taggedEvents = try CheckImportDuplicatesUseCase(eventRepository: eventRepository)
+                .execute(.init(events: parseResult.events, childID: profile.child.id))
+            csvImportState = .previewing(ImportPreviewState(parseResult: parseResult, taggedEvents: taggedEvents))
+        } catch {
+            // If duplicate check fails, treat everything as new
+            let taggedEvents = parseResult.events.map { TaggedImportEvent(event: $0, duplicateStatus: .new) }
+            csvImportState = .previewing(ImportPreviewState(parseResult: parseResult, taggedEvents: taggedEvents))
+        }
+    }
+
+    public func reportImportFileError(_ message: String) {
+        csvImportState = .error(message)
+    }
+
+    public func toggleImportEvent(id: UUID) {
+        guard case .previewing(var previewState) = csvImportState else { return }
+        previewState.toggle(id)
+        csvImportState = .previewing(previewState)
+    }
+
+    public func skipAllDuplicates() {
+        guard case .previewing(var previewState) = csvImportState else { return }
+        previewState.skipAllDuplicates()
+        csvImportState = .previewing(previewState)
+    }
+
+    public func selectAllImportEvents() {
+        guard case .previewing(var previewState) = csvImportState else { return }
+        previewState.selectAllEvents()
+        csvImportState = .previewing(previewState)
+    }
+
+    public func confirmImport() {
+        guard case .previewing(let previewState) = csvImportState else { return }
+        guard let profile, let localUser else {
+            csvImportState = .error("No active child selected")
+            return
+        }
+
+        let eventsToImport = previewState.selectedEvents
+        guard !eventsToImport.isEmpty else {
+            csvImportState = .error("No events selected to import")
+            return
+        }
+
+        csvImportState = .importing
+
+        Task { @MainActor in
+            do {
+                let saveResult = try ImportEventsUseCase(eventRepository: eventRepository)
+                    .execute(.init(
+                        events: eventsToImport,
+                        childID: profile.child.id,
+                        localUserID: localUser.id,
+                        membership: profile.currentMembership
+                    ))
+                // Combine parse-level skips with save-level skips in the final result
+                let result = CSVImportResult(
+                    importedCount: saveResult.importedCount,
+                    skippedParseCount: previewState.parseResult.skippedCount,
+                    skippedSaveCount: saveResult.skippedSaveCount,
+                    skippedReasons: previewState.parseResult.skippedReasons + saveResult.skippedReasons
+                )
+                csvImportState = .complete(result)
+                refresh(selecting: childSelectionStore.loadSelectedChildID())
+                _ = await syncEngine.refreshAfterLocalWrite()
+                refresh(selecting: childSelectionStore.loadSelectedChildID())
+            } catch {
+                csvImportState = .error(resolveErrorMessage(for: error))
+            }
+        }
+    }
+
+    public func cancelImport() {
+        csvImportState = .idle
+    }
+
+    public func dismissImportResult() {
+        csvImportState = .idle
     }
 }
