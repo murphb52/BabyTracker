@@ -78,6 +78,16 @@ public struct ChildProfileView: View {
                     )
                 }
 
+                NavigationLink {
+                    ChildProfileImportView(model: model)
+                } label: {
+                    settingsRow(
+                        title: "Import Data",
+                        value: nil,
+                        accessibilityIdentifier: "profile-import-row"
+                    )
+                }
+
                 if profile.canSwitchChildren {
                     Button {
                         model.showChildPicker()
