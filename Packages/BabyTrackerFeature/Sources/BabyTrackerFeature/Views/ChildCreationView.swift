@@ -1,4 +1,5 @@
 import BabyTrackerDomain
+import PhotosUI
 import SwiftUI
 
 public struct ChildCreationView: View {
@@ -11,12 +12,33 @@ public struct ChildCreationView: View {
     @State private var childName = ""
     @State private var includesBirthDate = false
     @State private var birthDate = Date()
+    @State private var selectedItem: PhotosPickerItem?
+    @State private var selectedImageData: Data?
 
     public var body: some View {
         Form {
             Section {
                 Text("Create the first child profile. You can add a birth date now or leave it for later.")
                     .foregroundStyle(.secondary)
+            }
+
+            Section {
+                HStack {
+                    Spacer()
+                    PhotosPicker(selection: $selectedItem, matching: .images) {
+                        profileImageView
+                            .overlay(alignment: .bottomTrailing) {
+                                Image(systemName: "pencil.circle.fill")
+                                    .font(.title3)
+                                    .symbolRenderingMode(.palette)
+                                    .foregroundStyle(.white, Color.accentColor)
+                                    .offset(x: 4, y: 4)
+                            }
+                    }
+                    .buttonStyle(.plain)
+                    Spacer()
+                }
+                .listRowBackground(Color.clear)
             }
 
             Section("Child") {
@@ -36,7 +58,8 @@ public struct ChildCreationView: View {
                 Button("Create Child Profile") {
                     model.createChild(
                         name: childName,
-                        birthDate: includesBirthDate ? birthDate : nil
+                        birthDate: includesBirthDate ? birthDate : nil,
+                        imageData: selectedImageData
                     )
                 }
                 .buttonStyle(.borderedProminent)
@@ -56,5 +79,33 @@ public struct ChildCreationView: View {
         }
         .navigationTitle("Add a Child")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: selectedItem) { _, newItem in
+            Task {
+                guard let data = try? await newItem?.loadTransferable(type: Data.self),
+                      let uiImage = UIImage(data: data),
+                      let compressed = ImageCompressor.compress(uiImage) else { return }
+                selectedImageData = compressed
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var profileImageView: some View {
+        if let imageData = selectedImageData, let uiImage = UIImage(data: imageData) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 88, height: 88)
+                .clipShape(Circle())
+        } else {
+            ZStack {
+                Circle()
+                    .fill(Color.accentColor.opacity(0.15))
+                    .frame(width: 88, height: 88)
+                Image(systemName: "camera.fill")
+                    .font(.title2)
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
     }
 }

@@ -117,18 +117,18 @@ public final class AppModel {
         }
     }
 
-    public func createChild(name: String, birthDate: Date?) {
+    public func createChild(name: String, birthDate: Date?, imageData: Data? = nil) {
         perform {
             guard let localUser else { return }
             _ = try CreateChildUseCase(
                 childRepository: childRepository,
                 membershipRepository: membershipRepository,
                 childSelectionStore: childSelectionStore
-            ).execute(.init(name: name, birthDate: birthDate, localUser: localUser))
+            ).execute(.init(name: name, birthDate: birthDate, localUser: localUser, imageData: imageData))
         }
     }
 
-    public func updateCurrentChild(name: String, birthDate: Date?) {
+    public func updateCurrentChild(name: String, birthDate: Date?, imageData: Data? = nil) {
         perform {
             guard let profile else { return }
             _ = try UpdateCurrentChildUseCase(childRepository: childRepository)
@@ -136,7 +136,8 @@ public final class AppModel {
                     child: profile.child,
                     name: name,
                     birthDate: birthDate,
-                    membership: profile.currentMembership
+                    membership: profile.currentMembership,
+                    imageData: imageData
                 ))
         }
     }

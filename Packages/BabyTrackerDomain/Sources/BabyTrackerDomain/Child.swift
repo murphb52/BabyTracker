@@ -7,6 +7,7 @@ public struct Child: Equatable, Identifiable, Sendable {
     public let createdAt: Date
     public let createdBy: UUID
     public var isArchived: Bool
+    public var imageData: Data?
 
     public init(
         id: UUID = UUID(),
@@ -14,7 +15,8 @@ public struct Child: Equatable, Identifiable, Sendable {
         birthDate: Date? = nil,
         createdAt: Date = Date(),
         createdBy: UUID,
-        isArchived: Bool = false
+        isArchived: Bool = false,
+        imageData: Data? = nil
     ) throws {
         let normalizedName = name.trimmedForProfileField()
         guard !normalizedName.isEmpty else {
@@ -27,11 +29,13 @@ public struct Child: Equatable, Identifiable, Sendable {
         self.createdAt = createdAt
         self.createdBy = createdBy
         self.isArchived = isArchived
+        self.imageData = imageData
     }
 
     public func updating(
         name: String,
-        birthDate: Date?
+        birthDate: Date?,
+        imageData: Data? = nil
     ) throws -> Child {
         try Child(
             id: id,
@@ -39,7 +43,8 @@ public struct Child: Equatable, Identifiable, Sendable {
             birthDate: birthDate,
             createdAt: createdAt,
             createdBy: createdBy,
-            isArchived: isArchived
+            isArchived: isArchived,
+            imageData: imageData
         )
     }
 }

@@ -1,5 +1,6 @@
 import BabyTrackerDomain
 import SwiftUI
+import UIKit
 
 public struct ChildPickerView: View {
     let model: AppModel
@@ -36,15 +37,8 @@ public struct ChildPickerView: View {
             model.selectChild(id: summary.child.id)
         } label: {
             HStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(Color.accentColor.opacity(0.15))
-                        .frame(width: 52, height: 52)
-                    Text(summary.child.name.prefix(1).uppercased())
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
-                }
-                .accessibilityHidden(true)
+                childAvatar(for: summary.child)
+                    .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(summary.child.name)
@@ -75,6 +69,26 @@ public struct ChildPickerView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("child-picker-\(summary.child.id.uuidString)")
+    }
+
+    @ViewBuilder
+    private func childAvatar(for child: Child) -> some View {
+        if let imageData = child.imageData, let uiImage = UIImage(data: imageData) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 52, height: 52)
+                .clipShape(Circle())
+        } else {
+            ZStack {
+                Circle()
+                    .fill(Color.accentColor.opacity(0.15))
+                    .frame(width: 52, height: 52)
+                Text(child.name.prefix(1).uppercased())
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
     }
 
     @ViewBuilder

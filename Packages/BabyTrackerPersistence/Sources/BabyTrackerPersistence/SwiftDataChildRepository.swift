@@ -49,6 +49,7 @@ public final class SwiftDataChildRepository: CloudKitChildRepository {
         storedChild.createdAt = child.createdAt
         storedChild.createdBy = child.createdBy
         storedChild.isArchived = child.isArchived
+        storedChild.imageData = child.imageData
         markPendingSync(storedChild, errorCode: nil)
 
         if existingStoredChild == nil {
@@ -150,7 +151,8 @@ public final class SwiftDataChildRepository: CloudKitChildRepository {
             birthDate: storedChild.birthDate,
             createdAt: storedChild.createdAt,
             createdBy: storedChild.createdBy,
-            isArchived: storedChild.isArchived
+            isArchived: storedChild.isArchived,
+            imageData: storedChild.imageData
         )
     }
 

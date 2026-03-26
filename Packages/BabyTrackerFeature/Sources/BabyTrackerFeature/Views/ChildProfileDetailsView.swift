@@ -1,5 +1,6 @@
 import BabyTrackerDomain
 import SwiftUI
+import UIKit
 
 public struct ChildProfileDetailsView: View {
     let profile: ChildProfileScreenState
@@ -15,6 +16,15 @@ public struct ChildProfileDetailsView: View {
 
     public var body: some View {
         List {
+            Section {
+                HStack {
+                    Spacer()
+                    profileImageView
+                    Spacer()
+                }
+                .listRowBackground(Color.clear)
+            }
+
             Section("Child") {
                 LabeledContent("Name") {
                     Text(profile.child.name)
@@ -42,6 +52,26 @@ public struct ChildProfileDetailsView: View {
                     }
                     .accessibilityIdentifier("edit-child-button")
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var profileImageView: some View {
+        if let imageData = profile.child.imageData, let uiImage = UIImage(data: imageData) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 88, height: 88)
+                .clipShape(Circle())
+        } else {
+            ZStack {
+                Circle()
+                    .fill(Color.accentColor.opacity(0.15))
+                    .frame(width: 88, height: 88)
+                Text(profile.child.name.prefix(1).uppercased())
+                    .font(.largeTitle.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
             }
         }
     }
