@@ -11,8 +11,9 @@ public struct BottleFeedEditorSheetView: View {
     @State private var amountMilliliters: String
     @State private var occurredAt: Date
     @State private var milkType: MilkTypeChoice
+    @State private var showCustomAmount: Bool = false
 
-    private let quickAmounts = Array(stride(from: 10, through: 240, by: 10))
+    private let quickAmounts = [30, 60, 90, 120, 150, 180, 210, 240]
 
     private let amountColumns = [
         GridItem(.flexible(), spacing: 8),
@@ -55,6 +56,7 @@ public struct BottleFeedEditorSheetView: View {
                     LazyVGrid(columns: amountColumns, spacing: 8) {
                         ForEach(quickAmounts, id: \.self) { amount in
                             Button {
+                                showCustomAmount = false
                                 amountMilliliters = "\(amount)"
                             } label: {
                                 Text("\(amount) mL")
@@ -63,18 +65,37 @@ public struct BottleFeedEditorSheetView: View {
                                     .padding(.vertical, 10)
                                     .background(
                                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                            .fill(isSelected(amount: amount) ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                                            .fill(!showCustomAmount && isSelected(amount: amount) ? Color.accentColor : Color(.secondarySystemGroupedBackground))
                                     )
-                                    .foregroundStyle(isSelected(amount: amount) ? Color.white : Color.primary)
+                                    .foregroundStyle(!showCustomAmount && isSelected(amount: amount) ? Color.white : Color.primary)
                             }
                             .buttonStyle(.plain)
                             .accessibilityIdentifier("bottle-feed-amount-preset-\(amount)")
                         }
+
+                        Button {
+                            showCustomAmount = true
+                            amountMilliliters = ""
+                        } label: {
+                            Text("Custom")
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(showCustomAmount ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                                )
+                                .foregroundStyle(showCustomAmount ? Color.white : Color.primary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("bottle-feed-amount-custom")
                     }
 
-                    TextField("Custom amount (mL)", text: $amountMilliliters)
-                        .keyboardType(.numberPad)
-                        .accessibilityIdentifier("bottle-feed-amount-field")
+                    if showCustomAmount {
+                        TextField("Custom amount (mL)", text: $amountMilliliters)
+                            .keyboardType(.numberPad)
+                            .accessibilityIdentifier("bottle-feed-amount-field")
+                    }
                 }
 
                 LoggingSummaryView(sentence: summarySentence)
@@ -154,7 +175,7 @@ public struct BottleFeedEditorSheetView: View {
     }
 
     private var validationMessage: String? {
-        guard !amountMilliliters.isEmpty, parsedAmountMilliliters == nil else {
+        guard showCustomAmount, !amountMilliliters.isEmpty, parsedAmountMilliliters == nil else {
             return nil
         }
         return "Enter an amount greater than 0 mL."
@@ -164,21 +185,29 @@ public struct BottleFeedEditorSheetView: View {
         parsedAmountMilliliters == amount
     }
 
-    private var summarySentence: String {
+    private var summarySentence: AttributedString {
         let timeStr = occurredAt.formatted(date: .omitted, time: .shortened)
+        var s = summaryVariable(childName)
         guard let amount = parsedAmountMilliliters else {
-            return "\(childName) had a bottle at \(timeStr)"
+            s += AttributedString(" had a bottle at ")
+            s += summaryVariable(timeStr)
+            return s
         }
+        let amountStr = "\(amount) mL"
+        s += AttributedString(" drank ")
+        s += summaryVariable(amountStr)
         switch milkType {
         case .breastMilk:
-            return "\(childName) drank \(amount) mL of breast milk at \(timeStr)"
+            s += AttributedString(" of breast milk at ")
         case .formula:
-            return "\(childName) drank \(amount) mL of formula at \(timeStr)"
+            s += AttributedString(" of formula at ")
         case .mixed:
-            return "\(childName) drank \(amount) mL of mixed milk at \(timeStr)"
+            s += AttributedString(" of mixed milk at ")
         case .notSet, .other:
-            return "\(childName) drank \(amount) mL at \(timeStr)"
+            s += AttributedString(" at ")
         }
+        s += summaryVariable(timeStr)
+        return s
     }
 }
 

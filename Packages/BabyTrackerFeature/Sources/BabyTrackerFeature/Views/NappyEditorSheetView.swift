@@ -39,13 +39,13 @@ public struct NappyEditorSheetView: View {
     public var body: some View {
         NavigationStack {
             Form {
-                Section("Type") {
-                    typeSelectorButtons
-                }
-
-                Section("Time") {
+                Section("When was the Nappy?") {
                     QuickTimeSelectorView(selection: $occurredAt)
                         .accessibilityIdentifier("nappy-time-selector")
+                }
+
+                Section("Type") {
+                    typeSelectorButtons
                 }
 
                 if supportsPeeVolume {
@@ -74,13 +74,7 @@ public struct NappyEditorSheetView: View {
 
                 if supportsPooColor {
                     Section("Poo Color") {
-                        Picker("Poo Color", selection: $pooColor) {
-                            ForEach(PooColorChoice.allCases) { option in
-                                Text(option.title).tag(option)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .accessibilityIdentifier("nappy-poo-color-picker")
+                        pooColorButtons
                     }
                 }
 
@@ -148,6 +142,34 @@ public struct NappyEditorSheetView: View {
         }
     }
 
+    private var pooColorButtons: some View {
+        let columns = [
+            GridItem(.flexible(), spacing: 8),
+            GridItem(.flexible(), spacing: 8),
+            GridItem(.flexible(), spacing: 8),
+        ]
+        return LazyVGrid(columns: columns, spacing: 8) {
+            ForEach(PooColorChoice.allCases) { option in
+                Button {
+                    pooColor = option
+                } label: {
+                    Text(option.title)
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(pooColor == option ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                        )
+                        .foregroundStyle(pooColor == option ? Color.white : Color.primary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("nappy-poo-color-\(option.rawValue)")
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
     private var supportsPooColor: Bool {
         NappyEntry.supportsPooColor(for: type.value)
     }
@@ -160,25 +182,31 @@ public struct NappyEditorSheetView: View {
         NappyEntry.supportsPooVolume(for: type.value)
     }
 
-    private var summarySentence: String {
+    private var summarySentence: AttributedString {
         let timeStr = occurredAt.formatted(date: .omitted, time: .shortened)
+        var s = summaryVariable(childName)
+        s += AttributedString(" had a ")
         switch type {
         case .dry:
-            return "\(childName) had a dry nappy at \(timeStr)"
+            s += summaryVariable("dry")
         case .wee:
             if peeVolume != .notSet {
-                return "\(childName) had a \(peeVolume.title.lowercased()) wet nappy at \(timeStr)"
+                s += summaryVariable("\(peeVolume.title.lowercased()) wet")
+            } else {
+                s += summaryVariable("wet")
             }
-            return "\(childName) had a wet nappy at \(timeStr)"
         case .poo:
             var qualifiers: [String] = []
             if pooVolume != .notSet { qualifiers.append(pooVolume.title.lowercased()) }
             if pooColor != .notSet && pooColor != .other { qualifiers.append(pooColor.title.lowercased()) }
             qualifiers.append("dirty")
-            return "\(childName) had a \(qualifiers.joined(separator: " ")) nappy at \(timeStr)"
+            s += summaryVariable(qualifiers.joined(separator: " "))
         case .mixed:
-            return "\(childName) had a mixed nappy at \(timeStr)"
+            s += summaryVariable("mixed")
         }
+        s += AttributedString(" nappy at ")
+        s += summaryVariable(timeStr)
+        return s
     }
 }
 

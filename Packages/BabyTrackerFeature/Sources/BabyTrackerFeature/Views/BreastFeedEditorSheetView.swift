@@ -27,6 +27,7 @@ public struct BreastFeedEditorSheetView: View {
     @State private var showPerSideBreakdown: Bool = false
     // leftFraction: 0.0 = all right, 0.5 = 50/50, 1.0 = all left
     @State private var leftFraction: Double = 0.5
+    @State private var showCustomDuration: Bool = false
 
     private let quickDurations = [5, 10, 15, 20, 30]
 
@@ -184,12 +185,19 @@ public struct BreastFeedEditorSheetView: View {
 
     private var manualModeContent: some View {
         Group {
+            Section("When was the feed?") {
+                QuickTimeSelectorView(selection: $endTime)
+                    .accessibilityIdentifier("breast-feed-time-selector")
+            }
+
             Section("Duration") {
                 quickDurationButtons
 
-                TextField("Total duration (minutes)", text: $durationMinutes)
-                    .keyboardType(.numberPad)
-                    .accessibilityIdentifier("breast-feed-duration-field")
+                if showCustomDuration {
+                    TextField("Enter duration in minutes", text: $durationMinutes)
+                        .keyboardType(.numberPad)
+                        .accessibilityIdentifier("breast-feed-duration-field")
+                }
 
                 Picker("Side", selection: $side) {
                     ForEach(BreastSideChoice.allCases) { option in
@@ -206,11 +214,6 @@ public struct BreastFeedEditorSheetView: View {
                 }
             }
 
-            Section("When was the feed?") {
-                QuickTimeSelectorView(selection: $endTime)
-                    .accessibilityIdentifier("breast-feed-time-selector")
-            }
-
             if let msg = manualValidationMessage {
                 Section {
                     Text(msg).foregroundStyle(.red)
@@ -220,24 +223,45 @@ public struct BreastFeedEditorSheetView: View {
     }
 
     private var quickDurationButtons: some View {
-        HStack(spacing: 8) {
-            ForEach(quickDurations, id: \.self) { duration in
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(quickDurations, id: \.self) { duration in
+                    Button {
+                        showCustomDuration = false
+                        durationMinutes = "\(duration)"
+                    } label: {
+                        Text("\(duration)m")
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(!showCustomDuration && parsedDurationMinutes == duration ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                            )
+                            .foregroundStyle(!showCustomDuration && parsedDurationMinutes == duration ? Color.white : Color.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("breast-feed-duration-preset-\(duration)")
+                }
+
                 Button {
-                    durationMinutes = "\(duration)"
+                    showCustomDuration = true
+                    durationMinutes = ""
                 } label: {
-                    Text("\(duration)m")
+                    Text("Custom")
                         .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(parsedDurationMinutes == duration ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                                .fill(showCustomDuration ? Color.accentColor : Color(.secondarySystemGroupedBackground))
                         )
-                        .foregroundStyle(parsedDurationMinutes == duration ? Color.white : Color.primary)
+                        .foregroundStyle(showCustomDuration ? Color.white : Color.primary)
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("breast-feed-duration-preset-\(duration)")
+                .accessibilityIdentifier("breast-feed-duration-custom")
             }
+            .padding(.vertical, 2)
         }
     }
 
@@ -283,7 +307,7 @@ public struct BreastFeedEditorSheetView: View {
     }
 
     private var manualValidationMessage: String? {
-        guard !durationMinutes.isEmpty, parsedDurationMinutes == nil else { return nil }
+        guard showCustomDuration, !durationMinutes.isEmpty, parsedDurationMinutes == nil else { return nil }
         return "Enter a duration greater than 0 minutes."
     }
 
@@ -327,39 +351,70 @@ public struct BreastFeedEditorSheetView: View {
         return String(format: "%d:%02d", s / 60, s % 60)
     }
 
-    private var summarySentence: String {
+    private var summarySentence: AttributedString {
         if mode == .timer {
             guard timerStarted else {
-                return "\(childName) is about to breast feed"
+                var s = summaryVariable(childName)
+                s += AttributedString(" is about to breast feed")
+                return s
             }
             let total = leftElapsed + rightElapsed
             let mins = Int(total / 60)
             let durationStr = mins == 0 ? "less than a minute" : "\(mins) min"
             let hasLeft = leftElapsed > 0
             let hasRight = rightElapsed > 0
+            var s = summaryVariable(childName)
             if hasLeft && hasRight {
-                return "\(childName) has fed on both sides for \(durationStr)"
+                s += AttributedString(" has fed on both sides for ")
+                s += summaryVariable(durationStr)
             } else if hasLeft {
-                return "\(childName) has fed on the left for \(durationStr)"
+                s += AttributedString(" has fed on the ")
+                s += summaryVariable("left")
+                s += AttributedString(" for ")
+                s += summaryVariable(durationStr)
             } else {
-                return "\(childName) has fed on the right for \(durationStr)"
+                s += AttributedString(" has fed on the ")
+                s += summaryVariable("right")
+                s += AttributedString(" for ")
+                s += summaryVariable(durationStr)
             }
+            return s
         } else {
             let timeStr = endTime.formatted(date: .omitted, time: .shortened)
+            var s = summaryVariable(childName)
             guard let total = parsedDurationMinutes else {
-                return "\(childName) breast fed at \(timeStr)"
+                s += AttributedString(" breast fed at ")
+                s += summaryVariable(timeStr)
+                return s
             }
             let durationStr = total == 1 ? "1 minute" : "\(total) minutes"
             switch side {
             case .notSet:
-                return "\(childName) breast fed for \(durationStr) at \(timeStr)"
+                s += AttributedString(" breast fed for ")
+                s += summaryVariable(durationStr)
+                s += AttributedString(" at ")
+                s += summaryVariable(timeStr)
             case .left:
-                return "\(childName) fed on the left for \(durationStr) at \(timeStr)"
+                s += AttributedString(" fed on the ")
+                s += summaryVariable("left")
+                s += AttributedString(" for ")
+                s += summaryVariable(durationStr)
+                s += AttributedString(" at ")
+                s += summaryVariable(timeStr)
             case .right:
-                return "\(childName) fed on the right for \(durationStr) at \(timeStr)"
+                s += AttributedString(" fed on the ")
+                s += summaryVariable("right")
+                s += AttributedString(" for ")
+                s += summaryVariable(durationStr)
+                s += AttributedString(" at ")
+                s += summaryVariable(timeStr)
             case .both:
-                return "\(childName) fed on both sides for \(durationStr) at \(timeStr)"
+                s += AttributedString(" fed on both sides for ")
+                s += summaryVariable(durationStr)
+                s += AttributedString(" at ")
+                s += summaryVariable(timeStr)
             }
+            return s
         }
     }
 }

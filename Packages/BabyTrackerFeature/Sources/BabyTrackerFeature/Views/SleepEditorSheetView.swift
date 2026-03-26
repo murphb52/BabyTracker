@@ -104,6 +104,9 @@ public struct SleepEditorSheetView: View {
             }
 
             if includesEndTime {
+                Section {
+                    durationSeparatorRow
+                }
                 Section("When did sleep end?") {
                     QuickTimeSelectorView(selection: $endedAt)
                         .accessibilityIdentifier("sleep-end-time-selector")
@@ -116,7 +119,7 @@ public struct SleepEditorSheetView: View {
 
     private var endModeContent: some View {
         Group {
-            Section("Sleep started") {
+            Section("When did sleep start?") {
                 DatePicker(
                     "Started at",
                     selection: $startedAt,
@@ -124,6 +127,10 @@ public struct SleepEditorSheetView: View {
                     displayedComponents: [.date, .hourAndMinute]
                 )
                 .accessibilityIdentifier("sleep-start-time-picker")
+            }
+
+            Section {
+                durationSeparatorRow
             }
 
             Section("When did sleep end?") {
@@ -137,7 +144,7 @@ public struct SleepEditorSheetView: View {
 
     private var editModeContent: some View {
         Group {
-            Section("Start time") {
+            Section("When did sleep start?") {
                 DatePicker(
                     "Start",
                     selection: $startedAt,
@@ -146,10 +153,30 @@ public struct SleepEditorSheetView: View {
                 )
                 .accessibilityIdentifier("sleep-start-time-picker")
             }
-            Section("End time") {
+
+            Section {
+                durationSeparatorRow
+            }
+
+            Section("When did sleep end?") {
                 QuickTimeSelectorView(selection: $endedAt)
                     .accessibilityIdentifier("sleep-end-time-selector")
             }
+        }
+    }
+
+    // MARK: - Duration Separator
+
+    private var durationSeparatorRow: some View {
+        HStack(spacing: 6) {
+            Spacer()
+            Image(systemName: "moon.zzz.fill")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(sleepDurationString)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
         }
     }
 
@@ -182,23 +209,42 @@ public struct SleepEditorSheetView: View {
 
     // MARK: - Summary
 
-    private var summarySentence: String {
+    private var summarySentence: AttributedString {
+        var s = summaryVariable(childName)
         switch mode {
         case .start:
             let startTimeStr = startedAt.formatted(date: .omitted, time: .shortened)
             if includesEndTime {
                 let endTimeStr = endedAt.formatted(date: .omitted, time: .shortened)
-                return "\(childName) slept from \(startTimeStr) to \(endTimeStr) (\(sleepDurationString))"
+                s += AttributedString(" slept from ")
+                s += summaryVariable(startTimeStr)
+                s += AttributedString(" to ")
+                s += summaryVariable(endTimeStr)
+                s += AttributedString(" (")
+                s += summaryVariable(sleepDurationString)
+                s += AttributedString(")")
+            } else {
+                s += AttributedString(" fell asleep at ")
+                s += summaryVariable(startTimeStr)
             }
-            return "\(childName) fell asleep at \(startTimeStr)"
         case .end:
             let endTimeStr = endedAt.formatted(date: .omitted, time: .shortened)
-            return "\(childName) slept for \(sleepDurationString) until \(endTimeStr)"
+            s += AttributedString(" slept for ")
+            s += summaryVariable(sleepDurationString)
+            s += AttributedString(" until ")
+            s += summaryVariable(endTimeStr)
         case .edit:
             let startTimeStr = startedAt.formatted(date: .omitted, time: .shortened)
             let endTimeStr = endedAt.formatted(date: .omitted, time: .shortened)
-            return "\(childName) slept from \(startTimeStr) to \(endTimeStr) (\(sleepDurationString))"
+            s += AttributedString(" slept from ")
+            s += summaryVariable(startTimeStr)
+            s += AttributedString(" to ")
+            s += summaryVariable(endTimeStr)
+            s += AttributedString(" (")
+            s += summaryVariable(sleepDurationString)
+            s += AttributedString(")")
         }
+        return s
     }
 
     private var sleepDurationString: String {
