@@ -66,7 +66,7 @@ struct CloudKitRecordMapperTests {
                 createdBy: userID
             ),
             type: .mixed,
-            intensity: .medium,
+            pooVolume: .medium,
             pooColor: .brown
         )
 
@@ -76,7 +76,7 @@ struct CloudKitRecordMapperTests {
         )
 
         #expect(record["type"] as? String == "mixed")
-        #expect(record["intensity"] as? String == "medium")
+        #expect(record["pooVolume"] as? String == "medium")
         #expect(record["pooColor"] as? String == "brown")
 
         let mappedEvent = try CloudKitRecordMapper.event(from: record)
@@ -84,7 +84,7 @@ struct CloudKitRecordMapperTests {
         switch mappedEvent {
         case let .nappy(event):
             #expect(event.type == .mixed)
-            #expect(event.intensity == .medium)
+            #expect(event.pooVolume == .medium)
             #expect(event.pooColor == .brown)
         default:
             Issue.record("Expected a nappy event")

@@ -16,6 +16,8 @@ final class StoredBreastFeedEvent {
     var sideRawValue: String = ""
     var startedAt: Date = Date()
     var endedAt: Date = Date()
+    var leftDurationSeconds: Int?
+    var rightDurationSeconds: Int?
     var syncStateRawValue: String = ""
     var lastSyncedAt: Date?
     var lastSyncErrorCode: String?
@@ -34,6 +36,8 @@ final class StoredBreastFeedEvent {
         sideRawValue: String,
         startedAt: Date,
         endedAt: Date,
+        leftDurationSeconds: Int?,
+        rightDurationSeconds: Int?,
         syncStateRawValue: String,
         lastSyncedAt: Date?,
         lastSyncErrorCode: String?
@@ -51,6 +55,8 @@ final class StoredBreastFeedEvent {
         self.sideRawValue = sideRawValue
         self.startedAt = startedAt
         self.endedAt = endedAt
+        self.leftDurationSeconds = leftDurationSeconds
+        self.rightDurationSeconds = rightDurationSeconds
         self.syncStateRawValue = syncStateRawValue
         self.lastSyncedAt = lastSyncedAt
         self.lastSyncErrorCode = lastSyncErrorCode

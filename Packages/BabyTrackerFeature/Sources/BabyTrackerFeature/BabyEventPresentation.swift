@@ -102,8 +102,12 @@ public enum BabyEventPresentation {
     ) -> String {
         var parts = [nappyTypeTitle(for: event.type)]
 
-        if let intensity = event.intensity {
-            parts.append(nappyIntensityTitle(for: intensity))
+        if let peeVolume = event.peeVolume {
+            parts.append("Pee: \(nappyVolumeTitle(for: peeVolume))")
+        }
+
+        if let pooVolume = event.pooVolume {
+            parts.append("Poo: \(nappyVolumeTitle(for: pooVolume))")
         }
 
         if let pooColor = event.pooColor {
@@ -129,7 +133,7 @@ public enum BabyEventPresentation {
         case .dry:
             "Dry"
         case .wee:
-            "Wee"
+            "Pee"
         case .poo:
             "Poo"
         case .mixed:
@@ -137,16 +141,11 @@ public enum BabyEventPresentation {
         }
     }
 
-    private static func nappyIntensityTitle(
-        for intensity: NappyIntensity
-    ) -> String {
-        switch intensity {
-        case .low:
-            "Low"
-        case .medium:
-            "Medium"
-        case .high:
-            "High"
+    private static func nappyVolumeTitle(for volume: NappyVolume) -> String {
+        switch volume {
+        case .light: "Light"
+        case .medium: "Medium"
+        case .heavy: "Heavy"
         }
     }
 

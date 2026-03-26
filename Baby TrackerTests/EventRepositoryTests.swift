@@ -202,7 +202,7 @@ struct EventRepositoryTests {
                 createdBy: userID
             ),
             type: .mixed,
-            intensity: .high,
+            pooVolume: .heavy,
             pooColor: .green
         )
 
@@ -217,7 +217,8 @@ struct EventRepositoryTests {
 
         switch reloadedDryNappy {
         case let .nappy(event):
-            #expect(event.intensity == nil)
+            #expect(event.peeVolume == nil)
+            #expect(event.pooVolume == nil)
             #expect(event.pooColor == nil)
         default:
             Issue.record("Expected a dry nappy event")
@@ -225,7 +226,7 @@ struct EventRepositoryTests {
 
         switch reloadedMixedNappy {
         case let .nappy(event):
-            #expect(event.intensity == .high)
+            #expect(event.pooVolume == .heavy)
             #expect(event.pooColor == .green)
         default:
             Issue.record("Expected a mixed nappy event")

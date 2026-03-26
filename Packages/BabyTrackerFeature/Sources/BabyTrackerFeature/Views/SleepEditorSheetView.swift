@@ -2,49 +2,48 @@ import SwiftUI
 
 public struct SleepEditorSheetView: View {
     let mode: Mode
+    let childName: String
+    let startSuggestions: [(label: String, date: Date)]
     let saveAction: (_ startedAt: Date, _ endedAt: Date?) -> Bool
     let deleteAction: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var startedAt: Date
     @State private var endedAt: Date
+    @State private var includesEndTime: Bool
 
     public init(
         mode: Mode,
+        childName: String,
         initialStartedAt: Date,
         initialEndedAt: Date?,
+        startSuggestions: [(label: String, date: Date)] = [],
         saveAction: @escaping (_ startedAt: Date, _ endedAt: Date?) -> Bool,
         deleteAction: (() -> Void)? = nil
     ) {
         self.mode = mode
+        self.childName = childName
+        self.startSuggestions = startSuggestions
         self.saveAction = saveAction
         self.deleteAction = deleteAction
         _startedAt = State(initialValue: initialStartedAt)
         _endedAt = State(initialValue: initialEndedAt ?? Date())
+        _includesEndTime = State(initialValue: mode != .start)
     }
 
     public var body: some View {
         NavigationStack {
             Form {
-                Section("Sleep") {
-                    DatePicker(
-                        "Start",
-                        selection: $startedAt,
-                        in: ...Date(),
-                        displayedComponents: [.date, .hourAndMinute]
-                    )
-                    .accessibilityIdentifier("sleep-start-time-picker")
-
-                    if mode.showsEndTime {
-                        DatePicker(
-                            "End",
-                            selection: $endedAt,
-                            in: ...Date(),
-                            displayedComponents: [.date, .hourAndMinute]
-                        )
-                        .accessibilityIdentifier("sleep-end-time-picker")
-                    }
+                switch mode {
+                case .start:
+                    startModeContent
+                case .end:
+                    endModeContent
+                case .edit:
+                    editModeContent
                 }
+
+                LoggingSummaryView(sentence: summarySentence)
 
                 if let validationMessage {
                     Section {
@@ -65,7 +64,7 @@ public struct SleepEditorSheetView: View {
             }
             .navigationTitle(mode.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .presentationDetents([.medium])
+            .presentationDetents([.large])
             .onChange(of: startedAt) { _, updatedStart in
                 if endedAt < updatedStart {
                     endedAt = updatedStart
@@ -73,17 +72,12 @@ public struct SleepEditorSheetView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    Button("Cancel") { dismiss() }
                 }
-
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(mode.primaryActionTitle) {
-                        let didSave = saveAction(startedAt, mode.showsEndTime ? endedAt : nil)
-                        if didSave {
-                            dismiss()
-                        }
+                    Button(saveButtonTitle) {
+                        let didSave = saveAction(startedAt, shouldIncludeEndTime ? endedAt : nil)
+                        if didSave { dismiss() }
                     }
                     .disabled(!isValid)
                     .accessibilityIdentifier("save-sleep-button")
@@ -92,19 +86,204 @@ public struct SleepEditorSheetView: View {
         }
     }
 
-    private var isValid: Bool {
-        guard mode.showsEndTime else {
-            return true
-        }
+    // MARK: - Start Mode
 
+    private var startModeContent: some View {
+        Group {
+            Section("When did sleep start?") {
+                if !startSuggestions.isEmpty {
+                    suggestionButtons
+                }
+                QuickTimeSelectorView(selection: $startedAt)
+                    .accessibilityIdentifier("sleep-start-time-selector")
+            }
+
+            Section {
+                Toggle("Already ended?", isOn: $includesEndTime)
+                    .accessibilityIdentifier("sleep-includes-end-toggle")
+            }
+
+            if includesEndTime {
+                Section {
+                    durationSeparatorRow
+                }
+                Section("When did sleep end?") {
+                    QuickTimeSelectorView(selection: $endedAt)
+                        .accessibilityIdentifier("sleep-end-time-selector")
+                }
+            }
+        }
+    }
+
+    // MARK: - End Mode
+
+    private var endModeContent: some View {
+        Group {
+            Section("When did sleep start?") {
+                DatePicker(
+                    "Started at",
+                    selection: $startedAt,
+                    in: ...Date(),
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .accessibilityIdentifier("sleep-start-time-picker")
+            }
+
+            Section {
+                durationSeparatorRow
+            }
+
+            Section("When did sleep end?") {
+                QuickTimeSelectorView(selection: $endedAt)
+                    .accessibilityIdentifier("sleep-end-time-selector")
+            }
+        }
+    }
+
+    // MARK: - Edit Mode
+
+    private var editModeContent: some View {
+        Group {
+            Section("When did sleep start?") {
+                DatePicker(
+                    "Start",
+                    selection: $startedAt,
+                    in: ...Date(),
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .accessibilityIdentifier("sleep-start-time-picker")
+            }
+
+            Section {
+                durationSeparatorRow
+            }
+
+            Section("When did sleep end?") {
+                QuickTimeSelectorView(selection: $endedAt)
+                    .accessibilityIdentifier("sleep-end-time-selector")
+            }
+        }
+    }
+
+    // MARK: - Duration Separator
+
+    private var durationSeparatorRow: some View {
+        HStack(spacing: 6) {
+            Spacer()
+            Image(systemName: "moon.zzz.fill")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(sleepDurationString)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+    }
+
+    // MARK: - Suggestions
+
+    private var suggestionButtons: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(startSuggestions, id: \.label) { suggestion in
+                    Button {
+                        startedAt = suggestion.date
+                    } label: {
+                        Text(suggestion.label)
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(startedAt == suggestion.date ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                            )
+                            .foregroundStyle(startedAt == suggestion.date ? Color.white : Color.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("sleep-start-suggestion-\(suggestion.label)")
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+
+    // MARK: - Summary
+
+    private var summarySentence: AttributedString {
+        var s = summaryVariable(childName)
+        switch mode {
+        case .start:
+            let startTimeStr = startedAt.formatted(date: .omitted, time: .shortened)
+            if includesEndTime {
+                let endTimeStr = endedAt.formatted(date: .omitted, time: .shortened)
+                s += AttributedString(" slept from ")
+                s += summaryVariable(startTimeStr)
+                s += AttributedString(" to ")
+                s += summaryVariable(endTimeStr)
+                s += AttributedString(" (")
+                s += summaryVariable(sleepDurationString)
+                s += AttributedString(")")
+            } else {
+                s += AttributedString(" fell asleep at ")
+                s += summaryVariable(startTimeStr)
+            }
+        case .end:
+            let endTimeStr = endedAt.formatted(date: .omitted, time: .shortened)
+            s += AttributedString(" slept for ")
+            s += summaryVariable(sleepDurationString)
+            s += AttributedString(" until ")
+            s += summaryVariable(endTimeStr)
+        case .edit:
+            let startTimeStr = startedAt.formatted(date: .omitted, time: .shortened)
+            let endTimeStr = endedAt.formatted(date: .omitted, time: .shortened)
+            s += AttributedString(" slept from ")
+            s += summaryVariable(startTimeStr)
+            s += AttributedString(" to ")
+            s += summaryVariable(endTimeStr)
+            s += AttributedString(" (")
+            s += summaryVariable(sleepDurationString)
+            s += AttributedString(")")
+        }
+        return s
+    }
+
+    private var sleepDurationString: String {
+        let mins = max(0, Int(endedAt.timeIntervalSince(startedAt) / 60))
+        let hours = mins / 60
+        let remaining = mins % 60
+        if hours > 0 {
+            return remaining > 0 ? "\(hours)h \(remaining)m" : "\(hours)h"
+        } else if mins > 0 {
+            return "\(mins) min"
+        } else {
+            return "less than a minute"
+        }
+    }
+
+    // MARK: - Validation
+
+    private var shouldIncludeEndTime: Bool {
+        switch mode {
+        case .start: return includesEndTime
+        case .end, .edit: return true
+        }
+    }
+
+    private var saveButtonTitle: String {
+        switch mode {
+        case .start: return includesEndTime ? "Log Sleep" : "Start Sleep"
+        case .end: return "End Sleep"
+        case .edit: return "Update"
+        }
+    }
+
+    private var isValid: Bool {
+        guard shouldIncludeEndTime else { return true }
         return endedAt > startedAt
     }
 
     private var validationMessage: String? {
-        guard mode.showsEndTime, !isValid else {
-            return nil
-        }
-
+        guard shouldIncludeEndTime, !isValid else { return nil }
         return "End time must be later than the start time."
     }
 }
@@ -117,32 +296,16 @@ extension SleepEditorSheetView {
 
         public var navigationTitle: String {
             switch self {
-            case .start:
-                "Start Sleep"
-            case .end:
-                "End Sleep"
-            case .edit:
-                "Edit Sleep"
-            }
-        }
-
-        public var primaryActionTitle: String {
-            switch self {
-            case .start:
-                "Start Sleep"
-            case .end:
-                "End Sleep"
-            case .edit:
-                "Update"
+            case .start: "Log Sleep"
+            case .end: "End Sleep"
+            case .edit: "Edit Sleep"
             }
         }
 
         public var showsEndTime: Bool {
             switch self {
-            case .start:
-                false
-            case .end, .edit:
-                true
+            case .start: false
+            case .end, .edit: true
             }
         }
     }

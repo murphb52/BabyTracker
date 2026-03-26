@@ -183,6 +183,8 @@ public final class SwiftDataEventRepository: EventRepository {
             sideRawValue: event.side?.rawValue ?? "",
             startedAt: event.startedAt,
             endedAt: event.endedAt,
+            leftDurationSeconds: event.leftDurationSeconds,
+            rightDurationSeconds: event.rightDurationSeconds,
             syncStateRawValue: SyncState.pendingSync.rawValue,
             lastSyncedAt: nil,
             lastSyncErrorCode: nil
@@ -192,6 +194,8 @@ public final class SwiftDataEventRepository: EventRepository {
         storedEvent.sideRawValue = event.side?.rawValue ?? ""
         storedEvent.startedAt = event.startedAt
         storedEvent.endedAt = event.endedAt
+        storedEvent.leftDurationSeconds = event.leftDurationSeconds
+        storedEvent.rightDurationSeconds = event.rightDurationSeconds
         markPending(storedEvent)
 
         if existingEvent == nil {
@@ -273,7 +277,9 @@ public final class SwiftDataEventRepository: EventRepository {
             isDeleted: event.metadata.isDeleted,
             deletedAt: event.metadata.deletedAt,
             typeRawValue: event.type.rawValue,
-            intensityRawValue: event.intensity?.rawValue,
+            intensityRawValue: nil,
+            peeVolumeRawValue: event.peeVolume?.rawValue,
+            pooVolumeRawValue: event.pooVolume?.rawValue,
             pooColorRawValue: event.pooColor?.rawValue,
             syncStateRawValue: SyncState.pendingSync.rawValue,
             lastSyncedAt: nil,
@@ -282,7 +288,8 @@ public final class SwiftDataEventRepository: EventRepository {
 
         applyMetadata(event.metadata, to: storedEvent)
         storedEvent.typeRawValue = event.type.rawValue
-        storedEvent.intensityRawValue = event.intensity?.rawValue
+        storedEvent.peeVolumeRawValue = event.peeVolume?.rawValue
+        storedEvent.pooVolumeRawValue = event.pooVolume?.rawValue
         storedEvent.pooColorRawValue = event.pooColor?.rawValue
         markPending(storedEvent)
 
@@ -337,7 +344,9 @@ public final class SwiftDataEventRepository: EventRepository {
             ),
             side: side,
             startedAt: storedEvent.startedAt,
-            endedAt: storedEvent.endedAt
+            endedAt: storedEvent.endedAt,
+            leftDurationSeconds: storedEvent.leftDurationSeconds,
+            rightDurationSeconds: storedEvent.rightDurationSeconds
         )
     }
 
@@ -400,7 +409,8 @@ public final class SwiftDataEventRepository: EventRepository {
                 deletedAt: storedEvent.deletedAt
             ),
             type: type,
-            intensity: storedEvent.intensityRawValue.flatMap(NappyIntensity.init(rawValue:)),
+            peeVolume: storedEvent.peeVolumeRawValue.flatMap(NappyVolume.init(rawValue:)),
+            pooVolume: storedEvent.pooVolumeRawValue.flatMap(NappyVolume.init(rawValue:)),
             pooColor: storedEvent.pooColorRawValue.flatMap(PooColor.init(rawValue:))
         )
     }

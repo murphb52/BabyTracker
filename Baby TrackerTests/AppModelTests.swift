@@ -48,7 +48,7 @@ struct AppModelTests {
             userID: seed.localUser.id,
             type: .wee,
             occurredAt: Date(timeIntervalSince1970: 1_500),
-            intensity: .low,
+            peeVolume: .light,
             pooColor: nil
         )
         let laterNappy = try harness.saveNappy(
@@ -56,7 +56,7 @@ struct AppModelTests {
             userID: seed.localUser.id,
             type: .mixed,
             occurredAt: Date(timeIntervalSince1970: 2_500),
-            intensity: .high,
+            pooVolume: .heavy,
             pooColor: .green
         )
 
@@ -66,7 +66,7 @@ struct AppModelTests {
 
         #expect(profile.eventHistory.events.count == 2)
         #expect(profile.eventHistory.events.map(\.id) == [laterNappy.id, earlierNappy.id])
-        #expect(profile.eventHistory.events.first?.detailText == "Mixed • High • Green")
+        #expect(profile.eventHistory.events.first?.detailText == "Mixed • Poo: Heavy • Green")
     }
 
     @Test
@@ -133,7 +133,7 @@ struct AppModelTests {
             userID: seed.localUser.id,
             type: .mixed,
             occurredAt: nappyTime,
-            intensity: .high,
+            pooVolume: .heavy,
             pooColor: .green
         )
 
@@ -392,7 +392,7 @@ struct AppModelTests {
             harness.model.logNappy(
                 type: .poo,
                 occurredAt: Date(timeIntervalSince1970: 6_000),
-                intensity: .medium,
+                pooVolume: .medium,
                 pooColor: .brown
             )
         )
@@ -415,7 +415,7 @@ struct AppModelTests {
                 id: loggedNappy.id,
                 type: .mixed,
                 occurredAt: Date(timeIntervalSince1970: 6_600),
-                intensity: .high,
+                pooVolume: .heavy,
                 pooColor: .green
             )
         )
@@ -424,7 +424,7 @@ struct AppModelTests {
         switch updatedEvent {
         case let .nappy(event):
             #expect(event.type == .mixed)
-            #expect(event.intensity == .high)
+            #expect(event.pooVolume == .heavy)
             #expect(event.pooColor == .green)
         default:
             Issue.record("Expected an updated nappy event")
@@ -760,7 +760,7 @@ struct AppModelTests {
             harness.model.logNappy(
                 type: .mixed,
                 occurredAt: Date(timeIntervalSince1970: 7_500),
-                intensity: .medium,
+                pooVolume: .medium,
                 pooColor: .brown
             )
         )
@@ -784,7 +784,7 @@ struct AppModelTests {
                 id: loggedNappy.id,
                 type: .poo,
                 occurredAt: Date(timeIntervalSince1970: 7_800),
-                intensity: .high,
+                pooVolume: .heavy,
                 pooColor: .green
             )
         )
@@ -1005,7 +1005,8 @@ extension AppModelTests {
             userID: UUID,
             type: NappyType,
             occurredAt: Date,
-            intensity: NappyIntensity?,
+            peeVolume: NappyVolume? = nil,
+            pooVolume: NappyVolume? = nil,
             pooColor: PooColor?
         ) throws -> NappyEvent {
             let event = try NappyEvent(
@@ -1016,7 +1017,8 @@ extension AppModelTests {
                     createdBy: userID
                 ),
                 type: type,
-                intensity: intensity,
+                peeVolume: peeVolume,
+                pooVolume: pooVolume,
                 pooColor: pooColor
             )
             try eventRepository.saveEvent(.nappy(event))

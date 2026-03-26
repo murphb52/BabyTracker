@@ -27,8 +27,8 @@ public struct ChildWorkspaceTabView: View {
                 quickLogBreastFeed: { activeEventSheet = .quickLogBreastFeed },
                 quickLogBottleFeed: { activeEventSheet = .quickLogBottleFeed },
                 quickLogSleep: showSleepSheet,
-                quickLogNappy: { type in
-                    activeEventSheet = .quickLogNappy(type)
+                quickLogNappy: {
+                    activeEventSheet = .quickLogNappy(.wee)
                 }
             )
             .tag(Tab.home)
@@ -105,7 +105,7 @@ public struct ChildWorkspaceTabView: View {
                 startedAt: activeSleepSession.startedAt
             )
         } else {
-            activeEventSheet = .startSleep
+            activeEventSheet = .startSleep(suggestions: model.sleepStartSuggestions())
         }
     }
 
@@ -145,14 +145,17 @@ public struct ChildWorkspaceTabView: View {
             BreastFeedEditorSheetView(
                 navigationTitle: "Breast Feed",
                 primaryActionTitle: "Save",
+                childName: profile.child.name,
                 initialDurationMinutes: 15,
                 initialEndTime: Date(),
                 initialSide: nil
-            ) { durationMinutes, endTime, side in
+            ) { durationMinutes, endTime, side, leftDurationSeconds, rightDurationSeconds in
                 let didSave = model.logBreastFeed(
                     durationMinutes: durationMinutes,
                     endTime: endTime,
-                    side: side
+                    side: side,
+                    leftDurationSeconds: leftDurationSeconds,
+                    rightDurationSeconds: rightDurationSeconds
                 )
                 if didSave {
                     activeEventSheet = nil
@@ -163,6 +166,7 @@ public struct ChildWorkspaceTabView: View {
             BottleFeedEditorSheetView(
                 navigationTitle: "Bottle Feed",
                 primaryActionTitle: "Save",
+                childName: profile.child.name,
                 initialAmountMilliliters: 120,
                 initialOccurredAt: Date(),
                 initialMilkType: nil
@@ -177,13 +181,20 @@ public struct ChildWorkspaceTabView: View {
                 }
                 return didSave
             }
-        case .startSleep:
+        case let .startSleep(suggestions):
             SleepEditorSheetView(
                 mode: .start,
+                childName: profile.child.name,
                 initialStartedAt: Date(),
-                initialEndedAt: nil
-            ) { startedAt, _ in
-                let didSave = model.startSleep(startedAt: startedAt)
+                initialEndedAt: nil,
+                startSuggestions: suggestions
+            ) { startedAt, endedAt in
+                let didSave: Bool
+                if let endedAt {
+                    didSave = model.logSleep(startedAt: startedAt, endedAt: endedAt)
+                } else {
+                    didSave = model.startSleep(startedAt: startedAt)
+                }
                 if didSave {
                     activeEventSheet = nil
                 }
@@ -192,6 +203,7 @@ public struct ChildWorkspaceTabView: View {
         case let .endSleep(id, startedAt):
             SleepEditorSheetView(
                 mode: .end,
+                childName: profile.child.name,
                 initialStartedAt: startedAt,
                 initialEndedAt: defaultSleepEndTime(for: startedAt),
                 saveAction: { updatedStartedAt, updatedEndedAt in
@@ -219,15 +231,18 @@ public struct ChildWorkspaceTabView: View {
             NappyEditorSheetView(
                 navigationTitle: "Nappy",
                 primaryActionTitle: "Save",
+                childName: profile.child.name,
                 initialType: type,
                 initialOccurredAt: Date(),
-                initialIntensity: nil,
+                initialPeeVolume: nil,
+                initialPooVolume: nil,
                 initialPooColor: nil
-            ) { updatedType, occurredAt, intensity, pooColor in
+            ) { updatedType, occurredAt, peeVolume, pooVolume, pooColor in
                 let didSave = model.logNappy(
                     type: updatedType,
                     occurredAt: occurredAt,
-                    intensity: intensity,
+                    peeVolume: peeVolume,
+                    pooVolume: pooVolume,
                     pooColor: pooColor
                 )
                 if didSave {
@@ -235,19 +250,24 @@ public struct ChildWorkspaceTabView: View {
                 }
                 return didSave
             }
-        case let .editBreastFeed(id, durationMinutes, endTime, side):
+        case let .editBreastFeed(id, durationMinutes, endTime, side, leftDurationSeconds, rightDurationSeconds):
             BreastFeedEditorSheetView(
                 navigationTitle: "Edit Breast Feed",
                 primaryActionTitle: "Update",
+                childName: profile.child.name,
                 initialDurationMinutes: durationMinutes,
                 initialEndTime: endTime,
-                initialSide: side
-            ) { updatedDuration, updatedEndTime, updatedSide in
+                initialSide: side,
+                initialLeftDurationSeconds: leftDurationSeconds,
+                initialRightDurationSeconds: rightDurationSeconds
+            ) { updatedDuration, updatedEndTime, updatedSide, updatedLeft, updatedRight in
                 let didSave = model.updateBreastFeed(
                     id: id,
                     durationMinutes: updatedDuration,
                     endTime: updatedEndTime,
-                    side: updatedSide
+                    side: updatedSide,
+                    leftDurationSeconds: updatedLeft,
+                    rightDurationSeconds: updatedRight
                 )
                 if didSave {
                     activeEventSheet = nil
@@ -258,6 +278,7 @@ public struct ChildWorkspaceTabView: View {
             BottleFeedEditorSheetView(
                 navigationTitle: "Edit Bottle Feed",
                 primaryActionTitle: "Update",
+                childName: profile.child.name,
                 initialAmountMilliliters: amountMilliliters,
                 initialOccurredAt: occurredAt,
                 initialMilkType: milkType
@@ -276,6 +297,7 @@ public struct ChildWorkspaceTabView: View {
         case let .editSleep(id, startedAt, endedAt):
             SleepEditorSheetView(
                 mode: .edit,
+                childName: profile.child.name,
                 initialStartedAt: startedAt,
                 initialEndedAt: endedAt
             ) { updatedStartedAt, updatedEndedAt in
@@ -293,20 +315,23 @@ public struct ChildWorkspaceTabView: View {
                 }
                 return didSave
             }
-        case let .editNappy(id, type, occurredAt, intensity, pooColor):
+        case let .editNappy(id, type, occurredAt, peeVolume, pooVolume, pooColor):
             NappyEditorSheetView(
                 navigationTitle: "Edit Nappy",
                 primaryActionTitle: "Update",
+                childName: profile.child.name,
                 initialType: type,
                 initialOccurredAt: occurredAt,
-                initialIntensity: intensity,
+                initialPeeVolume: peeVolume,
+                initialPooVolume: pooVolume,
                 initialPooColor: pooColor
-            ) { updatedType, updatedOccurredAt, updatedIntensity, updatedPooColor in
+            ) { updatedType, updatedOccurredAt, updatedPeeVolume, updatedPooVolume, updatedPooColor in
                 let didSave = model.updateNappy(
                     id: id,
                     type: updatedType,
                     occurredAt: updatedOccurredAt,
-                    intensity: updatedIntensity,
+                    peeVolume: updatedPeeVolume,
+                    pooVolume: updatedPooVolume,
                     pooColor: updatedPooColor
                 )
                 if didSave {

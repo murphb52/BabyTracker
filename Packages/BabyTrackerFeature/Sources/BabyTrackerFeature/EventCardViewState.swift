@@ -31,7 +31,9 @@ public struct EventCardViewState: Equatable, Identifiable, Sendable {
             actionPayload = .editBreastFeed(
                 durationMinutes: durationMinutes,
                 endTime: feed.endedAt,
-                side: feed.side
+                side: feed.side,
+                leftDurationSeconds: feed.leftDurationSeconds,
+                rightDurationSeconds: feed.rightDurationSeconds
             )
         case let .bottleFeed(feed):
             id = feed.id
@@ -77,7 +79,8 @@ public struct EventCardViewState: Equatable, Identifiable, Sendable {
             actionPayload = .editNappy(
                 type: nappy.type,
                 occurredAt: nappy.metadata.occurredAt,
-                intensity: nappy.intensity,
+                peeVolume: nappy.peeVolume,
+                pooVolume: nappy.pooVolume,
                 pooColor: nappy.pooColor
             )
         }

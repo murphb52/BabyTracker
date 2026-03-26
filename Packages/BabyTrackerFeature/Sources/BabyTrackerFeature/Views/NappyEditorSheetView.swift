@@ -4,79 +4,95 @@ import SwiftUI
 public struct NappyEditorSheetView: View {
     let navigationTitle: String
     let primaryActionTitle: String
-    let saveAction: (_ type: NappyType, _ occurredAt: Date, _ intensity: NappyIntensity?, _ pooColor: PooColor?) -> Bool
+    let childName: String
+    let saveAction: (_ type: NappyType, _ occurredAt: Date, _ peeVolume: NappyVolume?, _ pooVolume: NappyVolume?, _ pooColor: PooColor?) -> Bool
 
     @Environment(\.dismiss) private var dismiss
     @State private var type: NappyTypeChoice
     @State private var occurredAt: Date
-    @State private var intensity: NappyIntensityChoice
+    @State private var peeVolume: NappyVolumeChoice
+    @State private var pooVolume: NappyVolumeChoice
     @State private var pooColor: PooColorChoice
 
     public init(
         navigationTitle: String,
         primaryActionTitle: String,
+        childName: String,
         initialType: NappyType,
         initialOccurredAt: Date,
-        initialIntensity: NappyIntensity?,
+        initialPeeVolume: NappyVolume?,
+        initialPooVolume: NappyVolume?,
         initialPooColor: PooColor?,
-        saveAction: @escaping (_ type: NappyType, _ occurredAt: Date, _ intensity: NappyIntensity?, _ pooColor: PooColor?) -> Bool
+        saveAction: @escaping (_ type: NappyType, _ occurredAt: Date, _ peeVolume: NappyVolume?, _ pooVolume: NappyVolume?, _ pooColor: PooColor?) -> Bool
     ) {
         self.navigationTitle = navigationTitle
         self.primaryActionTitle = primaryActionTitle
+        self.childName = childName
         self.saveAction = saveAction
         _type = State(initialValue: NappyTypeChoice(type: initialType))
         _occurredAt = State(initialValue: initialOccurredAt)
-        _intensity = State(initialValue: NappyIntensityChoice(intensity: initialIntensity))
+        _peeVolume = State(initialValue: NappyVolumeChoice(volume: initialPeeVolume))
+        _pooVolume = State(initialValue: NappyVolumeChoice(volume: initialPooVolume))
         _pooColor = State(initialValue: PooColorChoice(color: initialPooColor))
     }
 
     public var body: some View {
         NavigationStack {
             Form {
-                Section("Nappy") {
-                    Picker("Type", selection: $type) {
-                        ForEach(NappyTypeChoice.allCases) { option in
-                            Text(option.title).tag(option)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .accessibilityIdentifier("nappy-type-picker")
+                Section("When was the Nappy?") {
+                    QuickTimeSelectorView(selection: $occurredAt)
+                        .accessibilityIdentifier("nappy-time-selector")
+                }
 
-                    DatePicker(
-                        "Time",
-                        selection: $occurredAt,
-                        displayedComponents: [.date, .hourAndMinute]
-                    )
-                    .accessibilityIdentifier("nappy-time-picker")
+                Section("Type") {
+                    typeSelectorButtons
+                }
 
-                    Picker("Intensity", selection: $intensity) {
-                        ForEach(NappyIntensityChoice.allCases) { option in
-                            Text(option.title).tag(option)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .accessibilityIdentifier("nappy-intensity-picker")
-
-                    if supportsPooColor {
-                        Picker("Poo Color", selection: $pooColor) {
-                            ForEach(PooColorChoice.allCases) { option in
+                if supportsPeeVolume {
+                    Section("Pee Volume") {
+                        Picker("Pee Volume", selection: $peeVolume) {
+                            ForEach(NappyVolumeChoice.allCases) { option in
                                 Text(option.title).tag(option)
                             }
                         }
-                        .pickerStyle(.menu)
-                        .accessibilityIdentifier("nappy-poo-color-picker")
+                        .pickerStyle(.segmented)
+                        .accessibilityIdentifier("nappy-pee-volume-picker")
                     }
                 }
+
+                if supportsPooVolume {
+                    Section("Poo Volume") {
+                        Picker("Poo Volume", selection: $pooVolume) {
+                            ForEach(NappyVolumeChoice.allCases) { option in
+                                Text(option.title).tag(option)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .accessibilityIdentifier("nappy-poo-volume-picker")
+                    }
+                }
+
+                if supportsPooColor {
+                    Section("Poo Color") {
+                        pooColorButtons
+                    }
+                }
+
+                LoggingSummaryView(sentence: summarySentence)
             }
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .presentationDetents([.medium])
+            .presentationDetents([.large])
             .onChange(of: type) { _, newType in
-                guard !NappyEntry.supportsPooColor(for: newType.value) else {
-                    return
+                if !NappyEntry.supportsPooColor(for: newType.value) {
+                    pooColor = .notSet
                 }
-
-                pooColor = .notSet
+                if !NappyEntry.supportsPeeVolume(for: newType.value) {
+                    peeVolume = .notSet
+                }
+                if !NappyEntry.supportsPooVolume(for: newType.value) {
+                    pooVolume = .notSet
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -90,7 +106,8 @@ public struct NappyEditorSheetView: View {
                         let didSave = saveAction(
                             type.value,
                             occurredAt,
-                            intensity.value,
+                            supportsPeeVolume ? peeVolume.value : nil,
+                            supportsPooVolume ? pooVolume.value : nil,
                             supportsPooColor ? pooColor.value : nil
                         )
                         if didSave {
@@ -103,8 +120,93 @@ public struct NappyEditorSheetView: View {
         }
     }
 
+    private var typeSelectorButtons: some View {
+        HStack(spacing: 8) {
+            ForEach(NappyTypeChoice.allCases) { option in
+                Button {
+                    type = option
+                } label: {
+                    Text(option.title)
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(type == option ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                        )
+                        .foregroundStyle(type == option ? Color.white : Color.primary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("nappy-type-\(option.rawValue)")
+            }
+        }
+    }
+
+    private var pooColorButtons: some View {
+        let columns = [
+            GridItem(.flexible(), spacing: 8),
+            GridItem(.flexible(), spacing: 8),
+            GridItem(.flexible(), spacing: 8),
+        ]
+        return LazyVGrid(columns: columns, spacing: 8) {
+            ForEach(PooColorChoice.allCases) { option in
+                Button {
+                    pooColor = option
+                } label: {
+                    Text(option.title)
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(pooColor == option ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                        )
+                        .foregroundStyle(pooColor == option ? Color.white : Color.primary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("nappy-poo-color-\(option.rawValue)")
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
     private var supportsPooColor: Bool {
         NappyEntry.supportsPooColor(for: type.value)
+    }
+
+    private var supportsPeeVolume: Bool {
+        NappyEntry.supportsPeeVolume(for: type.value)
+    }
+
+    private var supportsPooVolume: Bool {
+        NappyEntry.supportsPooVolume(for: type.value)
+    }
+
+    private var summarySentence: AttributedString {
+        let timeStr = occurredAt.formatted(date: .omitted, time: .shortened)
+        var s = summaryVariable(childName)
+        s += AttributedString(" had a ")
+        switch type {
+        case .dry:
+            s += summaryVariable("dry")
+        case .wee:
+            if peeVolume != .notSet {
+                s += summaryVariable("\(peeVolume.title.lowercased()) wet")
+            } else {
+                s += summaryVariable("wet")
+            }
+        case .poo:
+            var qualifiers: [String] = []
+            if pooVolume != .notSet { qualifiers.append(pooVolume.title.lowercased()) }
+            if pooColor != .notSet && pooColor != .other { qualifiers.append(pooColor.title.lowercased()) }
+            qualifiers.append("dirty")
+            s += summaryVariable(qualifiers.joined(separator: " "))
+        case .mixed:
+            s += summaryVariable("mixed")
+        }
+        s += AttributedString(" nappy at ")
+        s += summaryVariable(timeStr)
+        return s
     }
 }
 
@@ -119,20 +221,14 @@ extension NappyEditorSheetView {
             self = NappyTypeChoice(rawValue: type.rawValue) ?? .dry
         }
 
-        var id: String {
-            rawValue
-        }
+        var id: String { rawValue }
 
         var title: String {
             switch self {
-            case .dry:
-                "Dry"
-            case .wee:
-                "Wee"
-            case .poo:
-                "Poo"
-            case .mixed:
-                "Mixed"
+            case .dry: "Dry"
+            case .wee: "Pee"
+            case .poo: "Poo"
+            case .mixed: "Mixed"
             }
         }
 
@@ -141,52 +237,38 @@ extension NappyEditorSheetView {
         }
     }
 
-    private enum NappyIntensityChoice: String, CaseIterable, Identifiable {
+    private enum NappyVolumeChoice: String, CaseIterable, Identifiable {
         case notSet
-        case low
+        case light
         case medium
-        case high
+        case heavy
 
-        init(intensity: NappyIntensity?) {
-            switch intensity {
-            case nil:
-                self = .notSet
-            case .low?:
-                self = .low
-            case .medium?:
-                self = .medium
-            case .high?:
-                self = .high
+        init(volume: NappyVolume?) {
+            switch volume {
+            case nil: self = .notSet
+            case .light?: self = .light
+            case .medium?: self = .medium
+            case .heavy?: self = .heavy
             }
         }
 
-        var id: String {
-            rawValue
-        }
+        var id: String { rawValue }
 
         var title: String {
             switch self {
-            case .notSet:
-                "Not Set"
-            case .low:
-                "Low"
-            case .medium:
-                "Medium"
-            case .high:
-                "High"
+            case .notSet: "Not Set"
+            case .light: "Light"
+            case .medium: "Medium"
+            case .heavy: "Heavy"
             }
         }
 
-        var value: NappyIntensity? {
+        var value: NappyVolume? {
             switch self {
-            case .notSet:
-                nil
-            case .low:
-                .low
-            case .medium:
-                .medium
-            case .high:
-                .high
+            case .notSet: nil
+            case .light: .light
+            case .medium: .medium
+            case .heavy: .heavy
             }
         }
     }
@@ -202,63 +284,53 @@ extension NappyEditorSheetView {
 
         init(color: PooColor?) {
             switch color {
-            case nil:
-                self = .notSet
-            case .yellow?:
-                self = .yellow
-            case .mustard?:
-                self = .mustard
-            case .brown?:
-                self = .brown
-            case .green?:
-                self = .green
-            case .black?:
-                self = .black
-            case .other?:
-                self = .other
+            case nil: self = .notSet
+            case .yellow?: self = .yellow
+            case .mustard?: self = .mustard
+            case .brown?: self = .brown
+            case .green?: self = .green
+            case .black?: self = .black
+            case .other?: self = .other
             }
         }
 
-        var id: String {
-            rawValue
-        }
+        var id: String { rawValue }
 
         var title: String {
             switch self {
-            case .notSet:
-                "Not Set"
-            case .yellow:
-                "Yellow"
-            case .mustard:
-                "Mustard"
-            case .brown:
-                "Brown"
-            case .green:
-                "Green"
-            case .black:
-                "Black"
-            case .other:
-                "Other"
+            case .notSet: "Not Set"
+            case .yellow: "Yellow"
+            case .mustard: "Mustard"
+            case .brown: "Brown"
+            case .green: "Green"
+            case .black: "Black"
+            case .other: "Other"
             }
         }
 
         var value: PooColor? {
             switch self {
-            case .notSet:
-                nil
-            case .yellow:
-                .yellow
-            case .mustard:
-                .mustard
-            case .brown:
-                .brown
-            case .green:
-                .green
-            case .black:
-                .black
-            case .other:
-                .other
+            case .notSet: nil
+            case .yellow: .yellow
+            case .mustard: .mustard
+            case .brown: .brown
+            case .green: .green
+            case .black: .black
+            case .other: .other
             }
         }
     }
+}
+
+#Preview {
+    NappyEditorSheetView(
+        navigationTitle: "Log Nappy",
+        primaryActionTitle: "Save",
+        childName: "Robyn",
+        initialType: .wee,
+        initialOccurredAt: Date(),
+        initialPeeVolume: .medium,
+        initialPooVolume: nil,
+        initialPooColor: nil
+    ) { _, _, _, _, _ in true }
 }

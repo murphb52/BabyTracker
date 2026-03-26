@@ -248,7 +248,9 @@ public final class AppModel {
     public func logBreastFeed(
         durationMinutes: Int,
         endTime: Date,
-        side: BreastSide?
+        side: BreastSide?,
+        leftDurationSeconds: Int? = nil,
+        rightDurationSeconds: Int? = nil
     ) -> Bool {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
@@ -260,6 +262,8 @@ public final class AppModel {
                     durationMinutes: durationMinutes,
                     endTime: endTime,
                     side: side,
+                    leftDurationSeconds: leftDurationSeconds,
+                    rightDurationSeconds: rightDurationSeconds,
                     membership: profile.currentMembership
                 ))
         }
@@ -290,8 +294,9 @@ public final class AppModel {
     public func logNappy(
         type: NappyType,
         occurredAt: Date,
-        intensity: NappyIntensity?,
-        pooColor: PooColor?
+        peeVolume: NappyVolume? = nil,
+        pooVolume: NappyVolume? = nil,
+        pooColor: PooColor? = nil
     ) -> Bool {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
@@ -302,7 +307,8 @@ public final class AppModel {
                     localUserID: localUser.id,
                     type: type,
                     occurredAt: occurredAt,
-                    intensity: intensity,
+                    peeVolume: peeVolume,
+                    pooVolume: pooVolume,
                     pooColor: pooColor,
                     membership: profile.currentMembership
                 ))
@@ -319,6 +325,22 @@ public final class AppModel {
                     childID: profile.child.id,
                     localUserID: localUser.id,
                     startedAt: startedAt,
+                    membership: profile.currentMembership
+                ))
+        }
+    }
+
+    @discardableResult
+    public func logSleep(startedAt: Date, endedAt: Date) -> Bool {
+        perform {
+            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            _ = try LogSleepUseCase(eventRepository: eventRepository)
+                .execute(.init(
+                    childID: profile.child.id,
+                    localUserID: localUser.id,
+                    startedAt: startedAt,
+                    endedAt: endedAt,
                     membership: profile.currentMembership
                 ))
         }
@@ -349,7 +371,9 @@ public final class AppModel {
         id: UUID,
         durationMinutes: Int,
         endTime: Date,
-        side: BreastSide?
+        side: BreastSide?,
+        leftDurationSeconds: Int? = nil,
+        rightDurationSeconds: Int? = nil
     ) -> Bool {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
@@ -361,6 +385,8 @@ public final class AppModel {
                     durationMinutes: durationMinutes,
                     endTime: endTime,
                     side: side,
+                    leftDurationSeconds: leftDurationSeconds,
+                    rightDurationSeconds: rightDurationSeconds,
                     membership: profile.currentMembership
                 ))
         }
@@ -393,8 +419,9 @@ public final class AppModel {
         id: UUID,
         type: NappyType,
         occurredAt: Date,
-        intensity: NappyIntensity?,
-        pooColor: PooColor?
+        peeVolume: NappyVolume? = nil,
+        pooVolume: NappyVolume? = nil,
+        pooColor: PooColor? = nil
     ) -> Bool {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
@@ -405,11 +432,34 @@ public final class AppModel {
                     localUserID: localUser.id,
                     type: type,
                     occurredAt: occurredAt,
-                    intensity: intensity,
+                    peeVolume: peeVolume,
+                    pooVolume: pooVolume,
                     pooColor: pooColor,
                     membership: profile.currentMembership
                 ))
         }
+    }
+
+    public func sleepStartSuggestions() -> [(label: String, date: Date)] {
+        guard let profile else { return [] }
+        let timeline = (try? eventRepository.loadTimeline(for: profile.child.id, includingDeleted: false)) ?? []
+
+        var suggestions: [(label: String, date: Date)] = []
+        let timeFormatter = Date.FormatStyle(date: .omitted, time: .shortened)
+
+        if case let .bottleFeed(feed) = timeline.first(where: { if case .bottleFeed = $0 { true } else { false } }) {
+            suggestions.append((label: "Last bottle at \(feed.metadata.occurredAt.formatted(timeFormatter))", date: feed.metadata.occurredAt))
+        }
+
+        if case let .breastFeed(feed) = timeline.first(where: { if case .breastFeed = $0 { true } else { false } }) {
+            suggestions.append((label: "Last feed at \(feed.metadata.occurredAt.formatted(timeFormatter))", date: feed.metadata.occurredAt))
+        }
+
+        if case let .nappy(nappy) = timeline.first(where: { if case .nappy = $0 { true } else { false } }) {
+            suggestions.append((label: "Last nappy at \(nappy.metadata.occurredAt.formatted(timeFormatter))", date: nappy.metadata.occurredAt))
+        }
+
+        return suggestions
     }
 
     @discardableResult
@@ -888,7 +938,9 @@ public final class AppModel {
                 actionPayload: .editBreastFeed(
                     durationMinutes: durationMinutes,
                     endTime: feed.endedAt,
-                    side: feed.side
+                    side: feed.side,
+                    leftDurationSeconds: feed.leftDurationSeconds,
+                    rightDurationSeconds: feed.rightDurationSeconds
                 )
             )
         case let .bottleFeed(feed):
@@ -957,7 +1009,8 @@ public final class AppModel {
                 actionPayload: .editNappy(
                     type: nappy.type,
                     occurredAt: nappy.metadata.occurredAt,
-                    intensity: nappy.intensity,
+                    peeVolume: nappy.peeVolume,
+                    pooVolume: nappy.pooVolume,
                     pooColor: nappy.pooColor
                 )
             )

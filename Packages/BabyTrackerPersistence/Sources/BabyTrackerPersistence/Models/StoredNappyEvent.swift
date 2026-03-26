@@ -15,6 +15,8 @@ final class StoredNappyEvent {
     var deletedAt: Date?
     var typeRawValue: String = ""
     var intensityRawValue: String?
+    var peeVolumeRawValue: String?
+    var pooVolumeRawValue: String?
     var pooColorRawValue: String?
     var syncStateRawValue: String = ""
     var lastSyncedAt: Date?
@@ -33,6 +35,8 @@ final class StoredNappyEvent {
         deletedAt: Date?,
         typeRawValue: String,
         intensityRawValue: String?,
+        peeVolumeRawValue: String?,
+        pooVolumeRawValue: String?,
         pooColorRawValue: String?,
         syncStateRawValue: String,
         lastSyncedAt: Date?,
@@ -50,6 +54,8 @@ final class StoredNappyEvent {
         self.deletedAt = deletedAt
         self.typeRawValue = typeRawValue
         self.intensityRawValue = intensityRawValue
+        self.peeVolumeRawValue = peeVolumeRawValue
+        self.pooVolumeRawValue = pooVolumeRawValue
         self.pooColorRawValue = pooColorRawValue
         self.syncStateRawValue = syncStateRawValue
         self.lastSyncedAt = lastSyncedAt

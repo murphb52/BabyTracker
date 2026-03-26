@@ -6,7 +6,7 @@ public struct ChildHomeView: View {
     let quickLogBreastFeed: () -> Void
     let quickLogBottleFeed: () -> Void
     let quickLogSleep: () -> Void
-    let quickLogNappy: (NappyType) -> Void
+    let quickLogNappy: () -> Void
 
     private let gridColumns = [
         GridItem(.flexible(), spacing: 12),
@@ -18,7 +18,7 @@ public struct ChildHomeView: View {
         quickLogBreastFeed: @escaping () -> Void,
         quickLogBottleFeed: @escaping () -> Void,
         quickLogSleep: @escaping () -> Void,
-        quickLogNappy: @escaping (NappyType) -> Void
+        quickLogNappy: @escaping () -> Void
     ) {
         self.profile = profile
         self.quickLogBreastFeed = quickLogBreastFeed
@@ -82,16 +82,12 @@ public struct ChildHomeView: View {
                     action: quickLogSleep
                 )
 
-                quickLogMenuButton(
+                quickLogButton(
                     title: "Nappy",
                     systemImage: BabyEventStyle.systemImage(for: .nappy),
                     tint: BabyEventStyle.accentColor(for: .nappy),
                     accessibilityIdentifier: "quick-log-nappy-button",
-                    actions: NappyType.allCases.map { type in
-                        (nappyTypeTitle(for: type), {
-                            quickLogNappy(type)
-                        })
-                    }
+                    action: quickLogNappy
                 )
             }
         }
@@ -119,47 +115,7 @@ public struct ChildHomeView: View {
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
-    private func quickLogMenuButton(
-        title: String,
-        systemImage: String,
-        tint: Color,
-        accessibilityIdentifier: String,
-        actions: [(String, () -> Void)]
-    ) -> some View {
-        Menu {
-            ForEach(Array(actions.enumerated()), id: \.offset) { _, action in
-                Button(action.0) {
-                    action.1()
-                }
-            }
-        } label: {
-            Label(title, systemImage: systemImage)
-                .font(.headline)
-                .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
-                .padding(.horizontal, 14)
-                .foregroundStyle(.white)
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(tint)
-                )
-        }
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
     private var sleepQuickLogTitle: String {
         profile.activeSleepSession == nil ? "Start Sleep" : "End Sleep"
-    }
-
-    private func nappyTypeTitle(for type: NappyType) -> String {
-        switch type {
-        case .dry:
-            "Dry"
-        case .wee:
-            "Wee"
-        case .poo:
-            "Poo"
-        case .mixed:
-            "Mixed"
-        }
     }
 }
