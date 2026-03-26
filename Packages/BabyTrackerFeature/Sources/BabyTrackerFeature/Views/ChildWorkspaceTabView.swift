@@ -63,6 +63,13 @@ public struct ChildWorkspaceTabView: View {
                 Label("Timeline", systemImage: "calendar")
             }
 
+
+            SummaryScreenView(profile: profile)
+            .tag(Tab.summary)
+            .tabItem {
+                Label("Summary", systemImage: "chart.bar.fill")
+            }
+
             ChildProfileView(
                 model: model,
                 profile: profile,
@@ -360,6 +367,7 @@ public struct ChildWorkspaceTabView: View {
 extension ChildWorkspaceTabView {
     public enum Tab: Hashable {
         case home
+        case summary
         case events
         case timeline
         case profile
