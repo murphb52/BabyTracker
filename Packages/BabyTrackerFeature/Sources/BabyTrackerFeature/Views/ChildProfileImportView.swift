@@ -15,8 +15,8 @@ public struct ChildProfileImportView: View {
             switch model.csvImportState {
             case .idle:
                 idleView
-            case .previewing(let result):
-                previewView(result)
+            case .previewing(let previewState):
+                previewView(previewState)
             case .importing:
                 importingView
             case .complete(let result):
@@ -34,16 +34,9 @@ public struct ChildProfileImportView: View {
         ) { result in
             handleFileSelection(result)
         }
-        .onDisappear {
-            // Reset to idle if navigating away mid-flow
-            if case .error = model.csvImportState { model.cancelImport() }
-            if case .idle = model.csvImportState {} else if case .complete = model.csvImportState {} else {
-                // Only cancel for non-terminal states when navigating away unexpectedly
-            }
-        }
     }
 
-    // MARK: - Phase views
+    // MARK: - Idle phase
 
     private var idleView: some View {
         List {
@@ -78,20 +71,31 @@ public struct ChildProfileImportView: View {
         .listStyle(.insetGrouped)
     }
 
-    private func previewView(_ result: CSVParseResult) -> some View {
+    // MARK: - Preview phase
+
+    private func previewView(_ state: ImportPreviewState) -> some View {
         List {
+            // Header summary
             Section {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("\(result.events.count) events ready to import")
-                        .font(.headline)
-                    if let range = result.dateRange {
+                    if state.duplicateEvents.isEmpty {
+                        Text("\(state.taggedEvents.count) events ready to import")
+                            .font(.headline)
+                    } else {
+                        Text("\(state.taggedEvents.count) events found")
+                            .font(.headline)
+                        Text("\(state.newEvents.count) new · \(state.duplicateEvents.count) already imported")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let range = state.parseResult.dateRange {
                         Text(dateRangeText(range))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
-                    if result.skippedCount > 0 {
+                    if state.parseResult.skippedCount > 0 {
                         Label(
-                            "\(result.skippedCount) row\(result.skippedCount == 1 ? "" : "s") could not be read",
+                            "\(state.parseResult.skippedCount) row\(state.parseResult.skippedCount == 1 ? "" : "s") could not be read",
                             systemImage: "exclamationmark.triangle"
                         )
                         .font(.subheadline)
@@ -101,30 +105,80 @@ public struct ChildProfileImportView: View {
                 .padding(.vertical, 4)
             }
 
+            // Duplicate bulk controls (only shown when duplicates exist)
+            if !state.duplicateEvents.isEmpty {
+                Section {
+                    Button {
+                        model.skipAllDuplicates()
+                    } label: {
+                        Label("Skip all duplicates", systemImage: "xmark.circle")
+                    }
+                    .accessibilityIdentifier("skip-all-duplicates-button")
+
+                    Button {
+                        model.selectAllImportEvents()
+                    } label: {
+                        Label("Import all including duplicates", systemImage: "arrow.down.circle")
+                    }
+                    .accessibilityIdentifier("import-all-including-duplicates-button")
+                }
+            }
+
+            // Event type counts
             Section("Summary") {
-                if result.sleepCount > 0 {
-                    eventCountRow(icon: "moon.zzz.fill", label: "Sleep sessions", count: result.sleepCount, color: .indigo)
+                let sleepCount = state.taggedEvents.filter { if case .sleep = $0.event { true } else { false } }.count
+                let bottleCount = state.taggedEvents.filter { if case .bottleFeed = $0.event { true } else { false } }.count
+                let breastCount = state.taggedEvents.filter { if case .breastFeed = $0.event { true } else { false } }.count
+                let nappyCount = state.taggedEvents.filter { if case .nappy = $0.event { true } else { false } }.count
+
+                if sleepCount > 0 {
+                    eventCountRow(icon: "moon.zzz.fill", label: "Sleep sessions", count: sleepCount, color: .indigo)
                 }
-                if result.bottleFeedCount > 0 {
-                    eventCountRow(icon: "waterbottle.fill", label: "Bottle feeds", count: result.bottleFeedCount, color: .blue)
+                if bottleCount > 0 {
+                    eventCountRow(icon: "waterbottle.fill", label: "Bottle feeds", count: bottleCount, color: .blue)
                 }
-                if result.breastFeedCount > 0 {
-                    eventCountRow(icon: "figure.seated.side.air.upper", label: "Breast feeds", count: result.breastFeedCount, color: .pink)
+                if breastCount > 0 {
+                    eventCountRow(icon: "figure.seated.side.air.upper", label: "Breast feeds", count: breastCount, color: .pink)
                 }
-                if result.nappyCount > 0 {
-                    eventCountRow(icon: "checklist.checked", label: "Nappy changes", count: result.nappyCount, color: .orange)
+                if nappyCount > 0 {
+                    eventCountRow(icon: "checklist.checked", label: "Nappy changes", count: nappyCount, color: .orange)
                 }
             }
 
-            Section("Events") {
-                ForEach(result.events) { event in
-                    ImportEventRow(event: event)
+            // New events section
+            if !state.newEvents.isEmpty {
+                Section("New (\(state.newEvents.count))") {
+                    ForEach(state.newEvents) { tagged in
+                        ImportEventRow(tagged: tagged, isSelected: true)
+                    }
                 }
             }
 
-            if !result.skippedReasons.isEmpty {
+            // Duplicate events section — individually toggleable
+            if !state.duplicateEvents.isEmpty {
+                Section {
+                    ForEach(state.duplicateEvents) { tagged in
+                        let isSelected = state.selectedEventIDs.contains(tagged.id)
+                        Button {
+                            model.toggleImportEvent(id: tagged.id)
+                        } label: {
+                            ImportEventRow(tagged: tagged, isSelected: isSelected)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("duplicate-event-toggle-\(tagged.id)")
+                    }
+                } header: {
+                    Text("Already imported (\(state.duplicateEvents.count))")
+                } footer: {
+                    Text("These events exist at the same date and time. Tap to include or exclude individually.")
+                        .font(.caption)
+                }
+            }
+
+            // Skipped parse rows
+            if !state.parseResult.skippedReasons.isEmpty {
                 Section("Skipped rows") {
-                    ForEach(result.skippedReasons, id: \.self) { reason in
+                    ForEach(state.parseResult.skippedReasons, id: \.self) { reason in
                         Text(reason)
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -132,15 +186,20 @@ public struct ChildProfileImportView: View {
                 }
             }
 
+            // Action buttons
             Section {
+                let count = state.selectedCount
                 Button {
                     model.confirmImport()
                 } label: {
-                    Label("Import \(result.events.count) Events", systemImage: "square.and.arrow.down")
-                        .frame(maxWidth: .infinity)
-                        .bold()
+                    Label(
+                        count == 0 ? "No Events Selected" : "Import \(count) Event\(count == 1 ? "" : "s")",
+                        systemImage: "square.and.arrow.down"
+                    )
+                    .frame(maxWidth: .infinity)
+                    .bold()
                 }
-                .disabled(result.events.isEmpty)
+                .disabled(count == 0)
                 .accessibilityIdentifier("confirm-import-button")
 
                 Button(role: .cancel) {
@@ -155,6 +214,8 @@ public struct ChildProfileImportView: View {
         .listStyle(.insetGrouped)
     }
 
+    // MARK: - Importing phase
+
     private var importingView: some View {
         VStack(spacing: 20) {
             ProgressView()
@@ -167,6 +228,8 @@ public struct ChildProfileImportView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+
+    // MARK: - Complete phase
 
     private func completeView(_ result: CSVImportResult) -> some View {
         List {
@@ -192,7 +255,7 @@ public struct ChildProfileImportView: View {
             if result.totalSkipped > 0 {
                 Section {
                     Label(
-                        "\(result.totalSkipped) event\(result.totalSkipped == 1 ? "" : "s") could not be imported",
+                        "\(result.totalSkipped) event\(result.totalSkipped == 1 ? "" : "s") skipped",
                         systemImage: "exclamationmark.triangle"
                     )
                     .foregroundStyle(.orange)
@@ -218,6 +281,8 @@ public struct ChildProfileImportView: View {
         }
         .listStyle(.insetGrouped)
     }
+
+    // MARK: - Error phase
 
     private func errorView(_ message: String) -> some View {
         List {
@@ -302,9 +367,7 @@ public struct ChildProfileImportView: View {
         let formatter = Date.FormatStyle(date: .abbreviated, time: .omitted)
         let start = range.lowerBound.formatted(formatter)
         let end = range.upperBound.formatted(formatter)
-        if start == end {
-            return start
-        }
+        if start == end { return start }
         return "\(start) – \(end)"
     }
 }
@@ -312,18 +375,38 @@ public struct ChildProfileImportView: View {
 // MARK: - ImportEventRow
 
 private struct ImportEventRow: View {
-    let event: ImportableEvent
+    let tagged: TaggedImportEvent
+    let isSelected: Bool
 
     var body: some View {
         HStack(spacing: 12) {
+            // Selection indicator for duplicates
+            if tagged.isDuplicate {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? .blue : .secondary)
+                    .font(.title3)
+            }
+
             Image(systemName: iconName)
-                .foregroundStyle(iconColor)
+                .foregroundStyle(iconColor.opacity(tagged.isDuplicate && !isSelected ? 0.4 : 1))
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(event.displayTitle)
-                    .font(.subheadline)
-                Text(event.occurredAt, format: .dateTime.month(.abbreviated).day().hour().minute())
+                HStack(spacing: 6) {
+                    Text(tagged.event.displayTitle)
+                        .font(.subheadline)
+                        .foregroundStyle(tagged.isDuplicate && !isSelected ? .secondary : .primary)
+
+                    if tagged.isDuplicate {
+                        Text("duplicate")
+                            .font(.caption2)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(isSelected ? Color.orange : Color.secondary, in: Capsule())
+                    }
+                }
+                Text(tagged.event.occurredAt, format: .dateTime.month(.abbreviated).day().hour().minute())
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -331,7 +414,7 @@ private struct ImportEventRow: View {
     }
 
     private var iconName: String {
-        switch event {
+        switch tagged.event {
         case .sleep: return "moon.zzz.fill"
         case .bottleFeed: return "waterbottle.fill"
         case .breastFeed: return "figure.seated.side.air.upper"
@@ -340,7 +423,7 @@ private struct ImportEventRow: View {
     }
 
     private var iconColor: Color {
-        switch event {
+        switch tagged.event {
         case .sleep: return .indigo
         case .bottleFeed: return .blue
         case .breastFeed: return .pink

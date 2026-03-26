@@ -20,6 +20,15 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
 
     public var occurredAt: Date { metadata.occurredAt }
 
+    public var kind: BabyEventKind {
+        switch self {
+        case .bottleFeed: return .bottleFeed
+        case .breastFeed: return .breastFeed
+        case .sleep: return .sleep
+        case .nappy: return .nappy
+        }
+    }
+
     public var displayTitle: String {
         switch self {
         case .bottleFeed(let e):
