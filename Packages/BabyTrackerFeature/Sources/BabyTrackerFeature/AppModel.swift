@@ -753,6 +753,7 @@ public final class AppModel {
                 selectedDay: timelineSelectedDay,
                 cloudKitStatus: cloudKitStatus
             ),
+            summary: makeSummaryScreenState(from: visibleEvents),
             cloudKitStatus: cloudKitStatus,
             canShareChild: ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership) &&
                 syncEngine.statusSummary.state != .failed,
@@ -840,6 +841,17 @@ public final class AppModel {
             events: events.compactMap { EventCardViewState(event: $0) },
             emptyStateTitle: "No events logged yet",
             emptyStateMessage: "Use Quick Log on Home to add the first event."
+        )
+    }
+
+
+    private func makeSummaryScreenState(
+        from events: [BabyEvent]
+    ) -> SummaryScreenState {
+        SummaryScreenState(
+            events: events,
+            emptyStateTitle: "No summary data yet",
+            emptyStateMessage: "Add events and your key trends will appear here."
         )
     }
 

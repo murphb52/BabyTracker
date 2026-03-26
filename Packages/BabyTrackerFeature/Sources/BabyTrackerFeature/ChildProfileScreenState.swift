@@ -16,6 +16,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
     public let home: HomeScreenState
     public let eventHistory: EventHistoryScreenState
     public let timeline: TimelineScreenState
+    public let summary: SummaryScreenState
     public let cloudKitStatus: CloudKitStatusViewState
     public let canShareChild: Bool
     public let pendingChanges: [PendingChangeSummaryItem]
@@ -51,6 +52,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         home: HomeScreenState,
         eventHistory: EventHistoryScreenState,
         timeline: TimelineScreenState,
+        summary: SummaryScreenState,
         cloudKitStatus: CloudKitStatusViewState,
         canShareChild: Bool,
         pendingChanges: [PendingChangeSummaryItem] = []
@@ -69,6 +71,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         self.home = home
         self.eventHistory = eventHistory
         self.timeline = timeline
+        self.summary = summary
         self.cloudKitStatus = cloudKitStatus
         self.canShareChild = canShareChild
         self.pendingChanges = pendingChanges
