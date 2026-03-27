@@ -14,7 +14,9 @@ struct FeedLiveActivityWidget: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    VStack(spacing: 6) {
+                    VStack(alignment: .center, spacing: 0) {
+                        Color.clear
+                            .frame(width: 12, height: 24)
                         metricIcon(symbol: symbolName(for: context.state.lastFeedKind), color: eventAccentColor(for: .bottleFeed))
                         metricIcon(symbol: symbolName(for: .sleep), color: eventAccentColor(for: .sleep))
                         metricIcon(symbol: symbolName(for: .nappy), color: eventAccentColor(for: .nappy))
@@ -22,11 +24,12 @@ struct FeedLiveActivityWidget: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.center) {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 0) {
                         Text(context.state.childName)
                             .font(.headline)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
+                            .frame(height: 24, alignment: .topLeading)
                         metricRow(label: "Feed", valueDate: context.state.lastFeedAt)
                         metricRow(
                             label: context.state.activeSleepStartedAt == nil ? "Since sleep" : "Asleep",
@@ -82,9 +85,10 @@ struct FeedLiveActivityWidget: Widget {
     }
 
     private func metricRow(label: String, valueDate: Date?) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Text(label)
                 .foregroundStyle(.secondary)
+                .frame(width: 66, alignment: .leading)
             if let valueDate {
                 Text(valueDate, style: .timer)
                     .monospacedDigit()
@@ -94,12 +98,14 @@ struct FeedLiveActivityWidget: Widget {
         }
         .font(.caption2.weight(.medium))
         .lineLimit(1)
+        .frame(height: 20, alignment: .center)
     }
 
     private func metricIcon(symbol: String, color: Color) -> some View {
         Image(systemName: symbol)
             .font(.caption.weight(.semibold))
             .foregroundStyle(color)
+            .frame(width: 12, height: 20)
     }
 
     private func stopSleepURL(for state: FeedLiveActivityAttributes.ContentState) -> URL? {
