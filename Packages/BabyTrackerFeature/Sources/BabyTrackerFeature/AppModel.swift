@@ -817,27 +817,35 @@ public final class AppModel {
         }
     }
 
-    private func makeCurrentStateSummary(
-        from events: [BabyEvent],
+    private func makeCurrentSleepCardState(
         activeSleep: SleepEvent?
-    ) -> CurrentStateSummaryViewState? {
-        guard let lastEvent = LastEventSummaryCalculator.makeSummary(from: events) else {
+    ) -> CurrentSleepCardViewState? {
+        guard let activeSleep else {
             return nil
         }
 
-        let lastFeed = FeedSummaryCalculator.makeSummary(from: events)
-            .map(FeedStatusViewState.init)
-        let lastSleep = LastSleepSummaryCalculator.makeSummary(
+        return CurrentSleepCardViewState(
+            sleepEventID: activeSleep.id,
+            startedAt: activeSleep.startedAt
+        )
+    }
+
+    private func makeCurrentStatusCardState(
+        from events: [BabyEvent],
+        day: Date = .now,
+        calendar: Calendar = .current
+    ) -> CurrentStatusCardViewState {
+        let feedSummary = FeedSummaryCalculator.makeSummary(
             from: events,
-            activeSleep: activeSleep
+            on: day,
+            calendar: calendar
         )
         let lastNappy = LastNappySummaryCalculator.makeSummary(from: events)
 
-        return CurrentStateSummaryViewState(
-            lastEvent: lastEvent,
-            lastFeed: lastFeed,
-            lastSleep: lastSleep,
-            lastNappy: lastNappy
+        return CurrentStatusCardViewState(
+            timeSinceLastFeedAt: feedSummary?.lastFeedAt,
+            feedsTodayCount: feedSummary?.feedsTodayCount ?? 0,
+            timeSinceLastNappyAt: lastNappy?.occurredAt
         )
     }
 
@@ -846,7 +854,8 @@ public final class AppModel {
         activeSleep: SleepEvent?
     ) -> HomeScreenState {
         HomeScreenState(
-            currentStateSummary: makeCurrentStateSummary(from: events, activeSleep: activeSleep),
+            currentSleep: makeCurrentSleepCardState(activeSleep: activeSleep),
+            currentStatus: makeCurrentStatusCardState(from: events),
             recentEvents: Array(events.compactMap { EventCardViewState(event: $0) }.prefix(6)),
             emptyStateTitle: "No recent activity",
             emptyStateMessage: "Use Quick Log to add the first event."

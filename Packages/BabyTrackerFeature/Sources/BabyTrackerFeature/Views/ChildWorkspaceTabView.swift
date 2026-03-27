@@ -25,6 +25,7 @@ public struct ChildWorkspaceTabView: View {
         TabView(selection: $selectedTab) {
             ChildHomeView(
                 profile: profile,
+                stopSleep: showSleepSheet,
                 quickLogBreastFeed: { activeEventSheet = .quickLogBreastFeed },
                 quickLogBottleFeed: { activeEventSheet = .quickLogBottleFeed },
                 quickLogSleep: showSleepSheet,
