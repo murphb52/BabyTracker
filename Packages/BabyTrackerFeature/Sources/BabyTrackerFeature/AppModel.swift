@@ -33,6 +33,7 @@ public final class AppModel {
     private var timelineSelectedDay = Calendar.autoupdatingCurrent.startOfDay(for: .now)
     private var timelineDisplayMode: TimelineScreenState.DisplayMode = .day
     private var timelineChildID: UUID?
+    private var activeEventFilter: EventFilter = .empty
     private var pendingUndoDeletedEvent: BabyEvent?
     private var undoDeleteTask: Task<Void, Never>?
 
@@ -215,6 +216,13 @@ public final class AppModel {
 
     public func toggleTimelineDisplayMode() {
         timelineDisplayMode = timelineDisplayMode == .day ? .week : .day
+        refresh(selecting: childSelectionStore.loadSelectedChildID())
+    }
+
+    public var eventFilter: EventFilter { activeEventFilter }
+
+    public func updateEventFilter(_ filter: EventFilter) {
+        activeEventFilter = filter
         refresh(selecting: childSelectionStore.loadSelectedChildID())
     }
 
@@ -848,10 +856,17 @@ public final class AppModel {
     private func makeEventHistoryScreenState(
         from events: [BabyEvent]
     ) -> EventHistoryScreenState {
-        EventHistoryScreenState(
-            events: events.compactMap { EventCardViewState(event: $0) },
-            emptyStateTitle: "No events logged yet",
-            emptyStateMessage: "Use Quick Log on Home to add the first event."
+        let filtered = activeEventFilter.isEmpty
+            ? events
+            : events.filter { activeEventFilter.matches($0) }
+        return EventHistoryScreenState(
+            events: filtered.compactMap { EventCardViewState(event: $0) },
+            filterIsActive: !activeEventFilter.isEmpty,
+            activeFilter: activeEventFilter,
+            emptyStateTitle: activeEventFilter.isEmpty ? "No events logged yet" : "No matching events",
+            emptyStateMessage: activeEventFilter.isEmpty
+                ? "Use Quick Log on Home to add the first event."
+                : "Try adjusting or clearing your filters."
         )
     }
 
@@ -926,6 +941,7 @@ public final class AppModel {
         timelineChildID = childID
         timelineSelectedDay = normalizedTimelineDay(for: .now)
         timelineDisplayMode = .day
+        activeEventFilter = .empty
     }
 
     private func makeTimelineScreenState(

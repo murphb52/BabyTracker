@@ -1,3 +1,4 @@
+import BabyTrackerDomain
 import SwiftUI
 
 public struct EventHistoryView: View {
@@ -7,6 +8,7 @@ public struct EventHistoryView: View {
     let pendingDeleteEvent: EventDeleteCandidate?
     let confirmDelete: () -> Void
     let cancelDelete: () -> Void
+    let onFilterUpdate: (EventFilter) -> Void
 
     public init(
         profile: ChildProfileScreenState,
@@ -14,7 +16,8 @@ public struct EventHistoryView: View {
         deleteEvent: @escaping (EventCardViewState) -> Void,
         pendingDeleteEvent: EventDeleteCandidate?,
         confirmDelete: @escaping () -> Void,
-        cancelDelete: @escaping () -> Void
+        cancelDelete: @escaping () -> Void,
+        onFilterUpdate: @escaping (EventFilter) -> Void
     ) {
         self.profile = profile
         self.openEvent = openEvent
@@ -22,28 +25,74 @@ public struct EventHistoryView: View {
         self.pendingDeleteEvent = pendingDeleteEvent
         self.confirmDelete = confirmDelete
         self.cancelDelete = cancelDelete
+        self.onFilterUpdate = onFilterUpdate
     }
 
     public var body: some View {
-        List {
-            if profile.eventHistory.events.isEmpty {
-                emptyState
-                    .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-            } else {
-                ForEach(profile.eventHistory.events) { event in
-                    eventRow(for: event)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+        VStack(spacing: 0) {
+            if !profile.eventHistory.activeFilter.isEmpty {
+                filterPillsBar
+            }
+
+            List {
+                if profile.eventHistory.events.isEmpty {
+                    emptyState
+                        .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
+                } else {
+                    ForEach(profile.eventHistory.events) { event in
+                        eventRow(for: event)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    }
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
+
+    // MARK: - Filter pills
+
+    private var filterPillsBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(ActiveFilterPill.pills(for: profile.eventHistory.activeFilter)) { pill in
+                    filterPill(pill)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+        }
+        .background(Color(.secondarySystemGroupedBackground))
+        .overlay(alignment: .bottom) { Divider() }
+    }
+
+    private func filterPill(_ pill: ActiveFilterPill) -> some View {
+        HStack(spacing: 4) {
+            Text(pill.label)
+                .font(.subheadline.weight(.medium))
+
+            Button {
+                onFilterUpdate(pill.removing(from: profile.eventHistory.activeFilter))
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.bold))
+            }
+            .accessibilityLabel("Remove \(pill.label) filter")
+        }
+        .foregroundStyle(.white)
+        .padding(.leading, 12)
+        .padding(.trailing, 8)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(pill.color))
+    }
+
+    // MARK: - Event rows
 
     @ViewBuilder
     private func eventRow(for event: EventCardViewState) -> some View {
@@ -108,6 +157,132 @@ public struct EventHistoryView: View {
             "End"
         case .editBreastFeed, .editBottleFeed, .editNappy, .editSleep:
             "Edit"
+        }
+    }
+}
+
+// MARK: - Active filter pills
+
+struct ActiveFilterPill: Identifiable {
+    enum Criterion {
+        case eventType(BabyEventKind)
+        case nappyType(NappyType)
+        case milkType(MilkType)
+        case breastSide(BreastSide)
+        case sleepMin
+        case sleepMax
+    }
+
+    let id: String
+    let label: String
+    let color: Color
+    let criterion: Criterion
+
+    func removing(from filter: EventFilter) -> EventFilter {
+        var updated = filter
+        switch criterion {
+        case .eventType(let kind): updated.eventTypes.remove(kind)
+        case .nappyType(let type): updated.nappyTypes.remove(type)
+        case .milkType(let type): updated.milkTypes.remove(type)
+        case .breastSide(let side): updated.breastSides.remove(side)
+        case .sleepMin: updated.sleepMinDurationMinutes = nil
+        case .sleepMax: updated.sleepMaxDurationMinutes = nil
+        }
+        return updated
+    }
+
+    static func pills(for filter: EventFilter) -> [ActiveFilterPill] {
+        var pills: [ActiveFilterPill] = []
+
+        for kind in [BabyEventKind.breastFeed, .bottleFeed, .sleep, .nappy]
+            where filter.eventTypes.contains(kind) {
+            pills.append(ActiveFilterPill(
+                id: "eventType_\(kind.rawValue)",
+                label: BabyEventPresentation.title(for: kind),
+                color: BabyEventStyle.accentColor(for: kind),
+                criterion: .eventType(kind)
+            ))
+        }
+
+        for type in NappyType.allCases where filter.nappyTypes.contains(type) {
+            pills.append(ActiveFilterPill(
+                id: "nappyType_\(type.rawValue)",
+                label: type.pillLabel,
+                color: BabyEventStyle.accentColor(for: .nappy),
+                criterion: .nappyType(type)
+            ))
+        }
+
+        for type in MilkType.allCases where filter.milkTypes.contains(type) {
+            pills.append(ActiveFilterPill(
+                id: "milkType_\(type.rawValue)",
+                label: type.pillLabel,
+                color: BabyEventStyle.accentColor(for: .bottleFeed),
+                criterion: .milkType(type)
+            ))
+        }
+
+        for side in BreastSide.allCases where filter.breastSides.contains(side) {
+            pills.append(ActiveFilterPill(
+                id: "breastSide_\(side.rawValue)",
+                label: side.pillLabel,
+                color: BabyEventStyle.accentColor(for: .breastFeed),
+                criterion: .breastSide(side)
+            ))
+        }
+
+        if let min = filter.sleepMinDurationMinutes {
+            pills.append(ActiveFilterPill(
+                id: "sleepMin_\(min)",
+                label: "≥ \(min) min",
+                color: BabyEventStyle.accentColor(for: .sleep),
+                criterion: .sleepMin
+            ))
+        }
+
+        if let max = filter.sleepMaxDurationMinutes {
+            pills.append(ActiveFilterPill(
+                id: "sleepMax_\(max)",
+                label: "≤ \(max) min",
+                color: BabyEventStyle.accentColor(for: .sleep),
+                criterion: .sleepMax
+            ))
+        }
+
+        return pills
+    }
+}
+
+// MARK: - Pill labels
+
+private extension NappyType {
+    var pillLabel: String {
+        switch self {
+        case .dry: "Dry"
+        case .wee: "Wee"
+        case .poo: "Poo"
+        case .mixed: "Mixed"
+        }
+    }
+}
+
+private extension MilkType {
+    var pillLabel: String {
+        switch self {
+        case .breastMilk: "Breast Milk"
+        case .formula: "Formula"
+        case .mixed: "Mixed"
+        case .other: "Other"
+        }
+    }
+}
+
+private extension BreastSide {
+    var pillLabel: String {
+        switch self {
+        case .left: "Left side"
+        case .right: "Right side"
+        case .both: "Both sides"
         }
     }
 }
