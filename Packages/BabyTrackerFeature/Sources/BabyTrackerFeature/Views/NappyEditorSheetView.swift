@@ -15,6 +15,7 @@ public struct NappyEditorSheetView: View {
     @State private var peeVolume: NappyVolumeChoice
     @State private var pooVolume: NappyVolumeChoice
     @State private var pooColor: PooColorChoice
+    private let initialTimePreset: QuickTimeSelectorView.TimePreset
 
     public init(
         navigationTitle: String,
@@ -25,6 +26,7 @@ public struct NappyEditorSheetView: View {
         initialPeeVolume: NappyVolume?,
         initialPooVolume: NappyVolume?,
         initialPooColor: PooColor?,
+        initialTimePreset: QuickTimeSelectorView.TimePreset = .now,
         saveAction: @escaping (_ type: NappyType, _ occurredAt: Date, _ peeVolume: NappyVolume?, _ pooVolume: NappyVolume?, _ pooColor: PooColor?) -> Bool
     ) {
         self.navigationTitle = navigationTitle
@@ -36,13 +38,16 @@ public struct NappyEditorSheetView: View {
         _peeVolume = State(initialValue: NappyVolumeChoice(volume: initialPeeVolume))
         _pooVolume = State(initialValue: NappyVolumeChoice(volume: initialPooVolume))
         _pooColor = State(initialValue: PooColorChoice(color: initialPooColor))
+        self.initialTimePreset = initialTimePreset
     }
 
     public var body: some View {
         NavigationStack {
             Form {
+                LoggingSummaryView(sentence: summarySentence)
+
                 Section("When was the Nappy?") {
-                    QuickTimeSelectorView(selection: $occurredAt)
+                    QuickTimeSelectorView(selection: $occurredAt, initialPreset: initialTimePreset)
                         .accessibilityIdentifier("nappy-time-selector")
                 }
 
@@ -79,8 +84,6 @@ public struct NappyEditorSheetView: View {
                         pooColorButtons
                     }
                 }
-
-                LoggingSummaryView(sentence: summarySentence)
             }
             .tint(Self.eventColor)
             .scrollContentBackground(.hidden)

@@ -3,6 +3,7 @@ import SwiftUI
 func summaryVariable(_ text: String, color: Color = .accentColor) -> AttributedString {
     var a = AttributedString(text)
     a.swiftUI.foregroundColor = color
+    a.swiftUI.font = .body.weight(.semibold)
     return a
 }
 
@@ -12,10 +13,10 @@ struct LoggingSummaryView: View {
     var body: some View {
         Section {
             Text(sentence)
-                .font(.subheadline.weight(.medium))
+                .font(.body)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
+                .padding(.vertical, 6)
         }
     }
 }
