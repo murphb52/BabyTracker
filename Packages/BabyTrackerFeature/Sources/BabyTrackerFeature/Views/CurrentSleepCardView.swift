@@ -20,8 +20,10 @@ public struct CurrentSleepCardView: View {
             VStack(alignment: .leading, spacing: 6) {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     Text(durationText(from: sleep.startedAt, to: context.date))
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
                         .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                         .foregroundStyle(BabyEventStyle.accentColor(for: .sleep))
                         .accessibilityIdentifier("current-sleep-duration")
                 }
@@ -32,7 +34,7 @@ public struct CurrentSleepCardView: View {
                     .accessibilityIdentifier("current-sleep-started-at")
             }
 
-            Spacer(minLength: 12)
+            Spacer(minLength: 8)
 
             Button("Stop") {
                 stopSleep()

@@ -1,3 +1,4 @@
+import BabyTrackerDomain
 import SwiftUI
 
 public struct CurrentStatusCardView: View {
@@ -11,6 +12,8 @@ public struct CurrentStatusCardView: View {
         VStack(alignment: .leading, spacing: 14) {
             statusRow(
                 title: "Time since last feed",
+                systemImage: "drop.fill",
+                iconTint: BabyEventStyle.accentColor(for: .bottleFeed),
                 identifier: "current-status-time-since-last-feed"
             ) {
                 if let lastFeedAt = status.timeSinceLastFeedAt {
@@ -24,6 +27,8 @@ public struct CurrentStatusCardView: View {
 
             statusRow(
                 title: "Feeds today",
+                systemImage: "list.number",
+                iconTint: BabyEventStyle.accentColor(for: .breastFeed),
                 identifier: "current-status-feeds-today"
             ) {
                 Text("\(status.feedsTodayCount)")
@@ -33,6 +38,8 @@ public struct CurrentStatusCardView: View {
 
             statusRow(
                 title: "Time since last nappy",
+                systemImage: BabyEventStyle.systemImage(for: .nappy),
+                iconTint: BabyEventStyle.accentColor(for: .nappy),
                 identifier: "current-status-time-since-last-nappy"
             ) {
                 if let lastNappyAt = status.timeSinceLastNappyAt {
@@ -57,10 +64,18 @@ public struct CurrentStatusCardView: View {
 
     private func statusRow<Value: View>(
         title: String,
+        systemImage: String,
+        iconTint: Color,
         identifier: String,
         @ViewBuilder value: () -> Value
     ) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(iconTint)
+                .frame(width: 18)
+                .accessibilityHidden(true)
+
             Text(title)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
