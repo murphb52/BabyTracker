@@ -83,4 +83,18 @@ public struct UnavailableCloudKitClient: CloudKitClient {
     public func accept(_ metadatas: [CKShare.Metadata]) async throws {
         throw CKError(.notAuthenticated)
     }
+
+    public func subscription(
+        withID subscriptionID: String,
+        databaseScope: CKDatabase.Scope
+    ) async throws -> CKSubscription? {
+        nil
+    }
+
+    public func saveSubscription(
+        _ subscription: CKSubscription,
+        databaseScope: CKDatabase.Scope
+    ) async throws {
+        throw CKError(.notAuthenticated)
+    }
 }
