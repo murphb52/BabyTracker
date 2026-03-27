@@ -28,7 +28,9 @@ public final class AppModel {
     private let eventRepository: EventRepository
     private let syncEngine: CloudKitSyncEngine
     private let liveActivityManager: any FeedLiveActivityManaging
+    private let localNotificationManager: any LocalNotificationManaging
     private let buildTimelineStripDatasetUseCase = BuildTimelineStripDatasetUseCase()
+    private let buildRemoteNotificationUseCase = BuildRemoteCaregiverNotificationUseCase()
     private let calendar = Calendar.autoupdatingCurrent
     private var timelineSelectedDay = Calendar.autoupdatingCurrent.startOfDay(for: .now)
     private var timelineDisplayMode: TimelineScreenState.DisplayMode = .day
@@ -44,7 +46,8 @@ public final class AppModel {
         childSelectionStore: any ChildSelectionStore,
         eventRepository: EventRepository,
         syncEngine: CloudKitSyncEngine,
-        liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager()
+        liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager(),
+        localNotificationManager: any LocalNotificationManaging = NoOpLocalNotificationManager()
     ) {
         self.childRepository = childRepository
         self.userIdentityRepository = userIdentityRepository
@@ -53,6 +56,7 @@ public final class AppModel {
         self.eventRepository = eventRepository
         self.syncEngine = syncEngine
         self.liveActivityManager = liveActivityManager
+        self.localNotificationManager = localNotificationManager
     }
 
     public func load(performLaunchSync: Bool = true) {
@@ -92,8 +96,15 @@ public final class AppModel {
 
     public func refreshAfterRemoteNotification() async -> SyncStatusSummary {
         let summary = await syncEngine.refreshAfterRemoteNotification()
+        await scheduleRemoteSyncNotificationIfNeeded()
         refresh(selecting: childSelectionStore.loadSelectedChildID())
         return summary
+    }
+
+    public func requestNotificationAuthorizationIfNeeded() {
+        Task { @MainActor in
+            await localNotificationManager.requestAuthorizationIfNeeded()
+        }
     }
 
     public func hardDeleteAllData() {
@@ -1592,5 +1603,15 @@ public final class AppModel {
 
     public func dismissNestImportResult() {
         nestImportState = .idle
+    }
+
+    private func scheduleRemoteSyncNotificationIfNeeded() async {
+        let changes = syncEngine.consumeRemoteCaregiverEventChanges()
+        let input = BuildRemoteCaregiverNotificationUseCase.Input(changes: changes)
+        guard let content = buildRemoteNotificationUseCase.execute(input) else {
+            return
+        }
+
+        await localNotificationManager.scheduleRemoteSyncNotification(content)
     }
 }

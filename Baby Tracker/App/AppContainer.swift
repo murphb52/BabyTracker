@@ -39,6 +39,9 @@ struct AppContainer {
         let liveActivityManager: any FeedLiveActivityManaging = launchConfiguration.usesNoOpLiveActivities ?
             NoOpFeedLiveActivityManager() :
             FeedLiveActivityManager()
+        let localNotificationManager: any LocalNotificationManaging = launchConfiguration.usesUnavailableCloudKitClient ?
+            NoOpLocalNotificationManager() :
+            SystemLocalNotificationManager()
         let syncEngine = CloudKitSyncEngine(
             childRepository: childRepository,
             userIdentityRepository: userIdentityRepository,
@@ -54,7 +57,8 @@ struct AppContainer {
             childSelectionStore: childSelectionStore,
             eventRepository: eventRepository,
             syncEngine: syncEngine,
-            liveActivityManager: liveActivityManager
+            liveActivityManager: liveActivityManager,
+            localNotificationManager: localNotificationManager
         )
         let shareAcceptanceHandler = ShareAcceptanceHandler(syncEngine: syncEngine) {
             appModel.load()
@@ -107,7 +111,8 @@ struct AppContainer {
             childSelectionStore: childSelectionStore,
             eventRepository: eventRepository,
             syncEngine: syncEngine,
-            liveActivityManager: NoOpFeedLiveActivityManager()
+            liveActivityManager: NoOpFeedLiveActivityManager(),
+            localNotificationManager: NoOpLocalNotificationManager()
         )
         let shareAcceptanceHandler = ShareAcceptanceHandler(syncEngine: syncEngine) {
             appModel.load()
