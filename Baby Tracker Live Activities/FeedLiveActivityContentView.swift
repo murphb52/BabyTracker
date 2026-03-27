@@ -6,62 +6,98 @@ struct FeedLiveActivityContentView: View {
     let state: FeedLiveActivityAttributes.ContentState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: symbolName(for: state.lastFeedKind))
-                    .font(.title3)
-                    .foregroundStyle(Color.accentColor)
+        VStack(spacing: 10) {
+            Text(state.childName)
+                .font(.headline)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(state.childName)
-                        .font(.headline)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-
-                    Text(feedTitle(for: state.lastFeedKind))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+            HStack(spacing: 8) {
+                metricTile(
+                    title: "Feed",
+                    icon: symbolName(for: state.lastFeedKind),
+                    color: eventAccentColor(for: .bottleFeed)
+                ) {
+                    Text(state.lastFeedAt, style: .timer)
                 }
 
-                Spacer()
+                metricTile(
+                    title: state.activeSleepStartedAt == nil ? "Since sleep" : "Asleep",
+                    icon: symbolName(for: .sleep),
+                    color: eventAccentColor(for: .sleep)
+                ) {
+                    if let activeSleepStartedAt = state.activeSleepStartedAt {
+                        Text(activeSleepStartedAt, style: .timer)
+                    } else if let lastSleepAt = state.lastSleepAt {
+                        Text(lastSleepAt, style: .timer)
+                    } else {
+                        Text("—")
+                    }
+                }
+
+                metricTile(
+                    title: "Nappy",
+                    icon: symbolName(for: .nappy),
+                    color: eventAccentColor(for: .nappy)
+                ) {
+                    if let lastNappyAt = state.lastNappyAt {
+                        Text(lastNappyAt, style: .timer)
+                    } else {
+                        Text("—")
+                    }
+                }
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text("Last \(formattedLastFeedTime)")
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-
-                Spacer(minLength: 0)
-
-                Text(state.lastFeedAt, style: .timer)
-                    .foregroundStyle(.primary)
-                    .monospacedDigit()
-                    .lineLimit(1)
+            if let stopURL = stopSleepURL {
+                Link(destination: stopURL) {
+                    Label("Stop Sleep", systemImage: "stop.fill")
+                        .font(.footnote.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(eventAccentColor(for: .sleep))
             }
-            .font(.footnote.weight(.medium))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
-    private var formattedLastFeedTime: String {
-        state.lastFeedAt.formatted(.dateTime.hour().minute())
-    }
-
-    private func feedTitle(for kind: BabyEventKind) -> String {
-        switch kind {
-        case .breastFeed:
-            "Breast Feed"
-        case .bottleFeed:
-            "Bottle Feed"
-        case .sleep:
-            "Sleep"
-        case .nappy:
-            "Nappy"
+    private var stopSleepURL: URL? {
+        guard state.activeSleepStartedAt != nil else {
+            return nil
         }
+
+        return FeedLiveActivityDeepLink.endSleepURL(childID: state.childID)
+    }
+
+    private func metricTile(
+        title: String,
+        icon: String,
+        color: Color,
+        @ViewBuilder value: () -> some View
+    ) -> some View {
+        VStack(spacing: 3) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Image(systemName: icon)
+                    .frame(width: 14)
+                Text(title)
+            }
+                .font(.caption2.weight(.medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .foregroundStyle(color)
+                .frame(height: 16)
+
+            value()
+                .font(.footnote.weight(.semibold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .foregroundStyle(.primary)
+                .frame(height: 24, alignment: .top)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func symbolName(for kind: BabyEventKind) -> String {
@@ -74,6 +110,19 @@ struct FeedLiveActivityContentView: View {
             "bed.double"
         case .nappy:
             "checklist"
+        }
+    }
+
+    private func eventAccentColor(for kind: BabyEventKind) -> Color {
+        switch kind {
+        case .breastFeed:
+            Color(red: 0.84, green: 0.29, blue: 0.42)
+        case .bottleFeed:
+            Color(red: 0.15, green: 0.56, blue: 0.72)
+        case .sleep:
+            Color(red: 0.29, green: 0.33, blue: 0.73)
+        case .nappy:
+            Color(red: 0.74, green: 0.47, blue: 0.16)
         }
     }
 }

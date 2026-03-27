@@ -74,9 +74,13 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
     ) -> ActivityContent<FeedLiveActivityAttributes.ContentState> {
         ActivityContent(
             state: FeedLiveActivityAttributes.ContentState(
+                childID: snapshot.childID,
                 childName: snapshot.childName,
                 lastFeedKind: snapshot.lastFeedKind,
-                lastFeedAt: snapshot.lastFeedAt
+                lastFeedAt: snapshot.lastFeedAt,
+                lastSleepAt: snapshot.lastSleepAt,
+                activeSleepStartedAt: snapshot.activeSleepStartedAt,
+                lastNappyAt: snapshot.lastNappyAt
             ),
             staleDate: nil
         )
