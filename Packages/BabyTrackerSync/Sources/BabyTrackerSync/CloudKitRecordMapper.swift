@@ -3,7 +3,7 @@ import CloudKit
 import Foundation
 
 public enum CloudKitRecordMapper {
-    static func childRecord(
+    public static func childRecord(
         from child: Child,
         zoneID: CKRecordZone.ID
     ) -> CKRecord {
@@ -84,7 +84,7 @@ public enum CloudKitRecordMapper {
         }
     }
 
-    static func child(from record: CKRecord) throws -> Child {
+    public static func child(from record: CKRecord) throws -> Child {
         var imageData: Data?
         if let asset = record["imageAsset"] as? CKAsset,
            let url = asset.fileURL {
