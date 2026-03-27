@@ -110,6 +110,9 @@ struct AppModelTests {
 
         #expect(harness.model.route == .childProfile)
         #expect(harness.model.activeChildren.map(\.child.id) == [seed.child.id, secondChild.id])
+        let profile = try #require(harness.model.profile)
+        #expect(profile.availableChildren.map(\.child.id) == [seed.child.id, secondChild.id])
+        #expect(profile.canCreateLocalChild)
     }
 
     @Test

@@ -19,6 +19,8 @@ public struct ChildProfileScreenState: Equatable, Sendable {
     public let cloudKitStatus: CloudKitStatusViewState
     public let canShareChild: Bool
     public let pendingChanges: [PendingChangeSummaryItem]
+    public let availableChildren: [ChildSummary]
+    public let canCreateLocalChild: Bool
 
     public var canEditChild: Bool {
         ChildAccessPolicy.canPerform(.editChild, membership: currentMembership)
@@ -53,7 +55,9 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         summary: SummaryScreenState,
         cloudKitStatus: CloudKitStatusViewState,
         canShareChild: Bool,
-        pendingChanges: [PendingChangeSummaryItem] = []
+        pendingChanges: [PendingChangeSummaryItem] = [],
+        availableChildren: [ChildSummary] = [],
+        canCreateLocalChild: Bool = false
     ) {
         self.child = child
         self.localUser = localUser
@@ -72,5 +76,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         self.cloudKitStatus = cloudKitStatus
         self.canShareChild = canShareChild
         self.pendingChanges = pendingChanges
+        self.availableChildren = availableChildren
+        self.canCreateLocalChild = canCreateLocalChild
     }
 }

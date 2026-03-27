@@ -655,6 +655,7 @@ public final class AppModel {
             profile = try makeProfile(
                 child: currentSummary.child,
                 localUser: localUser,
+                availableChildren: activeChildren,
                 visibleEvents: visibleEvents,
                 timelinePages: timelinePages,
                 activeSleep: activeSleep
@@ -714,6 +715,7 @@ public final class AppModel {
     private func makeProfile(
         child: Child,
         localUser: UserIdentity,
+        availableChildren: [ChildSummary],
         visibleEvents: [BabyEvent],
         timelinePages: [TimelineDayPageState],
         activeSleep: SleepEvent?
@@ -800,7 +802,9 @@ public final class AppModel {
             cloudKitStatus: cloudKitStatus,
             canShareChild: ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership) &&
                 syncEngine.statusSummary.state != .failed,
-            pendingChanges: pendingChanges
+            pendingChanges: pendingChanges,
+            availableChildren: availableChildren,
+            canCreateLocalChild: true
         )
     }
 
