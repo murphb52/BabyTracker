@@ -9,6 +9,7 @@ public struct ChildWorkspaceTabView: View {
     @State private var activeEventSheet: ChildEventSheet?
     @State private var deleteCandidate: EventDeleteCandidate?
     @State private var showingEditChildSheet = false
+    @State private var showingEventFilter = false
 
     public init(
         model: AppModel,
@@ -86,6 +87,19 @@ public struct ChildWorkspaceTabView: View {
         .navigationTitle(profile.child.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if selectedTab == .events {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingEventFilter = true
+                    } label: {
+                        Image(systemName: profile.eventHistory.filterIsActive
+                            ? "line.3.horizontal.decrease.circle.fill"
+                            : "line.3.horizontal.decrease.circle")
+                    }
+                    .tint(profile.eventHistory.filterIsActive ? .accentColor : nil)
+                    .accessibilityIdentifier("event-history-filter-button")
+                }
+            }
             if selectedTab == .timeline {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(profile.timeline.displayMode == .day ? "Week View" : "Day View") {
@@ -100,6 +114,11 @@ public struct ChildWorkspaceTabView: View {
             activeEventSheet = nil
         }) { sheet in
             eventSheet(for: sheet)
+        }
+        .sheet(isPresented: $showingEventFilter) {
+            EventFilterView(currentFilter: model.eventFilter) { newFilter in
+                model.updateEventFilter(newFilter)
+            }
         }
         .sheet(isPresented: $showingEditChildSheet) {
             ChildEditSheetView(
