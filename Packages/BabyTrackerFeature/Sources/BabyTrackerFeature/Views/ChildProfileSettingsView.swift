@@ -1,4 +1,5 @@
 import SwiftUI
+import BabyTrackerDomain
 
 public struct ChildProfileSettingsView: View {
     let model: AppModel
