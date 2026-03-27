@@ -1,11 +1,64 @@
 import BabyTrackerDomain
 import BabyTrackerFeature
-import BabyTrackerSync
+@testable import BabyTrackerSync
 import CloudKit
 import Foundation
 import Testing
 
 struct CloudKitRecordMapperTests {
+    @Test
+    func sharedHierarchyRecordsPointBackToChild() throws {
+        let childID = UUID()
+        let userID = UUID()
+        let zoneID = CloudKitRecordNames.zoneID(
+            for: childID,
+            ownerName: "probe-owner"
+        )
+        let user = try UserIdentity(
+            id: userID,
+            displayName: "Alex Parent",
+            createdAt: .now,
+            cloudKitUserRecordName: "cloud-user"
+        )
+        let membership = Membership.owner(
+            childID: childID,
+            userID: userID,
+            createdAt: .now
+        )
+        let event = try BottleFeedEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: .now,
+                createdAt: .now,
+                createdBy: userID
+            ),
+            amountMilliliters: 120
+        )
+
+        let expectedParentRecordID = CloudKitRecordNames.childRecordID(
+            childID: childID,
+            zoneID: zoneID
+        )
+
+        let userRecord = CloudKitRecordMapper.userRecord(
+            from: user,
+            childID: childID,
+            zoneID: zoneID
+        )
+        let membershipRecord = CloudKitRecordMapper.membershipRecord(
+            from: membership,
+            zoneID: zoneID
+        )
+        let eventRecord = CloudKitRecordMapper.eventRecord(
+            from: .bottleFeed(event),
+            zoneID: zoneID
+        )
+
+        #expect(userRecord.parent?.recordID == expectedParentRecordID)
+        #expect(membershipRecord.parent?.recordID == expectedParentRecordID)
+        #expect(eventRecord.parent?.recordID == expectedParentRecordID)
+    }
+
     @Test
     func breastFeedMapperRoundTripsOptionalAndBothSides() throws {
         let childID = UUID()

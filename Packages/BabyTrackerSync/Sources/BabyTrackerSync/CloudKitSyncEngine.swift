@@ -8,6 +8,20 @@ import os
 public final class CloudKitSyncEngine {
     public private(set) var statusSummary = SyncStatusSummary()
 
+    enum ShareAcceptanceError: LocalizedError {
+        case missingRootRecord
+        case refreshFailed(String?)
+
+        var errorDescription: String? {
+            switch self {
+            case .missingRootRecord:
+                return "Accepted share did not include a root record."
+            case let .refreshFailed(message):
+                return message ?? "Sync failed while loading the accepted share."
+            }
+        }
+    }
+
     private let childRepository: any CloudKitChildRepository
     private let userIdentityRepository: any CloudKitUserIdentityRepository
     private let membershipRepository: any CloudKitMembershipRepository
@@ -235,15 +249,23 @@ public final class CloudKitSyncEngine {
         logger.info("[4/5] Calling client.accept (registers share with CloudKit)")
         AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] Calling client.accept (registers share with CloudKit)")
         try await client.accept([metadata])
-        logger.info("[4/5] client.accept succeeded — running foreground refresh")
-        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] client.accept succeeded — running foreground refresh")
-        _ = await refresh(reason: .foreground)
+        // Accepting the share registers access to the shared zone, but it does
+        // not guarantee that the zone contents have been pulled locally yet.
+        logger.info("[4/5] client.accept succeeded — forcing full pull of accepted shared zone")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] client.accept succeeded — forcing full pull of accepted shared zone")
+        try await forcePullAcceptedShare(
+            rootRecordID: try acceptedShareRootRecordID(from: metadata),
+            shareRecordName: metadata.share.recordID.recordName
+        )
+        logger.info("[4/5] Full accepted-share pull complete — running foreground refresh")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] Full accepted-share pull complete — running foreground refresh")
+        try throwIfRefreshFailed(await refresh(reason: .foreground))
         logger.info("[4/5] Foreground refresh done — ensuring local membership record")
         AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] Foreground refresh done — ensuring local membership record")
         try await ensureMembershipForAcceptedShare(metadata: metadata)
         logger.info("[4/5] Membership ensured — running post-write refresh")
         AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] Membership ensured — running post-write refresh")
-        _ = await refresh(reason: .localWrite)
+        try throwIfRefreshFailed(await refresh(reason: .localWrite))
         logger.info("[5/5] Share acceptance complete")
         AppLogger.shared.log(.info, category: "CloudKitSync", "[5/5] Share acceptance complete")
     }
@@ -377,7 +399,20 @@ public final class CloudKitSyncEngine {
                     "Child '\(child.name, privacy: .private)' — zone: \(context.zoneID.zoneName, privacy: .public), scope: \(context.databaseScope.logDescription, privacy: .public), isArchived: \(child.isArchived, privacy: .public)"
                 )
                 AppLogger.shared.log(.info, category: "CloudKitSync", "Child — zone: \(context.zoneID.zoneName), scope: \(context.databaseScope.logDescription), isArchived: \(child.isArchived)")
-                try await pullZoneSnapshot(context: context)
+                if try await shouldForceOwnerSharedZoneReconciliation(
+                    for: child.id,
+                    context: context
+                ) {
+                    // Caregiver edits can already exist in the owner's private
+                    // zone even when incremental zone changes report nothing.
+                    // Force a full pull for shared private zones so the owner
+                    // does not keep reading a stale local snapshot.
+                    logger.info("Child '\(child.name, privacy: .private)' — forcing full pull for owner shared private zone")
+                    AppLogger.shared.log(.info, category: "CloudKitSync", "Child — forcing full pull for owner shared private zone")
+                    try await pullZoneSnapshot(context: context, forceFullFetch: true)
+                } else {
+                    try await pullZoneSnapshot(context: context)
+                }
                 let memberships = try membershipRepository.loadMemberships(for: child.id)
                 logger.info(
                     "Child '\(child.name, privacy: .private)' — \(memberships.count, privacy: .public) membership(s) in local store: \(memberships.map { "userID=\($0.userID) role=\($0.role) status=\($0.status)" }.joined(separator: ", "), privacy: .public)"
@@ -476,6 +511,16 @@ public final class CloudKitSyncEngine {
             }
 
             let context = try await ensureZoneContext(for: child.id, preferredScope: .private)
+            if try await shouldForceOwnerSharedZoneReconciliation(
+                for: child.id,
+                context: context
+            ) {
+                // Reconcile before pushing so a stale owner snapshot never gets
+                // written back over caregiver-authored records.
+                logger.info("pushPendingChanges — '\(child.name, privacy: .private)': reconciling owner shared private zone before push")
+                AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — reconciling owner shared private zone before push")
+                try await pullZoneSnapshot(context: context, forceFullFetch: true)
+            }
             logger.info("pushPendingChanges — '\(child.name, privacy: .private)': pushing zone (scope: \(context.databaseScope.logDescription, privacy: .public))")
             AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — pushing zone (scope: \(context.databaseScope.logDescription))")
             try await pushZoneSnapshot(for: child.id, context: context)
@@ -501,7 +546,13 @@ public final class CloudKitSyncEngine {
 
         let childRecord = CloudKitRecordMapper.childRecord(from: child, zoneID: context.zoneID)
         var recordsToSave: [CKRecord] = [childRecord]
-        recordsToSave.append(contentsOf: users.map { CloudKitRecordMapper.userRecord(from: $0, zoneID: context.zoneID) })
+        recordsToSave.append(contentsOf: users.map {
+            CloudKitRecordMapper.userRecord(
+                from: $0,
+                childID: childID,
+                zoneID: context.zoneID
+            )
+        })
         recordsToSave.append(contentsOf: memberships.map { CloudKitRecordMapper.membershipRecord(from: $0, zoneID: context.zoneID) })
         recordsToSave.append(contentsOf: events.map { CloudKitRecordMapper.eventRecord(from: $0, zoneID: context.zoneID) })
 
@@ -604,9 +655,30 @@ public final class CloudKitSyncEngine {
         }
     }
 
-    private func pullZoneSnapshot(context: CloudKitChildContext) async throws {
+    func forcePullAcceptedShare(
+        rootRecordID: CKRecord.ID,
+        shareRecordName: String
+    ) async throws {
+        let childID = childID(fromRecordName: rootRecordID.recordName)
+        let context = CloudKitChildContext(
+            childID: childID,
+            zoneID: rootRecordID.zoneID,
+            shareRecordName: shareRecordName,
+            databaseScope: .shared
+        )
+        try await pullZoneSnapshot(
+            context: context,
+            forceFullFetch: true
+        )
+    }
+
+    private func pullZoneSnapshot(
+        context: CloudKitChildContext,
+        forceFullFetch: Bool = false
+    ) async throws {
         let databaseScope = context.databaseScope == .shared ? "shared" : "private"
-        let anchor = try syncStateRepository.loadAnchor(
+        // Clearing the anchor turns this into a complete zone snapshot fetch.
+        let anchor = forceFullFetch ? nil : try syncStateRepository.loadAnchor(
             databaseScope: databaseScope,
             zoneName: context.zoneID.zoneName,
             ownerName: context.zoneID.ownerName
@@ -806,6 +878,8 @@ public final class CloudKitSyncEngine {
         logger.info("[4/5] ensureMembership — existing memberships for child: [\(existingRoles.isEmpty ? "none" : existingRoles, privacy: .public)]")
         print("[BabyTracker][4/5] ensureMembership — existing memberships: [\(existingRoles.isEmpty ? "none" : existingRoles)]")
         AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] ensureMembership — existing memberships: [\(existingRoles.isEmpty ? "none" : existingRoles)]")
+        // The share recipient may not receive their membership record in the
+        // first pull, so create the local caregiver membership explicitly.
         logger.info("[4/5] ensureMembership — creating caregiver membership for zone: \(rootRecordID.zoneID.zoneName, privacy: .public)")
         AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] ensureMembership — creating caregiver membership for zone: \(rootRecordID.zoneID.zoneName)")
         let membership = Membership(
@@ -881,6 +955,31 @@ public final class CloudKitSyncEngine {
         return "Pending invitation"
     }
 
+    private func shouldForceOwnerSharedZoneReconciliation(
+        for childID: UUID,
+        context: CloudKitChildContext
+    ) async throws -> Bool {
+        guard context.databaseScope == .private else {
+            return false
+        }
+
+        // `shareRecordName` can be present in locally-created contexts before a
+        // share actually exists, so verify that a real CKShare record is in the
+        // private zone before treating it as an owner-side shared zone.
+        let shareRecordID = CKRecord.ID(
+            recordName: context.shareRecordName ?? CloudKitRecordNames.shareRecordID(
+                childID: childID,
+                zoneID: context.zoneID
+            ).recordName,
+            zoneID: context.zoneID
+        )
+
+        return try await client.records(
+            for: [shareRecordID],
+            databaseScope: context.databaseScope
+        )[shareRecordID] as? CKShare != nil
+    }
+
     private func childID(from zoneName: String) -> UUID {
         let rawValue = zoneName.replacingOccurrences(of: "child-", with: "")
         return UUID(uuidString: rawValue) ?? UUID()
@@ -893,6 +992,22 @@ public final class CloudKitSyncEngine {
 
     private func event(from record: CKRecord) throws -> BabyEvent {
         try CloudKitRecordMapper.event(from: record)
+    }
+
+    private func acceptedShareRootRecordID(from metadata: CKShare.Metadata) throws -> CKRecord.ID {
+        guard let rootRecordID = metadata.hierarchicalRootRecordID else {
+            throw ShareAcceptanceError.missingRootRecord
+        }
+
+        return rootRecordID
+    }
+
+    private func throwIfRefreshFailed(_ summary: SyncStatusSummary) throws {
+        guard summary.state == .failed else {
+            return
+        }
+
+        throw ShareAcceptanceError.refreshFailed(summary.lastErrorDescription)
     }
 
     private func recordType(for event: BabyEvent) -> SyncRecordType {
