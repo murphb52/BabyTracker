@@ -1,5 +1,7 @@
 import SwiftUI
 import UIKit
+import BabyTrackerDomain
+import BabyTrackerFeature
 
 @main
 struct BabyTrackerApp: App {
