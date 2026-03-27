@@ -7,16 +7,17 @@ public struct BottleFeedEditorSheetView: View {
     let navigationTitle: String
     let primaryActionTitle: String
     let childName: String
+    let preferredVolumeUnit: FeedVolumeUnit
     let saveAction: (_ amountMilliliters: Int, _ occurredAt: Date, _ milkType: MilkType?) -> Bool
 
     @Environment(\.dismiss) private var dismiss
-    @State private var amountMilliliters: String
+    @State private var amountText: String
     @State private var occurredAt: Date
     @State private var milkType: MilkTypeChoice
     @State private var showCustomAmount: Bool = false
     private let initialTimePreset: QuickTimeSelectorView.TimePreset
 
-    private let quickAmounts = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    private let quickAmountOptionsMilliliters = [30, 60, 90, 120, 150, 180, 210, 240]
 
     private let amountColumns = [
         GridItem(.flexible(), spacing: 8),
@@ -29,6 +30,7 @@ public struct BottleFeedEditorSheetView: View {
         navigationTitle: String,
         primaryActionTitle: String,
         childName: String,
+        preferredVolumeUnit: FeedVolumeUnit,
         initialAmountMilliliters: Int,
         initialOccurredAt: Date,
         initialMilkType: MilkType?,
@@ -39,8 +41,12 @@ public struct BottleFeedEditorSheetView: View {
         self.navigationTitle = navigationTitle
         self.primaryActionTitle = primaryActionTitle
         self.childName = childName
+        self.preferredVolumeUnit = preferredVolumeUnit
         self.saveAction = saveAction
-        _amountMilliliters = State(initialValue: initialAmountMilliliters > 0 ? "\(initialAmountMilliliters)" : "")
+        _amountText = State(initialValue: Self.initialAmountText(
+            for: initialAmountMilliliters,
+            unit: preferredVolumeUnit
+        ))
         _occurredAt = State(initialValue: initialOccurredAt)
         _milkType = State(initialValue: MilkTypeChoice(milkType: initialMilkType))
         _showCustomAmount = State(initialValue: showCustomAmountOnOpen)
@@ -66,9 +72,9 @@ public struct BottleFeedEditorSheetView: View {
                         ForEach(quickAmounts, id: \.self) { amount in
                             Button {
                                 showCustomAmount = false
-                                amountMilliliters = "\(amount)"
+                                amountText = quickAmountDisplayText(for: amount)
                             } label: {
-                                Text("\(amount) mL")
+                                Text(FeedVolumeConverter.format(amountMilliliters: amount, in: preferredVolumeUnit))
                                     .font(.subheadline.weight(.semibold))
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 10)
@@ -84,7 +90,7 @@ public struct BottleFeedEditorSheetView: View {
 
                         Button {
                             showCustomAmount = true
-                            amountMilliliters = ""
+                            amountText = ""
                         } label: {
                             Text("Custom")
                                 .font(.subheadline.weight(.semibold))
@@ -101,8 +107,8 @@ public struct BottleFeedEditorSheetView: View {
                     }
 
                     if showCustomAmount {
-                        TextField("Custom amount (mL)", text: $amountMilliliters)
-                            .keyboardType(.numberPad)
+                        TextField("Custom amount (\(preferredVolumeUnit.shortTitle))", text: $amountText)
+                            .keyboardType(preferredVolumeUnit == .milliliters ? .numberPad : .decimalPad)
                             .accessibilityIdentifier("bottle-feed-amount-field")
                     }
                 }
@@ -177,18 +183,31 @@ public struct BottleFeedEditorSheetView: View {
     }
 
     private var parsedAmountMilliliters: Int? {
-        guard let amountValue = Int(amountMilliliters.trimmingCharacters(in: .whitespacesAndNewlines)),
-              amountValue > 0 else {
+        let trimmedValue = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedValue.isEmpty else {
             return nil
         }
-        return amountValue
+
+        switch preferredVolumeUnit {
+        case .milliliters:
+            guard let amountValue = Int(trimmedValue), amountValue > 0 else {
+                return nil
+            }
+            return amountValue
+        case .ounces:
+            let normalized = trimmedValue.replacingOccurrences(of: ",", with: ".")
+            guard let ounceValue = Double(normalized), ounceValue > 0 else {
+                return nil
+            }
+            return FeedVolumeConverter.milliliters(from: ounceValue)
+        }
     }
 
     private var validationMessage: String? {
-        guard showCustomAmount, !amountMilliliters.isEmpty, parsedAmountMilliliters == nil else {
+        guard showCustomAmount, !amountText.isEmpty, parsedAmountMilliliters == nil else {
             return nil
         }
-        return "Enter an amount greater than 0 mL."
+        return "Enter an amount greater than 0 \(preferredVolumeUnit.shortTitle)."
     }
 
     private func isSelected(amount: Int) -> Bool {
@@ -203,7 +222,7 @@ public struct BottleFeedEditorSheetView: View {
             s += summaryVariable(timeStr, color: Self.eventColor)
             return s
         }
-        let amountStr = "\(amount) mL"
+        let amountStr = FeedVolumeConverter.format(amountMilliliters: amount, in: preferredVolumeUnit)
         s += AttributedString(" drank ")
         s += summaryVariable(amountStr, color: Self.eventColor)
         switch milkType {
@@ -218,6 +237,48 @@ public struct BottleFeedEditorSheetView: View {
         }
         s += summaryVariable(timeStr, color: Self.eventColor)
         return s
+    }
+
+    private var quickAmounts: [Int] {
+        switch preferredVolumeUnit {
+        case .milliliters:
+            quickAmountOptionsMilliliters
+        case .ounces:
+            (1...8).map { FeedVolumeConverter.milliliters(from: Double($0)) }
+        }
+    }
+
+    private func quickAmountDisplayText(for amountMilliliters: Int) -> String {
+        switch preferredVolumeUnit {
+        case .milliliters:
+            return "\(amountMilliliters)"
+        case .ounces:
+            return FeedVolumeConverter.ounces(from: amountMilliliters).formatted(
+                .number
+                    .precision(.fractionLength(0...1))
+                    .rounded(rule: .toNearestOrAwayFromZero, increment: 0.1)
+            )
+        }
+    }
+
+    private static func initialAmountText(
+        for amountMilliliters: Int,
+        unit: FeedVolumeUnit
+    ) -> String {
+        guard amountMilliliters > 0 else {
+            return ""
+        }
+
+        switch unit {
+        case .milliliters:
+            return "\(amountMilliliters)"
+        case .ounces:
+            return FeedVolumeConverter.ounces(from: amountMilliliters).formatted(
+                .number
+                    .precision(.fractionLength(0...1))
+                    .rounded(rule: .toNearestOrAwayFromZero, increment: 0.1)
+            )
+        }
     }
 }
 
@@ -268,6 +329,7 @@ extension BottleFeedEditorSheetView {
         navigationTitle: "Bottle Feed",
         primaryActionTitle: "Save",
         childName: "Robyn",
+        preferredVolumeUnit: .milliliters,
         initialAmountMilliliters: 0,
         initialOccurredAt: Date(),
         initialMilkType: nil

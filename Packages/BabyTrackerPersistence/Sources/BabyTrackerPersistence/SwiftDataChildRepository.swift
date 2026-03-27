@@ -50,6 +50,7 @@ public final class SwiftDataChildRepository: CloudKitChildRepository {
         storedChild.createdBy = child.createdBy
         storedChild.isArchived = child.isArchived
         storedChild.imageData = child.imageData
+        storedChild.preferredFeedVolumeUnitRawValue = child.preferredFeedVolumeUnit.rawValue
         markPendingSync(storedChild, errorCode: nil)
 
         if existingStoredChild == nil {
@@ -152,7 +153,8 @@ public final class SwiftDataChildRepository: CloudKitChildRepository {
             createdAt: storedChild.createdAt,
             createdBy: storedChild.createdBy,
             isArchived: storedChild.isArchived,
-            imageData: storedChild.imageData
+            imageData: storedChild.imageData,
+            preferredFeedVolumeUnit: FeedVolumeUnit(rawValue: storedChild.preferredFeedVolumeUnitRawValue) ?? .milliliters
         )
     }
 

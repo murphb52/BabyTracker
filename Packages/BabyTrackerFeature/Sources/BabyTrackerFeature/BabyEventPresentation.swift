@@ -19,12 +19,15 @@ public enum BabyEventPresentation {
         }
     }
 
-    static func detailText(for event: BabyEvent) -> String? {
+    static func detailText(
+        for event: BabyEvent,
+        preferredFeedVolumeUnit: FeedVolumeUnit = .milliliters
+    ) -> String? {
         switch event {
         case let .breastFeed(feed):
             breastFeedDetailText(for: feed)
         case let .bottleFeed(feed):
-            bottleFeedDetailText(for: feed)
+            bottleFeedDetailText(for: feed, preferredFeedVolumeUnit: preferredFeedVolumeUnit)
         case let .sleep(event):
             sleepDetailText(for: event)
         case let .nappy(event):
@@ -74,13 +77,19 @@ public enum BabyEventPresentation {
     }
 
     private static func bottleFeedDetailText(
-        for feed: BottleFeedEvent
+        for feed: BottleFeedEvent,
+        preferredFeedVolumeUnit: FeedVolumeUnit
     ) -> String {
+        let amountText = FeedVolumeConverter.format(
+            amountMilliliters: feed.amountMilliliters,
+            in: preferredFeedVolumeUnit
+        )
+
         guard let milkType = feed.milkType else {
-            return "\(feed.amountMilliliters) mL"
+            return amountText
         }
 
-        return "\(feed.amountMilliliters) mL • \(milkTypeTitle(for: milkType))"
+        return "\(amountText) • \(milkTypeTitle(for: milkType))"
     }
 
     private static func sleepDetailText(

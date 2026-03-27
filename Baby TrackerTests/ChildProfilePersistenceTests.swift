@@ -81,6 +81,29 @@ struct ChildProfilePersistenceTests {
     }
 
     @Test
+    func savesChildPreferredFeedVolumeUnit() throws {
+        let harness = try RepositoryHarness()
+        defer { harness.cleanUp() }
+
+        let owner = try UserIdentity(displayName: "Owner")
+        let child = try Child(
+            name: "Robin",
+            createdBy: owner.id,
+            preferredFeedVolumeUnit: .ounces
+        )
+
+        try harness.userIdentityRepository.saveLocalUser(owner)
+        try harness.childRepository.saveChild(child)
+        try harness.membershipRepository.saveMembership(
+            .owner(childID: child.id, userID: owner.id, createdAt: child.createdAt)
+        )
+
+        let loadedChild = try #require(try harness.childRepository.loadChild(id: child.id))
+
+        #expect(loadedChild.preferredFeedVolumeUnit == .ounces)
+    }
+
+    @Test
     func savesSelectedChildIdentifier() throws {
         let harness = try RepositoryHarness()
         defer { harness.cleanUp() }

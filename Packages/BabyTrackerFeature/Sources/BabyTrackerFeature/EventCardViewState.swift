@@ -11,6 +11,7 @@ public struct EventCardViewState: Equatable, Identifiable, Sendable {
 
     public init?(
         event: BabyEvent,
+        preferredFeedVolumeUnit: FeedVolumeUnit = .milliliters,
         timestampText: String? = nil
     ) {
         switch event {
@@ -23,7 +24,10 @@ public struct EventCardViewState: Equatable, Identifiable, Sendable {
             id = feed.id
             kind = .breastFeed
             title = BabyEventPresentation.title(for: event)
-            detailText = BabyEventPresentation.detailText(for: event) ?? ""
+            detailText = BabyEventPresentation.detailText(
+                for: event,
+                preferredFeedVolumeUnit: preferredFeedVolumeUnit
+            ) ?? ""
             self.timestampText = timestampText ?? feed.metadata.occurredAt.formatted(
                 date: .abbreviated,
                 time: .shortened
@@ -39,7 +43,10 @@ public struct EventCardViewState: Equatable, Identifiable, Sendable {
             id = feed.id
             kind = .bottleFeed
             title = BabyEventPresentation.title(for: event)
-            detailText = BabyEventPresentation.detailText(for: event) ?? ""
+            detailText = BabyEventPresentation.detailText(
+                for: event,
+                preferredFeedVolumeUnit: preferredFeedVolumeUnit
+            ) ?? ""
             self.timestampText = timestampText ?? feed.metadata.occurredAt.formatted(
                 date: .abbreviated,
                 time: .shortened
@@ -53,7 +60,10 @@ public struct EventCardViewState: Equatable, Identifiable, Sendable {
             id = sleep.id
             kind = .sleep
             title = BabyEventPresentation.title(for: event)
-            detailText = BabyEventPresentation.detailText(for: event) ?? ""
+            detailText = BabyEventPresentation.detailText(
+                for: event,
+                preferredFeedVolumeUnit: preferredFeedVolumeUnit
+            ) ?? ""
             self.timestampText = timestampText ?? sleep.metadata.occurredAt.formatted(
                 date: .abbreviated,
                 time: .shortened
@@ -71,7 +81,10 @@ public struct EventCardViewState: Equatable, Identifiable, Sendable {
             id = nappy.id
             kind = .nappy
             title = BabyEventPresentation.title(for: event)
-            detailText = BabyEventPresentation.detailText(for: event) ?? ""
+            detailText = BabyEventPresentation.detailText(
+                for: event,
+                preferredFeedVolumeUnit: preferredFeedVolumeUnit
+            ) ?? ""
             self.timestampText = timestampText ?? nappy.metadata.occurredAt.formatted(
                 date: .abbreviated,
                 time: .shortened

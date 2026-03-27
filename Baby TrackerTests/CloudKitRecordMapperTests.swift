@@ -152,4 +152,19 @@ struct CloudKitRecordMapperTests {
             Issue.record("Expected a completed sleep event")
         }
     }
+
+    @Test
+    func childMapperRoundTripsPreferredFeedVolumeUnit() throws {
+        let child = try Child(
+            name: "Poppy",
+            createdBy: UUID(),
+            preferredFeedVolumeUnit: .ounces
+        )
+        let zoneID = CloudKitRecordNames.zoneID(for: child.id, ownerName: "owner")
+
+        let record = CloudKitRecordMapper.childRecord(from: child, zoneID: zoneID)
+        let mappedChild = try CloudKitRecordMapper.child(from: record)
+
+        #expect(mappedChild.preferredFeedVolumeUnit == .ounces)
+    }
 }
