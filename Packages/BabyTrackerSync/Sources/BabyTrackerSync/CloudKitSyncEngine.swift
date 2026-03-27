@@ -30,6 +30,7 @@ public final class CloudKitSyncEngine {
     private let client: CloudKitClient
 
     private var pendingInvitesByChildID: [UUID: [CloudKitPendingInvite]] = [:]
+    private var hasEnsuredDatabaseSubscriptions = false
 
     private let logger = Logger(subsystem: "com.adappt.BabyTracker", category: "CloudKitSync")
 
@@ -59,6 +60,10 @@ public final class CloudKitSyncEngine {
 
     public func refreshForeground() async -> SyncStatusSummary {
         await refresh(reason: .foreground)
+    }
+
+    public func refreshAfterRemoteNotification() async -> SyncStatusSummary {
+        await refresh(reason: .remoteNotification)
     }
 
     public func pendingInvites(for childID: UUID) -> [CloudKitPendingInvite] {
@@ -298,6 +303,7 @@ public final class CloudKitSyncEngine {
             _ = try userIdentityRepository.linkLocalUser(
                 toCloudKitUserRecordName: userRecordID.recordName
             )
+            try await ensureDatabaseSubscriptions()
 
             try await pullSharedDatabaseChanges()
 
@@ -326,6 +332,29 @@ public final class CloudKitSyncEngine {
             )
             return statusSummary
         }
+    }
+
+    private func ensureDatabaseSubscriptions() async throws {
+        guard !hasEnsuredDatabaseSubscriptions else {
+            return
+        }
+
+        for scope in [CKDatabase.Scope.private, .shared] {
+            let subscriptionID = CloudKitSubscriptionIDs.databaseSubscriptionID(for: scope)
+            if try await client.subscription(withID: subscriptionID, databaseScope: scope) != nil {
+                continue
+            }
+
+            let subscription = CKDatabaseSubscription(subscriptionID: subscriptionID)
+            let notificationInfo = CKSubscription.NotificationInfo()
+            notificationInfo.shouldSendContentAvailable = true
+            subscription.notificationInfo = notificationInfo
+            try await client.saveSubscription(subscription, databaseScope: scope)
+            logger.info("Created CloudKit database subscription for \(scope.logDescription, privacy: .public) scope")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "Created CloudKit database subscription for \(scope.logDescription) scope")
+        }
+
+        hasEnsuredDatabaseSubscriptions = true
     }
 
     private func syncUnavailableSummary(for accountStatus: CKAccountStatus) throws -> SyncStatusSummary {
@@ -1029,12 +1058,14 @@ extension CloudKitSyncEngine {
         case launch
         case foreground
         case localWrite
+        case remoteNotification
 
         var logDescription: String {
             switch self {
             case .launch: return "launch"
             case .foreground: return "foreground"
             case .localWrite: return "localWrite"
+            case .remoteNotification: return "remoteNotification"
             }
         }
     }

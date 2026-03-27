@@ -52,6 +52,46 @@ struct CloudKitSyncEngineTests {
         #expect(context?.zoneID == expectedZoneID)
         #expect(await client.createdZoneIDs == [expectedZoneID])
         #expect(!(await client.queriedZoneIDs.contains(expectedZoneID)))
+        #expect(await client.savedDatabaseSubscriptionIDs == [
+            CloudKitSubscriptionIDs.databaseSubscriptionID(for: .private),
+            CloudKitSubscriptionIDs.databaseSubscriptionID(for: .shared)
+        ])
+    }
+
+    @Test
+    func remoteNotificationRefreshDoesNotCreateDuplicateSubscriptions() async throws {
+        let store = try BabyTrackerModelStore(isStoredInMemoryOnly: true)
+        let userDefaults = UserDefaults(suiteName: "CloudKitSyncEngineTests.remoteNotificationRefreshSubscriptions")!
+        userDefaults.removePersistentDomain(forName: "CloudKitSyncEngineTests.remoteNotificationRefreshSubscriptions")
+        defer {
+            userDefaults.removePersistentDomain(forName: "CloudKitSyncEngineTests.remoteNotificationRefreshSubscriptions")
+        }
+
+        let childRepository = SwiftDataChildRepository(store: store)
+        let userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
+        let membershipRepository = SwiftDataMembershipRepository(store: store)
+        let eventRepository = SwiftDataEventRepository(store: store)
+        let syncStateRepository = SwiftDataSyncStateRepository(store: store)
+        let client = CloudKitClientSpy()
+        let syncEngine = CloudKitSyncEngine(
+            childRepository: childRepository,
+            userIdentityRepository: userIdentityRepository,
+            membershipRepository: membershipRepository,
+            eventRepository: eventRepository,
+            syncStateRepository: syncStateRepository,
+            client: client
+        )
+
+        let localUser = try UserIdentity(displayName: "Alex Parent")
+        try userIdentityRepository.saveLocalUser(localUser)
+
+        _ = await syncEngine.prepareForLaunch()
+        _ = await syncEngine.refreshAfterRemoteNotification()
+
+        #expect(await client.savedDatabaseSubscriptionIDs == [
+            CloudKitSubscriptionIDs.databaseSubscriptionID(for: .private),
+            CloudKitSubscriptionIDs.databaseSubscriptionID(for: .shared)
+        ])
     }
 
     @Test
@@ -440,6 +480,8 @@ private actor CloudKitClientSpy: CloudKitClient {
     private(set) var queriedZoneIDs: [CKRecordZone.ID] = []
     private(set) var zoneChangeZoneIDs: [CKRecordZone.ID] = []
     private(set) var zoneChangeRequests: [(zoneID: CKRecordZone.ID, databaseScope: CKDatabase.Scope, tokenWasNil: Bool)] = []
+    private(set) var savedDatabaseSubscriptionIDs: [String] = []
+    private var databaseSubscriptionsByID: [String: CKSubscription] = [:]
     private var recordsByID: [CKRecord.ID: CKRecord] = [:]
     private var knownRecordTypesByZoneID: [CKRecordZone.ID: Set<String>] = [:]
 
@@ -587,4 +629,21 @@ private actor CloudKitClientSpy: CloudKitClient {
     }
 
     func accept(_ metadatas: [CKShare.Metadata]) async throws {}
+
+    func subscription(
+        withID subscriptionID: String,
+        databaseScope: CKDatabase.Scope
+    ) async throws -> CKSubscription? {
+        _ = databaseScope
+        return databaseSubscriptionsByID[subscriptionID]
+    }
+
+    func saveSubscription(
+        _ subscription: CKSubscription,
+        databaseScope: CKDatabase.Scope
+    ) async throws {
+        _ = databaseScope
+        databaseSubscriptionsByID[subscription.subscriptionID] = subscription
+        savedDatabaseSubscriptionIDs.append(subscription.subscriptionID)
+    }
 }

@@ -43,4 +43,12 @@ public protocol CloudKitClient: Sendable {
         since tokenData: Data?
     ) async throws -> CloudKitRecordZoneChangeSet
     func accept(_ metadatas: [CKShare.Metadata]) async throws
+    func subscription(
+        withID subscriptionID: String,
+        databaseScope: CKDatabase.Scope
+    ) async throws -> CKSubscription?
+    func saveSubscription(
+        _ subscription: CKSubscription,
+        databaseScope: CKDatabase.Scope
+    ) async throws
 }

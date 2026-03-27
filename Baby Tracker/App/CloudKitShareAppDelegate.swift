@@ -20,6 +20,58 @@ final class CloudKitShareAppDelegate: NSObject, UIApplicationDelegate {
         return config
     }
 
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        application.registerForRemoteNotifications()
+        logger.info("Registered for remote notifications at launch")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "Registered for remote notifications at launch")
+        _ = launchOptions
+        return true
+    }
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        logger.info("Successfully registered for remote notifications")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "Successfully registered for remote notifications")
+        _ = application
+        _ = deviceToken
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        logger.error("Failed to register for remote notifications: \(error.localizedDescription, privacy: .public)")
+        AppLogger.shared.log(.error, category: "CloudKitSync", "Failed to register for remote notifications: \(error.localizedDescription)")
+        _ = application
+    }
+
+    func application(
+        _ application: UIApplication,
+        didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+        fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
+    ) {
+        guard CKNotification(fromRemoteNotificationDictionary: userInfo) != nil else {
+            completionHandler(.noData)
+            return
+        }
+
+        Task { @MainActor in
+            guard let handler = CloudKitRemoteNotificationBridge.shared.handler else {
+                completionHandler(.noData)
+                return
+            }
+
+            let result = await handler()
+            completionHandler(result)
+        }
+        _ = application
+    }
+
     // Kept for completeness — not called in scene-based apps, but harmless.
     func application(
         _ application: UIApplication,

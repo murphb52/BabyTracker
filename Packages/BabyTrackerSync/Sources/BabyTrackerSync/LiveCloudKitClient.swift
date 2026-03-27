@@ -163,6 +163,27 @@ public struct LiveCloudKitClient: CloudKitClient {
         _ = try await resolvedContainer.accept(metadatas)
     }
 
+    public func subscription(
+        withID subscriptionID: String,
+        databaseScope: CKDatabase.Scope
+    ) async throws -> CKSubscription? {
+        do {
+            return try await database(for: databaseScope).subscription(for: subscriptionID)
+        } catch let error as CKError where error.code == .unknownItem {
+            return nil
+        }
+    }
+
+    public func saveSubscription(
+        _ subscription: CKSubscription,
+        databaseScope: CKDatabase.Scope
+    ) async throws {
+        _ = try await database(for: databaseScope).modifySubscriptions(
+            saving: [subscription],
+            deleting: []
+        )
+    }
+
     private func database(for scope: CKDatabase.Scope) -> CKDatabase {
         resolvedContainer.database(with: scope)
     }

@@ -90,6 +90,12 @@ public final class AppModel {
         }
     }
 
+    public func refreshAfterRemoteNotification() async -> SyncStatusSummary {
+        let summary = await syncEngine.refreshAfterRemoteNotification()
+        refresh(selecting: childSelectionStore.loadSelectedChildID())
+        return summary
+    }
+
     public func hardDeleteAllData() {
         Task { @MainActor in
             var cloudDeleteError: Error?
