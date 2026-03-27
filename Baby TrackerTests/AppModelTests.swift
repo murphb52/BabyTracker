@@ -622,7 +622,7 @@ struct AppModelTests {
     }
 
     @Test
-    func sleepMutationsDoNotChangeLiveActivityFeedSnapshot() throws {
+    func sleepMutationsKeepFeedFieldsStableAndUpdateSleepFields() throws {
         let liveActivityManager = LiveActivityManagerSpy()
         let harness = try Harness(liveActivityManager: liveActivityManager)
         defer { harness.cleanUp() }
@@ -644,7 +644,11 @@ struct AppModelTests {
         #expect(
             harness.model.startSleep(startedAt: Date(timeIntervalSince1970: 11_500))
         )
-        #expect(liveActivityManager.latestSnapshot == originalSnapshot)
+        #expect(liveActivityManager.latestSnapshot?.childID == originalSnapshot.childID)
+        #expect(liveActivityManager.latestSnapshot?.lastFeedKind == originalSnapshot.lastFeedKind)
+        #expect(liveActivityManager.latestSnapshot?.lastFeedAt == originalSnapshot.lastFeedAt)
+        #expect(liveActivityManager.latestSnapshot?.activeSleepStartedAt == Date(timeIntervalSince1970: 11_500))
+        #expect(liveActivityManager.latestSnapshot?.lastSleepAt == Date(timeIntervalSince1970: 11_500))
 
         let activeSleep = try #require(harness.model.profile?.activeSleepSession)
 
@@ -655,7 +659,9 @@ struct AppModelTests {
                 endedAt: Date(timeIntervalSince1970: 12_100)
             )
         )
-        #expect(liveActivityManager.latestSnapshot == originalSnapshot)
+        #expect(liveActivityManager.latestSnapshot?.lastFeedAt == originalSnapshot.lastFeedAt)
+        #expect(liveActivityManager.latestSnapshot?.activeSleepStartedAt == nil)
+        #expect(liveActivityManager.latestSnapshot?.lastSleepAt == Date(timeIntervalSince1970: 12_100))
 
         #expect(
             harness.model.updateSleep(
@@ -664,10 +670,14 @@ struct AppModelTests {
                 endedAt: Date(timeIntervalSince1970: 12_300)
             )
         )
-        #expect(liveActivityManager.latestSnapshot == originalSnapshot)
+        #expect(liveActivityManager.latestSnapshot?.lastFeedAt == originalSnapshot.lastFeedAt)
+        #expect(liveActivityManager.latestSnapshot?.activeSleepStartedAt == nil)
+        #expect(liveActivityManager.latestSnapshot?.lastSleepAt == Date(timeIntervalSince1970: 12_300))
 
         #expect(harness.model.deleteEvent(id: activeSleep.id))
-        #expect(liveActivityManager.latestSnapshot == originalSnapshot)
+        #expect(liveActivityManager.latestSnapshot?.lastFeedAt == originalSnapshot.lastFeedAt)
+        #expect(liveActivityManager.latestSnapshot?.activeSleepStartedAt == nil)
+        #expect(liveActivityManager.latestSnapshot?.lastSleepAt == nil)
     }
 
     @Test
@@ -788,7 +798,7 @@ struct AppModelTests {
     }
 
     @Test
-    func nappyMutationsDoNotChangeLiveActivityFeedSnapshot() throws {
+    func nappyMutationsKeepFeedFieldsStableAndUpdateNappyField() throws {
         let liveActivityManager = LiveActivityManagerSpy()
         let harness = try Harness(liveActivityManager: liveActivityManager)
         defer { harness.cleanUp() }
@@ -815,7 +825,10 @@ struct AppModelTests {
                 pooColor: .brown
             )
         )
-        #expect(liveActivityManager.latestSnapshot == originalSnapshot)
+        #expect(liveActivityManager.latestSnapshot?.childID == originalSnapshot.childID)
+        #expect(liveActivityManager.latestSnapshot?.lastFeedKind == originalSnapshot.lastFeedKind)
+        #expect(liveActivityManager.latestSnapshot?.lastFeedAt == originalSnapshot.lastFeedAt)
+        #expect(liveActivityManager.latestSnapshot?.lastNappyAt == Date(timeIntervalSince1970: 7_500))
 
         let loggedNappy = try #require(
             try harness.eventRepository.loadTimeline(
@@ -839,10 +852,12 @@ struct AppModelTests {
                 pooColor: .green
             )
         )
-        #expect(liveActivityManager.latestSnapshot == originalSnapshot)
+        #expect(liveActivityManager.latestSnapshot?.lastFeedAt == originalSnapshot.lastFeedAt)
+        #expect(liveActivityManager.latestSnapshot?.lastNappyAt == Date(timeIntervalSince1970: 7_800))
 
         #expect(harness.model.deleteEvent(id: loggedNappy.id))
-        #expect(liveActivityManager.latestSnapshot == originalSnapshot)
+        #expect(liveActivityManager.latestSnapshot?.lastFeedAt == originalSnapshot.lastFeedAt)
+        #expect(liveActivityManager.latestSnapshot?.lastNappyAt == nil)
     }
 
     @Test
