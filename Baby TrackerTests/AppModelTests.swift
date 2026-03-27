@@ -333,7 +333,7 @@ struct AppModelTests {
     }
 
     @Test
-    func mixedTimelineUsesLatestEventForCurrentStateAndLatestFeedForFeedStatus() throws {
+    func mixedTimelineDerivesHomeStatusAndLatestFeedForLiveActivity() throws {
         let liveActivityManager = LiveActivityManagerSpy()
         let harness = try Harness(liveActivityManager: liveActivityManager)
         defer { harness.cleanUp() }
@@ -356,15 +356,9 @@ struct AppModelTests {
         harness.model.load(performLaunchSync: false)
 
         let profile = try #require(harness.model.profile)
-        let summary = try #require(profile.home.currentStateSummary)
-        let lastFeed = try #require(summary.lastFeed)
-
-        #expect(summary.lastEvent.kind == .sleep)
-        #expect(summary.lastEvent.title == "Sleep")
-        #expect(summary.lastEvent.detailText == "20 min")
-        #expect(lastFeed.kind == .bottleFeed)
-        #expect(lastFeed.title == "Bottle Feed")
-        #expect(lastFeed.detailText == "120 mL • Formula")
+        #expect(profile.home.currentSleep == nil)
+        #expect(profile.home.currentStatus.timeSinceLastFeedAt == feed.metadata.occurredAt)
+        #expect(profile.home.currentStatus.timeSinceLastNappyAt == nil)
         #expect(profile.home.recentEvents.map(\.id) == [sleep.id, feed.id])
         #expect(
             liveActivityManager.latestSnapshot == FeedLiveActivitySnapshot(
@@ -374,6 +368,50 @@ struct AppModelTests {
                 lastFeedAt: feed.metadata.occurredAt
             )
         )
+    }
+
+    @Test
+    func homeStatusUsesLatestFeedAndNappyAndCountsTodayFeeds() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let calendar = Calendar.autoupdatingCurrent
+        let startOfToday = calendar.startOfDay(for: .now)
+        let firstFeed = try #require(calendar.date(byAdding: .hour, value: 8, to: startOfToday))
+        let secondFeed = try #require(calendar.date(byAdding: .hour, value: 12, to: startOfToday))
+        let nappyTime = try #require(calendar.date(byAdding: .hour, value: 13, to: startOfToday))
+
+        _ = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 90,
+            occurredAt: firstFeed,
+            milkType: nil
+        )
+        let latestFeed = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 120,
+            occurredAt: secondFeed,
+            milkType: nil
+        )
+        let latestNappy = try harness.saveNappy(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            type: .wee,
+            occurredAt: nappyTime,
+            peeVolume: .medium,
+            pooColor: nil
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        let profile = try #require(harness.model.profile)
+
+        #expect(profile.home.currentStatus.timeSinceLastFeedAt == latestFeed.metadata.occurredAt)
+        #expect(profile.home.currentStatus.feedsTodayCount == 2)
+        #expect(profile.home.currentStatus.timeSinceLastNappyAt == latestNappy.metadata.occurredAt)
     }
 
     @Test
@@ -506,11 +544,11 @@ struct AppModelTests {
 
         var profile = try #require(harness.model.profile)
         let activeSleep = try #require(profile.activeSleepSession)
-        let currentSleep = try #require(profile.home.currentStateSummary?.lastSleep)
+        let currentSleep = try #require(profile.home.currentSleep)
 
         #expect(activeSleep.startedAt == sleepStart)
-        #expect(currentSleep.isActive)
         #expect(currentSleep.startedAt == sleepStart)
+        #expect(currentSleep.sleepEventID == activeSleep.id)
         #expect(profile.home.recentEvents.map(\.id) == [activeSleep.id])
 
         harness.model.load(performLaunchSync: false)
@@ -541,8 +579,7 @@ struct AppModelTests {
         profile = try #require(harness.model.profile)
         #expect(profile.activeSleepSession == nil)
         #expect(profile.home.recentEvents.map(\.id) == [recoveredSleep.id])
-        #expect(profile.home.currentStateSummary?.lastSleep?.isActive == false)
-        #expect(profile.home.currentStateSummary?.lastSleep?.endedAt == sleepEnd)
+        #expect(profile.home.currentSleep == nil)
 
         let visibleTimeline = try harness.eventRepository.loadTimeline(
             for: seed.child.id,

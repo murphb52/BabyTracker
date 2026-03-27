@@ -3,6 +3,7 @@ import SwiftUI
 
 public struct ChildHomeView: View {
     let profile: ChildProfileScreenState
+    let stopSleep: () -> Void
     let quickLogBreastFeed: () -> Void
     let quickLogBottleFeed: () -> Void
     let quickLogSleep: () -> Void
@@ -15,12 +16,14 @@ public struct ChildHomeView: View {
 
     public init(
         profile: ChildProfileScreenState,
+        stopSleep: @escaping () -> Void,
         quickLogBreastFeed: @escaping () -> Void,
         quickLogBottleFeed: @escaping () -> Void,
         quickLogSleep: @escaping () -> Void,
         quickLogNappy: @escaping () -> Void
     ) {
         self.profile = profile
+        self.stopSleep = stopSleep
         self.quickLogBreastFeed = quickLogBreastFeed
         self.quickLogBottleFeed = quickLogBottleFeed
         self.quickLogSleep = quickLogSleep
@@ -30,6 +33,10 @@ public struct ChildHomeView: View {
     public var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
+                if let currentSleep = profile.home.currentSleep {
+                    currentSleepSection(currentSleep)
+                }
+
                 statusSection
 
                 if profile.canLogEvents {
@@ -43,12 +50,19 @@ public struct ChildHomeView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
 
+    private func currentSleepSection(_ sleep: CurrentSleepCardViewState) -> some View {
+        CurrentSleepCardView(
+            sleep: sleep,
+            stopSleep: stopSleep
+        )
+    }
+
     private var statusSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Current Status")
                 .font(.headline)
 
-            CurrentStateCardView(summary: profile.home.currentStateSummary)
+            CurrentStatusCardView(status: profile.home.currentStatus)
         }
     }
 
