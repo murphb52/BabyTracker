@@ -7,7 +7,9 @@ public struct BreastFeedEditorSheetView: View {
     let navigationTitle: String
     let primaryActionTitle: String
     let childName: String
+    let allowsTimerMode: Bool
     let saveAction: (_ durationMinutes: Int, _ endTime: Date, _ side: BreastSide?, _ leftDurationSeconds: Int?, _ rightDurationSeconds: Int?) -> Bool
+    private let initialTimePreset: QuickTimeSelectorView.TimePreset
 
     @Environment(\.dismiss) private var dismiss
 
@@ -40,6 +42,8 @@ public struct BreastFeedEditorSheetView: View {
         initialDurationMinutes: Int,
         initialEndTime: Date,
         initialSide: BreastSide?,
+        allowsTimerMode: Bool = true,
+        initialTimePreset: QuickTimeSelectorView.TimePreset = .now,
         initialLeftDurationSeconds: Int? = nil,
         initialRightDurationSeconds: Int? = nil,
         saveAction: @escaping (_ durationMinutes: Int, _ endTime: Date, _ side: BreastSide?, _ leftDurationSeconds: Int?, _ rightDurationSeconds: Int?) -> Bool
@@ -47,7 +51,10 @@ public struct BreastFeedEditorSheetView: View {
         self.navigationTitle = navigationTitle
         self.primaryActionTitle = primaryActionTitle
         self.childName = childName
+        self.allowsTimerMode = allowsTimerMode
         self.saveAction = saveAction
+        self.initialTimePreset = initialTimePreset
+        _mode = State(initialValue: allowsTimerMode ? .timer : .manual)
         _durationMinutes = State(initialValue: initialDurationMinutes > 0 ? "\(initialDurationMinutes)" : "")
         _endTime = State(initialValue: initialEndTime)
         _side = State(initialValue: BreastSideChoice(side: initialSide))
@@ -65,14 +72,18 @@ public struct BreastFeedEditorSheetView: View {
     public var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    Picker("Mode", selection: $mode) {
-                        ForEach(FeedMode.allCases) { m in
-                            Text(m.label).tag(m)
+                LoggingSummaryView(sentence: summarySentence)
+
+                if allowsTimerMode {
+                    Section {
+                        Picker("Mode", selection: $mode) {
+                            ForEach(FeedMode.allCases) { m in
+                                Text(m.label).tag(m)
+                            }
                         }
+                        .pickerStyle(.segmented)
+                        .accessibilityIdentifier("breast-feed-mode-picker")
                     }
-                    .pickerStyle(.segmented)
-                    .accessibilityIdentifier("breast-feed-mode-picker")
                 }
 
                 if mode == .timer {
@@ -80,8 +91,6 @@ public struct BreastFeedEditorSheetView: View {
                 } else {
                     manualModeContent
                 }
-
-                LoggingSummaryView(sentence: summarySentence)
             }
             .tint(Self.eventColor)
             .scrollContentBackground(.hidden)
@@ -129,9 +138,10 @@ public struct BreastFeedEditorSheetView: View {
             if timerStarted {
                 Section {
                     HStack {
-                        Text("Total").foregroundStyle(.secondary)
+                        Text("Total time logged").foregroundStyle(.secondary)
                         Spacer()
-                        Text(formatDuration(leftElapsed + rightElapsed)).monospacedDigit()
+                        Text(formatDuration(leftElapsed + rightElapsed))
+                            .font(.largeTitle.monospacedDigit().weight(.semibold))
                     }
                 }
             }
@@ -191,7 +201,7 @@ public struct BreastFeedEditorSheetView: View {
     private var manualModeContent: some View {
         Group {
             Section("When was the feed?") {
-                QuickTimeSelectorView(selection: $endTime)
+                QuickTimeSelectorView(selection: $endTime, initialPreset: initialTimePreset)
                     .accessibilityIdentifier("breast-feed-time-selector")
             }
 

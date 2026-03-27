@@ -280,6 +280,8 @@ public struct ChildWorkspaceTabView: View {
                 initialDurationMinutes: durationMinutes,
                 initialEndTime: endTime,
                 initialSide: side,
+                allowsTimerMode: false,
+                initialTimePreset: .custom,
                 initialLeftDurationSeconds: leftDurationSeconds,
                 initialRightDurationSeconds: rightDurationSeconds
             ) { updatedDuration, updatedEndTime, updatedSide, updatedLeft, updatedRight in
@@ -303,7 +305,9 @@ public struct ChildWorkspaceTabView: View {
                 childName: profile.child.name,
                 initialAmountMilliliters: amountMilliliters,
                 initialOccurredAt: occurredAt,
-                initialMilkType: milkType
+                initialMilkType: milkType,
+                initialTimePreset: .custom,
+                showCustomAmountOnOpen: true,
             ) { updatedAmount, updatedOccurredAt, updatedMilkType in
                 let didSave = model.updateBottleFeed(
                     id: id,
@@ -321,7 +325,8 @@ public struct ChildWorkspaceTabView: View {
                 mode: .edit,
                 childName: profile.child.name,
                 initialStartedAt: startedAt,
-                initialEndedAt: endedAt
+                initialEndedAt: endedAt,
+                endTimeInitialPreset: .custom
             ) { updatedStartedAt, updatedEndedAt in
                 guard let updatedEndedAt else {
                     return false
@@ -346,7 +351,8 @@ public struct ChildWorkspaceTabView: View {
                 initialOccurredAt: occurredAt,
                 initialPeeVolume: peeVolume,
                 initialPooVolume: pooVolume,
-                initialPooColor: pooColor
+                initialPooColor: pooColor,
+                initialTimePreset: .custom
             ) { updatedType, updatedOccurredAt, updatedPeeVolume, updatedPooVolume, updatedPooColor in
                 let didSave = model.updateNappy(
                     id: id,

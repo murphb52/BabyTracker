@@ -3,8 +3,8 @@ import SwiftUI
 public struct QuickTimeSelectorView: View {
     @Binding var selection: Date
 
-    @State private var selectedPreset: TimePreset = .now
-    @State private var showCustomPicker: Bool = false
+    @State private var selectedPreset: TimePreset
+    @State private var showCustomPicker: Bool
 
     private let columns = [
         GridItem(.flexible(), spacing: 8),
@@ -12,8 +12,10 @@ public struct QuickTimeSelectorView: View {
         GridItem(.flexible(), spacing: 8),
     ]
 
-    public init(selection: Binding<Date>) {
+    public init(selection: Binding<Date>, initialPreset: TimePreset = .now) {
         _selection = selection
+        _selectedPreset = State(initialValue: initialPreset)
+        _showCustomPicker = State(initialValue: initialPreset == .custom)
     }
 
     public var body: some View {
@@ -58,33 +60,36 @@ public struct QuickTimeSelectorView: View {
 }
 
 extension QuickTimeSelectorView {
-    enum TimePreset: String, CaseIterable, Identifiable {
+    public enum TimePreset: String, CaseIterable, Identifiable {
         case now
         case fiveMinutesAgo = "5m"
         case tenMinutesAgo = "10m"
         case fifteenMinutesAgo = "15m"
+        case twentyMinutesAgo = "20m"
         case thirtyMinutesAgo = "30m"
         case custom
 
-        var id: String { rawValue }
+        public var id: String { rawValue }
 
-        var label: String {
+        public var label: String {
             switch self {
             case .now: return "Now"
             case .fiveMinutesAgo: return "5m ago"
             case .tenMinutesAgo: return "10m ago"
             case .fifteenMinutesAgo: return "15m ago"
+            case .twentyMinutesAgo: return "20m ago"
             case .thirtyMinutesAgo: return "30m ago"
             case .custom: return "Custom"
             }
         }
 
-        func date() -> Date {
+        public func date() -> Date {
             switch self {
             case .now: return Date()
             case .fiveMinutesAgo: return Date().addingTimeInterval(-5 * 60)
             case .tenMinutesAgo: return Date().addingTimeInterval(-10 * 60)
             case .fifteenMinutesAgo: return Date().addingTimeInterval(-15 * 60)
+            case .twentyMinutesAgo: return Date().addingTimeInterval(-20 * 60)
             case .thirtyMinutesAgo: return Date().addingTimeInterval(-30 * 60)
             case .custom: return Date()
             }

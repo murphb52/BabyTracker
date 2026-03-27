@@ -14,8 +14,9 @@ public struct BottleFeedEditorSheetView: View {
     @State private var occurredAt: Date
     @State private var milkType: MilkTypeChoice
     @State private var showCustomAmount: Bool = false
+    private let initialTimePreset: QuickTimeSelectorView.TimePreset
 
-    private let quickAmounts = [30, 60, 90, 120, 150, 180, 210, 240]
+    private let quickAmounts = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
     private let amountColumns = [
         GridItem(.flexible(), spacing: 8),
@@ -31,6 +32,8 @@ public struct BottleFeedEditorSheetView: View {
         initialAmountMilliliters: Int,
         initialOccurredAt: Date,
         initialMilkType: MilkType?,
+        initialTimePreset: QuickTimeSelectorView.TimePreset = .now,
+        showCustomAmountOnOpen: Bool = false,
         saveAction: @escaping (_ amountMilliliters: Int, _ occurredAt: Date, _ milkType: MilkType?) -> Bool
     ) {
         self.navigationTitle = navigationTitle
@@ -40,13 +43,17 @@ public struct BottleFeedEditorSheetView: View {
         _amountMilliliters = State(initialValue: initialAmountMilliliters > 0 ? "\(initialAmountMilliliters)" : "")
         _occurredAt = State(initialValue: initialOccurredAt)
         _milkType = State(initialValue: MilkTypeChoice(milkType: initialMilkType))
+        _showCustomAmount = State(initialValue: showCustomAmountOnOpen)
+        self.initialTimePreset = initialTimePreset
     }
 
     public var body: some View {
         NavigationStack {
             Form {
+                LoggingSummaryView(sentence: summarySentence)
+
                 Section("When was the feed?") {
-                    QuickTimeSelectorView(selection: $occurredAt)
+                    QuickTimeSelectorView(selection: $occurredAt, initialPreset: initialTimePreset)
                         .accessibilityIdentifier("bottle-feed-time-selector")
                 }
 
@@ -99,8 +106,6 @@ public struct BottleFeedEditorSheetView: View {
                             .accessibilityIdentifier("bottle-feed-amount-field")
                     }
                 }
-
-                LoggingSummaryView(sentence: summarySentence)
 
                 if let validationMessage {
                     Section {

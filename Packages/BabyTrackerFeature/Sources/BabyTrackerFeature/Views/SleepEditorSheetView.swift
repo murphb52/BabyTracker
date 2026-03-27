@@ -9,6 +9,7 @@ public struct SleepEditorSheetView: View {
     let startSuggestions: [(label: String, date: Date)]
     let saveAction: (_ startedAt: Date, _ endedAt: Date?) -> Bool
     let deleteAction: (() -> Void)?
+    private let endTimeInitialPreset: QuickTimeSelectorView.TimePreset
 
     @Environment(\.dismiss) private var dismiss
     @State private var startedAt: Date
@@ -21,6 +22,7 @@ public struct SleepEditorSheetView: View {
         initialStartedAt: Date,
         initialEndedAt: Date?,
         startSuggestions: [(label: String, date: Date)] = [],
+        endTimeInitialPreset: QuickTimeSelectorView.TimePreset = .now,
         saveAction: @escaping (_ startedAt: Date, _ endedAt: Date?) -> Bool,
         deleteAction: (() -> Void)? = nil
     ) {
@@ -29,6 +31,7 @@ public struct SleepEditorSheetView: View {
         self.startSuggestions = startSuggestions
         self.saveAction = saveAction
         self.deleteAction = deleteAction
+        self.endTimeInitialPreset = endTimeInitialPreset
         _startedAt = State(initialValue: initialStartedAt)
         _endedAt = State(initialValue: initialEndedAt ?? Date())
         _includesEndTime = State(initialValue: mode != .start)
@@ -37,6 +40,8 @@ public struct SleepEditorSheetView: View {
     public var body: some View {
         NavigationStack {
             Form {
+                LoggingSummaryView(sentence: summarySentence)
+
                 switch mode {
                 case .start:
                     startModeContent
@@ -45,9 +50,6 @@ public struct SleepEditorSheetView: View {
                 case .edit:
                     editModeContent
                 }
-
-                LoggingSummaryView(sentence: summarySentence)
-
                 if let validationMessage {
                     Section {
                         Text(validationMessage)
@@ -114,7 +116,7 @@ public struct SleepEditorSheetView: View {
                     durationSeparatorRow
                 }
                 Section("When did sleep end?") {
-                    QuickTimeSelectorView(selection: $endedAt)
+                    QuickTimeSelectorView(selection: $endedAt, initialPreset: endTimeInitialPreset)
                         .accessibilityIdentifier("sleep-end-time-selector")
                 }
             }
@@ -140,7 +142,7 @@ public struct SleepEditorSheetView: View {
             }
 
             Section("When did sleep end?") {
-                QuickTimeSelectorView(selection: $endedAt)
+                QuickTimeSelectorView(selection: $endedAt, initialPreset: endTimeInitialPreset)
                     .accessibilityIdentifier("sleep-end-time-selector")
             }
         }
@@ -165,7 +167,7 @@ public struct SleepEditorSheetView: View {
             }
 
             Section("When did sleep end?") {
-                QuickTimeSelectorView(selection: $endedAt)
+                QuickTimeSelectorView(selection: $endedAt, initialPreset: endTimeInitialPreset)
                     .accessibilityIdentifier("sleep-end-time-selector")
             }
         }
