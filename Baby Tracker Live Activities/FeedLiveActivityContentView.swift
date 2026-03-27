@@ -78,11 +78,16 @@ struct FeedLiveActivityContentView: View {
         @ViewBuilder value: () -> some View
     ) -> some View {
         VStack(spacing: 3) {
-            Label(title, systemImage: icon)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Image(systemName: icon)
+                    .frame(width: 14)
+                Text(title)
+            }
                 .font(.caption2.weight(.medium))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .foregroundStyle(color)
+                .frame(height: 16)
 
             value()
                 .font(.footnote.weight(.semibold))
@@ -90,6 +95,7 @@ struct FeedLiveActivityContentView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .foregroundStyle(.primary)
+                .frame(height: 24, alignment: .top)
         }
         .frame(maxWidth: .infinity)
     }
