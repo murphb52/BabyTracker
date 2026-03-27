@@ -96,7 +96,7 @@ struct AppModelTests {
 
 
     @Test
-    func profileIncludesActiveChildrenForDirectSelection() throws {
+    func modelExposesActiveChildrenForProfileSelection() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }
 
@@ -108,10 +108,8 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        let profile = try #require(harness.model.profile)
-
-        #expect(profile.availableChildren.map(\.child.id) == [seed.child.id, secondChild.id])
-        #expect(profile.canCreateLocalChild)
+        #expect(harness.model.route == .childProfile)
+        #expect(harness.model.activeChildren.map(\.child.id) == [seed.child.id, secondChild.id])
     }
 
     @Test

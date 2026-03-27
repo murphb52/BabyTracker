@@ -9,9 +9,6 @@ public struct ChildProfileScreenState: Equatable, Sendable {
     public let activeCaregivers: [CaregiverMembershipViewState]
     public let pendingShareInvites: [PendingShareInviteViewState]
     public let removedCaregivers: [CaregiverMembershipViewState]
-    public let availableChildren: [ChildSummary]
-    public let canCreateLocalChild: Bool
-    public let canSwitchChildren: Bool
     public let canLogEvents: Bool
     public let canManageEvents: Bool
     public let activeSleepSession: ActiveSleepSessionViewState?
@@ -47,9 +44,6 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         activeCaregivers: [CaregiverMembershipViewState],
         pendingShareInvites: [PendingShareInviteViewState],
         removedCaregivers: [CaregiverMembershipViewState],
-        availableChildren: [ChildSummary],
-        canCreateLocalChild: Bool,
-        canSwitchChildren: Bool,
         canLogEvents: Bool,
         canManageEvents: Bool,
         activeSleepSession: ActiveSleepSessionViewState?,
@@ -68,9 +62,6 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         self.activeCaregivers = activeCaregivers
         self.pendingShareInvites = pendingShareInvites
         self.removedCaregivers = removedCaregivers
-        self.availableChildren = availableChildren
-        self.canCreateLocalChild = canCreateLocalChild
-        self.canSwitchChildren = canSwitchChildren
         self.canLogEvents = canLogEvents
         self.canManageEvents = canManageEvents
         self.activeSleepSession = activeSleepSession

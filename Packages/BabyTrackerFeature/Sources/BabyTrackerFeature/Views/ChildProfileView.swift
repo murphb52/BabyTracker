@@ -57,9 +57,9 @@ public struct ChildProfileView: View {
                 }
             }
 
-            if profile.canSwitchChildren || profile.canCreateLocalChild {
+            if canSelectFromMultipleChildren || canCreateLocalChild {
                 Section("Children") {
-                    ForEach(profile.availableChildren) { summary in
+                    ForEach(model.activeChildren) { summary in
                         Button {
                             model.selectChild(id: summary.child.id)
                         } label: {
@@ -69,7 +69,7 @@ public struct ChildProfileView: View {
                         .accessibilityIdentifier("profile-select-child-\(summary.child.id.uuidString)")
                     }
 
-                    if profile.canCreateLocalChild {
+                    if canCreateLocalChild {
                         NavigationLink {
                             ChildCreationView(model: model)
                         } label: {
@@ -168,6 +168,14 @@ public struct ChildProfileView: View {
         }
 
         return "Not set"
+    }
+
+    private var canCreateLocalChild: Bool {
+        model.localUser != nil
+    }
+
+    private var canSelectFromMultipleChildren: Bool {
+        model.activeChildren.count > 1
     }
 
     private var sharingSummary: String {
