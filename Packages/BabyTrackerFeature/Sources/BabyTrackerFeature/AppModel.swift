@@ -19,6 +19,7 @@ public final class AppModel {
     public private(set) var csvImportState: CSVImportState = .idle
     public private(set) var nestImportState: NestImportState = .idle
     public private(set) var dataExportState: DataExportState = .idle
+    public private(set) var syncBannerState: SyncBannerState?
 
     private let logger = Logger(subsystem: "com.adappt.BabyTracker", category: "AppModel")
     private let childRepository: any ChildRepository
@@ -38,6 +39,7 @@ public final class AppModel {
     private var activeEventFilter: EventFilter = .empty
     private var pendingUndoDeletedEvent: BabyEvent?
     private var undoDeleteTask: Task<Void, Never>?
+    private var syncIndicatorDismissTask: Task<Void, Never>?
 
     public init(
         childRepository: any ChildRepository,
@@ -66,10 +68,7 @@ public final class AppModel {
             return
         }
 
-        Task { @MainActor in
-            _ = await syncEngine.prepareForLaunch()
-            refresh(selecting: childSelectionStore.loadSelectedChildID())
-        }
+        runSyncRefresh { await self.syncEngine.prepareForLaunch() }
     }
 
     public func dismissError() {
@@ -81,17 +80,11 @@ public final class AppModel {
     }
 
     public func refreshAfterShareSheet() {
-        Task { @MainActor in
-            _ = await syncEngine.refreshForeground()
-            refresh(selecting: childSelectionStore.loadSelectedChildID())
-        }
+        runSyncRefresh { await self.syncEngine.refreshForeground() }
     }
 
     public func refreshSyncStatus() {
-        Task { @MainActor in
-            _ = await syncEngine.refreshForeground()
-            refresh(selecting: childSelectionStore.loadSelectedChildID())
-        }
+        runSyncRefresh { await self.syncEngine.refreshForeground() }
     }
 
     public func refreshAfterRemoteNotification() async -> SyncStatusSummary {
@@ -584,10 +577,7 @@ public final class AppModel {
         do {
             try operation()
             refresh(selecting: childSelectionStore.loadSelectedChildID())
-            Task { @MainActor in
-                _ = await syncEngine.refreshAfterLocalWrite()
-                refresh(selecting: childSelectionStore.loadSelectedChildID())
-            }
+            runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
             return true
         } catch {
             errorMessage = resolveErrorMessage(for: error)
@@ -1459,8 +1449,7 @@ public final class AppModel {
                 )
                 csvImportState = .complete(result)
                 refresh(selecting: childSelectionStore.loadSelectedChildID())
-                _ = await syncEngine.refreshAfterLocalWrite()
-                refresh(selecting: childSelectionStore.loadSelectedChildID())
+                runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
             } catch {
                 csvImportState = .error(resolveErrorMessage(for: error))
             }
@@ -1589,8 +1578,7 @@ public final class AppModel {
                 )
                 nestImportState = .complete(result)
                 refresh(selecting: childSelectionStore.loadSelectedChildID())
-                _ = await syncEngine.refreshAfterLocalWrite()
-                refresh(selecting: childSelectionStore.loadSelectedChildID())
+                runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
             } catch {
                 nestImportState = .error(resolveErrorMessage(for: error))
             }
@@ -1613,5 +1601,44 @@ public final class AppModel {
         }
 
         await localNotificationManager.scheduleRemoteSyncNotification(content)
+    }
+
+    private func runSyncRefresh(
+        _ operation: @escaping @MainActor () async -> SyncStatusSummary
+    ) {
+        Task { @MainActor in
+            setSyncIndicator(.syncing)
+            let summary = await operation()
+            refresh(selecting: childSelectionStore.loadSelectedChildID())
+            updateSyncIndicator(using: summary)
+        }
+    }
+
+    private func updateSyncIndicator(using summary: SyncStatusSummary) {
+        switch summary.state {
+        case .failed:
+            let message = summary.lastErrorDescription ?? "Sync failed. Local changes are still saved."
+            let state: SyncBannerState
+            if message.localizedCaseInsensitiveContains("unavailable") ||
+                message.localizedCaseInsensitiveContains("sign in to iCloud") {
+                state = .syncUnavailable(message)
+            } else {
+                state = .lastSyncFailed(message)
+            }
+            setSyncIndicator(state)
+            syncIndicatorDismissTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(4))
+                guard !Task.isCancelled else { return }
+                syncBannerState = nil
+            }
+        default:
+            setSyncIndicator(nil)
+        }
+    }
+
+    private func setSyncIndicator(_ state: SyncBannerState?) {
+        syncIndicatorDismissTask?.cancel()
+        syncIndicatorDismissTask = nil
+        syncBannerState = state
     }
 }

@@ -285,6 +285,35 @@ struct AppModelTests {
     }
 
     @Test
+    func syncIndicatorShowsTransientUnavailableStateAfterFailedRefresh() async throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+
+        harness.model.refreshSyncStatus()
+
+        try await waitUntil(timeoutNanoseconds: 1_000_000_000) {
+            harness.model.syncBannerState != nil
+        }
+
+        guard let syncBannerState = harness.model.syncBannerState else {
+            Issue.record("Expected sync banner state after refresh")
+            return
+        }
+
+        switch syncBannerState {
+        case let .syncUnavailable(message):
+            #expect(message.localizedCaseInsensitiveContains("sync unavailable"))
+        case let .lastSyncFailed(message):
+            #expect(message.isEmpty == false)
+        case .syncing, .pendingSync:
+            Issue.record("Expected failed sync banner state after refresh completed")
+        }
+    }
+
+    @Test
     func timelineWeekUsesEventPrecedenceAndShowsAtLeastSevenColumns() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }
@@ -918,6 +947,22 @@ struct AppModelTests {
         in timeline: TimelineScreenState
     ) -> [TimelineEventBlockViewState] {
         timeline.pages[timeline.selectedPageIndex].blocks
+    }
+
+    private func waitUntil(
+        timeoutNanoseconds: UInt64,
+        condition: @escaping @MainActor () -> Bool
+    ) async throws {
+        let start = DispatchTime.now().uptimeNanoseconds
+        while DispatchTime.now().uptimeNanoseconds - start < timeoutNanoseconds {
+            if await condition() {
+                return
+            }
+
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+
+        Issue.record("Timed out waiting for condition")
     }
 }
 
