@@ -1,5 +1,6 @@
 import BabyTrackerDomain
 import SwiftUI
+import UIKit
 
 public struct ChildProfileView: View {
     let model: AppModel
@@ -35,13 +36,12 @@ public struct ChildProfileView: View {
                         editChildAction: editChildAction
                     )
                 } label: {
-                    settingsRow(
-                        title: "Details",
-                        value: detailsSummary,
-                        accessibilityIdentifier: "profile-details-row"
-                    )
+                    childHeaderRow
                 }
+                .accessibilityIdentifier("profile-details-row")
+            }
 
+            Section("Sharing") {
                 NavigationLink {
                     ChildProfileSharingView(
                         model: model,
@@ -49,111 +49,82 @@ public struct ChildProfileView: View {
                         shareChildAction: shareChildAction
                     )
                 } label: {
-                    settingsRow(
-                        title: "Sharing",
-                        value: sharingSummary,
-                        accessibilityIdentifier: "profile-sharing-row"
-                    )
+                    Label(sharingSummary, systemImage: "person.2")
                 }
-
-                NavigationLink {
-                    ChildProfileSyncView(
-                        model: model,
-                        profile: profile
-                    )
-                } label: {
-                    settingsRow(
-                        title: "iCloud Sync",
-                        value: profile.cloudKitStatus.statusTitle,
-                        accessibilityIdentifier: "profile-sync-row"
-                    )
-                }
-
-                NavigationLink {
-                    LoggingView(appLogger: AppLogger.shared)
-                } label: {
-                    settingsRow(
-                        title: "Logs",
-                        value: nil,
-                        accessibilityIdentifier: "profile-logs-row"
-                    )
-                }
-
-                NavigationLink {
-                    ChildProfileExportView(model: model)
-                } label: {
-                    settingsRow(
-                        title: "Export Data",
-                        value: nil,
-                        accessibilityIdentifier: "profile-export-row"
-                    )
-                }
-
-                NavigationLink {
-                    ChildProfileImportChoiceView(model: model)
-                } label: {
-                    settingsRow(
-                        title: "Import Data",
-                        value: nil,
-                        accessibilityIdentifier: "profile-import-row"
-                    )
-                }
-
-                if profile.canSwitchChildren {
-                    Button {
-                        model.showChildPicker()
-                    } label: {
-                        settingsRow(
-                            title: "Switch Child",
-                            value: nil,
-                            accessibilityIdentifier: "switch-child-button"
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            if profile.canArchiveChild {
-                Section {
-                    NavigationLink {
-                        ChildProfileArchiveView(
-                            profile: profile,
-                            archiveAction: archiveAction
-                        )
-                    } label: {
-                        settingsRow(
-                            title: "Archive Child",
-                            value: nil,
-                            accessibilityIdentifier: "profile-archive-row",
-                            titleColor: .red
-                        )
-                    }
-                }
+                .accessibilityIdentifier("profile-sharing-row")
             }
 
             Section {
                 NavigationLink {
-                    ChildProfileHardDeleteView(
+                    ChildProfileSettingsView(
+                        model: model,
+                        profile: profile,
+                        archiveAction: archiveAction,
                         hardDeleteAction: hardDeleteAction
                     )
                 } label: {
-                    settingsRow(
-                        title: "Hard Delete",
-                        value: nil,
-                        accessibilityIdentifier: "profile-hard-delete-row",
-                        titleColor: .red
-                    )
+                    Text("Settings")
+                }
+                .accessibilityIdentifier("profile-settings-row")
+            }
+
+            if profile.canSwitchChildren {
+                Section {
+                    Button {
+                        model.showChildPicker()
+                    } label: {
+                        Text("Switch Child")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("switch-child-button")
                 }
             }
         }
         .listStyle(.insetGrouped)
+        .navigationTitle("Profile")
     }
 
-    private var detailsSummary: String {
+    @ViewBuilder
+    private var childHeaderRow: some View {
+        HStack(spacing: 16) {
+            avatarView
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(profile.child.name)
+                    .font(.headline)
+
+                Text(birthDateText)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private var avatarView: some View {
+        if let imageData = profile.child.imageData, let uiImage = UIImage(data: imageData) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 60, height: 60)
+                .clipShape(Circle())
+        } else {
+            ZStack {
+                Circle()
+                    .fill(Color.accentColor.opacity(0.15))
+                    .frame(width: 60, height: 60)
+                Text(profile.child.name.prefix(1).uppercased())
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+    }
+
+    private var birthDateText: String {
         if let birthDate = profile.child.birthDate {
             return birthDate.formatted(date: .abbreviated, time: .omitted)
         }
-
         return "Not set"
     }
 
@@ -168,26 +139,5 @@ public struct ChildProfileView: View {
 
         let inviteText = inviteCount == 1 ? "1 invite" : "\(inviteCount) invites"
         return "\(caregiverText), \(inviteText)"
-    }
-
-    private func settingsRow(
-        title: String,
-        value: String?,
-        accessibilityIdentifier: String,
-        titleColor: Color = .primary
-    ) -> some View {
-        HStack(spacing: 12) {
-            Text(title)
-                .foregroundStyle(titleColor)
-
-            Spacer()
-
-            if let value {
-                Text(value)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .contentShape(Rectangle())
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }
