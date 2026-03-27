@@ -54,6 +54,9 @@ struct AppRootView: View {
                 model.refreshSyncStatus()
             }
         }
+        .task {
+            model.requestNotificationAuthorizationIfNeeded()
+        }
         .safeAreaInset(edge: .bottom) {
             if let undoDeleteMessage = model.undoDeleteMessage {
                 UndoBannerView(

@@ -31,6 +31,10 @@ public final class CloudKitSyncEngine {
 
     private var pendingInvitesByChildID: [UUID: [CloudKitPendingInvite]] = [:]
     private var hasEnsuredDatabaseSubscriptions = false
+    private var remoteCaregiverEventChanges: [RemoteCaregiverEventChange] = []
+    private var shouldCollectRemoteCaregiverEvents = false
+    private var currentLocalUserID: UUID?
+    private var cachedUserDisplayNames: [UUID: String] = [:]
 
     private let logger = Logger(subsystem: "com.adappt.BabyTracker", category: "CloudKitSync")
 
@@ -68,6 +72,12 @@ public final class CloudKitSyncEngine {
 
     public func pendingInvites(for childID: UUID) -> [CloudKitPendingInvite] {
         pendingInvitesByChildID[childID] ?? []
+    }
+
+    public func consumeRemoteCaregiverEventChanges() -> [RemoteCaregiverEventChange] {
+        let changes = remoteCaregiverEventChanges
+        remoteCaregiverEventChanges = []
+        return changes
     }
 
     public func prepareShare(
@@ -276,6 +286,11 @@ public final class CloudKitSyncEngine {
     }
 
     private func refresh(reason: RefreshReason) async -> SyncStatusSummary {
+        shouldCollectRemoteCaregiverEvents = reason == .remoteNotification
+        remoteCaregiverEventChanges = []
+        cachedUserDisplayNames = [:]
+        currentLocalUserID = try? userIdentityRepository.loadLocalUser()?.id
+
         do {
             if reason == .launch {
                 logger.info("Launch sync starting")
@@ -826,9 +841,40 @@ public final class CloudKitSyncEngine {
                 lastSyncedAt: .now,
                 lastSyncErrorCode: nil
             )
+            try trackRemoteCaregiverChange(for: event)
         default:
             return
         }
+    }
+
+    private func trackRemoteCaregiverChange(for event: BabyEvent) throws {
+        guard shouldCollectRemoteCaregiverEvents else {
+            return
+        }
+
+        let actorID = event.metadata.updatedBy
+        guard actorID != currentLocalUserID else {
+            return
+        }
+
+        let actorDisplayName = try displayName(for: actorID)
+        remoteCaregiverEventChanges.append(
+            RemoteCaregiverEventChange(
+                actorDisplayName: actorDisplayName,
+                event: event
+            )
+        )
+    }
+
+    private func displayName(for userID: UUID) throws -> String {
+        if let cached = cachedUserDisplayNames[userID] {
+            return cached
+        }
+
+        let user = try userIdentityRepository.loadUsers(for: [userID]).first
+        let displayName = user?.displayName ?? "Another caregiver"
+        cachedUserDisplayNames[userID] = displayName
+        return displayName
     }
 
     private func applyDeletion(
