@@ -4,6 +4,7 @@ import Foundation
 public enum FeedSummaryCalculator {
     public static func makeSummary(
         from events: [BabyEvent],
+        preferredFeedVolumeUnit: FeedVolumeUnit,
         on day: Date = .now,
         calendar: Calendar = .current
     ) -> FeedSummary? {
@@ -24,7 +25,10 @@ public enum FeedSummaryCalculator {
         return FeedSummary(
             lastFeedKind: lastFeed.kind,
             lastFeedTitle: BabyEventPresentation.title(for: lastFeed),
-            lastFeedDetailText: BabyEventPresentation.detailText(for: lastFeed),
+            lastFeedDetailText: BabyEventPresentation.detailText(
+                for: lastFeed,
+                preferredFeedVolumeUnit: preferredFeedVolumeUnit
+            ),
             lastFeedAt: lastFeed.metadata.occurredAt,
             feedsTodayCount: feedsTodayCount
         )

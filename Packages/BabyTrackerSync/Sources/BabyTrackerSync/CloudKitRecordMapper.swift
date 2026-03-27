@@ -3,7 +3,7 @@ import CloudKit
 import Foundation
 
 public enum CloudKitRecordMapper {
-    static func childRecord(
+    public static func childRecord(
         from child: Child,
         zoneID: CKRecordZone.ID
     ) -> CKRecord {
@@ -19,6 +19,7 @@ public enum CloudKitRecordMapper {
         record["createdAt"] = child.createdAt
         record["createdBy"] = child.createdBy.uuidString
         record["isArchived"] = child.isArchived
+        record["preferredFeedVolumeUnit"] = child.preferredFeedVolumeUnit.rawValue
         if let imageData = child.imageData {
             let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent("child-image-\(child.id.uuidString).jpg")
@@ -90,7 +91,7 @@ public enum CloudKitRecordMapper {
         }
     }
 
-    static func child(from record: CKRecord) throws -> Child {
+    public static func child(from record: CKRecord) throws -> Child {
         var imageData: Data?
         if let asset = record["imageAsset"] as? CKAsset,
            let url = asset.fileURL {
@@ -103,7 +104,8 @@ public enum CloudKitRecordMapper {
             createdAt: record["createdAt"] as? Date ?? .now,
             createdBy: UUID(uuidString: record["createdBy"] as? String ?? "") ?? UUID(),
             isArchived: record["isArchived"] as? Bool ?? false,
-            imageData: imageData
+            imageData: imageData,
+            preferredFeedVolumeUnit: FeedVolumeUnit(rawValue: record["preferredFeedVolumeUnit"] as? String ?? "") ?? .milliliters
         )
     }
 

@@ -1,3 +1,4 @@
+import BabyTrackerDomain
 import Foundation
 import SwiftData
 
@@ -10,6 +11,7 @@ final class StoredChild {
     var createdBy: UUID = UUID()
     var isArchived: Bool = false
     var imageData: Data?
+    var preferredFeedVolumeUnitRawValue: String = FeedVolumeUnit.milliliters.rawValue
     var cloudKitZoneName: String?
     var cloudKitZoneOwnerName: String?
     var cloudKitShareRecordName: String?
@@ -26,6 +28,7 @@ final class StoredChild {
         createdBy: UUID,
         isArchived: Bool,
         imageData: Data? = nil,
+        preferredFeedVolumeUnitRawValue: String = FeedVolumeUnit.milliliters.rawValue,
         cloudKitZoneName: String? = nil,
         cloudKitZoneOwnerName: String? = nil,
         cloudKitShareRecordName: String? = nil,
@@ -41,6 +44,7 @@ final class StoredChild {
         self.createdBy = createdBy
         self.isArchived = isArchived
         self.imageData = imageData
+        self.preferredFeedVolumeUnitRawValue = preferredFeedVolumeUnitRawValue
         self.cloudKitZoneName = cloudKitZoneName
         self.cloudKitZoneOwnerName = cloudKitZoneOwnerName
         self.cloudKitShareRecordName = cloudKitShareRecordName

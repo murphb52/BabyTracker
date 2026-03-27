@@ -140,7 +140,12 @@ public final class AppModel {
         }
     }
 
-    public func updateCurrentChild(name: String, birthDate: Date?, imageData: Data? = nil) {
+    public func updateCurrentChild(
+        name: String,
+        birthDate: Date?,
+        imageData: Data? = nil,
+        preferredFeedVolumeUnit: FeedVolumeUnit? = nil
+    ) {
         perform {
             guard let profile else { return }
             _ = try UpdateCurrentChildUseCase(childRepository: childRepository)
@@ -149,7 +154,8 @@ public final class AppModel {
                     name: name,
                     birthDate: birthDate,
                     membership: profile.currentMembership,
-                    imageData: imageData
+                    imageData: imageData,
+                    preferredFeedVolumeUnit: preferredFeedVolumeUnit ?? profile.child.preferredFeedVolumeUnit
                 ))
         }
     }
@@ -630,6 +636,7 @@ public final class AppModel {
             synchronizeTimelineSelection(for: currentSummary.child.id)
             let visibleEvents = try loadVisibleEvents(for: currentSummary.child.id)
             let timelinePages = try loadTimelinePages(
+                child: currentSummary.child,
                 for: currentSummary.child.id,
                 days: timelineVisibleDays(for: timelineSelectedDay)
             )
@@ -770,9 +777,10 @@ public final class AppModel {
             canLogEvents: canLogEvents,
             canManageEvents: canManageEvents,
             activeSleepSession: activeSleep.map(ActiveSleepSessionViewState.init),
-            home: makeHomeScreenState(from: visibleEvents, activeSleep: activeSleep),
-            eventHistory: makeEventHistoryScreenState(from: visibleEvents),
+            home: makeHomeScreenState(from: visibleEvents, child: child, activeSleep: activeSleep),
+            eventHistory: makeEventHistoryScreenState(from: visibleEvents, child: child),
             timeline: makeTimelineScreenState(
+                child: child,
                 from: timelinePages,
                 selectedDay: timelineSelectedDay,
                 timelineEvents: visibleEvents,
@@ -805,6 +813,7 @@ public final class AppModel {
     }
 
     private func loadTimelinePages(
+        child: Child,
         for childID: UUID,
         days: [Date]
     ) throws -> [TimelineDayPageState] {
@@ -816,7 +825,7 @@ public final class AppModel {
                 dayTitle: timelineDayTitle(for: day),
                 shortWeekdayTitle: shortWeekdayTitle(for: day),
                 isToday: calendar.isDateInToday(day),
-                blocks: makeTimelineBlocks(from: events, on: day),
+                blocks: makeTimelineBlocks(from: events, child: child, on: day),
                 emptyStateTitle: "No events for this day",
                 emptyStateMessage: "Try another day or use Quick Log to add the next event."
             )
@@ -838,11 +847,13 @@ public final class AppModel {
 
     private func makeCurrentStatusCardState(
         from events: [BabyEvent],
+        child: Child,
         day: Date = .now,
         calendar: Calendar = .current
     ) -> CurrentStatusCardViewState {
         let feedSummary = FeedSummaryCalculator.makeSummary(
             from: events,
+            preferredFeedVolumeUnit: child.preferredFeedVolumeUnit,
             on: day,
             calendar: calendar
         )
@@ -857,25 +868,37 @@ public final class AppModel {
 
     private func makeHomeScreenState(
         from events: [BabyEvent],
+        child: Child,
         activeSleep: SleepEvent?
     ) -> HomeScreenState {
         HomeScreenState(
             currentSleep: makeCurrentSleepCardState(activeSleep: activeSleep),
-            currentStatus: makeCurrentStatusCardState(from: events),
-            recentEvents: Array(events.compactMap { EventCardViewState(event: $0) }.prefix(6)),
+            currentStatus: makeCurrentStatusCardState(from: events, child: child),
+            recentEvents: Array(events.compactMap {
+                EventCardViewState(
+                    event: $0,
+                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
+                )
+            }.prefix(6)),
             emptyStateTitle: "No recent activity",
             emptyStateMessage: "Use Quick Log to add the first event."
         )
     }
 
     private func makeEventHistoryScreenState(
-        from events: [BabyEvent]
+        from events: [BabyEvent],
+        child: Child
     ) -> EventHistoryScreenState {
         let filtered = activeEventFilter.isEmpty
             ? events
             : events.filter { activeEventFilter.matches($0) }
         return EventHistoryScreenState(
-            events: filtered.compactMap { EventCardViewState(event: $0) },
+            events: filtered.compactMap {
+                EventCardViewState(
+                    event: $0,
+                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
+                )
+            },
             filterIsActive: !activeEventFilter.isEmpty,
             activeFilter: activeEventFilter,
             emptyStateTitle: activeEventFilter.isEmpty ? "No events logged yet" : "No matching events",
@@ -900,7 +923,10 @@ public final class AppModel {
         from events: [BabyEvent],
         child: Child
     ) -> FeedLiveActivitySnapshot? {
-        guard let summary = FeedSummaryCalculator.makeSummary(from: events) else {
+        guard let summary = FeedSummaryCalculator.makeSummary(
+            from: events,
+            preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
+        ) else {
             return nil
         }
 
@@ -960,6 +986,7 @@ public final class AppModel {
     }
 
     private func makeTimelineScreenState(
+        child: Child,
         from pages: [TimelineDayPageState],
         selectedDay: Date,
         timelineEvents: [BabyEvent],
@@ -1009,10 +1036,11 @@ public final class AppModel {
 
     private func makeTimelineBlocks(
         from events: [BabyEvent],
+        child: Child,
         on selectedDay: Date
     ) -> [TimelineEventBlockViewState] {
         let blocks = events.map { event in
-            makeTimelineBlock(from: event, on: selectedDay)
+            makeTimelineBlock(from: event, child: child, on: selectedDay)
         }
 
         return assignTimelineLayout(to: blocks)
@@ -1020,6 +1048,7 @@ public final class AppModel {
 
     private func makeTimelineBlock(
         from event: BabyEvent,
+        child: Child,
         on selectedDay: Date
     ) -> TimelineEventBlockViewState {
         let startMinute = visibleTimelineStartMinute(for: event, on: selectedDay)
@@ -1036,9 +1065,12 @@ public final class AppModel {
                 id: feed.id,
                 kind: .breastFeed,
                 title: BabyEventPresentation.title(for: event),
-                detailText: BabyEventPresentation.detailText(for: event) ?? "",
+                detailText: BabyEventPresentation.detailText(
+                    for: event,
+                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
+                ) ?? "",
                 timeText: "\(shortTimeText(for: feed.startedAt))-\(shortTimeText(for: feed.endedAt))",
-                compactText: compactTimelineText(for: event),
+                compactText: compactTimelineText(for: event, child: child),
                 startMinute: startMinute,
                 endMinute: endMinute,
                 laneIndex: 0,
@@ -1056,9 +1088,12 @@ public final class AppModel {
                 id: feed.id,
                 kind: .bottleFeed,
                 title: BabyEventPresentation.title(for: event),
-                detailText: BabyEventPresentation.detailText(for: event) ?? "",
+                detailText: BabyEventPresentation.detailText(
+                    for: event,
+                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
+                ) ?? "",
                 timeText: shortTimeText(for: feed.metadata.occurredAt),
-                compactText: compactTimelineText(for: event),
+                compactText: compactTimelineText(for: event, child: child),
                 startMinute: startMinute,
                 endMinute: endMinute,
                 laneIndex: 0,
@@ -1075,9 +1110,12 @@ public final class AppModel {
                     id: sleep.id,
                     kind: .sleep,
                     title: BabyEventPresentation.title(for: event),
-                    detailText: BabyEventPresentation.detailText(for: event) ?? "",
+                    detailText: BabyEventPresentation.detailText(
+                        for: event,
+                        preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
+                    ) ?? "",
                     timeText: "\(shortTimeText(for: sleep.startedAt))-\(shortTimeText(for: endedAt))",
-                    compactText: compactTimelineText(for: event),
+                    compactText: compactTimelineText(for: event, child: child),
                     startMinute: startMinute,
                     endMinute: endMinute,
                     laneIndex: 0,
@@ -1093,9 +1131,12 @@ public final class AppModel {
                 id: sleep.id,
                 kind: .sleep,
                 title: BabyEventPresentation.title(for: event),
-                detailText: BabyEventPresentation.detailText(for: event) ?? "",
+                detailText: BabyEventPresentation.detailText(
+                    for: event,
+                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
+                ) ?? "",
                 timeText: "Started \(shortTimeText(for: sleep.startedAt))",
-                compactText: compactTimelineText(for: event),
+                compactText: compactTimelineText(for: event, child: child),
                 startMinute: startMinute,
                 endMinute: endMinute,
                 laneIndex: 0,
@@ -1107,9 +1148,12 @@ public final class AppModel {
                 id: nappy.id,
                 kind: .nappy,
                 title: BabyEventPresentation.title(for: event),
-                detailText: BabyEventPresentation.detailText(for: event) ?? "",
+                detailText: BabyEventPresentation.detailText(
+                    for: event,
+                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
+                ) ?? "",
                 timeText: shortTimeText(for: nappy.metadata.occurredAt),
-                compactText: compactTimelineText(for: event),
+                compactText: compactTimelineText(for: event, child: child),
                 startMinute: startMinute,
                 endMinute: endMinute,
                 laneIndex: 0,
@@ -1291,7 +1335,7 @@ public final class AppModel {
         date.formatted(date: .omitted, time: .shortened)
     }
 
-    private func compactTimelineText(for event: BabyEvent) -> String {
+    private func compactTimelineText(for event: BabyEvent, child: Child) -> String {
         switch event {
         case let .breastFeed(feed):
             let durationMinutes = max(
@@ -1300,7 +1344,10 @@ public final class AppModel {
             )
             return "\(durationMinutes) min"
         case let .bottleFeed(feed):
-            return "\(feed.amountMilliliters) mL"
+            return FeedVolumeConverter.format(
+                amountMilliliters: feed.amountMilliliters,
+                in: child.preferredFeedVolumeUnit
+            )
         case let .sleep(sleep):
             guard let endedAt = sleep.endedAt else {
                 return "Sleep"

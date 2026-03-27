@@ -66,6 +66,7 @@ struct FeedSummaryCalculatorTests {
         let summary = try #require(
             FeedSummaryCalculator.makeSummary(
                 from: events,
+                preferredFeedVolumeUnit: .milliliters,
                 on: day,
                 calendar: calendar
             )
@@ -125,6 +126,7 @@ struct FeedSummaryCalculatorTests {
         let summary = try #require(
             FeedSummaryCalculator.makeSummary(
                 from: events,
+                preferredFeedVolumeUnit: .milliliters,
                 on: day,
                 calendar: calendar
             )
@@ -133,5 +135,34 @@ struct FeedSummaryCalculatorTests {
         #expect(summary.lastFeedKind == .bottleFeed)
         #expect(summary.lastFeedAt == feedTime)
         #expect(summary.feedsTodayCount == 1)
+    }
+
+    @Test
+    func formatsBottleAmountInOuncesWhenPreferredUnitIsOunces() throws {
+        let childID = UUID()
+        let userID = UUID()
+        let occurredAt = Date(timeIntervalSince1970: 1_000)
+        let events: [BabyEvent] = [
+            .bottleFeed(
+                try BottleFeedEvent(
+                    metadata: EventMetadata(
+                        childID: childID,
+                        occurredAt: occurredAt,
+                        createdAt: occurredAt,
+                        createdBy: userID
+                    ),
+                    amountMilliliters: 120
+                )
+            ),
+        ]
+
+        let summary = try #require(
+            FeedSummaryCalculator.makeSummary(
+                from: events,
+                preferredFeedVolumeUnit: .ounces
+            )
+        )
+
+        #expect(summary.lastFeedDetailText == "4.1 oz")
     }
 }

@@ -210,6 +210,7 @@ public struct ChildWorkspaceTabView: View {
                 navigationTitle: "Bottle Feed",
                 primaryActionTitle: "Save",
                 childName: profile.child.name,
+                preferredVolumeUnit: profile.child.preferredFeedVolumeUnit,
                 initialAmountMilliliters: 120,
                 initialOccurredAt: Date(),
                 initialMilkType: nil
@@ -324,6 +325,7 @@ public struct ChildWorkspaceTabView: View {
                 navigationTitle: "Edit Bottle Feed",
                 primaryActionTitle: "Update",
                 childName: profile.child.name,
+                preferredVolumeUnit: profile.child.preferredFeedVolumeUnit,
                 initialAmountMilliliters: amountMilliliters,
                 initialOccurredAt: occurredAt,
                 initialMilkType: milkType,

@@ -30,6 +30,7 @@ public struct ChildProfileView: View {
             Section {
                 NavigationLink {
                     ChildProfileDetailsView(
+                        model: model,
                         profile: profile,
                         editChildAction: editChildAction
                     )
