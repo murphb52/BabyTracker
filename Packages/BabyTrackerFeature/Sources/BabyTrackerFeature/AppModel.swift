@@ -862,6 +862,7 @@ public final class AppModel {
         return EventHistoryScreenState(
             events: filtered.compactMap { EventCardViewState(event: $0) },
             filterIsActive: !activeEventFilter.isEmpty,
+            activeFilter: activeEventFilter,
             emptyStateTitle: activeEventFilter.isEmpty ? "No events logged yet" : "No matching events",
             emptyStateMessage: activeEventFilter.isEmpty
                 ? "Use Quick Log on Home to add the first event."
