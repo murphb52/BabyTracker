@@ -60,7 +60,7 @@ public struct QuickTimeSelectorView: View {
 }
 
 extension QuickTimeSelectorView {
-    enum TimePreset: String, CaseIterable, Identifiable {
+    public enum TimePreset: String, CaseIterable, Identifiable {
         case now
         case fiveMinutesAgo = "5m"
         case tenMinutesAgo = "10m"
@@ -69,9 +69,9 @@ extension QuickTimeSelectorView {
         case thirtyMinutesAgo = "30m"
         case custom
 
-        var id: String { rawValue }
+        public var id: String { rawValue }
 
-        var label: String {
+        public var label: String {
             switch self {
             case .now: return "Now"
             case .fiveMinutesAgo: return "5m ago"
@@ -83,7 +83,7 @@ extension QuickTimeSelectorView {
             }
         }
 
-        func date() -> Date {
+        public func date() -> Date {
             switch self {
             case .now: return Date()
             case .fiveMinutesAgo: return Date().addingTimeInterval(-5 * 60)
