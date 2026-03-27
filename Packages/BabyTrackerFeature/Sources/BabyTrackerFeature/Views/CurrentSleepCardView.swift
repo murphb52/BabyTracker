@@ -1,3 +1,4 @@
+import BabyTrackerDomain
 import SwiftUI
 
 public struct CurrentSleepCardView: View {
@@ -13,52 +14,66 @@ public struct CurrentSleepCardView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Current Sleep")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+        HStack(alignment: .center, spacing: 14) {
+            sleepIcon
 
-            TimelineView(.everyMinute) { context in
-                Text(durationText(from: sleep.startedAt, to: context.date))
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .accessibilityIdentifier("current-sleep-duration")
+            VStack(alignment: .leading, spacing: 6) {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    Text(durationText(from: sleep.startedAt, to: context.date))
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(BabyEventStyle.accentColor(for: .sleep))
+                        .accessibilityIdentifier("current-sleep-duration")
+                }
+
+                Text("Went to sleep \(sleep.startedAt, format: .dateTime.hour().minute())")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("current-sleep-started-at")
             }
 
-            Text("Asleep since \(sleep.startedAt, format: .dateTime.hour().minute())")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("current-sleep-started-at")
+            Spacer(minLength: 12)
 
             Button("Stop") {
                 stopSleep()
             }
             .buttonStyle(.borderedProminent)
+            .tint(BabyEventStyle.accentColor(for: .sleep))
             .accessibilityIdentifier("current-sleep-stop-button")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(BabyEventStyle.backgroundColor(for: .sleep))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+                .stroke(BabyEventStyle.accentColor(for: .sleep).opacity(0.35), lineWidth: 1)
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("current-sleep-card")
+    }
+
+    private var sleepIcon: some View {
+        ZStack {
+            Circle()
+                .fill(BabyEventStyle.backgroundColor(for: .sleep))
+                .frame(width: 44, height: 44)
+
+            Image(systemName: BabyEventStyle.systemImage(for: .sleep))
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(BabyEventStyle.accentColor(for: .sleep))
+        }
+        .accessibilityHidden(true)
     }
 
     private func durationText(from startedAt: Date, to currentDate: Date) -> String {
         let seconds = max(0, Int(currentDate.timeIntervalSince(startedAt)))
         let hours = seconds / 3_600
         let minutes = (seconds % 3_600) / 60
+        let remainingSeconds = seconds % 60
 
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        }
-
-        return "\(minutes)m"
+        return String(format: "%02dh %02dm %02ds", hours, minutes, remainingSeconds)
     }
 }
