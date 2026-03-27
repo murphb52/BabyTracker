@@ -47,11 +47,15 @@ public enum CloudKitRecordMapper {
         record["status"] = membership.status.rawValue
         record["invitedAt"] = membership.invitedAt
         record["acceptedAt"] = membership.acceptedAt
+        // CloudKit shares follow the root record's hierarchy. Keeping a record
+        // in the same zone is not enough to make it part of the share.
+        record.parent = childReference(childID: membership.childID, zoneID: zoneID)
         return record
     }
 
     static func userRecord(
         from user: UserIdentity,
+        childID: UUID,
         zoneID: CKRecordZone.ID
     ) -> CKRecord {
         let record = CKRecord(
@@ -64,6 +68,9 @@ public enum CloudKitRecordMapper {
         record["displayName"] = user.displayName
         record["createdAt"] = user.createdAt
         record["cloudKitUserRecordName"] = user.cloudKitUserRecordName
+        // User identities are duplicated per child zone so each shared child
+        // can carry the people needed to resolve event attribution locally.
+        record.parent = childReference(childID: childID, zoneID: zoneID)
         return record
     }
 
@@ -152,6 +159,9 @@ public enum CloudKitRecordMapper {
             )
         )
         applyMetadata(event.metadata, to: record)
+        // Events must be descendants of the shared child record or recipients
+        // will only receive the child itself after accepting the share.
+        record.parent = childReference(childID: event.metadata.childID, zoneID: zoneID)
         if let side = event.side {
             record["side"] = side.rawValue
         }
@@ -174,6 +184,7 @@ public enum CloudKitRecordMapper {
             )
         )
         applyMetadata(event.metadata, to: record)
+        record.parent = childReference(childID: event.metadata.childID, zoneID: zoneID)
         record["amountMilliliters"] = event.amountMilliliters
         record["milkType"] = event.milkType?.rawValue
         return record
@@ -191,6 +202,7 @@ public enum CloudKitRecordMapper {
             )
         )
         applyMetadata(event.metadata, to: record)
+        record.parent = childReference(childID: event.metadata.childID, zoneID: zoneID)
         record["startedAt"] = event.startedAt
         record["endedAt"] = event.endedAt
         return record
@@ -208,6 +220,7 @@ public enum CloudKitRecordMapper {
             )
         )
         applyMetadata(event.metadata, to: record)
+        record.parent = childReference(childID: event.metadata.childID, zoneID: zoneID)
         record["type"] = event.type.rawValue
         record["peeVolume"] = event.peeVolume?.rawValue
         record["pooVolume"] = event.pooVolume?.rawValue
@@ -291,5 +304,18 @@ public enum CloudKitRecordMapper {
     ) -> UUID {
         let rawValue = recordName.replacingOccurrences(of: prefix, with: "")
         return UUID(uuidString: rawValue) ?? UUID()
+    }
+
+    private static func childReference(
+        childID: UUID,
+        zoneID: CKRecordZone.ID
+    ) -> CKRecord.Reference {
+        CKRecord.Reference(
+            recordID: CloudKitRecordNames.childRecordID(
+                childID: childID,
+                zoneID: zoneID
+            ),
+            action: .none
+        )
     }
 }
