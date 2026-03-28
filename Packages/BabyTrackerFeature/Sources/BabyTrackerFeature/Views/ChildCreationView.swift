@@ -76,16 +76,6 @@ public struct ChildCreationView: View {
                     }
                 }
             }
-
-            Section {
-                NavigationLink {
-                    NukeAllDataView(nukeAction: { model.nukeAllData() })
-                } label: {
-                    Text("Erase Everything")
-                        .foregroundStyle(.red)
-                }
-                .accessibilityIdentifier("nuke-all-data-row")
-            }
         }
         .navigationTitle("Add a Child")
         .navigationBarTitleDisplayMode(.inline)

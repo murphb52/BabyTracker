@@ -80,6 +80,16 @@ public struct ChildProfileSettingsView: View {
                     .accessibilityIdentifier("profile-hard-delete-row")
                 }
             }
+
+            Section {
+                NavigationLink {
+                    NukeAllDataView(nukeAction: { model.nukeAllData() })
+                } label: {
+                    Text("Erase Everything")
+                        .foregroundStyle(.red)
+                }
+                .accessibilityIdentifier("nuke-all-data-row")
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Settings")
