@@ -1,7 +1,7 @@
 import Foundation
 
 @MainActor
-public struct ArchiveCurrentChildUseCase: UseCase {
+public struct ArchiveChildUseCase: UseCase {
     public struct Input {
         public let child: Child
         public let membership: Membership
@@ -15,17 +15,23 @@ public struct ArchiveCurrentChildUseCase: UseCase {
     }
 
     private let childRepository: any ChildRepository
+    private let membershipRepository: any MembershipRepository
     private let childSelectionStore: any ChildSelectionStore
 
     public init(
         childRepository: any ChildRepository,
+        membershipRepository: any MembershipRepository,
         childSelectionStore: any ChildSelectionStore
     ) {
         self.childRepository = childRepository
+        self.membershipRepository = membershipRepository
         self.childSelectionStore = childSelectionStore
     }
 
-    public func execute(_ input: Input) throws -> Void {
+    /// Archives the child and revokes all active caregiver memberships.
+    /// Returns the revoked memberships so the caller can remove CloudKit
+    /// share participants asynchronously.
+    public func execute(_ input: Input) throws -> [Membership] {
         guard ChildAccessPolicy.canPerform(.archiveChild, membership: input.membership) else {
             throw ChildProfileValidationError.insufficientPermissions
         }
@@ -37,5 +43,15 @@ public struct ArchiveCurrentChildUseCase: UseCase {
         if input.currentSelectedChildID == archivedChild.id {
             childSelectionStore.saveSelectedChildID(nil)
         }
+
+        let allMemberships = try membershipRepository.loadMemberships(for: input.child.id)
+        var revoked: [Membership] = []
+        for membership in allMemberships {
+            guard membership.role == .caregiver, membership.status == .active else { continue }
+            let removed = try membership.removed()
+            try membershipRepository.saveMembership(removed)
+            revoked.append(removed)
+        }
+        return revoked
     }
 }

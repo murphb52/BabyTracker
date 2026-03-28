@@ -215,44 +215,38 @@ public final class CloudKitSyncEngine {
         AppLogger.shared.log(.info, category: "CloudKitSync", "Left shared zone for child \(childID)")
     }
 
-    public func hardDeleteAllCloudData() async throws {
-        let children = try childRepository.loadAllChildren()
-        var privateZoneIDs = Set<CKRecordZone.ID>()
-        var sharedZoneIDs = Set<CKRecordZone.ID>()
-
-        for child in children {
-            if let context = try childRepository.loadCloudKitChildContext(id: child.id) {
-                if context.databaseScope == .shared {
-                    sharedZoneIDs.insert(context.zoneID)
-                } else {
-                    privateZoneIDs.insert(context.zoneID)
-                }
-            } else {
-                // If context is missing locally, still attempt to remove the
-                // default zone for this child from the private database.
-                privateZoneIDs.insert(CloudKitRecordNames.zoneID(for: child.id))
+    public func hardDeleteChildCloudData(childID: UUID) async throws {
+        let zoneID: CKRecordZone.ID
+        if let context = try childRepository.loadCloudKitChildContext(id: childID) {
+            // Only delete zones the user owns. Shared zones are owned by another user's
+            // private database — attempting to delete them would fail with a permission
+            // error. Caregivers should use leaveShare instead, and the caller (AppModel)
+            // already guards against this, but we return early here as a safety net.
+            guard context.databaseScope == .private else {
+                logger.info("Skipping hard delete for shared zone of child \(childID) — not zone owner")
+                AppLogger.shared.log(.info, category: "CloudKitSync", "Skipping hard delete for shared zone of child \(childID) — not zone owner")
+                return
             }
+            zoneID = context.zoneID
+        } else {
+            // Local context is missing (stale state). Fall back to the canonical zone name
+            // so orphaned server-side zones are still cleaned up.
+            zoneID = CloudKitRecordNames.zoneID(for: childID)
+            logger.info("No local context for child \(childID) — attempting fallback zone delete")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "No local context for child \(childID) — attempting fallback zone delete")
         }
 
-        if !privateZoneIDs.isEmpty {
-            try await client.modifyRecordZones(
-                saving: [],
-                deleting: Array(privateZoneIDs),
-                databaseScope: .private
-            )
+        do {
+            try await client.modifyRecordZones(saving: [], deleting: [zoneID], databaseScope: .private)
+            logger.info("Hard delete removed zone \(zoneID.zoneName, privacy: .public) for child \(childID)")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "Hard delete removed zone \(zoneID.zoneName) for child \(childID)")
+        } catch let error as CKError where error.code == .zoneNotFound {
+            // Zone was already deleted on the server — desired state is achieved.
+            logger.info("Zone \(zoneID.zoneName, privacy: .public) already gone for child \(childID) — treating as success")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "Zone \(zoneID.zoneName) already gone for child \(childID) — treating as success")
         }
 
-        if !sharedZoneIDs.isEmpty {
-            try await client.modifyRecordZones(
-                saving: [],
-                deleting: Array(sharedZoneIDs),
-                databaseScope: .shared
-            )
-        }
-
-        pendingInvitesByChildID.removeAll()
-        logger.info("Hard delete removed \(privateZoneIDs.count, privacy: .public) private zone(s) and \(sharedZoneIDs.count, privacy: .public) shared zone(s)")
-        AppLogger.shared.log(.warning, category: "CloudKitSync", "Hard delete removed \(privateZoneIDs.count) private zone(s) and \(sharedZoneIDs.count) shared zone(s)")
+        pendingInvitesByChildID[childID] = nil
     }
 
     public func accept(metadata: CKShare.Metadata) async throws {

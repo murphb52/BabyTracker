@@ -975,6 +975,145 @@ struct AppModelTests {
         #expect(liveActivityManager.latestSnapshot?.lastFeedKind == .breastFeed)
     }
 
+    // MARK: - Archive
+
+    @Test
+    func archiveChildRevokesActiveCaregivers() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let caregiver = try UserIdentity(displayName: "Jamie Caregiver")
+        try harness.userIdentityRepository.saveUser(caregiver)
+        try harness.membershipRepository.saveMembership(
+            Membership(
+                childID: seed.child.id,
+                userID: caregiver.id,
+                role: .caregiver,
+                status: .active,
+                invitedAt: .now,
+                acceptedAt: .now
+            )
+        )
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.archiveCurrentChild()
+
+        let memberships = try harness.membershipRepository.loadMemberships(for: seed.child.id)
+        let caregiverMembership = try #require(memberships.first { $0.userID == caregiver.id })
+        #expect(caregiverMembership.status == .removed)
+    }
+
+    @Test
+    func archiveChildIsUnavailableToCaregiver() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedActiveCaregiverProfile()
+        harness.model.load(performLaunchSync: false)
+
+        let profile = try #require(harness.model.profile)
+        #expect(profile.canArchiveChild == false)
+    }
+
+    // MARK: - Hard Delete Child
+
+    @Test
+    func hardDeleteCurrentChildPurgesLocalData() async throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        _ = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 100,
+            occurredAt: Date(timeIntervalSince1970: 1_000),
+            milkType: nil
+        )
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.hardDeleteCurrentChild()
+        await Task.yield()
+        await Task.yield()
+
+        let allChildren = try harness.childRepository.loadAllChildren()
+        #expect(allChildren.isEmpty)
+        #expect(harness.model.activeChildren.isEmpty)
+        #expect(harness.model.localUser != nil, "User identity must be preserved after hard delete")
+    }
+
+    @Test
+    func hardDeleteCurrentChildIsUnavailableToCaregiver() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedActiveCaregiverProfile()
+        harness.model.load(performLaunchSync: false)
+
+        let profile = try #require(harness.model.profile)
+        #expect(profile.canHardDelete == false)
+    }
+
+    @Test
+    func hardDeleteCurrentChildDoesNotAffectOtherChildren() async throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let secondChild = try harness.saveOwnedChild(name: "Juniper", owner: seed.localUser)
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.selectChild(id: seed.child.id)
+        harness.model.hardDeleteCurrentChild()
+        await Task.yield()
+        await Task.yield()
+
+        let remaining = try harness.childRepository.loadAllChildren()
+        #expect(remaining.map(\.id) == [secondChild.id])
+    }
+
+    // MARK: - Nuke All Data
+
+    @Test
+    func nukeAllDataRemovesAllOwnedChildrenLocally() async throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        _ = try harness.saveOwnedChild(name: "Juniper", owner: seed.localUser)
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.nukeAllData()
+        await Task.yield()
+        await Task.yield()
+
+        #expect(try harness.childRepository.loadAllChildren().isEmpty)
+        #expect(harness.model.localUser == nil, "User identity must be wiped by nuke")
+    }
+
+    @Test
+    func nukeAllDataRemovesCaregiverChildLocally() async throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedActiveCaregiverProfile()
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.nukeAllData()
+        await Task.yield()
+        await Task.yield()
+
+        // Caregiver's local view of the child is gone
+        let childrenVisibleToCaregiver = try harness.childRepository.loadActiveChildren(
+            for: seed.localUser.id
+        )
+        #expect(childrenVisibleToCaregiver.isEmpty)
+        // The child record itself may still be in the store (owner's data),
+        // but the caregiver's local identity and memberships are wiped.
+        #expect(harness.model.localUser == nil)
+    }
+
     private func selectedTimelineBlocks(
         in timeline: TimelineScreenState
     ) -> [TimelineEventBlockViewState] {
@@ -1255,7 +1394,7 @@ extension AppModelTests {
 
         func leaveShare(childID: UUID) async throws {}
 
-        func hardDeleteAllCloudData() async throws {}
+        func hardDeleteChildCloudData(childID: UUID) async throws {}
     }
 
     private enum TestSyncEngineError: Error {
