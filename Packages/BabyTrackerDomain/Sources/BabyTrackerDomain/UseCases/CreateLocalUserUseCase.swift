@@ -11,14 +11,20 @@ public struct CreateLocalUserUseCase: UseCase {
     }
 
     private let userIdentityRepository: any UserIdentityRepository
+    private let hapticFeedbackProvider: any HapticFeedbackProviding
 
-    public init(userIdentityRepository: any UserIdentityRepository) {
+    public init(
+        userIdentityRepository: any UserIdentityRepository,
+        hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
+    ) {
         self.userIdentityRepository = userIdentityRepository
+        self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
     public func execute(_ input: Input) throws -> UserIdentity {
         let user = try UserIdentity(displayName: input.displayName)
         try userIdentityRepository.saveLocalUser(user)
+        hapticFeedbackProvider.play(.actionSucceeded)
         return user
     }
 }

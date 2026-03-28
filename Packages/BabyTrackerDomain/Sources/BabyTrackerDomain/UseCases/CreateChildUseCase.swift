@@ -19,15 +19,18 @@ public struct CreateChildUseCase: UseCase {
     private let childRepository: any ChildRepository
     private let membershipRepository: any MembershipRepository
     private let childSelectionStore: any ChildSelectionStore
+    private let hapticFeedbackProvider: any HapticFeedbackProviding
 
     public init(
         childRepository: any ChildRepository,
         membershipRepository: any MembershipRepository,
-        childSelectionStore: any ChildSelectionStore
+        childSelectionStore: any ChildSelectionStore,
+        hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
     ) {
         self.childRepository = childRepository
         self.membershipRepository = membershipRepository
         self.childSelectionStore = childSelectionStore
+        self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
     public func execute(_ input: Input) throws -> Child {
@@ -46,6 +49,7 @@ public struct CreateChildUseCase: UseCase {
         try childRepository.saveChild(child)
         try membershipRepository.saveMembership(ownerMembership)
         childSelectionStore.saveSelectedChildID(child.id)
+        hapticFeedbackProvider.play(.actionSucceeded)
         return child
     }
 }
