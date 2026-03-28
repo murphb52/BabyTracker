@@ -784,6 +784,8 @@ public final class AppModel {
             activeCaregivers: activeCaregivers,
             pendingShareInvites: pendingShareInvites,
             removedCaregivers: removedCaregivers,
+            availableChildren: activeChildren,
+            canCreateLocalChild: true,
             canSwitchChildren: activeChildren.count > 1,
             canLogEvents: canLogEvents,
             canManageEvents: canManageEvents,

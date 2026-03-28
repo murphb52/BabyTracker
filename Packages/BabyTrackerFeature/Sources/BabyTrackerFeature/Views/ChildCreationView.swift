@@ -18,7 +18,7 @@ public struct ChildCreationView: View {
     public var body: some View {
         Form {
             Section {
-                Text("Create the first child profile. You can add a birth date now or leave it for later.")
+                Text("Create a child profile. You can add a birth date now or leave it for later.")
                     .foregroundStyle(.secondary)
             }
 
