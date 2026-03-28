@@ -12,13 +12,16 @@ public struct RestoreChildUseCase: UseCase {
 
     private let childRepository: any ChildRepository
     private let childSelectionStore: any ChildSelectionStore
+    private let hapticFeedbackProvider: any HapticFeedbackProviding
 
     public init(
         childRepository: any ChildRepository,
-        childSelectionStore: any ChildSelectionStore
+        childSelectionStore: any ChildSelectionStore,
+        hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
     ) {
         self.childRepository = childRepository
         self.childSelectionStore = childSelectionStore
+        self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
     public func execute(_ input: Input) throws -> Child {
@@ -29,6 +32,7 @@ public struct RestoreChildUseCase: UseCase {
         restoredChild.isArchived = false
         try childRepository.saveChild(restoredChild)
         childSelectionStore.saveSelectedChildID(input.childID)
+        hapticFeedbackProvider.play(.actionSucceeded)
         return restoredChild
     }
 }

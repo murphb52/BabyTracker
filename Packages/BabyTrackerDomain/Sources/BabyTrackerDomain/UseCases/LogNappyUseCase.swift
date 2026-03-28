@@ -34,9 +34,14 @@ public struct LogNappyUseCase: UseCase {
     }
 
     private let eventRepository: any EventRepository
+    private let hapticFeedbackProvider: any HapticFeedbackProviding
 
-    public init(eventRepository: any EventRepository) {
+    public init(
+        eventRepository: any EventRepository,
+        hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
+    ) {
         self.eventRepository = eventRepository
+        self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
     public func execute(_ input: Input) throws -> BabyEvent {
@@ -58,6 +63,7 @@ public struct LogNappyUseCase: UseCase {
         )
 
         try eventRepository.saveEvent(.nappy(event))
+        hapticFeedbackProvider.play(.actionSucceeded)
         return .nappy(event)
     }
 }

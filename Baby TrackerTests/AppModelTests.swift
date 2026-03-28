@@ -883,6 +883,109 @@ struct AppModelTests {
     }
 
     @Test
+    func loggingBottleFeedPlaysSuccessHaptic() throws {
+        let hapticFeedbackProvider = HapticFeedbackProviderSpy()
+        let harness = try Harness(hapticFeedbackProvider: hapticFeedbackProvider)
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+
+        harness.model.load(performLaunchSync: false)
+
+        #expect(
+            harness.model.logBottleFeed(
+                amountMilliliters: 120,
+                occurredAt: Date(timeIntervalSince1970: 4_000),
+                milkType: .formula
+            )
+        )
+
+        #expect(hapticFeedbackProvider.events == [.actionSucceeded])
+    }
+
+    @Test
+    func failedSleepStartPlaysErrorHaptic() throws {
+        let hapticFeedbackProvider = HapticFeedbackProviderSpy()
+        let harness = try Harness(hapticFeedbackProvider: hapticFeedbackProvider)
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        let initialStart = Date(timeIntervalSince1970: 8_500)
+
+        harness.model.load(performLaunchSync: false)
+
+        #expect(harness.model.startSleep(startedAt: initialStart))
+        #expect(harness.model.startSleep(startedAt: initialStart.addingTimeInterval(600)) == false)
+
+        #expect(hapticFeedbackProvider.events == [.sleepStarted, .actionFailed])
+    }
+
+    @Test
+    func hardDeletePlaysDestructiveHaptic() async throws {
+        let hapticFeedbackProvider = HapticFeedbackProviderSpy()
+        let harness = try Harness(hapticFeedbackProvider: hapticFeedbackProvider)
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.hardDeleteAllData()
+
+        await Task.yield()
+
+        #expect(hapticFeedbackProvider.events == [.destructiveActionConfirmed])
+    }
+
+    @Test
+    func exportReadyPlaysSuccessHaptic() async throws {
+        let hapticFeedbackProvider = HapticFeedbackProviderSpy()
+        let harness = try Harness(hapticFeedbackProvider: hapticFeedbackProvider)
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.exportData()
+
+        while true {
+            switch harness.model.dataExportState {
+            case .ready:
+                #expect(hapticFeedbackProvider.events == [.actionSucceeded])
+                return
+            case .error(let message):
+                Issue.record("Expected export to succeed, got error: \(message)")
+                return
+            case .idle, .exporting:
+                await Task.yield()
+            }
+        }
+    }
+
+    @Test
+    func failedSyncRefreshPlaysErrorHaptic() async throws {
+        let hapticFeedbackProvider = HapticFeedbackProviderSpy()
+        let syncEngine = TestSyncEngine()
+        syncEngine.refreshForegroundSummary = SyncStatusSummary(
+            state: .failed,
+            pendingRecordCount: 0,
+            lastSyncAt: nil,
+            lastErrorDescription: "Sync unavailable. Sign in to iCloud."
+        )
+        let harness = try Harness(
+            syncEngine: syncEngine,
+            hapticFeedbackProvider: hapticFeedbackProvider
+        )
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+
+        await harness.model.refreshSyncStatus()
+
+        #expect(hapticFeedbackProvider.events == [.actionFailed])
+    }
+
+    @Test
     func nappyMutationsDoNotChangeLiveActivityFeedSnapshot() throws {
         let liveActivityManager = LiveActivityManagerSpy()
         let harness = try Harness(liveActivityManager: liveActivityManager)
@@ -999,7 +1102,8 @@ extension AppModelTests {
 
         init(
             syncEngine: any CloudKitSyncControlling = TestSyncEngine(),
-            liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager()
+            liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager(),
+            hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
         ) throws {
             let userDefaults = UserDefaults(suiteName: suiteName)!
             userDefaults.removePersistentDomain(forName: suiteName)
@@ -1019,7 +1123,8 @@ extension AppModelTests {
                 childSelectionStore: childSelectionStore,
                 eventRepository: eventRepository,
                 syncEngine: syncEngine,
-                liveActivityManager: liveActivityManager
+                liveActivityManager: liveActivityManager,
+                hapticFeedbackProvider: hapticFeedbackProvider
             )
         }
 
@@ -1207,6 +1312,15 @@ extension AppModelTests {
 
         func synchronize(with snapshot: FeedLiveActivitySnapshot?) {
             snapshots.append(snapshot)
+        }
+    }
+
+    @MainActor
+    private final class HapticFeedbackProviderSpy: HapticFeedbackProviding {
+        private(set) var events: [HapticEvent] = []
+
+        func play(_ event: HapticEvent) {
+            events.append(event)
         }
     }
 }

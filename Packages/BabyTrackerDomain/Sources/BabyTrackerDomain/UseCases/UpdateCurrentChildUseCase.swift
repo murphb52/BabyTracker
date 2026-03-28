@@ -28,9 +28,14 @@ public struct UpdateCurrentChildUseCase: UseCase {
     }
 
     private let childRepository: any ChildRepository
+    private let hapticFeedbackProvider: any HapticFeedbackProviding
 
-    public init(childRepository: any ChildRepository) {
+    public init(
+        childRepository: any ChildRepository,
+        hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
+    ) {
         self.childRepository = childRepository
+        self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
     public func execute(_ input: Input) throws -> Child {
@@ -45,6 +50,7 @@ public struct UpdateCurrentChildUseCase: UseCase {
             preferredFeedVolumeUnit: input.preferredFeedVolumeUnit
         )
         try childRepository.saveChild(updatedChild)
+        hapticFeedbackProvider.play(.actionSucceeded)
         return updatedChild
     }
 }

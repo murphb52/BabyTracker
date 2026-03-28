@@ -30,6 +30,7 @@ public final class AppModel {
     private let syncEngine: any CloudKitSyncControlling
     private let liveActivityManager: any FeedLiveActivityManaging
     private let localNotificationManager: any LocalNotificationManaging
+    private let hapticFeedbackProvider: any HapticFeedbackProviding
     private let buildTimelineStripDatasetUseCase = BuildTimelineStripDatasetUseCase()
     private let buildRemoteNotificationUseCase = BuildRemoteCaregiverNotificationUseCase()
     private let calendar = Calendar.autoupdatingCurrent
@@ -49,7 +50,8 @@ public final class AppModel {
         eventRepository: EventRepository,
         syncEngine: any CloudKitSyncControlling,
         liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager(),
-        localNotificationManager: any LocalNotificationManaging = NoOpLocalNotificationManager()
+        localNotificationManager: any LocalNotificationManaging = NoOpLocalNotificationManager(),
+        hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
     ) {
         self.childRepository = childRepository
         self.userIdentityRepository = userIdentityRepository
@@ -59,6 +61,7 @@ public final class AppModel {
         self.syncEngine = syncEngine
         self.liveActivityManager = liveActivityManager
         self.localNotificationManager = localNotificationManager
+        self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
     public func load(performLaunchSync: Bool = true) {
@@ -120,11 +123,12 @@ public final class AppModel {
                 childSelectionStore.saveSelectedChildID(nil)
                 clearUndoDeleteState()
                 refresh(selecting: nil)
+                playHaptic(.destructiveActionConfirmed)
                 if let cloudDeleteError {
-                    errorMessage = "Local data was cleared, but iCloud cleanup failed: \(cloudDeleteError.localizedDescription)"
+                    setErrorMessage("Local data was cleared, but iCloud cleanup failed: \(cloudDeleteError.localizedDescription)")
                 }
             } catch {
-                errorMessage = resolveErrorMessage(for: error)
+                setErrorMessage(resolveErrorMessage(for: error))
                 refresh(selecting: nil)
             }
         }
@@ -132,7 +136,10 @@ public final class AppModel {
 
     public func createLocalUser(displayName: String) {
         perform {
-            _ = try CreateLocalUserUseCase(userIdentityRepository: userIdentityRepository)
+            _ = try CreateLocalUserUseCase(
+                userIdentityRepository: userIdentityRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(displayName: displayName))
         }
     }
@@ -143,7 +150,8 @@ public final class AppModel {
             _ = try CreateChildUseCase(
                 childRepository: childRepository,
                 membershipRepository: membershipRepository,
-                childSelectionStore: childSelectionStore
+                childSelectionStore: childSelectionStore,
+                hapticFeedbackProvider: hapticFeedbackProvider
             ).execute(.init(name: name, birthDate: birthDate, localUser: localUser, imageData: imageData))
         }
     }
@@ -156,7 +164,10 @@ public final class AppModel {
     ) {
         perform {
             guard let profile else { return }
-            _ = try UpdateCurrentChildUseCase(childRepository: childRepository)
+            _ = try UpdateCurrentChildUseCase(
+                childRepository: childRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(
                     child: profile.child,
                     name: name,
@@ -173,7 +184,8 @@ public final class AppModel {
             guard let profile else { return }
             try ArchiveCurrentChildUseCase(
                 childRepository: childRepository,
-                childSelectionStore: childSelectionStore
+                childSelectionStore: childSelectionStore,
+                hapticFeedbackProvider: hapticFeedbackProvider
             ).execute(.init(
                 child: profile.child,
                 membership: profile.currentMembership,
@@ -186,7 +198,8 @@ public final class AppModel {
         perform {
             _ = try RestoreChildUseCase(
                 childRepository: childRepository,
-                childSelectionStore: childSelectionStore
+                childSelectionStore: childSelectionStore,
+                hapticFeedbackProvider: hapticFeedbackProvider
             ).execute(.init(childID: id))
         }
     }
@@ -196,6 +209,7 @@ public final class AppModel {
         timelineChildID = id
         timelineSelectedDay = normalizedTimelineDay(for: .now)
         refresh(selecting: id)
+        playHaptic(.selectionChanged)
     }
 
     public func showPreviousTimelineDay() {
@@ -237,6 +251,7 @@ public final class AppModel {
     public func toggleTimelineDisplayMode() {
         timelineDisplayMode = timelineDisplayMode == .day ? .week : .day
         refresh(selecting: childSelectionStore.loadSelectedChildID())
+        playHaptic(.selectionChanged)
     }
 
     public var eventFilter: EventFilter { activeEventFilter }
@@ -244,6 +259,7 @@ public final class AppModel {
     public func updateEventFilter(_ filter: EventFilter) {
         activeEventFilter = filter
         refresh(selecting: childSelectionStore.loadSelectedChildID())
+        playHaptic(.selectionChanged)
     }
 
     public func showChildPicker() {
@@ -266,8 +282,9 @@ public final class AppModel {
                 )
                 shareSheetState = ShareSheetState(presentation: presentation)
                 refresh(selecting: childSelectionStore.loadSelectedChildID())
+                playHaptic(.actionSucceeded)
             } catch {
-                errorMessage = resolveErrorMessage(for: error)
+                setErrorMessage(resolveErrorMessage(for: error))
             }
         }
     }
@@ -278,7 +295,10 @@ public final class AppModel {
         }
 
         perform {
-            let removedMembership = try RemoveCaregiverUseCase(membershipRepository: membershipRepository)
+            let removedMembership = try RemoveCaregiverUseCase(
+                membershipRepository: membershipRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(
                     membershipID: membershipID,
                     childID: profile.child.id,
@@ -302,8 +322,9 @@ public final class AppModel {
                 if childSelectionStore.loadSelectedChildID() == childID {
                     childSelectionStore.saveSelectedChildID(nil)
                 }
+                playHaptic(.actionSucceeded)
             } catch {
-                errorMessage = resolveErrorMessage(for: error)
+                setErrorMessage(resolveErrorMessage(for: error))
             }
             refresh(selecting: childSelectionStore.loadSelectedChildID())
         }
@@ -320,7 +341,10 @@ public final class AppModel {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
-            _ = try LogBreastFeedUseCase(eventRepository: eventRepository)
+            _ = try LogBreastFeedUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(
                     childID: profile.child.id,
                     localUserID: localUser.id,
@@ -343,7 +367,10 @@ public final class AppModel {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
-            _ = try LogBottleFeedUseCase(eventRepository: eventRepository)
+            _ = try LogBottleFeedUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(
                     childID: profile.child.id,
                     localUserID: localUser.id,
@@ -366,7 +393,10 @@ public final class AppModel {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
-            _ = try LogNappyUseCase(eventRepository: eventRepository)
+            _ = try LogNappyUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(
                     childID: profile.child.id,
                     localUserID: localUser.id,
@@ -385,7 +415,10 @@ public final class AppModel {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
-            _ = try StartSleepUseCase(eventRepository: eventRepository)
+            _ = try StartSleepUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(
                     childID: profile.child.id,
                     localUserID: localUser.id,
@@ -400,7 +433,10 @@ public final class AppModel {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
-            _ = try LogSleepUseCase(eventRepository: eventRepository)
+            _ = try LogSleepUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(
                     childID: profile.child.id,
                     localUserID: localUser.id,
@@ -420,7 +456,10 @@ public final class AppModel {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
-            _ = try EndSleepUseCase(eventRepository: eventRepository)
+            _ = try EndSleepUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(
                     eventID: id,
                     localUserID: localUser.id,
@@ -443,7 +482,10 @@ public final class AppModel {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
-            try UpdateBreastFeedUseCase(eventRepository: eventRepository)
+            try UpdateBreastFeedUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(
                     eventID: id,
                     localUserID: localUser.id,
@@ -467,7 +509,10 @@ public final class AppModel {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
-            try UpdateBottleFeedUseCase(eventRepository: eventRepository)
+            try UpdateBottleFeedUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(
                     eventID: id,
                     localUserID: localUser.id,
@@ -491,7 +536,10 @@ public final class AppModel {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
-            try UpdateNappyUseCase(eventRepository: eventRepository)
+            try UpdateNappyUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(
                     eventID: id,
                     localUserID: localUser.id,
@@ -536,7 +584,10 @@ public final class AppModel {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
-            try UpdateSleepUseCase(eventRepository: eventRepository)
+            try UpdateSleepUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(
                     eventID: id,
                     localUserID: localUser.id,
@@ -553,7 +604,10 @@ public final class AppModel {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             clearUndoDeleteState()
-            if let event = try DeleteEventUseCase(eventRepository: eventRepository)
+            if let event = try DeleteEventUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(
                     eventID: id,
                     localUserID: localUser.id,
@@ -570,14 +624,20 @@ public final class AppModel {
         perform {
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             guard let pendingUndoDeletedEvent else { return }
-            _ = try RestoreDeletedEventUseCase(eventRepository: eventRepository)
+            _ = try RestoreDeletedEventUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
                 .execute(.init(event: pendingUndoDeletedEvent, restoredBy: localUser.id))
             clearUndoDeleteState()
         }
     }
 
     @discardableResult
-    private func perform(_ operation: () throws -> Void) -> Bool {
+    private func perform(
+        failureHaptic: HapticEvent = .actionFailed,
+        _ operation: () throws -> Void
+    ) -> Bool {
         do {
             try operation()
             refresh(selecting: childSelectionStore.loadSelectedChildID())
@@ -586,7 +646,7 @@ public final class AppModel {
             }
             return true
         } catch {
-            errorMessage = resolveErrorMessage(for: error)
+            setErrorMessage(resolveErrorMessage(for: error), haptic: failureHaptic)
             refresh(selecting: childSelectionStore.loadSelectedChildID())
             return false
         }
@@ -664,7 +724,7 @@ public final class AppModel {
                 )
             )
         } catch {
-            errorMessage = resolveErrorMessage(for: error)
+            setErrorMessage(resolveErrorMessage(for: error))
             // Only redirect to identity onboarding when there is genuinely no
             // local user. Data errors (e.g. owner membership not yet synced on a
             // shared child) must not wipe out the user's session.
@@ -1386,7 +1446,7 @@ public final class AppModel {
 
     public func parseCSVForImport(data: Data) {
         guard let profile else {
-            csvImportState = .error("No active child selected")
+            setCSVImportError("No active child selected")
             return
         }
 
@@ -1404,7 +1464,7 @@ public final class AppModel {
     }
 
     public func reportImportFileError(_ message: String) {
-        csvImportState = .error(message)
+        setCSVImportError(message)
     }
 
     public func toggleImportEvent(id: UUID) {
@@ -1428,13 +1488,13 @@ public final class AppModel {
     public func confirmImport() {
         guard case .previewing(let previewState) = csvImportState else { return }
         guard let profile, let localUser else {
-            csvImportState = .error("No active child selected")
+            setCSVImportError("No active child selected")
             return
         }
 
         let eventsToImport = previewState.selectedEvents
         guard !eventsToImport.isEmpty else {
-            csvImportState = .error("No events selected to import")
+            setCSVImportError("No events selected to import")
             return
         }
 
@@ -1442,7 +1502,10 @@ public final class AppModel {
 
         Task { @MainActor in
             do {
-                let saveResult = try ImportEventsUseCase(eventRepository: eventRepository)
+                let saveResult = try ImportEventsUseCase(
+                    eventRepository: eventRepository,
+                    hapticFeedbackProvider: hapticFeedbackProvider
+                )
                     .execute(.init(
                         events: eventsToImport,
                         childID: profile.child.id,
@@ -1460,7 +1523,7 @@ public final class AppModel {
                 refresh(selecting: childSelectionStore.loadSelectedChildID())
                 await runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
             } catch {
-                csvImportState = .error(resolveErrorMessage(for: error))
+                setCSVImportError(resolveErrorMessage(for: error))
             }
         }
     }
@@ -1477,7 +1540,7 @@ public final class AppModel {
 
     public func exportData() {
         guard let profile else {
-            dataExportState = .error("No active child selected")
+            setDataExportError("No active child selected")
             return
         }
 
@@ -1485,7 +1548,10 @@ public final class AppModel {
 
         Task { @MainActor in
             do {
-                let data = try ExportEventsUseCase(eventRepository: eventRepository)
+                let data = try ExportEventsUseCase(
+                    eventRepository: eventRepository,
+                    hapticFeedbackProvider: hapticFeedbackProvider
+                )
                     .execute(.init(child: profile.child, membership: profile.currentMembership))
 
                 let childName = profile.child.name
@@ -1499,7 +1565,7 @@ public final class AppModel {
 
                 dataExportState = .ready(tempURL)
             } catch {
-                dataExportState = .error(resolveErrorMessage(for: error))
+                setDataExportError(resolveErrorMessage(for: error))
             }
         }
     }
@@ -1512,14 +1578,14 @@ public final class AppModel {
 
     public func parseNestFileForImport(data: Data) {
         guard let profile else {
-            nestImportState = .error("No active child selected")
+            setNestImportError("No active child selected")
             return
         }
 
         let parseResult = NestJSONParser().parse(data: data)
 
         guard !parseResult.events.isEmpty || parseResult.skippedCount > 0 else {
-            nestImportState = .error("The selected file contains no recognisable events")
+            setNestImportError("The selected file contains no recognisable events")
             return
         }
 
@@ -1534,7 +1600,7 @@ public final class AppModel {
     }
 
     public func reportNestImportFileError(_ message: String) {
-        nestImportState = .error(message)
+        setNestImportError(message)
     }
 
     public func toggleNestImportEvent(id: UUID) {
@@ -1558,13 +1624,13 @@ public final class AppModel {
     public func confirmNestImport() {
         guard case .previewing(let previewState) = nestImportState else { return }
         guard let profile, let localUser else {
-            nestImportState = .error("No active child selected")
+            setNestImportError("No active child selected")
             return
         }
 
         let eventsToImport = previewState.selectedEvents
         guard !eventsToImport.isEmpty else {
-            nestImportState = .error("No events selected to import")
+            setNestImportError("No events selected to import")
             return
         }
 
@@ -1572,7 +1638,10 @@ public final class AppModel {
 
         Task { @MainActor in
             do {
-                let saveResult = try ImportEventsUseCase(eventRepository: eventRepository)
+                let saveResult = try ImportEventsUseCase(
+                    eventRepository: eventRepository,
+                    hapticFeedbackProvider: hapticFeedbackProvider
+                )
                     .execute(.init(
                         events: eventsToImport,
                         childID: profile.child.id,
@@ -1589,7 +1658,7 @@ public final class AppModel {
                 refresh(selecting: childSelectionStore.loadSelectedChildID())
                 await runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
             } catch {
-                nestImportState = .error(resolveErrorMessage(for: error))
+                setNestImportError(resolveErrorMessage(for: error))
             }
         }
     }
@@ -1633,6 +1702,7 @@ public final class AppModel {
                 state = .lastSyncFailed(message)
             }
             setSyncIndicator(state)
+            playHaptic(.actionFailed)
             syncIndicatorDismissTask = Task { @MainActor in
                 try? await Task.sleep(for: .seconds(4))
                 guard !Task.isCancelled else { return }
@@ -1647,5 +1717,32 @@ public final class AppModel {
         syncIndicatorDismissTask?.cancel()
         syncIndicatorDismissTask = nil
         syncBannerState = state
+    }
+
+    private func setErrorMessage(
+        _ message: String,
+        haptic: HapticEvent = .actionFailed
+    ) {
+        errorMessage = message
+        playHaptic(haptic)
+    }
+
+    private func setCSVImportError(_ message: String) {
+        csvImportState = .error(message)
+        playHaptic(.actionFailed)
+    }
+
+    private func setNestImportError(_ message: String) {
+        nestImportState = .error(message)
+        playHaptic(.actionFailed)
+    }
+
+    private func setDataExportError(_ message: String) {
+        dataExportState = .error(message)
+        playHaptic(.actionFailed)
+    }
+
+    private func playHaptic(_ event: HapticEvent) {
+        hapticFeedbackProvider.play(event)
     }
 }
