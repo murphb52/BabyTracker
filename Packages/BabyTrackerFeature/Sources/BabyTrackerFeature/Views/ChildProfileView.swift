@@ -49,9 +49,38 @@ public struct ChildProfileView: View {
                         shareChildAction: shareChildAction
                     )
                 } label: {
-                    Label(sharingSummary, systemImage: "person.2")
+                    settingsRow(
+                        title: "Sharing",
+                        value: sharingSummary,
+                        accessibilityIdentifier: "profile-sharing-row"
+                    )
                 }
-                .accessibilityIdentifier("profile-sharing-row")
+            }
+
+            if canSelectFromMultipleChildren || canCreateLocalChild {
+                Section("Children") {
+                    ForEach(model.activeChildren) { summary in
+                        Button {
+                            model.selectChild(id: summary.child.id)
+                        } label: {
+                            childSelectionRow(for: summary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("profile-select-child-\(summary.child.id.uuidString)")
+                    }
+
+                    if canCreateLocalChild {
+                        NavigationLink {
+                            ChildCreationView(model: model)
+                        } label: {
+                            settingsRow(
+                                title: "Add Child",
+                                value: nil,
+                                accessibilityIdentifier: "profile-add-child-row"
+                            )
+                        }
+                    }
+                }
             }
 
             Section {
@@ -63,20 +92,11 @@ public struct ChildProfileView: View {
                         hardDeleteAction: hardDeleteAction
                     )
                 } label: {
-                    Text("Settings")
-                }
-                .accessibilityIdentifier("profile-settings-row")
-            }
-
-            if profile.canSwitchChildren {
-                Section {
-                    Button {
-                        model.showChildPicker()
-                    } label: {
-                        Text("Switch Child")
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("switch-child-button")
+                    settingsRow(
+                        title: "Settings",
+                        value: nil,
+                        accessibilityIdentifier: "profile-settings-row"
+                    )
                 }
             }
         }
@@ -121,11 +141,41 @@ public struct ChildProfileView: View {
         }
     }
 
+    @ViewBuilder
+    private func childSelectionRow(for summary: ChildSummary) -> some View {
+        HStack(spacing: 12) {
+            Text(summary.child.name)
+                .foregroundStyle(.primary)
+
+            Spacer()
+
+            Text(summary.membership.role == .owner ? "Owner" : "Caregiver")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            if summary.child.id == profile.child.id {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.accentColor)
+                    .accessibilityLabel("Selected child")
+            }
+        }
+        .contentShape(Rectangle())
+    }
+
     private var birthDateText: String {
         if let birthDate = profile.child.birthDate {
             return birthDate.formatted(date: .abbreviated, time: .omitted)
         }
+
         return "Not set"
+    }
+
+    private var canCreateLocalChild: Bool {
+        model.localUser != nil
+    }
+
+    private var canSelectFromMultipleChildren: Bool {
+        model.activeChildren.count > 1
     }
 
     private var sharingSummary: String {
@@ -139,5 +189,26 @@ public struct ChildProfileView: View {
 
         let inviteText = inviteCount == 1 ? "1 invite" : "\(inviteCount) invites"
         return "\(caregiverText), \(inviteText)"
+    }
+
+    private func settingsRow(
+        title: String,
+        value: String?,
+        accessibilityIdentifier: String,
+        titleColor: Color = .primary
+    ) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .foregroundStyle(titleColor)
+
+            Spacer()
+
+            if let value {
+                Text(value)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .contentShape(Rectangle())
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }

@@ -9,7 +9,6 @@ public struct ChildProfileScreenState: Equatable, Sendable {
     public let activeCaregivers: [CaregiverMembershipViewState]
     public let pendingShareInvites: [PendingShareInviteViewState]
     public let removedCaregivers: [CaregiverMembershipViewState]
-    public let canSwitchChildren: Bool
     public let canLogEvents: Bool
     public let canManageEvents: Bool
     public let activeSleepSession: ActiveSleepSessionViewState?
@@ -20,6 +19,8 @@ public struct ChildProfileScreenState: Equatable, Sendable {
     public let cloudKitStatus: CloudKitStatusViewState
     public let canShareChild: Bool
     public let pendingChanges: [PendingChangeSummaryItem]
+    public let availableChildren: [ChildSummary]
+    public let canCreateLocalChild: Bool
 
     public var canEditChild: Bool {
         ChildAccessPolicy.canPerform(.editChild, membership: currentMembership)
@@ -45,7 +46,6 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         activeCaregivers: [CaregiverMembershipViewState],
         pendingShareInvites: [PendingShareInviteViewState],
         removedCaregivers: [CaregiverMembershipViewState],
-        canSwitchChildren: Bool,
         canLogEvents: Bool,
         canManageEvents: Bool,
         activeSleepSession: ActiveSleepSessionViewState?,
@@ -55,7 +55,9 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         summary: SummaryScreenState,
         cloudKitStatus: CloudKitStatusViewState,
         canShareChild: Bool,
-        pendingChanges: [PendingChangeSummaryItem] = []
+        pendingChanges: [PendingChangeSummaryItem] = [],
+        availableChildren: [ChildSummary] = [],
+        canCreateLocalChild: Bool = false
     ) {
         self.child = child
         self.localUser = localUser
@@ -64,7 +66,6 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         self.activeCaregivers = activeCaregivers
         self.pendingShareInvites = pendingShareInvites
         self.removedCaregivers = removedCaregivers
-        self.canSwitchChildren = canSwitchChildren
         self.canLogEvents = canLogEvents
         self.canManageEvents = canManageEvents
         self.activeSleepSession = activeSleepSession
@@ -75,5 +76,7 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         self.cloudKitStatus = cloudKitStatus
         self.canShareChild = canShareChild
         self.pendingChanges = pendingChanges
+        self.availableChildren = availableChildren
+        self.canCreateLocalChild = canCreateLocalChild
     }
 }

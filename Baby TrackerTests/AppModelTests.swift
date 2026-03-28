@@ -93,6 +93,28 @@ struct AppModelTests {
         #expect(profile.eventHistory.events.count == 8)
     }
 
+
+
+    @Test
+    func modelExposesActiveChildrenForProfileSelection() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let secondChild = try harness.saveOwnedChild(
+            name: "Juniper",
+            owner: seed.localUser
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        #expect(harness.model.route == .childProfile)
+        #expect(harness.model.activeChildren.map(\.child.id) == [seed.child.id, secondChild.id])
+        let profile = try #require(harness.model.profile)
+        #expect(profile.availableChildren.map(\.child.id) == [seed.child.id, secondChild.id])
+        #expect(profile.canCreateLocalChild)
+    }
+
     @Test
     func timelineDerivesMixedDayBlocksOldestFirstWithSideBySideLayout() throws {
         let harness = try Harness()
