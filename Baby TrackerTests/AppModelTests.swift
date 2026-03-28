@@ -1255,7 +1255,7 @@ extension AppModelTests {
 
         func leaveShare(childID: UUID) async throws {}
 
-        func hardDeleteAllCloudData() async throws {}
+        func hardDeleteChildCloudData(childID: UUID) async throws {}
     }
 
     private enum TestSyncEngineError: Error {

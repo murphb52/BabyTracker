@@ -104,20 +104,24 @@ public final class AppModel {
         }
     }
 
-    public func hardDeleteAllData() {
+    public func hardDeleteCurrentChild() {
+        guard let profile, ChildAccessPolicy.isActiveOwner(profile.currentMembership) else { return }
+        let childID = profile.child.id
         Task { @MainActor in
             var cloudDeleteError: Error?
 
             do {
-                try await syncEngine.hardDeleteAllCloudData()
+                try await syncEngine.hardDeleteChildCloudData(childID: childID)
             } catch {
                 cloudDeleteError = error
-                AppLogger.shared.log(.error, category: "CloudKitSync", "Hard delete cloud cleanup failed: \(error.localizedDescription)")
+                AppLogger.shared.log(.error, category: "CloudKitSync", "Hard delete cloud cleanup failed for child \(childID): \(error.localizedDescription)")
             }
 
             do {
-                try userIdentityRepository.resetAllData()
-                childSelectionStore.saveSelectedChildID(nil)
+                try childRepository.purgeChildData(id: childID)
+                if childSelectionStore.loadSelectedChildID() == childID {
+                    childSelectionStore.saveSelectedChildID(nil)
+                }
                 clearUndoDeleteState()
                 refresh(selecting: nil)
                 if let cloudDeleteError {

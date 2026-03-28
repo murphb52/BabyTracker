@@ -16,7 +16,7 @@ public protocol CloudKitSyncControlling: AnyObject {
     func removeParticipant(membership: Membership) async throws
     func loadPendingChangeCounts() throws -> [SyncRecordType: Int]
     func leaveShare(childID: UUID) async throws
-    func hardDeleteAllCloudData() async throws
+    func hardDeleteChildCloudData(childID: UUID) async throws
 }
 
 extension CloudKitSyncEngine: CloudKitSyncControlling {}

@@ -66,14 +66,19 @@ public struct ChildProfileSettingsView: View {
                 }
             }
 
-            Section {
-                NavigationLink {
-                    ChildProfileHardDeleteView(hardDeleteAction: hardDeleteAction)
-                } label: {
-                    Text("Hard Delete")
-                        .foregroundStyle(.red)
+            if profile.canHardDelete {
+                Section {
+                    NavigationLink {
+                        ChildProfileHardDeleteView(
+                            childName: profile.child.name,
+                            hardDeleteAction: hardDeleteAction
+                        )
+                    } label: {
+                        Text("Hard Delete")
+                            .foregroundStyle(.red)
+                    }
+                    .accessibilityIdentifier("profile-hard-delete-row")
                 }
-                .accessibilityIdentifier("profile-hard-delete-row")
             }
         }
         .listStyle(.insetGrouped)

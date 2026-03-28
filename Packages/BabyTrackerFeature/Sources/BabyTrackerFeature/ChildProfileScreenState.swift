@@ -34,6 +34,10 @@ public struct ChildProfileScreenState: Equatable, Sendable {
         ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership)
     }
 
+    public var canHardDelete: Bool {
+        ChildAccessPolicy.isActiveOwner(currentMembership)
+    }
+
     public var canLeaveShare: Bool {
         currentMembership.role == .caregiver && currentMembership.status == .active
     }
