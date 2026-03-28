@@ -40,18 +40,26 @@ struct AppRootView: View {
         // detail screens do not remain visible above a new root route.
         .id(model.route)
         .overlay(alignment: .top) {
-            if let errorMessage = model.errorMessage {
-                ErrorBannerView(
-                    message: errorMessage,
-                    dismissAction: model.dismissError
-                )
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
+            ZStack(alignment: .topTrailing) {
+                if let errorMessage = model.errorMessage {
+                    ErrorBannerView(
+                        message: errorMessage,
+                        dismissAction: model.dismissError
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                }
+
+                if let syncBannerState = model.syncBannerState {
+                    SyncIndicatorView(state: syncBannerState)
+                        .padding(.top, 8)
+                        .padding(.trailing, 16)
+                }
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                model.refreshSyncStatus()
+                Task { await model.refreshSyncStatus() }
             }
         }
         .task {

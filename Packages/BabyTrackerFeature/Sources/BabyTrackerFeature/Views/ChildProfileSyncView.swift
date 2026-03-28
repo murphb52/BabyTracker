@@ -61,7 +61,7 @@ public struct ChildProfileSyncView: View {
 
             Section {
                 Button("Refresh Sync Status") {
-                    model.refreshSyncStatus()
+                    Task { await model.refreshSyncStatus() }
                 }
                 .accessibilityIdentifier("refresh-sync-status-button")
             }
@@ -69,7 +69,7 @@ public struct ChildProfileSyncView: View {
         .navigationTitle("iCloud Sync")
         .navigationBarTitleDisplayMode(.inline)
         .listStyle(.insetGrouped)
-        .task { model.refreshSyncStatus() }
+        .task { await model.refreshSyncStatus() }
     }
 
     private func syncStatusColor(for state: CloudKitStatusViewState) -> Color {
