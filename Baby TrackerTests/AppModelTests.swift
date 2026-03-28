@@ -269,7 +269,14 @@ struct AppModelTests {
 
     @Test
     func timelineShowsSyncMessageWhenSyncStatusIsNotUpToDate() async throws {
-        let harness = try Harness()
+        let syncEngine = TestSyncEngine()
+        syncEngine.refreshForegroundSummary = SyncStatusSummary(
+            state: .failed,
+            pendingRecordCount: 0,
+            lastSyncAt: nil,
+            lastErrorDescription: "Sync unavailable. Sign in to iCloud."
+        )
+        let harness = try Harness(syncEngine: syncEngine)
         defer { harness.cleanUp() }
 
         _ = try harness.seedOwnerProfile()
@@ -286,17 +293,20 @@ struct AppModelTests {
 
     @Test
     func syncIndicatorShowsTransientUnavailableStateAfterFailedRefresh() async throws {
-        let harness = try Harness()
+        let syncEngine = TestSyncEngine()
+        syncEngine.refreshForegroundSummary = SyncStatusSummary(
+            state: .failed,
+            pendingRecordCount: 0,
+            lastSyncAt: nil,
+            lastErrorDescription: "Sync unavailable. Sign in to iCloud."
+        )
+        let harness = try Harness(syncEngine: syncEngine)
         defer { harness.cleanUp() }
 
         _ = try harness.seedOwnerProfile()
         harness.model.load(performLaunchSync: false)
 
-        harness.model.refreshSyncStatus()
-
-        try await waitUntil(timeoutNanoseconds: 1_000_000_000) {
-            harness.model.syncBannerState != nil
-        }
+        await harness.model.refreshSyncStatus()
 
         guard let syncBannerState = harness.model.syncBannerState else {
             Issue.record("Expected sync banner state after refresh")
@@ -949,21 +959,6 @@ struct AppModelTests {
         timeline.pages[timeline.selectedPageIndex].blocks
     }
 
-    private func waitUntil(
-        timeoutNanoseconds: UInt64,
-        condition: @escaping @MainActor () -> Bool
-    ) async throws {
-        let start = DispatchTime.now().uptimeNanoseconds
-        while DispatchTime.now().uptimeNanoseconds - start < timeoutNanoseconds {
-            if await condition() {
-                return
-            }
-
-            try await Task.sleep(nanoseconds: 50_000_000)
-        }
-
-        Issue.record("Timed out waiting for condition")
-    }
 }
 
 extension AppModelTests {
@@ -977,11 +972,11 @@ extension AppModelTests {
         let membershipRepository: SwiftDataMembershipRepository
         let childSelectionStore: UserDefaultsChildSelectionStore
         let eventRepository: SwiftDataEventRepository
-        let syncStateRepository: SwiftDataSyncStateRepository
-        let syncEngine: CloudKitSyncEngine
+        let syncEngine: any CloudKitSyncControlling
         let model: AppModel
 
         init(
+            syncEngine: any CloudKitSyncControlling = TestSyncEngine(),
             liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager()
         ) throws {
             let userDefaults = UserDefaults(suiteName: suiteName)!
@@ -994,15 +989,7 @@ extension AppModelTests {
             self.membershipRepository = SwiftDataMembershipRepository(store: store)
             self.childSelectionStore = UserDefaultsChildSelectionStore(userDefaults: userDefaults)
             self.eventRepository = SwiftDataEventRepository(store: store)
-            self.syncStateRepository = SwiftDataSyncStateRepository(store: store)
-            self.syncEngine = CloudKitSyncEngine(
-                childRepository: childRepository,
-                userIdentityRepository: userIdentityRepository,
-                membershipRepository: membershipRepository,
-                eventRepository: eventRepository,
-                syncStateRepository: syncStateRepository,
-                client: UnavailableCloudKitClient()
-            )
+            self.syncEngine = syncEngine
             self.model = AppModel(
                 childRepository: childRepository,
                 userIdentityRepository: userIdentityRepository,
@@ -1199,5 +1186,57 @@ extension AppModelTests {
         func synchronize(with snapshot: FeedLiveActivitySnapshot?) {
             snapshots.append(snapshot)
         }
+    }
+}
+
+extension AppModelTests {
+    @MainActor
+    private final class TestSyncEngine: CloudKitSyncControlling {
+        var statusSummary = SyncStatusSummary()
+        var refreshForegroundSummary: SyncStatusSummary?
+
+        func prepareForLaunch() async -> SyncStatusSummary {
+            statusSummary
+        }
+
+        func refreshAfterLocalWrite() async -> SyncStatusSummary {
+            statusSummary
+        }
+
+        func refreshForeground() async -> SyncStatusSummary {
+            let summary = refreshForegroundSummary ?? statusSummary
+            statusSummary = summary
+            return summary
+        }
+
+        func refreshAfterRemoteNotification() async -> SyncStatusSummary {
+            statusSummary
+        }
+
+        func pendingInvites(for childID: UUID) -> [CloudKitPendingInvite] {
+            []
+        }
+
+        func consumeRemoteCaregiverEventChanges() -> [RemoteCaregiverEventChange] {
+            []
+        }
+
+        func prepareShare(for childID: UUID) async throws -> CloudKitSharePresentation {
+            throw TestSyncEngineError.unimplemented
+        }
+
+        func removeParticipant(membership: Membership) async throws {}
+
+        func loadPendingChangeCounts() throws -> [SyncRecordType: Int] {
+            [:]
+        }
+
+        func leaveShare(childID: UUID) async throws {}
+
+        func hardDeleteAllCloudData() async throws {}
+    }
+
+    private enum TestSyncEngineError: Error {
+        case unimplemented
     }
 }

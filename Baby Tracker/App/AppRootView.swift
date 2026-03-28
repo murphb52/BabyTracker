@@ -59,7 +59,7 @@ struct AppRootView: View {
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                model.refreshSyncStatus()
+                Task { await model.refreshSyncStatus() }
             }
         }
         .task {

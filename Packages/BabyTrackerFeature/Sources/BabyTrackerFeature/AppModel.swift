@@ -27,7 +27,7 @@ public final class AppModel {
     private let membershipRepository: any MembershipRepository
     private let childSelectionStore: any ChildSelectionStore
     private let eventRepository: EventRepository
-    private let syncEngine: CloudKitSyncEngine
+    private let syncEngine: any CloudKitSyncControlling
     private let liveActivityManager: any FeedLiveActivityManaging
     private let localNotificationManager: any LocalNotificationManaging
     private let buildTimelineStripDatasetUseCase = BuildTimelineStripDatasetUseCase()
@@ -47,7 +47,7 @@ public final class AppModel {
         membershipRepository: any MembershipRepository,
         childSelectionStore: any ChildSelectionStore,
         eventRepository: EventRepository,
-        syncEngine: CloudKitSyncEngine,
+        syncEngine: any CloudKitSyncControlling,
         liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager(),
         localNotificationManager: any LocalNotificationManaging = NoOpLocalNotificationManager()
     ) {
@@ -68,7 +68,9 @@ public final class AppModel {
             return
         }
 
-        runSyncRefresh { await self.syncEngine.prepareForLaunch() }
+        Task { @MainActor in
+            await runSyncRefresh { await self.syncEngine.prepareForLaunch() }
+        }
     }
 
     public func dismissError() {
@@ -80,11 +82,13 @@ public final class AppModel {
     }
 
     public func refreshAfterShareSheet() {
-        runSyncRefresh { await self.syncEngine.refreshForeground() }
+        Task { @MainActor in
+            await runSyncRefresh { await self.syncEngine.refreshForeground() }
+        }
     }
 
-    public func refreshSyncStatus() {
-        runSyncRefresh { await self.syncEngine.refreshForeground() }
+    public func refreshSyncStatus() async {
+        await runSyncRefresh { await self.syncEngine.refreshForeground() }
     }
 
     public func refreshAfterRemoteNotification() async -> SyncStatusSummary {
@@ -577,7 +581,9 @@ public final class AppModel {
         do {
             try operation()
             refresh(selecting: childSelectionStore.loadSelectedChildID())
-            runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
+            Task { @MainActor in
+                await runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
+            }
             return true
         } catch {
             errorMessage = resolveErrorMessage(for: error)
@@ -1449,7 +1455,7 @@ public final class AppModel {
                 )
                 csvImportState = .complete(result)
                 refresh(selecting: childSelectionStore.loadSelectedChildID())
-                runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
+                await runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
             } catch {
                 csvImportState = .error(resolveErrorMessage(for: error))
             }
@@ -1578,7 +1584,7 @@ public final class AppModel {
                 )
                 nestImportState = .complete(result)
                 refresh(selecting: childSelectionStore.loadSelectedChildID())
-                runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
+                await runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
             } catch {
                 nestImportState = .error(resolveErrorMessage(for: error))
             }
@@ -1605,13 +1611,11 @@ public final class AppModel {
 
     private func runSyncRefresh(
         _ operation: @escaping @MainActor () async -> SyncStatusSummary
-    ) {
-        Task { @MainActor in
-            setSyncIndicator(.syncing)
-            let summary = await operation()
-            refresh(selecting: childSelectionStore.loadSelectedChildID())
-            updateSyncIndicator(using: summary)
-        }
+    ) async {
+        setSyncIndicator(.syncing)
+        let summary = await operation()
+        refresh(selecting: childSelectionStore.loadSelectedChildID())
+        updateSyncIndicator(using: summary)
     }
 
     private func updateSyncIndicator(using summary: SyncStatusSummary) {
