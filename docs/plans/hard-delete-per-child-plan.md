@@ -1,66 +1,207 @@
-# Plan: Harden Hard Delete — Per-Child Scope
+# Plan: Three-Level Delete with Use Cases
 
 ## Context
 
-The current "Hard Delete" feature has several correctness and safety problems:
-- It is a global wipe of ALL children and ALL data, not scoped to a single child
-- A caregiver can trigger hard delete (no role guard in the UI or AppModel)
-- The CloudKit zone cleanup relies on local state only (Issue #57), leaving orphaned zones if local state is stale
-- `zoneNotFound` errors during cleanup are treated as failures, not no-ops
-- The user identity (name/ID) is wiped, requiring re-setup on next launch
-- For children where the user is a caregiver, it tries to delete CloudKit zones owned by someone else
+The existing delete surface is a single blunt "Hard Delete" that wipes all children and all local data globally, has no role guard (caregivers can trigger it), destroys the user's own identity, and makes incorrect CloudKit calls for zones owned by other users.
 
-The user's intent: **hard delete should clean up one child's data at a time, without destroying things for other users (including other children)**.
-
-Per-child hard delete fits cleanly with the existing architecture: each child already has its own CloudKit zone, and `purgeChildData(id:)` already exists in `SwiftDataChildRepository` to do scoped local cleanup.
+The goal is to replace this with three clearly-scoped, role-aware operations — each backed by a dedicated `UseCase` — that clean up data without damaging other users.
 
 ---
 
-## Problems Found
+## Current State (already landed)
 
-### 1. No role guard — caregiver can hard delete
-`ChildProfileSettingsView.swift:69–77` shows Hard Delete unconditionally. `AppModel.hardDeleteAllData()` has no ownership check. Any active caregiver can trigger it.
-
-### 2. Global scope — wipes all children, not just the current one
-`resetAllData()` deletes ALL `StoredChild`, ALL events, ALL memberships — regardless of which child is selected. A user with two children wipes both.
-
-### 3. User identity is wiped unnecessarily
-`resetAllData()` deletes `StoredUserIdentity` and clears `localUserID` from UserDefaults. Per-child delete has no reason to wipe the user's identity.
-
-### 4. CloudKit cleanup tries to delete zones the user doesn't own
-For children where the user is a caregiver (shared zone), the current code attempts to delete the zone — owned by someone else. CloudKit rejects this with a permission error.
-
-### 5. CloudKit cleanup is local-state-driven only (Issue #57)
-If local state is stale, orphaned `child-...` zones on the server survive. If a zone was already deleted server-side, the delete call throws `zoneNotFound` and fails instead of treating it as a success.
+Several changes were already made and are in place:
+- `ChildProfileScreenState.canHardDelete` computed property (owner-only guard)
+- `ChildProfileSettingsView` gates Hard Delete UI behind `canHardDelete`, passes `childName`
+- `ChildProfileHardDeleteView` updated with `childName` and per-child description text
+- `CloudKitSyncControlling.hardDeleteChildCloudData(childID:)` in protocol
+- `CloudKitSyncEngine.hardDeleteChildCloudData(childID:)` implemented with `zoneNotFound` as success and stale-state fallback
+- `AppModel.hardDeleteCurrentChild()` calling the above (owner-only, no formal UseCase yet)
 
 ---
 
-## Recommended Changes
+## Three Levels
 
-### A. Change `hardDeleteAllData()` → `hardDeleteCurrentChild()`
+### Level 1 — Archive (owner-only soft delete)
+**What it does:**
+- Sets `isArchived = true` on the child
+- Revokes all active caregiver memberships (status → `.removed`)
+- Fires `removeParticipant()` on CloudKit for each revoked caregiver
+- Clears child selection if needed
+- Child data is preserved; owner can restore later (caregivers would need to be re-invited)
 
-**File:** `AppModel.swift:107–131`
+**Who can trigger it:** Active owners only (`ChildAccessPolicy.canPerform(.archiveChild, ...)`)
 
-Replace the global approach with a per-child delete:
-1. Guard that `profile` exists and `ChildAccessPolicy.isActiveOwner(profile.currentMembership)` — owners only
-2. Capture `childID = profile.child.id`
-3. Delete the child's CloudKit zone (owned children only — private scope)
-4. Call the existing `childRepository.purgeChildData(id: childID)` for local cleanup
-5. Clear selected child if it was this child
-6. Do NOT touch user identity, other children, or their events
+### Level 2 — Hard Delete Child (role-aware, per-child)
+**Owner path:**
+1. Remove all CloudKit share participants (so caregivers cleanly lose access before zone deletion)
+2. Delete the child's CloudKit zone (`hardDeleteChildCloudData`)
+3. Purge all local data for the child (`purgeChildData`)
+
+**Caregiver path:**
+1. Leave the CloudKit share zone (`leaveShare`)
+2. Purge local data for that child (`purgeChildData`)
+
+**Who can trigger it:** Any active member (owner or caregiver). Role determines which CloudKit path is taken.
+
+**UI note:** The current Hard Delete button in settings is owner-only (`canHardDelete`). Caregiver equivalent ("Leave Child" or similar) can live in the Sharing view where `canLeaveShare` is already used — or a unified option can be added gated per-role. Scope of this plan: the UseCase and AppModel wiring; UI unification is a follow-on.
+
+### Level 3 — Nuke Everything (account-level reset)
+**What it does:**
+1. Loads all children the local user has any membership for
+2. For each child where user is a **caregiver**: leaves the CloudKit share
+3. For each child where user is an **owner**: deletes the CloudKit zone (via `hardDeleteChildCloudData`)
+4. Wipes ALL local data including user identity (`userIdentityRepository.resetAllData()`)
+5. Clears selection, undo state
+
+**Who can trigger it:** Any authenticated local user (it only touches their own data)
+
+**UI note:** Requires a new screen with heavy explanation and a two-step confirmation. This is account-level so it needs an entry point outside of per-child settings — likely a new "Account Settings" or "My Account" section accessible from the child list screen.
+
+---
+
+## Use Cases to Create / Modify
+
+### 1. Update `ArchiveCurrentChildUseCase` → `ArchiveChildUseCase`
+
+**File:** `Packages/BabyTrackerDomain/Sources/BabyTrackerDomain/UseCases/ArchiveCurrentChildUseCase.swift`
+
+**Changes:**
+- Rename struct to `ArchiveChildUseCase`
+- Add `membershipRepository: any MembershipRepository` as a constructor dependency
+- After setting `isArchived = true`, load all memberships for the child, call `membership.removed()` on each active caregiver membership, save each to `membershipRepository`
+- Change `Output` from `Void` to `[Membership]` (the revoked caregiver memberships)
+- AppModel's `archiveCurrentChild()` uses the returned memberships to fire async `syncEngine.removeParticipant()` for each
+
+**Updated signature:**
+```swift
+public func execute(_ input: Input) throws -> [Membership]
+// Returns revoked caregiver memberships for caller to clean up in CloudKit
+```
+
+### 2. New `HardDeleteChildUseCase`
+
+**File:** `Packages/BabyTrackerDomain/Sources/BabyTrackerDomain/UseCases/HardDeleteChildUseCase.swift`
+
+**Purpose:** Validates permissions and declares intent. No side effects — the caller (AppModel) performs the async CloudKit and sync local purge in the correct order (CloudKit first, local purge after).
 
 ```swift
+public enum HardDeleteChildIntent: Sendable {
+    case deleteOwnedZone    // owner: caller deletes zone, then purges local
+    case leaveCaregiverShare // caregiver: caller leaves share, then purges local
+}
+
+@MainActor
+public struct HardDeleteChildUseCase: UseCase {
+    public struct Input {
+        public let membership: Membership
+    }
+    public typealias Output = HardDeleteChildIntent
+
+    public func execute(_ input: Input) throws -> HardDeleteChildIntent {
+        guard input.membership.status == .active else {
+            throw ChildProfileValidationError.insufficientPermissions
+        }
+        return input.membership.role == .owner ? .deleteOwnedZone : .leaveCaregiverShare
+    }
+}
+```
+
+No repository dependencies needed — pure policy logic.
+
+### 3. New `NukeAllDataUseCase`
+
+**File:** `Packages/BabyTrackerDomain/Sources/BabyTrackerDomain/UseCases/NukeAllDataUseCase.swift`
+
+**Purpose:** Loads all children the user has memberships for and classifies them by role. Returns the CloudKit operations that need to fire. Does not mutate local state — that happens in AppModel after CloudKit cleanup (local context must be available for CloudKit zone IDs).
+
+```swift
+public struct NukeAllDataIntent: Sendable {
+    public let ownedChildIDs: [UUID]     // → caller fires hardDeleteChildCloudData for each
+    public let caregiverChildIDs: [UUID] // → caller fires leaveShare for each
+}
+
+@MainActor
+public struct NukeAllDataUseCase: UseCase {
+    public struct Input {
+        public let localUserID: UUID
+    }
+    public typealias Output = NukeAllDataIntent
+
+    private let childRepository: any ChildRepository
+    private let membershipRepository: any MembershipRepository
+
+    public func execute(_ input: Input) throws -> NukeAllDataIntent {
+        let allChildren = try childRepository.loadAllChildren()
+        var ownedIDs: [UUID] = []
+        var caregiverIDs: [UUID] = []
+        for child in allChildren {
+            let memberships = try membershipRepository.loadMemberships(for: child.id)
+            guard let mine = memberships.first(where: { $0.userID == input.localUserID && $0.status == .active }) else { continue }
+            if mine.role == .owner { ownedIDs.append(child.id) }
+            else { caregiverIDs.append(child.id) }
+        }
+        return NukeAllDataIntent(ownedChildIDs: ownedIDs, caregiverChildIDs: caregiverIDs)
+    }
+}
+```
+
+AppModel's `nukeAllData()` then:
+1. Calls the use case → gets `NukeAllDataIntent`
+2. Fires `syncEngine.leaveShare(childID:)` for each caregiver child
+3. Fires `syncEngine.hardDeleteChildCloudData(childID:)` for each owned child
+4. Calls `userIdentityRepository.resetAllData()` — wipes all local data including user identity
+5. Clears selection, undo state, refreshes
+
+---
+
+## AppModel Changes
+
+**File:** `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/AppModel.swift`
+
+### `archiveCurrentChild()`
+Update to use renamed `ArchiveChildUseCase` and handle the `[Membership]` return:
+```swift
+public func archiveCurrentChild() {
+    perform {
+        guard let profile else { return }
+        let revokedCaregivers = try ArchiveChildUseCase(
+            childRepository: childRepository,
+            membershipRepository: membershipRepository,
+            childSelectionStore: childSelectionStore
+        ).execute(.init(
+            child: profile.child,
+            membership: profile.currentMembership,
+            currentSelectedChildID: childSelectionStore.loadSelectedChildID()
+        ))
+        // Fire async CloudKit participant removal for each revoked caregiver
+        for membership in revokedCaregivers {
+            Task { @MainActor in
+                try? await syncEngine.removeParticipant(membership: membership)
+            }
+        }
+    }
+}
+```
+
+### `hardDeleteCurrentChild()`
+Update to use `HardDeleteChildUseCase` for role determination, and support the caregiver path:
+```swift
 public func hardDeleteCurrentChild() {
-    guard let profile, ChildAccessPolicy.isActiveOwner(profile.currentMembership) else { return }
+    guard let profile else { return }
+    let intent = try? HardDeleteChildUseCase().execute(.init(membership: profile.currentMembership))
+    guard let intent else { return }
     let childID = profile.child.id
     Task { @MainActor in
-        var cloudDeleteError: Error?
+        var cloudError: Error?
         do {
-            try await syncEngine.hardDeleteChildCloudData(childID: childID)
-        } catch {
-            cloudDeleteError = error
-            // log
-        }
+            switch intent {
+            case .deleteOwnedZone:
+                try await syncEngine.hardDeleteChildCloudData(childID: childID)
+            case .leaveCaregiverShare:
+                try await syncEngine.leaveShare(childID: childID)
+            }
+        } catch { cloudError = error }
         do {
             try childRepository.purgeChildData(id: childID)
             if childSelectionStore.loadSelectedChildID() == childID {
@@ -68,7 +209,7 @@ public func hardDeleteCurrentChild() {
             }
             clearUndoDeleteState()
             refresh(selecting: nil)
-            if let cloudDeleteError { errorMessage = ... }
+            if let cloudError { errorMessage = "Local data cleared, but iCloud cleanup failed: \(cloudError.localizedDescription)" }
         } catch {
             errorMessage = resolveErrorMessage(for: error)
         }
@@ -76,132 +217,99 @@ public func hardDeleteCurrentChild() {
 }
 ```
 
-### B. Add `hardDeleteChildCloudData(childID:)` to `CloudKitSyncEngine`
-
-**File:** `CloudKitSyncEngine.swift` + `CloudKitSyncControlling.swift`
-
-New method scoped to a single child:
-1. Try to load the local CloudKit context for this child (zone name + scope)
-2. If scope is `.private` (user is owner): verify the zone exists on the server, then delete it
-3. If scope is `.shared` (user is caregiver): should not be reachable (guarded at AppModel), but return early rather than attempt deletion
-4. If local context is missing: still attempt to delete the expected zone (`CloudKitRecordNames.zoneID(for: childID)`) from the private database (handles stale local state — Issue #57 case)
-5. Treat `CKError.zoneNotFound` as success (already gone = desired state)
-6. Log clearly: deleted, already gone, or failed with reason
-
+### New `nukeAllData()`
 ```swift
-public func hardDeleteChildCloudData(childID: UUID) async throws {
-    let zoneID: CKRecordZone.ID
-    if let context = try childRepository.loadCloudKitChildContext(id: childID) {
-        guard context.databaseScope == .private else { return } // caregiver — don't delete
-        zoneID = context.zoneID
-    } else {
-        zoneID = CloudKitRecordNames.zoneID(for: childID) // fallback for stale state
-    }
+public func nukeAllData() {
+    guard let localUser else { return }
+    Task { @MainActor in
+        let intent: NukeAllDataIntent
+        do {
+            intent = try NukeAllDataUseCase(
+                childRepository: childRepository,
+                membershipRepository: membershipRepository
+            ).execute(.init(localUserID: localUser.id))
+        } catch {
+            errorMessage = resolveErrorMessage(for: error)
+            return
+        }
 
-    do {
-        try await client.modifyRecordZones(saving: [], deleting: [zoneID], databaseScope: .private)
-    } catch let error as CKError where error.code == .zoneNotFound {
-        // Already gone — success
-        logger.info("Zone already deleted for child \(childID)")
+        // CloudKit cleanup (best effort — errors logged but don't block local wipe)
+        for childID in intent.caregiverChildIDs {
+            try? await syncEngine.leaveShare(childID: childID)
+        }
+        for childID in intent.ownedChildIDs {
+            try? await syncEngine.hardDeleteChildCloudData(childID: childID)
+        }
+
+        // Full local reset including user identity
+        do {
+            try userIdentityRepository.resetAllData()
+            childSelectionStore.saveSelectedChildID(nil)
+            clearUndoDeleteState()
+            refresh(selecting: nil)
+        } catch {
+            errorMessage = resolveErrorMessage(for: error)
+        }
     }
-    // Other errors propagate to caller
 }
 ```
 
-### C. Gate hard delete to owners in the UI
+---
 
-**File:** `ChildProfileScreenState.swift`
+## UI Changes
 
-Add a computed property:
-```swift
-public var canHardDelete: Bool {
-    ChildAccessPolicy.isActiveOwner(currentMembership)
-}
-```
+### Archive (existing, minor update)
+`ChildProfileSettingsView` already shows Archive for `profile.canArchiveChild` (owner-only). No UI change needed — the use case update handles the caregiver revocation automatically.
 
-**File:** `ChildProfileSettingsView.swift:69–77`
+### Hard Delete Child (existing, already done)
+`ChildProfileHardDeleteView` with `childName` already done. The button currently routes to `model.hardDeleteCurrentChild()`. Once AppModel is updated to use the use case and support the caregiver path, UI is already correct for owners. Caregiver entry-point (e.g. from Sharing view) can be wired to the same `hardDeleteCurrentChild()` — it'll take the leave-share path automatically.
 
-Wrap Hard Delete `NavigationLink` behind `if profile.canHardDelete`.
+### Nuke Everything (new)
 
-### D. Update call site in `ChildWorkspaceTabView`
+**New file:** `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/Views/NukeAllDataView.swift`
 
-**File:** `ChildWorkspaceTabView.swift:82`
+- List with two explanation sections:
+  - Section 1: What will be deleted (all owned children and their data, all caregiver shares removed, your account identity removed)
+  - Section 2: What won't be deleted (other users' data is unaffected)
+- Button: "Erase Everything" (destructive)
+- First confirmation alert: "Are you sure?"
+- Second confirmation: require user to type "DELETE" or similar to confirm (optional — at minimum, two-tap confirmation)
+- Calls `model.nukeAllData()`
 
-Change:
-```swift
-hardDeleteAction: { model.hardDeleteAllData() }
-```
-to:
-```swift
-hardDeleteAction: { model.hardDeleteCurrentChild() }
-```
-
-### E. Update `ChildProfileHardDeleteView` text
-
-**File:** `ChildProfileHardDeleteView.swift`
-
-Update description to reflect per-child scope:
-- "This permanently removes **[child name]**'s profile and all logged events from this device and iCloud."
-- "Other children in your account are not affected."
-- Remove the "start over" framing — this is per-child cleanup, not a factory reset.
-
-### F. Optional: Add `allZones(databaseScope:)` for fuller Issue #57 coverage
-
-**Files:** `CloudKitClient.swift`, `LiveCloudKitClient.swift`, `UnavailableCloudKitClient.swift`
-
-If we want to enumerate ALL server-side `child-...` zones and compare against local state (to find stale/orphaned zones), add:
-
-```swift
-func allZones(databaseScope: CKDatabase.Scope) async throws -> [CKRecordZone]
-```
-
-Implement with `CKFetchRecordZonesOperation.fetchAllRecordZonesOperation()`.
-
-This enables the full Issue #57 vision (enumerate from server, delete any stale `child-...` zones not found locally). This is a follow-on enhancement and can be deferred — changes A–E already address the core correctness problems and the `zoneNotFound` handling.
+**Entry point:** Add "Account" or "Danger Zone" section to the child list / no-child state screen (or top-level app settings). The specific placement depends on existing navigation structure — scope of this plan is the view and AppModel wiring only.
 
 ---
 
-## What Does NOT Change
-
-- `resetAllData()` is left alone (or can be removed/made private if no longer called). The user identity wipe is no longer part of hard delete.
-- The `leaveChildShare()` flow for caregivers is unchanged — caregivers use "Leave Share" not "Hard Delete".
-- `purgeChildData(id:)` is reused as-is — it already does the right per-child local cleanup.
-
----
-
-## Files to Modify
+## Files to Create / Modify
 
 | File | Change |
 |------|--------|
-| `ChildProfileScreenState.swift` | Add `canHardDelete` computed property |
-| `ChildProfileSettingsView.swift` | Gate Hard Delete link behind `profile.canHardDelete` |
-| `AppModel.swift` | Replace `hardDeleteAllData()` with `hardDeleteCurrentChild()` |
-| `ChildWorkspaceTabView.swift` | Update call site to `hardDeleteCurrentChild()` |
-| `CloudKitSyncControlling.swift` | Add `hardDeleteChildCloudData(childID:)` to protocol |
-| `CloudKitSyncEngine.swift` | Implement `hardDeleteChildCloudData(childID:)` with zoneNotFound handling |
-| `UnavailableCloudKitClient.swift` | Add stub if needed |
-| `ChildProfileHardDeleteView.swift` | Update description text to reflect per-child scope |
-| `AppModelTests.swift` | Update test mock and tests for renamed method |
+| `UseCases/ArchiveCurrentChildUseCase.swift` | Rename to `ArchiveChildUseCase`, add caregiver revocation, change output to `[Membership]`, add `membershipRepository` dependency |
+| `UseCases/HardDeleteChildUseCase.swift` | **New** — pure policy use case, returns `HardDeleteChildIntent` |
+| `UseCases/NukeAllDataUseCase.swift` | **New** — classifies all children by role, returns `NukeAllDataIntent` |
+| `AppModel.swift` | Update `archiveCurrentChild()`, update `hardDeleteCurrentChild()` to use use case + caregiver path, add `nukeAllData()` |
+| `Views/NukeAllDataView.swift` | **New** — heavily confirmed nuke screen |
+| `AppModelTests.swift` | Add tests for all three operations |
+
+**No new CloudKit protocol methods needed** — `hardDeleteChildCloudData` and `leaveShare` are sufficient for all three levels.
 
 ---
 
 ## Issue #57 Coverage
 
-Changes B and the `zoneNotFound` handling directly address Issue #57's core concern. Specifically:
-- Fallback to `CloudKitRecordNames.zoneID(for: childID)` when local context is missing = handles stale local state
-- `zoneNotFound` during cleanup = success, not error
-- Scoping to `.private` only = won't attempt to delete zones the user doesn't own
-
-Full server-side zone enumeration (the optional change F) would close Issue #57 completely — detecting ALL orphaned zones regardless of local state. This can be a separate follow-on.
+Already addressed by the existing `hardDeleteChildCloudData` implementation:
+- Stale-state fallback: falls back to canonical zone name when local context is missing
+- `zoneNotFound` treated as success
+- Only deletes owned (private) zones — never attempts to delete shared zones
 
 ---
 
 ## Verification
 
-1. **Caregiver cannot see Hard Delete**: Log in as caregiver → navigate to Settings → Hard Delete row absent
-2. **Owner can hard delete current child**: Select a child, trigger hard delete → only that child's data removed, other children intact, user identity/name preserved
-3. **Multiple children**: Owner with 2 children → hard delete Child A → Child B still accessible
-4. **Stale local state**: Delete child zone from CloudKit directly → run hard delete → no error, operation succeeds
-5. **`zoneNotFound` is a no-op**: Simulate zone already deleted → confirm it's treated as success in logs
-6. **User identity preserved**: After hard delete, app re-launches, user's display name is intact
-7. **Tests pass**: `AppModelTests.swift` updated to match renamed method
+1. **Archive removes caregivers**: Archive a child with active caregivers → caregivers' local view of that child disappears on next sync, CloudKit share participant removed
+2. **Archive is owner-only**: Log in as caregiver → Settings → "Archive Child" row absent
+3. **Hard Delete Child (owner)**: Select owned child → Hard Delete → only that child gone, user identity and other children intact
+4. **Hard Delete Child (caregiver, via leave share)**: Wire caregiver path → child removed locally, owner's data untouched
+5. **Nuke (owned + caregiver mix)**: User owns Child A, is caregiver for Child B → Nuke → both removed locally, Child B still exists under its owner, user identity wiped, app shows onboarding on relaunch
+6. **Nuke with stale state**: Manually delete a zone on server before nuking → nuke completes without error
+7. **Tests**: All three use cases covered with unit tests using in-memory repositories
