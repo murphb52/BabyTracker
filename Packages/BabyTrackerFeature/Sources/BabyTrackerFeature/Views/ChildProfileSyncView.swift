@@ -64,6 +64,11 @@ public struct ChildProfileSyncView: View {
                     Task { await model.refreshSyncStatus() }
                 }
                 .accessibilityIdentifier("refresh-sync-status-button")
+
+                Button("Complete Refresh") {
+                    Task { await model.forceFullSyncRefresh() }
+                }
+                .accessibilityIdentifier("complete-refresh-sync-button")
             }
         }
         .navigationTitle("iCloud Sync")

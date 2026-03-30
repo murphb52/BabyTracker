@@ -46,7 +46,8 @@ public struct ChildWorkspaceTabView: View {
                 pendingDeleteEvent: deleteCandidate,
                 confirmDelete: performDelete,
                 cancelDelete: cancelDelete,
-                onFilterUpdate: model.updateEventFilter
+                onFilterUpdate: model.updateEventFilter,
+                onRefresh: model.forceFullSyncRefresh
             )
             .tag(Tab.events)
             .tabItem {

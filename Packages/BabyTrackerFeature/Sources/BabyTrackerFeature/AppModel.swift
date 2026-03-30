@@ -109,6 +109,10 @@ public final class AppModel {
         await runSyncRefresh { await self.syncEngine.refreshForeground() }
     }
 
+    public func forceFullSyncRefresh() async {
+        await runSyncRefresh { await self.syncEngine.forceFullRefresh() }
+    }
+
     public func refreshAfterRemoteNotification() async -> SyncStatusSummary {
         let summary = await syncEngine.refreshAfterRemoteNotification()
         await scheduleRemoteSyncNotificationIfNeeded()

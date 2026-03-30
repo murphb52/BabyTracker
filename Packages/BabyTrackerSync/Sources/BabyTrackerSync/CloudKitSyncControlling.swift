@@ -9,6 +9,7 @@ public protocol CloudKitSyncControlling: AnyObject {
     func prepareForLaunch() async -> SyncStatusSummary
     func refreshAfterLocalWrite() async -> SyncStatusSummary
     func refreshForeground() async -> SyncStatusSummary
+    func forceFullRefresh() async -> SyncStatusSummary
     func refreshAfterRemoteNotification() async -> SyncStatusSummary
     func pendingInvites(for childID: UUID) -> [CloudKitPendingInvite]
     func consumeRemoteCaregiverEventChanges() -> [RemoteCaregiverEventChange]
