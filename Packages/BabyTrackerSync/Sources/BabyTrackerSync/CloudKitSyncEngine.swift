@@ -27,6 +27,7 @@ public final class CloudKitSyncEngine {
     private let membershipRepository: any CloudKitMembershipRepository
     private let eventRepository: EventRepository
     private let syncStateRepository: SyncStateRepository
+    private let recordMetadataRepository: any CloudKitRecordMetadataRepository
     private let client: CloudKitClient
 
     private var pendingInvitesByChildID: [UUID: [CloudKitPendingInvite]] = [:]
@@ -45,6 +46,7 @@ public final class CloudKitSyncEngine {
         membershipRepository: any CloudKitMembershipRepository,
         eventRepository: EventRepository,
         syncStateRepository: SyncStateRepository,
+        recordMetadataRepository: any CloudKitRecordMetadataRepository,
         client: CloudKitClient = LiveCloudKitClient()
     ) {
         self.childRepository = childRepository
@@ -52,6 +54,7 @@ public final class CloudKitSyncEngine {
         self.membershipRepository = membershipRepository
         self.eventRepository = eventRepository
         self.syncStateRepository = syncStateRepository
+        self.recordMetadataRepository = recordMetadataRepository
         self.client = client
     }
 
@@ -632,7 +635,7 @@ public final class CloudKitSyncEngine {
         let outboundRecords = try buildOutboundRecords(
             for: childID,
             references: childPendingRecords,
-            zoneID: context.zoneID
+            context: context
         )
 
         guard !outboundRecords.isEmpty else {
@@ -647,14 +650,19 @@ public final class CloudKitSyncEngine {
             saving: outboundRecords.map(\.record),
             deleting: [],
             databaseScope: context.databaseScope,
-            savePolicy: .changedKeys,
+            savePolicy: .ifServerRecordUnchanged,
             atomically: false
         )
 
         for outboundRecord in outboundRecords {
             if let result = results.saveResults[outboundRecord.record.recordID] {
                 switch result {
-                case .success:
+                case let .success(savedRecord):
+                    try recordMetadataRepository.saveSystemFields(
+                        CloudKitSystemFieldsCoder.encode(savedRecord),
+                        for: savedRecord.recordID,
+                        databaseScope: context.databaseScope
+                    )
                     try syncStateRepository.updateSyncState(
                         for: outboundRecord.reference,
                         state: .upToDate,
@@ -743,7 +751,7 @@ public final class CloudKitSyncEngine {
         let savedTypes = filteredSaves.map(\.recordType).joined(separator: ", ")
         logger.info("pushZoneSnapshot '\(child.name, privacy: .private)' — saving \(filteredSaves.count, privacy: .public) record(s) to \(context.databaseScope.logDescription, privacy: .public): [\(savedTypes, privacy: .public)]")
         AppLogger.shared.log(.info, category: "CloudKitSync", "pushZoneSnapshot — saving \(filteredSaves.count) record(s) to \(context.databaseScope.logDescription): [\(savedTypes)]")
-        _ = try await client.modifyRecords(
+        let results = try await client.modifyRecords(
             saving: filteredSaves,
             deleting: [],
             databaseScope: context.databaseScope,
@@ -752,6 +760,16 @@ public final class CloudKitSyncEngine {
         )
         logger.info("pushZoneSnapshot '\(child.name, privacy: .private)' — modifyRecords succeeded")
         AppLogger.shared.log(.info, category: "CloudKitSync", "pushZoneSnapshot — modifyRecords succeeded")
+
+        for record in filteredSaves {
+            if case let .success(savedRecord)? = results.saveResults[record.recordID] {
+                try recordMetadataRepository.saveSystemFields(
+                    CloudKitSystemFieldsCoder.encode(savedRecord),
+                    for: savedRecord.recordID,
+                    databaseScope: context.databaseScope
+                )
+            }
+        }
 
         try syncStateRepository.updateSyncState(
             for: SyncRecordReference(recordType: .child, recordID: child.id, childID: child.id),
@@ -894,6 +912,12 @@ public final class CloudKitSyncEngine {
     }
 
     private func save(record: CKRecord, within context: CloudKitChildContext) throws {
+        try recordMetadataRepository.saveSystemFields(
+            CloudKitSystemFieldsCoder.encode(record),
+            for: record.recordID,
+            databaseScope: context.databaseScope
+        )
+
         switch record.recordType {
         case CloudKitConfiguration.childRecordType:
             let child = try CloudKitRecordMapper.child(from: record)
@@ -1005,6 +1029,11 @@ public final class CloudKitSyncEngine {
         _ deletion: CloudKitRecordZoneDeletion,
         within context: CloudKitChildContext
     ) throws {
+        try recordMetadataRepository.deleteSystemFields(
+            for: deletion.recordID,
+            databaseScope: context.databaseScope
+        )
+
         if deletion.recordType == CloudKitConfiguration.childRecordType {
             let childID = childID(fromRecordName: deletion.recordID.recordName)
             try childRepository.purgeChildData(id: childID)
@@ -1265,7 +1294,7 @@ public final class CloudKitSyncEngine {
     private func buildOutboundRecords(
         for childID: UUID,
         references: [SyncRecordReference],
-        zoneID: CKRecordZone.ID
+        context: CloudKitChildContext
     ) throws -> [OutboundRecord] {
         var outboundRecords: [OutboundRecord] = []
         var seen = Set<SyncRecordReference>()
@@ -1276,7 +1305,7 @@ public final class CloudKitSyncEngine {
             }
             seen.insert(reference)
 
-            guard let record = try outboundRecord(for: reference, childID: childID, zoneID: zoneID) else {
+            guard let record = try outboundRecord(for: reference, childID: childID, context: context) else {
                 continue
             }
             outboundRecords.append(record)
@@ -1288,8 +1317,10 @@ public final class CloudKitSyncEngine {
     private func outboundRecord(
         for reference: SyncRecordReference,
         childID: UUID,
-        zoneID: CKRecordZone.ID
+        context: CloudKitChildContext
     ) throws -> OutboundRecord? {
+        let zoneID = context.zoneID
+
         switch reference.recordType {
         case .child:
             guard let child = try childRepository.loadChild(id: reference.recordID) else {
@@ -1297,7 +1328,10 @@ public final class CloudKitSyncEngine {
             }
             return OutboundRecord(
                 reference: SyncRecordReference(recordType: .child, recordID: child.id, childID: child.id),
-                record: CloudKitRecordMapper.childRecord(from: child, zoneID: zoneID)
+                record: try hydratedRecord(
+                    from: CloudKitRecordMapper.childRecord(from: child, zoneID: zoneID),
+                    databaseScope: context.databaseScope
+                )
             )
         case .user:
             guard let user = try userIdentityRepository.loadUsers(for: [reference.recordID]).first else {
@@ -1305,7 +1339,10 @@ public final class CloudKitSyncEngine {
             }
             return OutboundRecord(
                 reference: SyncRecordReference(recordType: .user, recordID: user.id),
-                record: CloudKitRecordMapper.userRecord(from: user, childID: childID, zoneID: zoneID)
+                record: try hydratedRecord(
+                    from: CloudKitRecordMapper.userRecord(from: user, childID: childID, zoneID: zoneID),
+                    databaseScope: context.databaseScope
+                )
             )
         case .membership:
             guard let membership = try membershipRepository.loadMemberships(for: childID)
@@ -1314,7 +1351,10 @@ public final class CloudKitSyncEngine {
             }
             return OutboundRecord(
                 reference: SyncRecordReference(recordType: .membership, recordID: membership.id, childID: membership.childID),
-                record: CloudKitRecordMapper.membershipRecord(from: membership, zoneID: zoneID)
+                record: try hydratedRecord(
+                    from: CloudKitRecordMapper.membershipRecord(from: membership, zoneID: zoneID),
+                    databaseScope: context.databaseScope
+                )
             )
         case .breastFeedEvent, .bottleFeedEvent, .sleepEvent, .nappyEvent:
             guard let event = try eventRepository.loadEvent(id: reference.recordID) else {
@@ -1326,7 +1366,10 @@ public final class CloudKitSyncEngine {
                     recordID: event.id,
                     childID: event.metadata.childID
                 ),
-                record: CloudKitRecordMapper.eventRecord(from: event, zoneID: zoneID)
+                record: try hydratedRecord(
+                    from: CloudKitRecordMapper.eventRecord(from: event, zoneID: zoneID),
+                    databaseScope: context.databaseScope
+                )
             )
         }
     }
@@ -1341,6 +1384,35 @@ public final class CloudKitSyncEngine {
 
         let memberships = (try? membershipRepository.loadMemberships(for: childID)) ?? []
         return memberships.contains { $0.userID == reference.recordID }
+    }
+
+    private func hydratedRecord(
+        from desiredRecord: CKRecord,
+        databaseScope: CKDatabase.Scope
+    ) throws -> CKRecord {
+        guard let systemFields = try recordMetadataRepository.loadSystemFields(
+            for: desiredRecord.recordID,
+            databaseScope: databaseScope
+        ) else {
+            return desiredRecord
+        }
+
+        let hydratedRecord = try CloudKitSystemFieldsCoder.decodeRecord(from: systemFields)
+        applyMutableValues(
+            from: desiredRecord,
+            to: hydratedRecord
+        )
+        return hydratedRecord
+    }
+
+    private func applyMutableValues(
+        from source: CKRecord,
+        to destination: CKRecord
+    ) {
+        for key in CloudKitRecordMapper.mutableFieldKeys(for: source.recordType) {
+            destination[key] = source[key]
+        }
+        destination.parent = source.parent
     }
 }
 

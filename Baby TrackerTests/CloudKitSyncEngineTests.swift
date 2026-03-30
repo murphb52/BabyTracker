@@ -21,6 +21,7 @@ struct CloudKitSyncEngineTests {
         let membershipRepository = SwiftDataMembershipRepository(store: store)
         let eventRepository = SwiftDataEventRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
+        let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
         let client = CloudKitClientSpy()
         let syncEngine = CloudKitSyncEngine(
             childRepository: childRepository,
@@ -28,6 +29,7 @@ struct CloudKitSyncEngineTests {
             membershipRepository: membershipRepository,
             eventRepository: eventRepository,
             syncStateRepository: syncStateRepository,
+            recordMetadataRepository: recordMetadataRepository,
             client: client
         )
 
@@ -72,6 +74,7 @@ struct CloudKitSyncEngineTests {
         let membershipRepository = SwiftDataMembershipRepository(store: store)
         let eventRepository = SwiftDataEventRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
+        let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
         let client = CloudKitClientSpy()
         let syncEngine = CloudKitSyncEngine(
             childRepository: childRepository,
@@ -79,6 +82,7 @@ struct CloudKitSyncEngineTests {
             membershipRepository: membershipRepository,
             eventRepository: eventRepository,
             syncStateRepository: syncStateRepository,
+            recordMetadataRepository: recordMetadataRepository,
             client: client
         )
 
@@ -110,6 +114,7 @@ struct CloudKitSyncEngineTests {
         let membershipRepository = SwiftDataMembershipRepository(store: store)
         let eventRepository = SwiftDataEventRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
+        let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
         let client = CloudKitClientSpy()
         let syncEngine = CloudKitSyncEngine(
             childRepository: childRepository,
@@ -117,6 +122,7 @@ struct CloudKitSyncEngineTests {
             membershipRepository: membershipRepository,
             eventRepository: eventRepository,
             syncStateRepository: syncStateRepository,
+            recordMetadataRepository: recordMetadataRepository,
             client: client
         )
 
@@ -233,6 +239,8 @@ struct CloudKitSyncEngineTests {
         #expect(!pendingAfterRefresh.contains { $0.recordType == .bottleFeedEvent })
         let finalPrivateBatch = try #require((await client.savedRecordBatches).last(where: { $0.databaseScope == .private }))
         #expect(Set(finalPrivateBatch.recordTypes) == ["UserIdentity", "BottleFeedEvent"])
+        let finalPrivateSavePolicy = try #require((await client.savedRecordBatches).last(where: { $0.databaseScope == .private })?.savePolicy)
+        #expect(finalPrivateSavePolicy == .ifServerRecordUnchanged)
     }
 
     @Test
@@ -249,6 +257,7 @@ struct CloudKitSyncEngineTests {
         let membershipRepository = SwiftDataMembershipRepository(store: store)
         let eventRepository = SwiftDataEventRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
+        let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
         let client = CloudKitClientSpy()
         let syncEngine = CloudKitSyncEngine(
             childRepository: childRepository,
@@ -256,6 +265,7 @@ struct CloudKitSyncEngineTests {
             membershipRepository: membershipRepository,
             eventRepository: eventRepository,
             syncStateRepository: syncStateRepository,
+            recordMetadataRepository: recordMetadataRepository,
             client: client
         )
 
@@ -342,6 +352,7 @@ struct CloudKitSyncEngineTests {
         let membershipRepository = SwiftDataMembershipRepository(store: store)
         let eventRepository = SwiftDataEventRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
+        let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
         let client = CloudKitClientSpy()
         let syncEngine = CloudKitSyncEngine(
             childRepository: childRepository,
@@ -349,6 +360,7 @@ struct CloudKitSyncEngineTests {
             membershipRepository: membershipRepository,
             eventRepository: eventRepository,
             syncStateRepository: syncStateRepository,
+            recordMetadataRepository: recordMetadataRepository,
             client: client
         )
 
@@ -491,7 +503,7 @@ private actor CloudKitClientSpy: CloudKitClient {
     private(set) var zoneChangeZoneIDs: [CKRecordZone.ID] = []
     private(set) var zoneChangeRequests: [(zoneID: CKRecordZone.ID, databaseScope: CKDatabase.Scope, tokenWasNil: Bool)] = []
     private(set) var savedSubscriptionIDs: [String] = []
-    private(set) var savedRecordBatches: [(databaseScope: CKDatabase.Scope, recordTypes: [String])] = []
+    private(set) var savedRecordBatches: [(databaseScope: CKDatabase.Scope, recordTypes: [String], savePolicy: CKModifyRecordsOperation.RecordSavePolicy)] = []
     private var databaseSubscriptionsByID: [String: CKSubscription] = [:]
     private var recordsByID: [CKRecord.ID: CKRecord] = [:]
     private var knownRecordTypesByZoneID: [CKRecordZone.ID: Set<String>] = [:]
@@ -582,11 +594,11 @@ private actor CloudKitClientSpy: CloudKitClient {
         saveResults: [CKRecord.ID: Result<CKRecord, Error>],
         deleteResults: [CKRecord.ID: Result<Void, Error>]
     ) {
-        _ = savePolicy
         _ = atomically
         savedRecordBatches.append((
             databaseScope: databaseScope,
-            recordTypes: records.map(\.recordType)
+            recordTypes: records.map(\.recordType),
+            savePolicy: savePolicy
         ))
 
         for record in records {

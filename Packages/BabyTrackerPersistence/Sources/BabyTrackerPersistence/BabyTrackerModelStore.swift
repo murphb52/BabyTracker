@@ -13,6 +13,7 @@ public final class BabyTrackerModelStore {
             StoredBottleFeedEvent.self,
             StoredSleepEvent.self,
             StoredNappyEvent.self,
+            StoredCloudKitRecordMetadata.self,
             StoredSyncAnchor.self,
         ])
         let configuration = ModelConfiguration(
