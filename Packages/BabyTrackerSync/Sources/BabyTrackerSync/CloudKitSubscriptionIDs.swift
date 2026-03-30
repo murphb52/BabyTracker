@@ -14,4 +14,8 @@ enum CloudKitSubscriptionIDs {
             return "com.adappt.BabyTracker.subscription.database.unknown"
         }
     }
+
+    static func privateZoneSubscriptionID(for zoneID: CKRecordZone.ID) -> String {
+        "com.adappt.BabyTracker.subscription.zone.private.\(zoneID.zoneName)"
+    }
 }
