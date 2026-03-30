@@ -4,21 +4,30 @@ import SwiftUI
 
 struct FeedLiveActivityContentView: View {
     let state: FeedLiveActivityAttributes.ContentState
+    let showsStopSleepAction: Bool
+
+    init(
+        state: FeedLiveActivityAttributes.ContentState,
+        showsStopSleepAction: Bool = true
+    ) {
+        self.state = state
+        self.showsStopSleepAction = showsStopSleepAction
+    }
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(alignment: .center, spacing: 4) {
             Text(state.childName)
                 .font(.headline)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
 
-            HStack(spacing: 8) {
+            HStack(alignment: .center, spacing: 4) {
                 metricTile(
                     title: "Feed",
                     icon: symbolName(for: state.lastFeedKind),
                     color: eventAccentColor(for: .bottleFeed)
                 ) {
-                    Text(state.lastFeedAt, style: .timer)
+                    Text(state.lastFeedAt, style: .timer).timerStyle()
                 }
 
                 metricTile(
@@ -27,9 +36,9 @@ struct FeedLiveActivityContentView: View {
                     color: eventAccentColor(for: .sleep)
                 ) {
                     if let activeSleepStartedAt = state.activeSleepStartedAt {
-                        Text(activeSleepStartedAt, style: .timer)
+                        Text(activeSleepStartedAt, style: .timer).timerStyle()
                     } else if let lastSleepAt = state.lastSleepAt {
-                        Text(lastSleepAt, style: .timer)
+                        Text(lastSleepAt, style: .timer).timerStyle()
                     } else {
                         Text("—")
                     }
@@ -41,14 +50,14 @@ struct FeedLiveActivityContentView: View {
                     color: eventAccentColor(for: .nappy)
                 ) {
                     if let lastNappyAt = state.lastNappyAt {
-                        Text(lastNappyAt, style: .timer)
+                        Text(lastNappyAt, style: .timer).timerStyle()
                     } else {
                         Text("—")
                     }
                 }
             }
 
-            if let stopURL = stopSleepURL {
+            if showsStopSleepAction, let stopURL = stopSleepURL {
                 Link(destination: stopURL) {
                     Label("Stop Sleep", systemImage: "stop.fill")
                         .font(.footnote.weight(.semibold))
@@ -59,7 +68,7 @@ struct FeedLiveActivityContentView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
@@ -77,8 +86,8 @@ struct FeedLiveActivityContentView: View {
         color: Color,
         @ViewBuilder value: () -> some View
     ) -> some View {
-        VStack(spacing: 3) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
+        VStack(alignment: .center, spacing: 3) {
+            HStack(alignment: .center, spacing: 4) {
                 Image(systemName: icon)
                     .frame(width: 14)
                 Text(title)
@@ -95,9 +104,8 @@ struct FeedLiveActivityContentView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .foregroundStyle(.primary)
-                .frame(height: 24, alignment: .top)
+                .frame(height: 24, alignment: .center)
         }
-        .frame(maxWidth: .infinity)
     }
 
     private func symbolName(for kind: BabyEventKind) -> String {
@@ -123,6 +131,39 @@ struct FeedLiveActivityContentView: View {
             Color(red: 0.29, green: 0.33, blue: 0.73)
         case .nappy:
             Color(red: 0.74, green: 0.47, blue: 0.16)
+        }
+    }
+}
+
+#Preview("Recent Feed") {
+    FeedLiveActivityContentView(state: .previewRecentFeed)
+}
+
+#Preview("Active Sleep") {
+    FeedLiveActivityContentView(state: .previewActiveSleep)
+}
+
+#Preview("Missing Metrics") {
+    FeedLiveActivityContentView(state: .previewMissingMetrics)
+}
+
+#Preview("Expanded Metrics Only") {
+    FeedLiveActivityContentView(
+        state: .previewActiveSleep,
+        showsStopSleepAction: false
+    )
+}
+
+extension Text {
+    func timerStyle() -> some View {
+        HStack(alignment: .center) {
+            Spacer()
+            Text("00:00:00")
+                .hidden()
+                .overlay {
+                    self
+                }
+            Spacer()
         }
     }
 }

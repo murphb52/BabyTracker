@@ -13,47 +13,23 @@ struct FeedLiveActivityWidget: Widget {
                 .widgetURL(FeedLiveActivityDeepLink.endSleepURL(childID: context.state.childID))
         } dynamicIsland: { context in
             DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) {
-                    VStack(alignment: .center, spacing: 0) {
-                        Color.clear
-                            .frame(width: 12, height: 24)
-                        metricIcon(symbol: symbolName(for: context.state.lastFeedKind), color: eventAccentColor(for: .bottleFeed))
-                        metricIcon(symbol: symbolName(for: .sleep), color: eventAccentColor(for: .sleep))
-                        metricIcon(symbol: symbolName(for: .nappy), color: eventAccentColor(for: .nappy))
-                    }
-                }
-
                 DynamicIslandExpandedRegion(.center) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(context.state.childName)
-                            .font(.headline)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .frame(height: 24, alignment: .topLeading)
-                        metricRow(label: "Feed", valueDate: context.state.lastFeedAt)
-                        metricRow(
-                            label: context.state.activeSleepStartedAt == nil ? "Since sleep" : "Asleep",
-                            valueDate: context.state.activeSleepStartedAt ?? context.state.lastSleepAt
-                        )
-                        metricRow(label: "Nappy", valueDate: context.state.lastNappyAt)
-                    }
-                }
-
-                DynamicIslandExpandedRegion(.trailing) {
-                    if let stopURL = stopSleepURL(for: context.state) {
-                        Link(destination: stopURL) {
-                            Label("Stop", systemImage: "stop.fill")
-                        }
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(eventAccentColor(for: .sleep))
-                    }
+                    FeedLiveActivityContentView(
+                        state: context.state,
+                        showsStopSleepAction: false
+                    )
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text("Timers update live while this activity is visible.")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    if let stopSleepURL = FeedLiveActivityDeepLink.endSleepURL(childID: context.state.childID),
+                       context.state.activeSleepStartedAt != nil {
+                        Link(destination: stopSleepURL) {
+                            Label("Stop Sleep", systemImage: "stop.fill")
+                                .font(.caption.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 }
             } compactLeading: {
                 Image(systemName: symbolName(for: .sleep))
@@ -83,49 +59,30 @@ struct FeedLiveActivityWidget: Widget {
             "checklist"
         }
     }
+}
 
-    private func metricRow(label: String, valueDate: Date?) -> some View {
-        HStack(spacing: 8) {
-            Text(label)
-                .foregroundStyle(.secondary)
-                .frame(width: 66, alignment: .leading)
-            if let valueDate {
-                Text(valueDate, style: .timer)
-                    .monospacedDigit()
-            } else {
-                Text("—")
-            }
-        }
-        .font(.caption2.weight(.medium))
-        .lineLimit(1)
-        .frame(height: 20, alignment: .center)
-    }
+#Preview("Live Activity", as: .content, using: FeedLiveActivityAttributes.preview) {
+    FeedLiveActivityWidget()
+} contentStates: {
+    FeedLiveActivityAttributes.ContentState.previewRecentFeed
+    FeedLiveActivityAttributes.ContentState.previewActiveSleep
+}
 
-    private func metricIcon(symbol: String, color: Color) -> some View {
-        Image(systemName: symbol)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(color)
-            .frame(width: 12, height: 20)
-    }
+#Preview("Dynamic Island Expanded", as: .dynamicIsland(.expanded), using: FeedLiveActivityAttributes.preview) {
+    FeedLiveActivityWidget()
+} contentStates: {
+    FeedLiveActivityAttributes.ContentState.previewRecentFeed
+    FeedLiveActivityAttributes.ContentState.previewActiveSleep
+}
 
-    private func stopSleepURL(for state: FeedLiveActivityAttributes.ContentState) -> URL? {
-        guard state.activeSleepStartedAt != nil else {
-            return nil
-        }
+#Preview("Dynamic Island Compact", as: .dynamicIsland(.compact), using: FeedLiveActivityAttributes.preview) {
+    FeedLiveActivityWidget()
+} contentStates: {
+    FeedLiveActivityAttributes.ContentState.previewRecentFeed
+}
 
-        return FeedLiveActivityDeepLink.endSleepURL(childID: state.childID)
-    }
-
-    private func eventAccentColor(for kind: BabyEventKind) -> Color {
-        switch kind {
-        case .breastFeed:
-            Color(red: 0.84, green: 0.29, blue: 0.42)
-        case .bottleFeed:
-            Color(red: 0.15, green: 0.56, blue: 0.72)
-        case .sleep:
-            Color(red: 0.29, green: 0.33, blue: 0.73)
-        case .nappy:
-            Color(red: 0.74, green: 0.47, blue: 0.16)
-        }
-    }
+#Preview("Dynamic Island Minimal", as: .dynamicIsland(.minimal), using: FeedLiveActivityAttributes.preview) {
+    FeedLiveActivityWidget()
+} contentStates: {
+    FeedLiveActivityAttributes.ContentState.previewMissingMetrics
 }
