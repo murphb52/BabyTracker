@@ -740,11 +740,22 @@ public final class CloudKitSyncEngine {
             zoneName: context.zoneID.zoneName,
             ownerName: context.zoneID.ownerName
         )
-        let changes = try await client.recordZoneChanges(
-            in: context.zoneID,
-            databaseScope: context.databaseScope,
-            since: anchor?.tokenData
-        )
+        let changes: CloudKitRecordZoneChangeSet
+        do {
+            changes = try await client.recordZoneChanges(
+                in: context.zoneID,
+                databaseScope: context.databaseScope,
+                since: anchor?.tokenData
+            )
+        } catch let error as CKError where error.code == .changeTokenExpired {
+            logger.warning("pullZoneSnapshot \(context.zoneID.zoneName, privacy: .public): zone token expired, retrying with full fetch")
+            AppLogger.shared.log(.warning, category: "CloudKitSync", "pullZoneSnapshot \(context.zoneID.zoneName): zone token expired, retrying with full fetch")
+            changes = try await client.recordZoneChanges(
+                in: context.zoneID,
+                databaseScope: context.databaseScope,
+                since: nil
+            )
+        }
 
         let recordTypes = changes.modifiedRecords.map(\.recordType)
         logger.info("pullZoneSnapshot \(context.zoneID.zoneName, privacy: .public) (\(databaseScope, privacy: .public)): \(changes.modifiedRecords.count, privacy: .public) modified, \(changes.deletions.count, privacy: .public) deleted — types: \(recordTypes.joined(separator: ", "), privacy: .public)")
