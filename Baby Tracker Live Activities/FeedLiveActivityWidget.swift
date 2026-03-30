@@ -32,13 +32,9 @@ struct FeedLiveActivityWidget: Widget {
                     }
                 }
             } compactLeading: {
-                Image(systemName: symbolName(for: .sleep))
+                Image(systemName: symbolName(for: compactDynamicIslandMetric(for: context.state).kind))
             } compactTrailing: {
-                if let activeSleepStartedAt = context.state.activeSleepStartedAt {
-                    compactTimerText(since: activeSleepStartedAt)
-                } else {
-                    compactTimerText(since: context.state.lastFeedAt)
-                }
+                compactTimerText(since: compactDynamicIslandMetric(for: context.state).date)
             } minimal: {
                 Image(systemName: symbolName(for: .sleep))
             }
@@ -56,6 +52,29 @@ struct FeedLiveActivityWidget: Widget {
         case .nappy:
             "checklist"
         }
+    }
+
+    private func compactDynamicIslandMetric(
+        for state: FeedLiveActivityAttributes.ContentState
+    ) -> (kind: BabyEventKind, date: Date) {
+        if let activeSleepStartedAt = state.activeSleepStartedAt {
+            return (kind: .sleep, date: activeSleepStartedAt)
+        }
+
+        var candidateEvents: [(kind: BabyEventKind, date: Date)] = [
+            (kind: state.lastFeedKind, date: state.lastFeedAt)
+        ]
+
+        if let lastSleepAt = state.lastSleepAt {
+            candidateEvents.append((kind: .sleep, date: lastSleepAt))
+        }
+
+        if let lastNappyAt = state.lastNappyAt {
+            candidateEvents.append((kind: .nappy, date: lastNappyAt))
+        }
+
+        return candidateEvents.max(by: { $0.date < $1.date })
+            ?? (kind: state.lastFeedKind, date: state.lastFeedAt)
     }
 
     @ViewBuilder
