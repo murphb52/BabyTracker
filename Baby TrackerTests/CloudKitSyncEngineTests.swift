@@ -52,10 +52,10 @@ struct CloudKitSyncEngineTests {
         #expect(context?.zoneID == expectedZoneID)
         #expect(await client.createdZoneIDs == [expectedZoneID])
         #expect(!(await client.queriedZoneIDs.contains(expectedZoneID)))
-        #expect(await client.savedDatabaseSubscriptionIDs == [
-            CloudKitSubscriptionIDs.databaseSubscriptionID(for: .private),
-            CloudKitSubscriptionIDs.databaseSubscriptionID(for: .shared)
-        ])
+        #expect(Set(await client.savedSubscriptionIDs) == Set([
+            CloudKitSubscriptionIDs.databaseSubscriptionID(for: .shared),
+            CloudKitSubscriptionIDs.privateZoneSubscriptionID(for: expectedZoneID)
+        ]))
     }
 
     @Test
@@ -88,10 +88,12 @@ struct CloudKitSyncEngineTests {
         _ = await syncEngine.prepareForLaunch()
         _ = await syncEngine.refreshAfterRemoteNotification()
 
-        #expect(await client.savedDatabaseSubscriptionIDs == [
-            CloudKitSubscriptionIDs.databaseSubscriptionID(for: .private),
+        #expect(await client.savedSubscriptionIDs.contains(
             CloudKitSubscriptionIDs.databaseSubscriptionID(for: .shared)
-        ])
+        ))
+        #expect(await client.savedSubscriptionIDs.filter {
+            $0 == CloudKitSubscriptionIDs.databaseSubscriptionID(for: .shared)
+        }.count == 1)
     }
 
     @Test
@@ -213,7 +215,8 @@ struct CloudKitSyncEngineTests {
             saving: [remoteRecord],
             deleting: [],
             databaseScope: .private,
-            savePolicy: .changedKeys
+            savePolicy: .changedKeys,
+            atomically: true
         )
 
         _ = await syncEngine.refreshAfterLocalWrite()
@@ -228,6 +231,8 @@ struct CloudKitSyncEngineTests {
 
         let pendingAfterRefresh = try syncStateRepository.loadPendingRecords()
         #expect(!pendingAfterRefresh.contains { $0.recordType == .bottleFeedEvent })
+        let finalPrivateBatch = try #require((await client.savedRecordBatches).last(where: { $0.databaseScope == .private }))
+        #expect(Set(finalPrivateBatch.recordTypes) == ["UserIdentity", "BottleFeedEvent"])
     }
 
     @Test
@@ -288,7 +293,8 @@ struct CloudKitSyncEngineTests {
             ],
             deleting: [],
             databaseScope: .shared,
-            savePolicy: .changedKeys
+            savePolicy: .changedKeys,
+            atomically: true
         )
 
         try await syncEngine.forcePullAcceptedShare(
@@ -450,9 +456,11 @@ struct CloudKitSyncEngineTests {
             ],
             deleting: [],
             databaseScope: .private,
-            savePolicy: .changedKeys
+            savePolicy: .changedKeys,
+            atomically: true
         )
 
+        await client.resetSavedRecordBatches()
         _ = await syncEngine.refreshAfterLocalWrite()
 
         let savedCaregiverEvent = try #require(try eventRepository.loadEvent(id: caregiverEvent.id))
@@ -469,6 +477,8 @@ struct CloudKitSyncEngineTests {
             $0.databaseScope == .private &&
             $0.tokenWasNil
         }))
+        let savedRecordBatches = await client.savedRecordBatches
+        #expect(savedRecordBatches.isEmpty)
     }
 }
 
@@ -480,7 +490,8 @@ private actor CloudKitClientSpy: CloudKitClient {
     private(set) var queriedZoneIDs: [CKRecordZone.ID] = []
     private(set) var zoneChangeZoneIDs: [CKRecordZone.ID] = []
     private(set) var zoneChangeRequests: [(zoneID: CKRecordZone.ID, databaseScope: CKDatabase.Scope, tokenWasNil: Bool)] = []
-    private(set) var savedDatabaseSubscriptionIDs: [String] = []
+    private(set) var savedSubscriptionIDs: [String] = []
+    private(set) var savedRecordBatches: [(databaseScope: CKDatabase.Scope, recordTypes: [String])] = []
     private var databaseSubscriptionsByID: [String: CKSubscription] = [:]
     private var recordsByID: [CKRecord.ID: CKRecord] = [:]
     private var knownRecordTypesByZoneID: [CKRecordZone.ID: Set<String>] = [:]
@@ -565,11 +576,19 @@ private actor CloudKitClientSpy: CloudKitClient {
         saving records: [CKRecord],
         deleting recordIDs: [CKRecord.ID],
         databaseScope: CKDatabase.Scope,
-        savePolicy: CKModifyRecordsOperation.RecordSavePolicy
+        savePolicy: CKModifyRecordsOperation.RecordSavePolicy,
+        atomically: Bool
     ) async throws -> (
         saveResults: [CKRecord.ID: Result<CKRecord, Error>],
         deleteResults: [CKRecord.ID: Result<Void, Error>]
     ) {
+        _ = savePolicy
+        _ = atomically
+        savedRecordBatches.append((
+            databaseScope: databaseScope,
+            recordTypes: records.map(\.recordType)
+        ))
+
         for record in records {
             recordsByID[record.recordID] = record
             knownRecordTypesByZoneID[record.recordID.zoneID, default: []].insert(record.recordType)
@@ -644,6 +663,10 @@ private actor CloudKitClientSpy: CloudKitClient {
     ) async throws {
         _ = databaseScope
         databaseSubscriptionsByID[subscription.subscriptionID] = subscription
-        savedDatabaseSubscriptionIDs.append(subscription.subscriptionID)
+        savedSubscriptionIDs.append(subscription.subscriptionID)
+    }
+
+    func resetSavedRecordBatches() {
+        savedRecordBatches = []
     }
 }

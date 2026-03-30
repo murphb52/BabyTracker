@@ -31,6 +31,7 @@ public final class CloudKitSyncEngine {
 
     private var pendingInvitesByChildID: [UUID: [CloudKitPendingInvite]] = [:]
     private var hasEnsuredDatabaseSubscriptions = false
+    private var ensuredPrivateZoneSubscriptionIDs: Set<String> = []
     private var remoteCaregiverEventChanges: [RemoteCaregiverEventChange] = []
     private var shouldCollectRemoteCaregiverEvents = false
     private var currentLocalUserID: UUID?
@@ -138,7 +139,8 @@ public final class CloudKitSyncEngine {
             saving: [childRecord, share],
             deleting: [],
             databaseScope: .private,
-            savePolicy: .changedKeys
+            savePolicy: .changedKeys,
+            atomically: true
         )
 
         let savedContext = CloudKitChildContext(
@@ -190,7 +192,8 @@ public final class CloudKitSyncEngine {
                 saving: [share],
                 deleting: [],
                 databaseScope: context.databaseScope,
-                savePolicy: .changedKeys
+                savePolicy: .changedKeys,
+                atomically: true
             )
         }
 
@@ -352,7 +355,7 @@ public final class CloudKitSyncEngine {
             return
         }
 
-        for scope in [CKDatabase.Scope.private, .shared] {
+        for scope in [CKDatabase.Scope.shared] {
             let subscriptionID = CloudKitSubscriptionIDs.databaseSubscriptionID(for: scope)
             if try await client.subscription(withID: subscriptionID, databaseScope: scope) != nil {
                 continue
@@ -368,6 +371,30 @@ public final class CloudKitSyncEngine {
         }
 
         hasEnsuredDatabaseSubscriptions = true
+    }
+
+    private func ensurePrivateZoneSubscription(
+        for zoneID: CKRecordZone.ID
+    ) async throws {
+        let subscriptionID = CloudKitSubscriptionIDs.privateZoneSubscriptionID(for: zoneID)
+        guard !ensuredPrivateZoneSubscriptionIDs.contains(subscriptionID) else {
+            return
+        }
+
+        if try await client.subscription(withID: subscriptionID, databaseScope: .private) == nil {
+            let subscription = CKRecordZoneSubscription(
+                zoneID: zoneID,
+                subscriptionID: subscriptionID
+            )
+            let notificationInfo = CKSubscription.NotificationInfo()
+            notificationInfo.shouldSendContentAvailable = true
+            subscription.notificationInfo = notificationInfo
+            try await client.saveSubscription(subscription, databaseScope: .private)
+            logger.info("Created CloudKit zone subscription for \(zoneID.zoneName, privacy: .public)")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "Created CloudKit zone subscription for \(zoneID.zoneName)")
+        }
+
+        ensuredPrivateZoneSubscriptionIDs.insert(subscriptionID)
     }
 
     private func syncUnavailableSummary(for accountStatus: CKAccountStatus) throws -> SyncStatusSummary {
@@ -452,6 +479,9 @@ public final class CloudKitSyncEngine {
                     "Child '\(child.name, privacy: .private)' — zone: \(context.zoneID.zoneName, privacy: .public), scope: \(context.databaseScope.logDescription, privacy: .public), isArchived: \(child.isArchived, privacy: .public)"
                 )
                 AppLogger.shared.log(.info, category: "CloudKitSync", "Child — zone: \(context.zoneID.zoneName), scope: \(context.databaseScope.logDescription), isArchived: \(child.isArchived)")
+                if context.databaseScope == .private {
+                    try await ensurePrivateZoneSubscription(for: context.zoneID)
+                }
                 if forceFullFetch {
                     logger.info("Child '\(child.name, privacy: .private)' — forcing manual full pull")
                     AppLogger.shared.log(.info, category: "CloudKitSync", "Child — forcing manual full pull")
@@ -484,7 +514,7 @@ public final class CloudKitSyncEngine {
             logger.info("Child '\(child.name, privacy: .private)' — no CloudKit zone yet, creating private zone")
             AppLogger.shared.log(.info, category: "CloudKitSync", "Child — no CloudKit zone yet, creating private zone")
             let context = try await ensureZoneContext(for: child.id, preferredScope: .private)
-            try await pushZoneSnapshot(for: child.id, context: context)
+            try await pushPendingChanges(for: child.id, context: context)
         }
     }
 
@@ -578,11 +608,70 @@ public final class CloudKitSyncEngine {
                 AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — reconciling owner shared private zone before push")
                 try await pullZoneSnapshot(context: context, forceFullFetch: true)
             }
-            logger.info("pushPendingChanges — '\(child.name, privacy: .private)': pushing zone (scope: \(context.databaseScope.logDescription, privacy: .public))")
-            AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — pushing zone (scope: \(context.databaseScope.logDescription))")
-            try await pushZoneSnapshot(for: child.id, context: context)
-            logger.info("pushPendingChanges — '\(child.name, privacy: .private)': zone push complete")
-            AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — zone push complete")
+            logger.info("pushPendingChanges — '\(child.name, privacy: .private)': pushing pending records (scope: \(context.databaseScope.logDescription, privacy: .public))")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — pushing pending records (scope: \(context.databaseScope.logDescription))")
+            try await pushPendingChanges(for: child.id, context: context)
+            logger.info("pushPendingChanges — '\(child.name, privacy: .private)': pending push complete")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — pending push complete")
+        }
+    }
+
+    private func pushPendingChanges(
+        for childID: UUID,
+        context: CloudKitChildContext
+    ) async throws {
+        let pendingRecords = try syncStateRepository.loadPendingRecords()
+        let childPendingRecords = pendingRecords.filter { record in
+            record.childID == childID || (record.recordType == .user && userRecordApplies(record, to: childID))
+        }
+
+        guard !childPendingRecords.isEmpty else {
+            return
+        }
+
+        let outboundRecords = try buildOutboundRecords(
+            for: childID,
+            references: childPendingRecords,
+            zoneID: context.zoneID
+        )
+
+        guard !outboundRecords.isEmpty else {
+            return
+        }
+
+        let saveSummary = outboundRecords.map { $0.record.recordType }.joined(separator: ", ")
+        logger.info("pushPendingChanges '\(childID.uuidString, privacy: .public)' — saving \(outboundRecords.count, privacy: .public) pending record(s) to \(context.databaseScope.logDescription, privacy: .public): [\(saveSummary, privacy: .public)]")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — saving \(outboundRecords.count) pending record(s) to \(context.databaseScope.logDescription): [\(saveSummary)]")
+
+        let results = try await client.modifyRecords(
+            saving: outboundRecords.map(\.record),
+            deleting: [],
+            databaseScope: context.databaseScope,
+            savePolicy: .changedKeys,
+            atomically: false
+        )
+
+        for outboundRecord in outboundRecords {
+            if let result = results.saveResults[outboundRecord.record.recordID] {
+                switch result {
+                case .success:
+                    try syncStateRepository.updateSyncState(
+                        for: outboundRecord.reference,
+                        state: .upToDate,
+                        lastSyncedAt: .now,
+                        lastSyncErrorCode: nil
+                    )
+                case let .failure(error):
+                    try syncStateRepository.updateSyncState(
+                        for: outboundRecord.reference,
+                        state: .failed,
+                        lastSyncedAt: nil,
+                        lastSyncErrorCode: (error as NSError).localizedDescription
+                    )
+                    logger.error("pushPendingChanges failed for \(outboundRecord.record.recordType, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                    AppLogger.shared.log(.error, category: "CloudKitSync", "pushPendingChanges failed for \(outboundRecord.record.recordType): \(error.localizedDescription)")
+                }
+            }
         }
     }
 
@@ -658,7 +747,8 @@ public final class CloudKitSyncEngine {
             saving: filteredSaves,
             deleting: [],
             databaseScope: context.databaseScope,
-            savePolicy: .changedKeys
+            savePolicy: .changedKeys,
+            atomically: true
         )
         logger.info("pushZoneSnapshot '\(child.name, privacy: .private)' — modifyRecords succeeded")
         AppLogger.shared.log(.info, category: "CloudKitSync", "pushZoneSnapshot — modifyRecords succeeded")
@@ -928,6 +1018,9 @@ public final class CloudKitSyncEngine {
         preferredScope: CKDatabase.Scope
     ) async throws -> CloudKitChildContext {
         if let existing = try childRepository.loadCloudKitChildContext(id: childID) {
+            if existing.databaseScope == .private {
+                try await ensurePrivateZoneSubscription(for: existing.zoneID)
+            }
             return existing
         }
 
@@ -943,6 +1036,10 @@ public final class CloudKitSyncEngine {
                 deleting: [],
                 databaseScope: preferredScope
             )
+        }
+
+        if preferredScope == .private {
+            try await ensurePrivateZoneSubscription(for: zoneID)
         }
 
         let context = CloudKitChildContext(
@@ -1164,9 +1261,95 @@ public final class CloudKitSyncEngine {
             return nil
         }
     }
+
+    private func buildOutboundRecords(
+        for childID: UUID,
+        references: [SyncRecordReference],
+        zoneID: CKRecordZone.ID
+    ) throws -> [OutboundRecord] {
+        var outboundRecords: [OutboundRecord] = []
+        var seen = Set<SyncRecordReference>()
+
+        for reference in references {
+            guard !seen.contains(reference) else {
+                continue
+            }
+            seen.insert(reference)
+
+            guard let record = try outboundRecord(for: reference, childID: childID, zoneID: zoneID) else {
+                continue
+            }
+            outboundRecords.append(record)
+        }
+
+        return outboundRecords
+    }
+
+    private func outboundRecord(
+        for reference: SyncRecordReference,
+        childID: UUID,
+        zoneID: CKRecordZone.ID
+    ) throws -> OutboundRecord? {
+        switch reference.recordType {
+        case .child:
+            guard let child = try childRepository.loadChild(id: reference.recordID) else {
+                return nil
+            }
+            return OutboundRecord(
+                reference: SyncRecordReference(recordType: .child, recordID: child.id, childID: child.id),
+                record: CloudKitRecordMapper.childRecord(from: child, zoneID: zoneID)
+            )
+        case .user:
+            guard let user = try userIdentityRepository.loadUsers(for: [reference.recordID]).first else {
+                return nil
+            }
+            return OutboundRecord(
+                reference: SyncRecordReference(recordType: .user, recordID: user.id),
+                record: CloudKitRecordMapper.userRecord(from: user, childID: childID, zoneID: zoneID)
+            )
+        case .membership:
+            guard let membership = try membershipRepository.loadMemberships(for: childID)
+                .first(where: { $0.id == reference.recordID }) else {
+                return nil
+            }
+            return OutboundRecord(
+                reference: SyncRecordReference(recordType: .membership, recordID: membership.id, childID: membership.childID),
+                record: CloudKitRecordMapper.membershipRecord(from: membership, zoneID: zoneID)
+            )
+        case .breastFeedEvent, .bottleFeedEvent, .sleepEvent, .nappyEvent:
+            guard let event = try eventRepository.loadEvent(id: reference.recordID) else {
+                return nil
+            }
+            return OutboundRecord(
+                reference: SyncRecordReference(
+                    recordType: recordType(for: event),
+                    recordID: event.id,
+                    childID: event.metadata.childID
+                ),
+                record: CloudKitRecordMapper.eventRecord(from: event, zoneID: zoneID)
+            )
+        }
+    }
+
+    private func userRecordApplies(
+        _ reference: SyncRecordReference,
+        to childID: UUID
+    ) -> Bool {
+        guard reference.recordType == .user else {
+            return false
+        }
+
+        let memberships = (try? membershipRepository.loadMemberships(for: childID)) ?? []
+        return memberships.contains { $0.userID == reference.recordID }
+    }
 }
 
 extension CloudKitSyncEngine {
+    private struct OutboundRecord {
+        let reference: SyncRecordReference
+        let record: CKRecord
+    }
+
     private enum RefreshReason {
         case launch
         case foreground

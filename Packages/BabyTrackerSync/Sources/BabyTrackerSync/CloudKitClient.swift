@@ -28,7 +28,8 @@ public protocol CloudKitClient: Sendable {
         saving records: [CKRecord],
         deleting recordIDs: [CKRecord.ID],
         databaseScope: CKDatabase.Scope,
-        savePolicy: CKModifyRecordsOperation.RecordSavePolicy
+        savePolicy: CKModifyRecordsOperation.RecordSavePolicy,
+        atomically: Bool
     ) async throws -> (
         saveResults: [CKRecord.ID: Result<CKRecord, Error>],
         deleteResults: [CKRecord.ID: Result<Void, Error>]
