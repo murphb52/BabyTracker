@@ -35,11 +35,9 @@ struct FeedLiveActivityWidget: Widget {
                 Image(systemName: symbolName(for: .sleep))
             } compactTrailing: {
                 if let activeSleepStartedAt = context.state.activeSleepStartedAt {
-                    Text(activeSleepStartedAt, style: .timer)
-                        .monospacedDigit()
+                    compactTimerText(since: activeSleepStartedAt)
                 } else {
-                    Text(context.state.lastFeedAt, style: .timer)
-                        .monospacedDigit()
+                    compactTimerText(since: context.state.lastFeedAt)
                 }
             } minimal: {
                 Image(systemName: symbolName(for: .sleep))
@@ -58,6 +56,18 @@ struct FeedLiveActivityWidget: Widget {
         case .nappy:
             "checklist"
         }
+    }
+
+    @ViewBuilder
+    private func compactTimerText(since date: Date) -> some View {
+        Text(
+            timerInterval: date...Date.now,
+            pauseTime: nil,
+            countsDown: false,
+            showsHours: false
+        )
+        .monospacedDigit()
+        .lineLimit(1)
     }
 }
 
