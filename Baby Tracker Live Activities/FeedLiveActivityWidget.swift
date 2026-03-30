@@ -8,10 +8,12 @@ struct FeedLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: FeedLiveActivityAttributes.self) { context in
             FeedLiveActivityContentView(state: context.state)
-                .activityBackgroundTint(.clear)
-                .activitySystemActionForegroundColor(.primary)
+                .activityBackgroundTint(Color(red: 0.12, green: 0.15, blue: 0.24))
+                .activitySystemActionForegroundColor(.white)
                 .widgetURL(FeedLiveActivityDeepLink.endSleepURL(childID: context.state.childID))
         } dynamicIsland: { context in
+            let compactMetric = compactDynamicIslandMetric(for: context.state)
+
             DynamicIsland {
                 DynamicIslandExpandedRegion(.center) {
                     FeedLiveActivityContentView(
@@ -32,53 +34,101 @@ struct FeedLiveActivityWidget: Widget {
                     }
                 }
             } compactLeading: {
-                Image(systemName: symbolName(for: compactDynamicIslandMetric(for: context.state).kind))
+                Image(systemName: symbolName(for: compactMetric))
+                    .foregroundStyle(eventAccentColor(for: compactMetric.kind))
             } compactTrailing: {
-                compactTimerText(since: compactDynamicIslandMetric(for: context.state).date)
+                compactTimerText(
+                    since: compactMetric.date,
+                    color: eventAccentColor(for: compactMetric.kind)
+                )
             } minimal: {
-                Image(systemName: symbolName(for: .sleep))
+                Image(systemName: symbolName(for: compactMetric))
+                    .foregroundStyle(eventAccentColor(for: compactMetric.kind))
             }
         }
     }
 
-    private func symbolName(for kind: BabyEventKind) -> String {
-        switch kind {
+    private func symbolName(for metric: CompactDynamicIslandMetric) -> String {
+        switch metric.kind {
         case .breastFeed:
             "heart.text.square"
         case .bottleFeed:
             "drop.circle"
         case .sleep:
-            "bed.double"
+            metric.isActiveSleep ? "bed.double.fill" : "zzz"
         case .nappy:
             "checklist"
         }
     }
 
+    private func eventAccentColor(for kind: BabyEventKind) -> Color {
+        switch kind {
+        case .breastFeed:
+            Color(red: 0.84, green: 0.29, blue: 0.42)
+        case .bottleFeed:
+            Color(red: 0.15, green: 0.56, blue: 0.72)
+        case .sleep:
+            Color(red: 0.29, green: 0.33, blue: 0.73)
+        case .nappy:
+            Color(red: 0.74, green: 0.47, blue: 0.16)
+        }
+    }
+
+    private struct CompactDynamicIslandMetric {
+        let kind: BabyEventKind
+        let date: Date
+        let isActiveSleep: Bool
+    }
+
     private func compactDynamicIslandMetric(
         for state: FeedLiveActivityAttributes.ContentState
-    ) -> (kind: BabyEventKind, date: Date) {
+    ) -> CompactDynamicIslandMetric {
         if let activeSleepStartedAt = state.activeSleepStartedAt {
-            return (kind: .sleep, date: activeSleepStartedAt)
+            return CompactDynamicIslandMetric(
+                kind: .sleep,
+                date: activeSleepStartedAt,
+                isActiveSleep: true
+            )
         }
 
-        var candidateEvents: [(kind: BabyEventKind, date: Date)] = [
-            (kind: state.lastFeedKind, date: state.lastFeedAt)
+        var candidateEvents: [CompactDynamicIslandMetric] = [
+            CompactDynamicIslandMetric(
+                kind: state.lastFeedKind,
+                date: state.lastFeedAt,
+                isActiveSleep: false
+            )
         ]
 
         if let lastSleepAt = state.lastSleepAt {
-            candidateEvents.append((kind: .sleep, date: lastSleepAt))
+            candidateEvents.append(
+                CompactDynamicIslandMetric(
+                    kind: .sleep,
+                    date: lastSleepAt,
+                    isActiveSleep: false
+                )
+            )
         }
 
         if let lastNappyAt = state.lastNappyAt {
-            candidateEvents.append((kind: .nappy, date: lastNappyAt))
+            candidateEvents.append(
+                CompactDynamicIslandMetric(
+                    kind: .nappy,
+                    date: lastNappyAt,
+                    isActiveSleep: false
+                )
+            )
         }
 
         return candidateEvents.max(by: { $0.date < $1.date })
-            ?? (kind: state.lastFeedKind, date: state.lastFeedAt)
+            ?? CompactDynamicIslandMetric(
+                kind: state.lastFeedKind,
+                date: state.lastFeedAt,
+                isActiveSleep: false
+            )
     }
 
     @ViewBuilder
-    private func compactTimerText(since date: Date) -> some View {
+    private func compactTimerText(since date: Date, color: Color) -> some View {
         Text(
             timerInterval: date...Date.distantFuture,
             pauseTime: nil,
@@ -89,6 +139,7 @@ struct FeedLiveActivityWidget: Widget {
         .monospacedDigit()
         .minimumScaleFactor(0.7)
         .lineLimit(1)
+        .foregroundStyle(color)
         .frame(width: 40, alignment: .trailing)
     }
 }
