@@ -1,4 +1,5 @@
 import BabyTrackerFeature
+import BabyTrackerLiveActivities
 import SwiftUI
 
 struct AppRootView: View {
@@ -64,6 +65,14 @@ struct AppRootView: View {
         }
         .task {
             model.requestNotificationAuthorizationIfNeeded()
+        }
+        .onOpenURL { url in
+            guard let childID = FeedLiveActivityDeepLink.endSleepChildID(from: url) else {
+                return
+            }
+
+            model.selectChild(id: childID)
+            model.requestSleepSheetPresentation()
         }
         .safeAreaInset(edge: .bottom) {
             if let undoDeleteMessage = model.undoDeleteMessage {

@@ -10,64 +10,40 @@ struct FeedLiveActivityWidget: Widget {
             FeedLiveActivityContentView(state: context.state)
                 .activityBackgroundTint(.clear)
                 .activitySystemActionForegroundColor(.primary)
+                .widgetURL(FeedLiveActivityDeepLink.endSleepURL(childID: context.state.childID))
         } dynamicIsland: { context in
             DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) {
-                    Image(systemName: symbolName(for: context.state.lastFeedKind))
-                        .font(.title3)
-                        .foregroundStyle(Color.accentColor)
-                }
-
                 DynamicIslandExpandedRegion(.center) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(context.state.childName)
-                            .font(.headline)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                        Text(feedTitle(for: context.state.lastFeedKind))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-
-                DynamicIslandExpandedRegion(.trailing) {
-                    Text(context.state.lastFeedAt, style: .timer)
-                        .font(.caption.weight(.semibold))
-                        .monospacedDigit()
-                        .lineLimit(1)
+                    FeedLiveActivityContentView(
+                        state: context.state,
+                        showsStopSleepAction: false
+                    )
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text("Last \(context.state.lastFeedAt.formatted(.dateTime.hour().minute()))")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 8)
+                    if let stopSleepURL = FeedLiveActivityDeepLink.endSleepURL(childID: context.state.childID),
+                       context.state.activeSleepStartedAt != nil {
+                        Link(destination: stopSleepURL) {
+                            Label("Stop Sleep", systemImage: "stop.fill")
+                                .font(.caption.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 }
             } compactLeading: {
-                Image(systemName: symbolName(for: context.state.lastFeedKind))
+                Image(systemName: symbolName(for: .sleep))
             } compactTrailing: {
-                Text(context.state.lastFeedAt, style: .timer)
-                    .monospacedDigit()
+                if let activeSleepStartedAt = context.state.activeSleepStartedAt {
+                    Text(activeSleepStartedAt, style: .timer)
+                        .monospacedDigit()
+                } else {
+                    Text(context.state.lastFeedAt, style: .timer)
+                        .monospacedDigit()
+                }
             } minimal: {
-                Image(systemName: symbolName(for: context.state.lastFeedKind))
+                Image(systemName: symbolName(for: .sleep))
             }
-        }
-    }
-
-    private func feedTitle(for kind: BabyEventKind) -> String {
-        switch kind {
-        case .breastFeed:
-            "Breast Feed"
-        case .bottleFeed:
-            "Bottle Feed"
-        case .sleep:
-            "Sleep"
-        case .nappy:
-            "Nappy"
         }
     }
 
@@ -83,4 +59,30 @@ struct FeedLiveActivityWidget: Widget {
             "checklist"
         }
     }
+}
+
+#Preview("Live Activity", as: .content, using: FeedLiveActivityAttributes.preview) {
+    FeedLiveActivityWidget()
+} contentStates: {
+    FeedLiveActivityAttributes.ContentState.previewRecentFeed
+    FeedLiveActivityAttributes.ContentState.previewActiveSleep
+}
+
+#Preview("Dynamic Island Expanded", as: .dynamicIsland(.expanded), using: FeedLiveActivityAttributes.preview) {
+    FeedLiveActivityWidget()
+} contentStates: {
+    FeedLiveActivityAttributes.ContentState.previewRecentFeed
+    FeedLiveActivityAttributes.ContentState.previewActiveSleep
+}
+
+#Preview("Dynamic Island Compact", as: .dynamicIsland(.compact), using: FeedLiveActivityAttributes.preview) {
+    FeedLiveActivityWidget()
+} contentStates: {
+    FeedLiveActivityAttributes.ContentState.previewRecentFeed
+}
+
+#Preview("Dynamic Island Minimal", as: .dynamicIsland(.minimal), using: FeedLiveActivityAttributes.preview) {
+    FeedLiveActivityWidget()
+} contentStates: {
+    FeedLiveActivityAttributes.ContentState.previewMissingMetrics
 }
