@@ -66,14 +66,29 @@ public struct ChildProfileSettingsView: View {
                 }
             }
 
+            if profile.canHardDelete {
+                Section {
+                    NavigationLink {
+                        ChildProfileHardDeleteView(
+                            childName: profile.child.name,
+                            hardDeleteAction: hardDeleteAction
+                        )
+                    } label: {
+                        Text("Hard Delete")
+                            .foregroundStyle(.red)
+                    }
+                    .accessibilityIdentifier("profile-hard-delete-row")
+                }
+            }
+
             Section {
                 NavigationLink {
-                    ChildProfileHardDeleteView(hardDeleteAction: hardDeleteAction)
+                    NukeAllDataView(nukeAction: { model.nukeAllData() })
                 } label: {
-                    Text("Hard Delete")
+                    Text("Erase Everything")
                         .foregroundStyle(.red)
                 }
-                .accessibilityIdentifier("profile-hard-delete-row")
+                .accessibilityIdentifier("nuke-all-data-row")
             }
         }
         .listStyle(.insetGrouped)

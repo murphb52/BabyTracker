@@ -109,15 +109,76 @@ public final class AppModel {
         }
     }
 
-    public func hardDeleteAllData() {
+    public func hardDeleteCurrentChild() {
+        guard let profile else { return }
+        let childID = profile.child.id
+        let intent: HardDeleteChildIntent
+        do {
+            intent = try HardDeleteChildUseCase()
+                .execute(.init(membership: profile.currentMembership))
+        } catch {
+            errorMessage = resolveErrorMessage(for: error)
+            return
+        }
         Task { @MainActor in
             var cloudDeleteError: Error?
 
             do {
-                try await syncEngine.hardDeleteAllCloudData()
+                switch intent {
+                case .deleteOwnedZone:
+                    try await syncEngine.hardDeleteChildCloudData(childID: childID)
+                case .leaveCaregiverShare:
+                    try await syncEngine.leaveShare(childID: childID)
+                }
             } catch {
                 cloudDeleteError = error
-                AppLogger.shared.log(.error, category: "CloudKitSync", "Hard delete cloud cleanup failed: \(error.localizedDescription)")
+                AppLogger.shared.log(.error, category: "CloudKitSync", "Hard delete cloud cleanup failed for child \(childID): \(error.localizedDescription)")
+            }
+
+            do {
+                try childRepository.purgeChildData(id: childID)
+                if childSelectionStore.loadSelectedChildID() == childID {
+                    childSelectionStore.saveSelectedChildID(nil)
+                }
+                clearUndoDeleteState()
+                refresh(selecting: nil)
+                if let cloudDeleteError {
+                    errorMessage = "Local data was cleared, but iCloud cleanup failed: \(cloudDeleteError.localizedDescription)"
+                }
+            } catch {
+                errorMessage = resolveErrorMessage(for: error)
+                refresh(selecting: nil)
+            }
+        }
+    }
+
+    public func nukeAllData() {
+        guard let localUser else { return }
+        Task { @MainActor in
+            let intent: NukeAllDataIntent
+            do {
+                intent = try NukeAllDataUseCase(
+                    childRepository: childRepository,
+                    membershipRepository: membershipRepository
+                ).execute(.init(localUserID: localUser.id))
+            } catch {
+                errorMessage = resolveErrorMessage(for: error)
+                return
+            }
+
+            for childID in intent.caregiverChildIDs {
+                do {
+                    try await syncEngine.leaveShare(childID: childID)
+                } catch {
+                    AppLogger.shared.log(.error, category: "CloudKitSync", "Nuke: failed to leave share for child \(childID): \(error.localizedDescription)")
+                }
+            }
+            for childID in intent.ownedChildIDs {
+                do {
+                    try await syncEngine.hardDeleteChildCloudData(childID: childID)
+                } catch {
+                    AppLogger.shared.log(.error, category: "CloudKitSync", "Nuke: failed to delete zone for child \(childID): \(error.localizedDescription)")
+                }
             }
 
             do {
@@ -125,9 +186,6 @@ public final class AppModel {
                 childSelectionStore.saveSelectedChildID(nil)
                 clearUndoDeleteState()
                 refresh(selecting: nil)
-                if let cloudDeleteError {
-                    errorMessage = "Local data was cleared, but iCloud cleanup failed: \(cloudDeleteError.localizedDescription)"
-                }
             } catch {
                 errorMessage = resolveErrorMessage(for: error)
                 refresh(selecting: nil)
@@ -176,14 +234,20 @@ public final class AppModel {
     public func archiveCurrentChild() {
         perform {
             guard let profile else { return }
-            try ArchiveCurrentChildUseCase(
+            let revokedCaregivers = try ArchiveChildUseCase(
                 childRepository: childRepository,
+                membershipRepository: membershipRepository,
                 childSelectionStore: childSelectionStore
             ).execute(.init(
                 child: profile.child,
                 membership: profile.currentMembership,
                 currentSelectedChildID: childSelectionStore.loadSelectedChildID()
             ))
+            for membership in revokedCaregivers {
+                Task { @MainActor in
+                    try? await syncEngine.removeParticipant(membership: membership)
+                }
+            }
         }
     }
 

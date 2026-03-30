@@ -1,26 +1,28 @@
 import SwiftUI
 
 public struct ChildProfileHardDeleteView: View {
+    let childName: String
     let hardDeleteAction: () -> Void
 
     @State private var showingConfirmation = false
 
-    public init(hardDeleteAction: @escaping () -> Void) {
+    public init(childName: String, hardDeleteAction: @escaping () -> Void) {
+        self.childName = childName
         self.hardDeleteAction = hardDeleteAction
     }
 
     public var body: some View {
         List {
             Section {
-                Text("This permanently removes local records on this device and attempts to remove synced iCloud records for your children.")
+                Text("This permanently removes \(childName)'s profile and all logged events from this device and iCloud.")
                     .foregroundStyle(.secondary)
 
-                Text("Use this only if you want to start over. This cannot be undone.")
+                Text("Other children in your account are not affected. This cannot be undone.")
                     .foregroundStyle(.secondary)
             }
 
             Section {
-                Button("Delete All Data", role: .destructive) {
+                Button("Delete \(childName)'s Data", role: .destructive) {
                     showingConfirmation = true
                 }
                 .accessibilityIdentifier("hard-delete-all-data-button")
@@ -29,13 +31,13 @@ public struct ChildProfileHardDeleteView: View {
         .navigationTitle("Hard Delete")
         .navigationBarTitleDisplayMode(.inline)
         .listStyle(.insetGrouped)
-        .alert("Delete all data?", isPresented: $showingConfirmation) {
+        .alert("Delete \(childName)'s data?", isPresented: $showingConfirmation) {
             Button("Cancel", role: .cancel) {}
-            Button("Delete Everything", role: .destructive) {
+            Button("Delete", role: .destructive) {
                 hardDeleteAction()
             }
         } message: {
-            Text("This will remove all profile, membership, and event records and cannot be undone.")
+            Text("This will permanently remove \(childName)'s profile, memberships, and all event records. This cannot be undone.")
         }
     }
 }
