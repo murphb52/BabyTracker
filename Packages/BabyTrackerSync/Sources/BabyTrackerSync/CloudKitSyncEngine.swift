@@ -66,6 +66,10 @@ public final class CloudKitSyncEngine {
         await refresh(reason: .foreground)
     }
 
+    public func forceFullRefresh() async -> SyncStatusSummary {
+        await refresh(reason: .manualFullRefresh)
+    }
+
     public func refreshAfterRemoteNotification() async -> SyncStatusSummary {
         await refresh(reason: .remoteNotification)
     }
@@ -314,15 +318,15 @@ public final class CloudKitSyncEngine {
             )
             try await ensureDatabaseSubscriptions()
 
-            try await pullSharedDatabaseChanges()
+            try await pullSharedDatabaseChanges(forceFullFetch: reason == .manualFullRefresh)
 
             if reason == .localWrite {
                 // Push local changes before pulling so a pending write (e.g. archive)
                 // reaches CloudKit before the pull can overwrite the local state.
                 try await pushPendingChanges()
-                try await pullKnownChildZones()
+                try await pullKnownChildZones(forceFullFetch: false)
             } else {
-                try await pullKnownChildZones()
+                try await pullKnownChildZones(forceFullFetch: reason == .manualFullRefresh)
                 try await pushPendingChanges()
             }
 
@@ -376,8 +380,8 @@ public final class CloudKitSyncEngine {
         )
     }
 
-    private func pullSharedDatabaseChanges() async throws {
-        let anchor = try syncStateRepository.loadAnchor(
+    private func pullSharedDatabaseChanges(forceFullFetch: Bool = false) async throws {
+        let anchor = forceFullFetch ? nil : try syncStateRepository.loadAnchor(
             databaseScope: "shared",
             zoneName: nil,
             ownerName: nil
@@ -426,7 +430,7 @@ public final class CloudKitSyncEngine {
         try syncStateRepository.saveAnchor(newAnchor)
     }
 
-    private func pullKnownChildZones() async throws {
+    private func pullKnownChildZones(forceFullFetch: Bool = false) async throws {
         let children = try childRepository.loadAllChildren()
         logger.info("Found \(children.count, privacy: .public) child(ren) in local store")
         AppLogger.shared.log(.info, category: "CloudKitSync", "Found \(children.count) child(ren) in local store")
@@ -437,7 +441,11 @@ public final class CloudKitSyncEngine {
                     "Child '\(child.name, privacy: .private)' — zone: \(context.zoneID.zoneName, privacy: .public), scope: \(context.databaseScope.logDescription, privacy: .public), isArchived: \(child.isArchived, privacy: .public)"
                 )
                 AppLogger.shared.log(.info, category: "CloudKitSync", "Child — zone: \(context.zoneID.zoneName), scope: \(context.databaseScope.logDescription), isArchived: \(child.isArchived)")
-                if try await shouldForceOwnerSharedZoneReconciliation(
+                if forceFullFetch {
+                    logger.info("Child '\(child.name, privacy: .private)' — forcing manual full pull")
+                    AppLogger.shared.log(.info, category: "CloudKitSync", "Child — forcing manual full pull")
+                    try await pullZoneSnapshot(context: context, forceFullFetch: true)
+                } else if try await shouldForceOwnerSharedZoneReconciliation(
                     for: child.id,
                     context: context
                 ) {
@@ -1098,6 +1106,7 @@ extension CloudKitSyncEngine {
         case launch
         case foreground
         case localWrite
+        case manualFullRefresh
         case remoteNotification
 
         var logDescription: String {
@@ -1105,6 +1114,7 @@ extension CloudKitSyncEngine {
             case .launch: return "launch"
             case .foreground: return "foreground"
             case .localWrite: return "localWrite"
+            case .manualFullRefresh: return "manualFullRefresh"
             case .remoteNotification: return "remoteNotification"
             }
         }

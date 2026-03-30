@@ -4,11 +4,13 @@ import Foundation
 import UserNotifications
 
 @MainActor
-final class SystemLocalNotificationManager: LocalNotificationManaging {
+final class SystemLocalNotificationManager: NSObject, LocalNotificationManaging {
     private let notificationCenter: UNUserNotificationCenter
 
     init(notificationCenter: UNUserNotificationCenter = .current()) {
         self.notificationCenter = notificationCenter
+        super.init()
+        self.notificationCenter.delegate = self
     }
 
     func requestAuthorizationIfNeeded() async {
@@ -38,5 +40,16 @@ final class SystemLocalNotificationManager: LocalNotificationManaging {
         )
 
         try? await notificationCenter.add(request)
+    }
+}
+
+extension SystemLocalNotificationManager: UNUserNotificationCenterDelegate {
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        _ = center
+        _ = notification
+        return [.banner, .list, .sound]
     }
 }

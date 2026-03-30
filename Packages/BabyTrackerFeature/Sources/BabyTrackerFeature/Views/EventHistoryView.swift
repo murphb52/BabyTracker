@@ -9,6 +9,7 @@ public struct EventHistoryView: View {
     let confirmDelete: () -> Void
     let cancelDelete: () -> Void
     let onFilterUpdate: (EventFilter) -> Void
+    let onRefresh: () async -> Void
 
     public init(
         profile: ChildProfileScreenState,
@@ -17,7 +18,8 @@ public struct EventHistoryView: View {
         pendingDeleteEvent: EventDeleteCandidate?,
         confirmDelete: @escaping () -> Void,
         cancelDelete: @escaping () -> Void,
-        onFilterUpdate: @escaping (EventFilter) -> Void
+        onFilterUpdate: @escaping (EventFilter) -> Void,
+        onRefresh: @escaping () async -> Void
     ) {
         self.profile = profile
         self.openEvent = openEvent
@@ -26,6 +28,7 @@ public struct EventHistoryView: View {
         self.confirmDelete = confirmDelete
         self.cancelDelete = cancelDelete
         self.onFilterUpdate = onFilterUpdate
+        self.onRefresh = onRefresh
     }
 
     public var body: some View {
@@ -50,6 +53,9 @@ public struct EventHistoryView: View {
                 }
             }
             .listStyle(.plain)
+            .refreshable {
+                await onRefresh()
+            }
             .scrollContentBackground(.hidden)
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
         }

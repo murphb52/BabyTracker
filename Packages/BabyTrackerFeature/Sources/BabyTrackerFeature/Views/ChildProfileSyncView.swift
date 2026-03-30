@@ -59,11 +59,49 @@ public struct ChildProfileSyncView: View {
                 }
             }
 
+            Section("Sync Marker") {
+                LabeledContent("Visible Events") {
+                    Text("\(profile.totalEventCount)")
+                }
+
+                if let latestEventSyncMarker = profile.latestEventSyncMarker {
+                    LabeledContent("Latest Event Type") {
+                        Text(BabyEventPresentation.title(for: latestEventSyncMarker.kind))
+                    }
+
+                    LabeledContent("Latest Updated") {
+                        Text(latestEventSyncMarker.updatedAt, format: .dateTime.month(.abbreviated).day().hour().minute().second())
+                    }
+
+                    LabeledContent("Latest Occurred") {
+                        Text(latestEventSyncMarker.occurredAt, format: .dateTime.month(.abbreviated).day().hour().minute().second())
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Latest Event ID")
+                            .font(.subheadline.weight(.medium))
+
+                        Text(latestEventSyncMarker.id.uuidString)
+                            .font(.footnote.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                } else {
+                    Text("No events available yet.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section {
                 Button("Refresh Sync Status") {
                     Task { await model.refreshSyncStatus() }
                 }
                 .accessibilityIdentifier("refresh-sync-status-button")
+
+                Button("Complete Refresh") {
+                    Task { await model.forceFullSyncRefresh() }
+                }
+                .accessibilityIdentifier("complete-refresh-sync-button")
             }
         }
         .navigationTitle("iCloud Sync")

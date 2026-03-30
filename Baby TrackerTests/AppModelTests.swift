@@ -1502,6 +1502,12 @@ extension AppModelTests {
             return summary
         }
 
+        func forceFullRefresh() async -> SyncStatusSummary {
+            let summary = refreshForegroundSummary ?? statusSummary
+            statusSummary = summary
+            return summary
+        }
+
         func refreshAfterRemoteNotification() async -> SyncStatusSummary {
             statusSummary
         }

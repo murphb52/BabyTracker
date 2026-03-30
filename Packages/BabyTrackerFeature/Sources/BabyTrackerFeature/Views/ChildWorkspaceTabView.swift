@@ -46,7 +46,8 @@ public struct ChildWorkspaceTabView: View {
                 pendingDeleteEvent: deleteCandidate,
                 confirmDelete: performDelete,
                 cancelDelete: cancelDelete,
-                onFilterUpdate: model.updateEventFilter
+                onFilterUpdate: model.updateEventFilter,
+                onRefresh: model.forceFullSyncRefresh
             )
             .tag(Tab.events)
             .tabItem {
@@ -134,7 +135,11 @@ public struct ChildWorkspaceTabView: View {
             )
         }
         .sheet(item: $bindableModel.shareSheetState) { shareState in
-            CloudKitShareSheetView(shareState: shareState, childName: profile.child.name)
+            CloudKitShareSheetView(
+                shareState: shareState,
+                childName: profile.child.name,
+                onSaveFailure: model.handleShareSheetSaveFailure
+            )
                 .onDisappear {
                     model.dismissShareSheet()
                     model.refreshAfterShareSheet()
