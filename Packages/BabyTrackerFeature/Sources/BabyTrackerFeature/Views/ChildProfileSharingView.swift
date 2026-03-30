@@ -29,6 +29,13 @@ public struct ChildProfileSharingView: View {
                     }
                     .disabled(!profile.canShareChild)
                     .accessibilityIdentifier("share-child-button")
+
+                    if let shareUnavailableMessage {
+                        Text(shareUnavailableMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("share-child-unavailable-message")
+                    }
                 }
             }
 
@@ -96,6 +103,18 @@ public struct ChildProfileSharingView: View {
         } message: {
             Text("All data for \(profile.child.name) will be removed from this device. You can rejoin if the owner invites you again.")
         }
+    }
+
+    private var shareUnavailableMessage: String? {
+        guard !profile.canShareChild else {
+            return nil
+        }
+
+        if let detailMessage = profile.cloudKitStatus.detailMessage {
+            return "Sharing is unavailable right now. \(detailMessage)"
+        }
+
+        return "Sharing is unavailable until iCloud sync is working on this device."
     }
 
     @ViewBuilder
