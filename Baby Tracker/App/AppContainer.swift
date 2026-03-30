@@ -21,6 +21,7 @@ struct AppContainer {
         let childSelectionStore = UserDefaultsChildSelectionStore(userDefaults: userDefaults)
         let eventRepository = SwiftDataEventRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
+        let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
 
         if let scenario = launchConfiguration.scenario {
             try? Self.seed(
@@ -49,6 +50,7 @@ struct AppContainer {
             membershipRepository: membershipRepository,
             eventRepository: eventRepository,
             syncStateRepository: syncStateRepository,
+            recordMetadataRepository: recordMetadataRepository,
             client: cloudKitClient
         )
         let appModel = AppModel(
@@ -88,6 +90,7 @@ struct AppContainer {
         let childSelectionStore = UserDefaultsChildSelectionStore(userDefaults: userDefaults)
         let eventRepository = SwiftDataEventRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
+        let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
 
         try? seed(
             scenario: .mixedEventsPreview,
@@ -104,6 +107,7 @@ struct AppContainer {
             membershipRepository: membershipRepository,
             eventRepository: eventRepository,
             syncStateRepository: syncStateRepository,
+            recordMetadataRepository: recordMetadataRepository,
             client: UnavailableCloudKitClient()
         )
         let appModel = AppModel(

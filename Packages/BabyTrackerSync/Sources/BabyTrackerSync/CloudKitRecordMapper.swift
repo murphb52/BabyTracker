@@ -3,6 +3,27 @@ import CloudKit
 import Foundation
 
 public enum CloudKitRecordMapper {
+    static func mutableFieldKeys(for recordType: CKRecord.RecordType) -> [CKRecord.FieldKey] {
+        switch recordType {
+        case CloudKitConfiguration.childRecordType:
+            ["name", "birthDate", "createdAt", "createdBy", "isArchived", "preferredFeedVolumeUnit", "imageAsset"]
+        case CloudKitConfiguration.userRecordType:
+            ["displayName", "createdAt", "cloudKitUserRecordName"]
+        case CloudKitConfiguration.membershipRecordType:
+            ["childID", "userID", "role", "status", "invitedAt", "acceptedAt"]
+        case CloudKitConfiguration.breastFeedRecordType:
+            metadataFieldKeys + ["side", "startedAt", "endedAt", "leftDurationSeconds", "rightDurationSeconds"]
+        case CloudKitConfiguration.bottleFeedRecordType:
+            metadataFieldKeys + ["amountMilliliters", "milkType"]
+        case CloudKitConfiguration.sleepRecordType:
+            metadataFieldKeys + ["startedAt", "endedAt"]
+        case CloudKitConfiguration.nappyRecordType:
+            metadataFieldKeys + ["type", "peeVolume", "pooVolume", "pooColor"]
+        default:
+            []
+        }
+    }
+
     public static func childRecord(
         from child: Child,
         zoneID: CKRecordZone.ID
@@ -320,4 +341,16 @@ public enum CloudKitRecordMapper {
             action: .none
         )
     }
+
+    private static let metadataFieldKeys: [CKRecord.FieldKey] = [
+        "childID",
+        "occurredAt",
+        "createdAt",
+        "createdBy",
+        "updatedAt",
+        "updatedBy",
+        "notes",
+        "isDeleted",
+        "deletedAt",
+    ]
 }
