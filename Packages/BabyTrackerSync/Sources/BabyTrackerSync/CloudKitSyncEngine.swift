@@ -638,6 +638,16 @@ public final class CloudKitSyncEngine {
                 continue
             }
 
+            if let remoteRecord = existingRecords[record.recordID],
+               isNonEventRecord(record),
+               let remoteModifiedAt = remoteRecord.modificationDate,
+               let localUpdatedAt = localUpdatedAt(for: record),
+               remoteModifiedAt > localUpdatedAt {
+                logger.debug("pushZoneSnapshot — skipping \(record.recordType, privacy: .public) \(record.recordID.recordName, privacy: .public): remote version is newer")
+                AppLogger.shared.log(.debug, category: "CloudKitSync", "pushZoneSnapshot — skipping \(record.recordType) \(record.recordID.recordName): remote version is newer")
+                continue
+            }
+
             filteredSaves.append(record)
         }
 
@@ -1119,6 +1129,39 @@ public final class CloudKitSyncEngine {
             .sleepEvent
         case .nappy:
             .nappyEvent
+        }
+    }
+
+    private func isNonEventRecord(_ record: CKRecord) -> Bool {
+        switch record.recordType {
+        case CloudKitConfiguration.childRecordType,
+             CloudKitConfiguration.membershipRecordType,
+             CloudKitConfiguration.userRecordType:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Returns the best available local timestamp for comparing against the
+    /// remote record's server-side modificationDate. Each record type uses the
+    /// most recently updated domain field written by the record mapper.
+    private func localUpdatedAt(for record: CKRecord) -> Date? {
+        switch record.recordType {
+        case CloudKitConfiguration.childRecordType,
+             CloudKitConfiguration.userRecordType:
+            return record["createdAt"] as? Date
+        case CloudKitConfiguration.membershipRecordType:
+            // acceptedAt is set when the caregiver accepts the share, making it
+            // the most recent mutation timestamp for a membership record.
+            let acceptedAt = record["acceptedAt"] as? Date
+            let invitedAt = record["invitedAt"] as? Date
+            if let acceptedAt, let invitedAt {
+                return max(acceptedAt, invitedAt)
+            }
+            return acceptedAt ?? invitedAt
+        default:
+            return nil
         }
     }
 }
