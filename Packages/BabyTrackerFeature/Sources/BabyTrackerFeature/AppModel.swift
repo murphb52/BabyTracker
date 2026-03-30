@@ -940,6 +940,8 @@ public final class AppModel {
             ),
             summary: makeSummaryScreenState(from: visibleEvents),
             cloudKitStatus: cloudKitStatus,
+            latestEventSyncMarker: makeLatestEventSyncMarker(from: visibleEvents),
+            totalEventCount: visibleEvents.count,
             canShareChild: ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership) &&
                 syncEngine.statusSummary.state != .failed,
             pendingChanges: pendingChanges,
@@ -1071,6 +1073,18 @@ public final class AppModel {
             emptyStateTitle: "No summary data yet",
             emptyStateMessage: "Add events and your key trends will appear here."
         )
+    }
+
+    private func makeLatestEventSyncMarker(
+        from events: [BabyEvent]
+    ) -> EventSyncMarkerViewState? {
+        events.max { left, right in
+            if left.metadata.updatedAt != right.metadata.updatedAt {
+                return left.metadata.updatedAt < right.metadata.updatedAt
+            }
+
+            return left.id.uuidString < right.id.uuidString
+        }.map(EventSyncMarkerViewState.init)
     }
 
     private func makeFeedLiveActivitySnapshot(
