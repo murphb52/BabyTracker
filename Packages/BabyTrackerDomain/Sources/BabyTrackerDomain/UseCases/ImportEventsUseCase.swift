@@ -24,9 +24,14 @@ public struct ImportEventsUseCase: UseCase {
     }
 
     private let eventRepository: any EventRepository
+    private let hapticFeedbackProvider: any HapticFeedbackProviding
 
-    public init(eventRepository: any EventRepository) {
+    public init(
+        eventRepository: any EventRepository,
+        hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
+    ) {
         self.eventRepository = eventRepository
+        self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
     public func execute(_ input: Input) throws -> CSVImportResult {
@@ -44,6 +49,10 @@ public struct ImportEventsUseCase: UseCase {
             } catch {
                 skippedReasons.append("\(event.eventKindLabel) at \(event.occurredAt.formatted()): \(error.localizedDescription)")
             }
+        }
+
+        if importedCount > 0 {
+            hapticFeedbackProvider.play(.actionSucceeded)
         }
 
         return CSVImportResult(
@@ -75,7 +84,10 @@ public struct ImportEventsUseCase: UseCase {
         localUserID: UUID,
         membership: Membership
     ) throws {
-        _ = try LogBottleFeedUseCase(eventRepository: eventRepository)
+        _ = try LogBottleFeedUseCase(
+            eventRepository: eventRepository,
+            hapticFeedbackProvider: NoOpHapticFeedbackProvider()
+        )
             .execute(.init(
                 childID: childID,
                 localUserID: localUserID,
@@ -92,7 +104,10 @@ public struct ImportEventsUseCase: UseCase {
         localUserID: UUID,
         membership: Membership
     ) throws {
-        _ = try LogBreastFeedUseCase(eventRepository: eventRepository)
+        _ = try LogBreastFeedUseCase(
+            eventRepository: eventRepository,
+            hapticFeedbackProvider: NoOpHapticFeedbackProvider()
+        )
             .execute(.init(
                 childID: childID,
                 localUserID: localUserID,
@@ -111,7 +126,10 @@ public struct ImportEventsUseCase: UseCase {
         localUserID: UUID,
         membership: Membership
     ) throws {
-        _ = try LogSleepUseCase(eventRepository: eventRepository)
+        _ = try LogSleepUseCase(
+            eventRepository: eventRepository,
+            hapticFeedbackProvider: NoOpHapticFeedbackProvider()
+        )
             .execute(.init(
                 childID: childID,
                 localUserID: localUserID,
@@ -127,7 +145,10 @@ public struct ImportEventsUseCase: UseCase {
         localUserID: UUID,
         membership: Membership
     ) throws {
-        _ = try LogNappyUseCase(eventRepository: eventRepository)
+        _ = try LogNappyUseCase(
+            eventRepository: eventRepository,
+            hapticFeedbackProvider: NoOpHapticFeedbackProvider()
+        )
             .execute(.init(
                 childID: childID,
                 localUserID: localUserID,

@@ -15,9 +15,14 @@ public struct RemoveCaregiverUseCase: UseCase {
     }
 
     private let membershipRepository: any MembershipRepository
+    private let hapticFeedbackProvider: any HapticFeedbackProviding
 
-    public init(membershipRepository: any MembershipRepository) {
+    public init(
+        membershipRepository: any MembershipRepository,
+        hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
+    ) {
         self.membershipRepository = membershipRepository
+        self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
     /// Returns the removed membership so the caller can trigger the async CloudKit participant removal.
@@ -35,6 +40,7 @@ public struct RemoveCaregiverUseCase: UseCase {
         try MembershipValidator.validateRemoval(of: membership, within: allMemberships)
         let removedMembership = try membership.removed()
         try membershipRepository.saveMembership(removedMembership)
+        hapticFeedbackProvider.play(.actionSucceeded)
         return removedMembership
     }
 }

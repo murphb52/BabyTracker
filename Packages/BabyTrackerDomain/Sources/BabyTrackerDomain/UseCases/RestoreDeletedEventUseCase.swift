@@ -13,14 +13,20 @@ public struct RestoreDeletedEventUseCase: UseCase {
     }
 
     private let eventRepository: any EventRepository
+    private let hapticFeedbackProvider: any HapticFeedbackProviding
 
-    public init(eventRepository: any EventRepository) {
+    public init(
+        eventRepository: any EventRepository,
+        hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
+    ) {
         self.eventRepository = eventRepository
+        self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
     public func execute(_ input: Input) throws -> BabyEvent {
         let restoredEvent = restoreDeleted(input.event, by: input.restoredBy)
         try eventRepository.saveEvent(restoredEvent)
+        hapticFeedbackProvider.play(.actionSucceeded)
         return restoredEvent
     }
 

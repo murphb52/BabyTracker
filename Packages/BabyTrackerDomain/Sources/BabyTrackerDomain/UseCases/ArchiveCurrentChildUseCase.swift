@@ -17,15 +17,18 @@ public struct ArchiveChildUseCase: UseCase {
     private let childRepository: any ChildRepository
     private let membershipRepository: any MembershipRepository
     private let childSelectionStore: any ChildSelectionStore
+    private let hapticFeedbackProvider: any HapticFeedbackProviding
 
     public init(
         childRepository: any ChildRepository,
         membershipRepository: any MembershipRepository,
-        childSelectionStore: any ChildSelectionStore
+        childSelectionStore: any ChildSelectionStore,
+        hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
     ) {
         self.childRepository = childRepository
         self.membershipRepository = membershipRepository
         self.childSelectionStore = childSelectionStore
+        self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
     /// Archives the child and revokes all active caregiver memberships.
@@ -43,6 +46,8 @@ public struct ArchiveChildUseCase: UseCase {
         if input.currentSelectedChildID == archivedChild.id {
             childSelectionStore.saveSelectedChildID(nil)
         }
+
+        hapticFeedbackProvider.play(.actionSucceeded)
 
         let allMemberships = try membershipRepository.loadMemberships(for: input.child.id)
         var revoked: [Membership] = []

@@ -42,6 +42,7 @@ struct AppContainer {
         let localNotificationManager: any LocalNotificationManaging = launchConfiguration.usesUnavailableCloudKitClient ?
             NoOpLocalNotificationManager() :
             SystemLocalNotificationManager()
+        let hapticFeedbackProvider: any HapticFeedbackProviding = SystemHapticFeedbackProvider()
         let syncEngine = CloudKitSyncEngine(
             childRepository: childRepository,
             userIdentityRepository: userIdentityRepository,
@@ -58,7 +59,8 @@ struct AppContainer {
             eventRepository: eventRepository,
             syncEngine: syncEngine,
             liveActivityManager: liveActivityManager,
-            localNotificationManager: localNotificationManager
+            localNotificationManager: localNotificationManager,
+            hapticFeedbackProvider: hapticFeedbackProvider
         )
         let shareAcceptanceHandler = ShareAcceptanceHandler(syncEngine: syncEngine) {
             appModel.load()
@@ -112,7 +114,8 @@ struct AppContainer {
             eventRepository: eventRepository,
             syncEngine: syncEngine,
             liveActivityManager: NoOpFeedLiveActivityManager(),
-            localNotificationManager: NoOpLocalNotificationManager()
+            localNotificationManager: NoOpLocalNotificationManager(),
+            hapticFeedbackProvider: NoOpHapticFeedbackProvider()
         )
         let shareAcceptanceHandler = ShareAcceptanceHandler(syncEngine: syncEngine) {
             appModel.load()

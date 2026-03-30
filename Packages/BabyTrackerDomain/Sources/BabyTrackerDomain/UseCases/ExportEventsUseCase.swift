@@ -14,9 +14,14 @@ public struct ExportEventsUseCase: UseCase {
     }
 
     private let eventRepository: any EventRepository
+    private let hapticFeedbackProvider: any HapticFeedbackProviding
 
-    public init(eventRepository: any EventRepository) {
+    public init(
+        eventRepository: any EventRepository,
+        hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
+    ) {
         self.eventRepository = eventRepository
+        self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
     public func execute(_ input: Input) throws -> Data {
@@ -37,7 +42,9 @@ public struct ExportEventsUseCase: UseCase {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(exportData)
+        let data = try encoder.encode(exportData)
+        hapticFeedbackProvider.play(.actionSucceeded)
+        return data
     }
 
     // MARK: - Mapping

@@ -15,9 +15,14 @@ public struct DeleteEventUseCase: UseCase {
     }
 
     private let eventRepository: any EventRepository
+    private let hapticFeedbackProvider: any HapticFeedbackProviding
 
-    public init(eventRepository: any EventRepository) {
+    public init(
+        eventRepository: any EventRepository,
+        hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
+    ) {
         self.eventRepository = eventRepository
+        self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
     /// Returns the event snapshot before deletion, for use in undo state.
@@ -35,6 +40,7 @@ public struct DeleteEventUseCase: UseCase {
             deletedAt: .now,
             deletedBy: input.localUserID
         )
+        hapticFeedbackProvider.play(.actionSucceeded)
         return event
     }
 }
