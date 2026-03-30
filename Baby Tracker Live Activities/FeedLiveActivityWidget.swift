@@ -61,13 +61,16 @@ struct FeedLiveActivityWidget: Widget {
     @ViewBuilder
     private func compactTimerText(since date: Date) -> some View {
         Text(
-            timerInterval: date...Date.now,
+            timerInterval: date...Date.distantFuture,
             pauseTime: nil,
             countsDown: false,
             showsHours: false
         )
+        .font(.caption2.weight(.semibold))
         .monospacedDigit()
+        .minimumScaleFactor(0.7)
         .lineLimit(1)
+        .frame(width: 40, alignment: .trailing)
     }
 }
 
