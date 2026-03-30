@@ -95,6 +95,16 @@ public final class AppModel {
         }
     }
 
+    public func handleShareSheetSaveFailure(_ error: Error) {
+        AppLogger.shared.log(
+            .error,
+            category: "CloudKitShare",
+            "Failed to save iCloud share: \(error.localizedDescription)"
+        )
+        shareSheetState = nil
+        setErrorMessage("Couldn't save the iCloud share. \(resolveErrorMessage(for: error))")
+    }
+
     public func refreshSyncStatus() async {
         await runSyncRefresh { await self.syncEngine.refreshForeground() }
     }

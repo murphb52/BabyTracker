@@ -134,7 +134,11 @@ public struct ChildWorkspaceTabView: View {
             )
         }
         .sheet(item: $bindableModel.shareSheetState) { shareState in
-            CloudKitShareSheetView(shareState: shareState, childName: profile.child.name)
+            CloudKitShareSheetView(
+                shareState: shareState,
+                childName: profile.child.name,
+                onSaveFailure: model.handleShareSheetSaveFailure
+            )
                 .onDisappear {
                     model.dismissShareSheet()
                     model.refreshAfterShareSheet()
