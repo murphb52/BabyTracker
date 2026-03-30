@@ -389,45 +389,56 @@ public final class CloudKitSyncEngine {
         let tokenDescription = anchor == nil ? "none — full fetch" : "incremental"
         logger.info("Checking shared database for changes (token: \(tokenDescription, privacy: .public))")
         AppLogger.shared.log(.info, category: "CloudKitSync", "Checking shared database for changes (token: \(tokenDescription))")
-        let changes = try await client.databaseChanges(
-            in: .shared,
-            since: anchor?.tokenData
-        )
-        logger.info("Shared database: \(changes.modifiedZoneIDs.count, privacy: .public) modified zone(s), \(changes.deletedZoneIDs.count, privacy: .public) deleted zone(s)")
-        AppLogger.shared.log(.info, category: "CloudKitSync", "Shared database: \(changes.modifiedZoneIDs.count) modified zone(s), \(changes.deletedZoneIDs.count) deleted zone(s)")
 
-        for deletedZoneID in changes.deletedZoneIDs {
-            logger.info("Shared zone deleted (access removed): \(deletedZoneID.zoneName, privacy: .public)")
-            AppLogger.shared.log(.info, category: "CloudKitSync", "Shared zone deleted (access removed): \(deletedZoneID.zoneName)")
-            let childID = childID(from: deletedZoneID.zoneName)
-            try childRepository.purgeChildData(id: childID)
-            pendingInvitesByChildID[childID] = []
-        }
+        var currentTokenData = anchor?.tokenData
+        var latestTokenData: Data?
 
-        for zoneID in changes.modifiedZoneIDs {
-            logger.info("Shared zone modified (new/updated share): \(zoneID.zoneName, privacy: .public)")
-            AppLogger.shared.log(.info, category: "CloudKitSync", "Shared zone modified (new/updated share): \(zoneID.zoneName)")
-            let childID = childID(from: zoneID.zoneName)
-            let context = CloudKitChildContext(
-                childID: childID,
-                zoneID: zoneID,
-                shareRecordName: CloudKitRecordNames.shareRecordID(
-                    childID: childID,
-                    zoneID: zoneID
-                ).recordName,
-                databaseScope: .shared
+        repeat {
+            let changes = try await client.databaseChanges(
+                in: .shared,
+                since: currentTokenData
             )
-            try childRepository.saveCloudKitChildContext(context)
-            try await pullZoneSnapshot(context: context)
-        }
+            logger.info("Shared database page: \(changes.modifiedZoneIDs.count, privacy: .public) modified zone(s), \(changes.deletedZoneIDs.count, privacy: .public) deleted zone(s), moreComing: \(changes.moreComing, privacy: .public)")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "Shared database page: \(changes.modifiedZoneIDs.count) modified zone(s), \(changes.deletedZoneIDs.count) deleted zone(s), moreComing: \(changes.moreComing)")
 
-        let newAnchor = SyncAnchor(
-            databaseScope: .shared,
-            zoneID: nil,
-            tokenData: changes.tokenData,
-            lastSyncAt: .now
-        )
-        try syncStateRepository.saveAnchor(newAnchor)
+            for deletedZoneID in changes.deletedZoneIDs {
+                logger.info("Shared zone deleted (access removed): \(deletedZoneID.zoneName, privacy: .public)")
+                AppLogger.shared.log(.info, category: "CloudKitSync", "Shared zone deleted (access removed): \(deletedZoneID.zoneName)")
+                let childID = childID(from: deletedZoneID.zoneName)
+                try childRepository.purgeChildData(id: childID)
+                pendingInvitesByChildID[childID] = []
+            }
+
+            for zoneID in changes.modifiedZoneIDs {
+                logger.info("Shared zone modified (new/updated share): \(zoneID.zoneName, privacy: .public)")
+                AppLogger.shared.log(.info, category: "CloudKitSync", "Shared zone modified (new/updated share): \(zoneID.zoneName)")
+                let childID = childID(from: zoneID.zoneName)
+                let context = CloudKitChildContext(
+                    childID: childID,
+                    zoneID: zoneID,
+                    shareRecordName: CloudKitRecordNames.shareRecordID(
+                        childID: childID,
+                        zoneID: zoneID
+                    ).recordName,
+                    databaseScope: .shared
+                )
+                try childRepository.saveCloudKitChildContext(context)
+                try await pullZoneSnapshot(context: context)
+            }
+
+            latestTokenData = changes.tokenData
+            currentTokenData = changes.moreComing ? changes.tokenData : nil
+        } while currentTokenData != nil
+
+        if let tokenData = latestTokenData {
+            let newAnchor = SyncAnchor(
+                databaseScope: .shared,
+                zoneID: nil,
+                tokenData: tokenData,
+                lastSyncAt: .now
+            )
+            try syncStateRepository.saveAnchor(newAnchor)
+        }
     }
 
     private func pullKnownChildZones(forceFullFetch: Bool = false) async throws {
