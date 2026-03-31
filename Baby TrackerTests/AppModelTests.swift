@@ -1215,6 +1215,43 @@ struct AppModelTests {
         #expect(remaining.map(\.id) == [secondChild.id])
     }
 
+    @Test
+    func beginAcceptingSharedChildShowsFullScreenLoadingState() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        harness.model.beginAcceptingSharedChild()
+
+        #expect(harness.model.shareAcceptanceLoadingState == .acceptingSharedChild)
+    }
+
+    @Test
+    func completingSharedChildAcceptanceRefreshesProfileAndClearsLoadingState() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        harness.model.beginAcceptingSharedChild()
+
+        harness.model.completeAcceptingSharedChild()
+
+        #expect(harness.model.shareAcceptanceLoadingState == nil)
+        #expect(harness.model.route == .childProfile)
+        #expect(harness.model.profile?.child.name == "Poppy")
+    }
+
+    @Test
+    func failingSharedChildAcceptanceClearsLoadingStateAndShowsError() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        harness.model.beginAcceptingSharedChild()
+        harness.model.failAcceptingSharedChild(TestSyncEngineError.unimplemented)
+
+        #expect(harness.model.shareAcceptanceLoadingState == nil)
+        #expect(harness.model.errorMessage == "Couldn't accept the shared child. Something went wrong. Please try again.")
+    }
+
     // MARK: - Nuke All Data
 
     @Test

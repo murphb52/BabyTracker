@@ -6,15 +6,21 @@ import os
 @MainActor
 public final class ShareAcceptanceHandler {
     private let syncEngine: CloudKitSyncEngine
+    private let onStartAcceptingShare: @MainActor () -> Void
     private let onAcceptedShare: @MainActor () -> Void
+    private let onFailedToAcceptShare: @MainActor (Error) -> Void
     private let logger = Logger(subsystem: "com.adappt.BabyTracker", category: "ShareAcceptance")
 
     public init(
         syncEngine: CloudKitSyncEngine,
-        onAcceptedShare: @escaping @MainActor () -> Void
+        onStartAcceptingShare: @escaping @MainActor () -> Void,
+        onAcceptedShare: @escaping @MainActor () -> Void,
+        onFailedToAcceptShare: @escaping @MainActor (Error) -> Void
     ) {
         self.syncEngine = syncEngine
+        self.onStartAcceptingShare = onStartAcceptingShare
         self.onAcceptedShare = onAcceptedShare
+        self.onFailedToAcceptShare = onFailedToAcceptShare
     }
 
     public func accept(metadata: CKShare.Metadata) {
@@ -22,6 +28,7 @@ public final class ShareAcceptanceHandler {
         logger.info("[3/5] ShareAcceptanceHandler queuing accept task")
         AppLogger.shared.log(.info, category: "ShareAcceptance", "[3/5] ShareAcceptanceHandler queuing accept task")
         Task { @MainActor in
+            onStartAcceptingShare()
             print("[BabyTracker][3/5] ShareAcceptanceHandler task running — calling sync engine")
             logger.info("[3/5] ShareAcceptanceHandler task started — calling sync engine")
             AppLogger.shared.log(.info, category: "ShareAcceptance", "[3/5] ShareAcceptanceHandler task started — calling sync engine")
@@ -35,7 +42,7 @@ public final class ShareAcceptanceHandler {
                 print("[BabyTracker][3/5] Sync engine accept FAILED: \(error)")
                 logger.error("[3/5] Sync engine accept failed: \(error.localizedDescription, privacy: .public)")
                 AppLogger.shared.log(.error, category: "ShareAcceptance", "[3/5] Sync engine accept failed: \(error.localizedDescription)")
-                onAcceptedShare()
+                onFailedToAcceptShare(error)
             }
         }
     }

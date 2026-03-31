@@ -64,9 +64,18 @@ struct AppContainer {
             localNotificationManager: localNotificationManager,
             hapticFeedbackProvider: hapticFeedbackProvider
         )
-        let shareAcceptanceHandler = ShareAcceptanceHandler(syncEngine: syncEngine) {
-            appModel.load()
-        }
+        let shareAcceptanceHandler = ShareAcceptanceHandler(
+            syncEngine: syncEngine,
+            onStartAcceptingShare: {
+                appModel.beginAcceptingSharedChild()
+            },
+            onAcceptedShare: {
+                appModel.completeAcceptingSharedChild()
+            },
+            onFailedToAcceptShare: { error in
+                appModel.failAcceptingSharedChild(error)
+            }
+        )
         appModel.load(performLaunchSync: !launchConfiguration.skipsLaunchSync)
 
         self.appModel = appModel
@@ -121,9 +130,18 @@ struct AppContainer {
             localNotificationManager: NoOpLocalNotificationManager(),
             hapticFeedbackProvider: NoOpHapticFeedbackProvider()
         )
-        let shareAcceptanceHandler = ShareAcceptanceHandler(syncEngine: syncEngine) {
-            appModel.load()
-        }
+        let shareAcceptanceHandler = ShareAcceptanceHandler(
+            syncEngine: syncEngine,
+            onStartAcceptingShare: {
+                appModel.beginAcceptingSharedChild()
+            },
+            onAcceptedShare: {
+                appModel.completeAcceptingSharedChild()
+            },
+            onFailedToAcceptShare: { error in
+                appModel.failAcceptingSharedChild(error)
+            }
+        )
         appModel.load()
 
         _ = processInfo
