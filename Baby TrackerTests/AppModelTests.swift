@@ -8,6 +8,29 @@ import Testing
 @MainActor
 struct AppModelTests {
     @Test
+    func loadingWithoutLocalUserRoutesToIdentityOnboarding() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        harness.model.load(performLaunchSync: false)
+
+        #expect(harness.model.route == .identityOnboarding)
+        #expect(harness.model.localUser == nil)
+    }
+
+    @Test
+    func creatingLocalUserRoutesToNoChildren() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.createLocalUser(displayName: "Alex Parent")
+
+        #expect(harness.model.route == .noChildren)
+        #expect(harness.model.localUser?.displayName == "Alex Parent")
+    }
+
+    @Test
     func profileDerivesHomeRecentEventsInNewestFirstOrder() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }
