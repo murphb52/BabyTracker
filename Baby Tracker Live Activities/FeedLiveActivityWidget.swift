@@ -12,8 +12,6 @@ struct FeedLiveActivityWidget: Widget {
                 .activitySystemActionForegroundColor(.white)
                 .widgetURL(FeedLiveActivityDeepLink.endSleepURL(childID: context.state.childID))
         } dynamicIsland: { context in
-            let compactMetric = compactDynamicIslandMetric(for: context.state)
-
             DynamicIsland {
                 DynamicIslandExpandedRegion(.center) {
                     FeedLiveActivityContentView(
@@ -34,18 +32,36 @@ struct FeedLiveActivityWidget: Widget {
                     }
                 }
             } compactLeading: {
-                Image(systemName: symbolName(for: compactMetric))
-                    .foregroundStyle(eventAccentColor(for: compactMetric.kind))
+                compactLeadingView(for: context.state)
             } compactTrailing: {
-                compactTimerText(
-                    since: compactMetric.date,
-                    color: eventAccentColor(for: compactMetric.kind)
-                )
+                compactTrailingView(for: context.state)
             } minimal: {
-                Image(systemName: symbolName(for: compactMetric))
-                    .foregroundStyle(eventAccentColor(for: compactMetric.kind))
+                minimalView(for: context.state)
             }
         }
+    }
+
+    @ViewBuilder
+    private func compactLeadingView(for state: FeedLiveActivityAttributes.ContentState) -> some View {
+        let compactMetric = compactDynamicIslandMetric(for: state)
+        Image(systemName: symbolName(for: compactMetric))
+            .foregroundStyle(eventAccentColor(for: compactMetric.kind))
+    }
+
+    @ViewBuilder
+    private func compactTrailingView(for state: FeedLiveActivityAttributes.ContentState) -> some View {
+        let compactMetric = compactDynamicIslandMetric(for: state)
+        compactTimerText(
+            since: compactMetric.date,
+            color: eventAccentColor(for: compactMetric.kind)
+        )
+    }
+
+    @ViewBuilder
+    private func minimalView(for state: FeedLiveActivityAttributes.ContentState) -> some View {
+        let compactMetric = compactDynamicIslandMetric(for: state)
+        Image(systemName: symbolName(for: compactMetric))
+            .foregroundStyle(eventAccentColor(for: compactMetric.kind))
     }
 
     private func symbolName(for metric: CompactDynamicIslandMetric) -> String {
