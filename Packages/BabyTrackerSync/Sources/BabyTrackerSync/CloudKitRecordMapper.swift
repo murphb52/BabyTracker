@@ -38,6 +38,7 @@ public enum CloudKitRecordMapper {
         record["name"] = child.name
         record["birthDate"] = child.birthDate
         record["createdAt"] = child.createdAt
+        record["updatedAt"] = child.updatedAt
         record["createdBy"] = child.createdBy.uuidString
         record["isArchived"] = child.isArchived
         record["preferredFeedVolumeUnit"] = child.preferredFeedVolumeUnit.rawValue
@@ -123,6 +124,7 @@ public enum CloudKitRecordMapper {
             name: record["name"] as? String ?? "",
             birthDate: record["birthDate"] as? Date,
             createdAt: record["createdAt"] as? Date ?? .now,
+            updatedAt: record["updatedAt"] as? Date ?? (record["createdAt"] as? Date ?? .now),
             createdBy: UUID(uuidString: record["createdBy"] as? String ?? "") ?? UUID(),
             isArchived: record["isArchived"] as? Bool ?? false,
             imageData: imageData,

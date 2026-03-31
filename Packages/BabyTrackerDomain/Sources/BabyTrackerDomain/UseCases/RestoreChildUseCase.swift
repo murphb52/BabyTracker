@@ -30,6 +30,7 @@ public struct RestoreChildUseCase: UseCase {
         }
 
         restoredChild.isArchived = false
+        restoredChild.updatedAt = .now
         try childRepository.saveChild(restoredChild)
         childSelectionStore.saveSelectedChildID(input.childID)
         hapticFeedbackProvider.play(.actionSucceeded)

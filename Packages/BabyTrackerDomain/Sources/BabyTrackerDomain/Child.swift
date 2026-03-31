@@ -5,6 +5,7 @@ public struct Child: Equatable, Identifiable, Sendable {
     public var name: String
     public var birthDate: Date?
     public let createdAt: Date
+    public var updatedAt: Date
     public let createdBy: UUID
     public var isArchived: Bool
     public var imageData: Data?
@@ -15,6 +16,7 @@ public struct Child: Equatable, Identifiable, Sendable {
         name: String,
         birthDate: Date? = nil,
         createdAt: Date = Date(),
+        updatedAt: Date? = nil,
         createdBy: UUID,
         isArchived: Bool = false,
         imageData: Data? = nil,
@@ -29,6 +31,7 @@ public struct Child: Equatable, Identifiable, Sendable {
         self.name = normalizedName
         self.birthDate = birthDate
         self.createdAt = createdAt
+        self.updatedAt = updatedAt ?? createdAt
         self.createdBy = createdBy
         self.isArchived = isArchived
         self.imageData = imageData
@@ -39,13 +42,15 @@ public struct Child: Equatable, Identifiable, Sendable {
         name: String,
         birthDate: Date?,
         imageData: Data? = nil,
-        preferredFeedVolumeUnit: FeedVolumeUnit
+        preferredFeedVolumeUnit: FeedVolumeUnit,
+        updatedAt: Date = Date()
     ) throws -> Child {
         try Child(
             id: id,
             name: name,
             birthDate: birthDate,
             createdAt: createdAt,
+            updatedAt: updatedAt,
             createdBy: createdBy,
             isArchived: isArchived,
             imageData: imageData,
