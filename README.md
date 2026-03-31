@@ -46,3 +46,15 @@ xcodebuild test \
 |----------|---------|
 | Build | PRs and pushes to `main` |
 | Build and Test | PRs and pushes to `main` |
+
+## Xcode Cloud TestFlight Notes
+
+The repo includes an Xcode Cloud post-build script at `ci_scripts/ci_post_xcodebuild.sh`.
+
+It generates `TestFlight/WhatToTest.en-US.txt` during signed archive builds so TestFlight notes can include:
+
+- the branch name
+- the last three commits
+- pull request title and a short summary when `CI_PULL_REQUEST_NUMBER` is available and `GITHUB_TOKEN` is configured as an Xcode Cloud secret
+
+To enable it in Xcode Cloud, add the script to the repo and make sure the workflow runs the standard `ci_post_xcodebuild.sh` hook from the `ci_scripts` folder.
