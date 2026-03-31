@@ -1554,6 +1554,10 @@ public final class AppModel {
     private func timelineSyncMessage(
         for cloudKitStatus: CloudKitStatusViewState
     ) -> String? {
+        if cloudKitStatus.isAccountUnavailable {
+            return nil
+        }
+
         switch cloudKitStatus.state {
         case .upToDate:
             return nil
@@ -1856,14 +1860,15 @@ public final class AppModel {
     private func updateSyncIndicator(using summary: SyncStatusSummary) {
         switch summary.state {
         case .failed:
-            let message = summary.lastErrorDescription ?? "Sync failed. Local changes are still saved."
-            let state: SyncBannerState
-            if message.localizedCaseInsensitiveContains("unavailable") ||
-                message.localizedCaseInsensitiveContains("sign in to iCloud") {
-                state = .syncUnavailable(message)
-            } else {
-                state = .lastSyncFailed(message)
+            let cloudKitStatus = CloudKitStatusViewState(summary: summary)
+            guard !cloudKitStatus.isAccountUnavailable else {
+                setSyncIndicator(nil)
+                return
             }
+
+            let message = cloudKitStatus.detailMessage ?? "Sync failed. Local changes are still saved."
+            let state: SyncBannerState
+            state = .lastSyncFailed(message)
             setSyncIndicator(state)
             playHaptic(.actionFailed)
             syncIndicatorDismissTask = Task { @MainActor in
@@ -1886,6 +1891,11 @@ public final class AppModel {
         _ message: String,
         haptic: HapticEvent = .actionFailed
     ) {
+        if CloudKitStatusViewState.isAccountUnavailableMessage(message) {
+            errorMessage = nil
+            return
+        }
+
         errorMessage = message
         playHaptic(haptic)
     }

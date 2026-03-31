@@ -6,12 +6,15 @@ public struct CloudKitStatusViewState: Equatable, Sendable {
     public let pendingRecordCount: Int
     public let lastSyncAt: Date?
     public let detailMessage: String?
+    public let isAccountUnavailable: Bool
 
     public init(summary: SyncStatusSummary) {
         self.state = summary.state
         self.pendingRecordCount = summary.pendingRecordCount
         self.lastSyncAt = summary.lastSyncAt
-        self.detailMessage = Self.detailMessage(for: summary)
+        let detailMessage = Self.detailMessage(for: summary)
+        self.detailMessage = detailMessage
+        self.isAccountUnavailable = Self.isAccountUnavailableMessage(detailMessage)
     }
 
     public var statusTitle: String {
@@ -23,9 +26,7 @@ public struct CloudKitStatusViewState: Equatable, Sendable {
         case .syncing:
             return "Syncing now"
         case .failed:
-            if let detailMessage,
-               detailMessage.localizedCaseInsensitiveContains("sign in to iCloud") ||
-               detailMessage.localizedCaseInsensitiveContains("unavailable") {
+            if isAccountUnavailable {
                 return "Sync unavailable"
             }
 
@@ -49,6 +50,22 @@ public struct CloudKitStatusViewState: Equatable, Sendable {
         return pendingRecordCount == 1 ? "1 change" : "\(pendingRecordCount) changes"
     }
 
+    public var syncSettingsBannerTitle: String? {
+        guard isAccountUnavailable else {
+            return nil
+        }
+
+        return "iCloud backup is unavailable"
+    }
+
+    public var syncSettingsBannerMessage: String? {
+        guard isAccountUnavailable else {
+            return nil
+        }
+
+        return "Baby Tracker is still saving data on this device. Sign in to iCloud in Settings to resume backups and sharing."
+    }
+
     private static func detailMessage(for summary: SyncStatusSummary) -> String? {
         switch summary.state {
         case .upToDate:
@@ -66,5 +83,14 @@ public struct CloudKitStatusViewState: Equatable, Sendable {
         case .failed:
             return summary.lastErrorDescription ?? "Last sync failed. Local data is still available."
         }
+    }
+
+    public static func isAccountUnavailableMessage(_ message: String?) -> Bool {
+        guard let message else {
+            return false
+        }
+
+        return message.localizedCaseInsensitiveContains("unavailable") ||
+            message.localizedCaseInsensitiveContains("sign in to iCloud")
     }
 }

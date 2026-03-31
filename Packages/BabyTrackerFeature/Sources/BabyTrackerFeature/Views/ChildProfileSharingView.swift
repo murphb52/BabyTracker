@@ -110,6 +110,10 @@ public struct ChildProfileSharingView: View {
             return nil
         }
 
+        if profile.cloudKitStatus.isAccountUnavailable {
+            return "Sharing is unavailable until iCloud backup is available. Check the iCloud Sync screen for details."
+        }
+
         if let detailMessage = profile.cloudKitStatus.detailMessage {
             return "Sharing is unavailable right now. \(detailMessage)"
         }

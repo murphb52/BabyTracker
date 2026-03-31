@@ -15,6 +15,22 @@ public struct ChildProfileSyncView: View {
 
     public var body: some View {
         List {
+            if let bannerTitle = profile.cloudKitStatus.syncSettingsBannerTitle,
+               let bannerMessage = profile.cloudKitStatus.syncSettingsBannerMessage {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(bannerTitle, systemImage: "icloud.slash")
+                            .font(.headline)
+
+                        Text(bannerMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                    .accessibilityIdentifier("icloud-sync-unavailable-banner")
+                }
+            }
+
             Section("Status") {
                 LabeledContent("Sync") {
                     Text(profile.cloudKitStatus.statusTitle)
