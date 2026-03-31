@@ -489,8 +489,10 @@ struct CloudKitSyncEngineTests {
             $0.databaseScope == .private &&
             $0.tokenWasNil
         }))
-        let savedRecordBatches = await client.savedRecordBatches
-        #expect(savedRecordBatches.isEmpty)
+        let finalPrivateBatch = try #require((await client.savedRecordBatches).last(where: { $0.databaseScope == .private }))
+        #expect(Set(finalPrivateBatch.recordTypes) == ["UserIdentity"])
+        let finalPrivateSavePolicy = try #require((await client.savedRecordBatches).last(where: { $0.databaseScope == .private })?.savePolicy)
+        #expect(finalPrivateSavePolicy == .ifServerRecordUnchanged)
     }
 }
 
