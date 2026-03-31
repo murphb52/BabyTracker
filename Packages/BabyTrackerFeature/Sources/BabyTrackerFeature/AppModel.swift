@@ -20,6 +20,7 @@ public final class AppModel {
     public private(set) var navigationResetToken: Int = 0
     public private(set) var shareAcceptanceLoadingState: ShareAcceptanceLoadingState?
     public private(set) var sleepSheetRequestToken: Int = 0
+    public var selectedWorkspaceTab: ChildWorkspaceTab = .home
     public var shareSheetState: ShareSheetState?
     public private(set) var csvImportState: CSVImportState = .idle
     public private(set) var nestImportState: NestImportState = .idle
@@ -328,9 +329,19 @@ public final class AppModel {
     }
 
     public func selectChild(id: UUID) {
+        let currentSelectedChildID = childSelectionStore.loadSelectedChildID()
+        let didChangeChild = currentSelectedChildID != id
+
         childSelectionStore.saveSelectedChildID(id)
         timelineChildID = id
         timelineSelectedDay = normalizedTimelineDay(for: .now)
+        if didChangeChild {
+            timelineDisplayMode = .day
+            activeEventFilter = .empty
+            selectedWorkspaceTab = .profile
+            resetNavigationStack()
+            showTransientMessage("Child changed.")
+        }
         refresh(selecting: id)
         playHaptic(.selectionChanged)
     }
