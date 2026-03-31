@@ -517,7 +517,11 @@ public final class CloudKitSyncEngine {
             logger.info("Child '\(child.name, privacy: .private)' — no CloudKit zone yet, creating private zone")
             AppLogger.shared.log(.info, category: "CloudKitSync", "Child — no CloudKit zone yet, creating private zone")
             let context = try await ensureZoneContext(for: child.id, preferredScope: .private)
-            try await pushPendingChanges(for: child.id, context: context)
+            try await pushPendingChanges(
+                for: child.id,
+                context: context,
+                pendingRecords: try syncStateRepository.loadPendingRecords()
+            )
         }
     }
 
