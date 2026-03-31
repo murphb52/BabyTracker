@@ -48,4 +48,4 @@ Expand the Summary experience so users can drill into richer feed, sleep, and na
 2. Clinician-specific report generation.
 3. Overly dense analytics or highly custom charting infrastructure.
 
-- [ ] Complete
+- [x] Complete

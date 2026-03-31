@@ -69,7 +69,7 @@ public struct ChildWorkspaceTabView: View {
             }
 
 
-            SummaryScreenView(profile: profile)
+            SummaryScreenView(summary: profile.summary)
             .tag(Tab.summary)
             .tabItem {
                 Label("Summary", systemImage: "chart.bar.fill")

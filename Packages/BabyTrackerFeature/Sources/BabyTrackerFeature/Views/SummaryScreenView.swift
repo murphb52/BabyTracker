@@ -1,17 +1,17 @@
 import SwiftUI
 
 public struct SummaryScreenView: View {
-    let profile: ChildProfileScreenState
+    let summary: SummaryScreenState
 
     @State private var selectedRange: SummaryTimeRange = .today
 
-    public init(profile: ChildProfileScreenState) {
-        self.profile = profile
+    public init(summary: SummaryScreenState) {
+        self.summary = summary
     }
 
     public var body: some View {
         let snapshot = SummaryMetricsCalculator.makeSnapshot(
-            from: profile.summary.events,
+            from: summary.events,
             range: selectedRange
         )
 
@@ -23,8 +23,8 @@ public struct SummaryScreenView: View {
                     emptyState
                 } else {
                     topMetrics(snapshot: snapshot)
-                    inDepthMetrics(snapshot: snapshot)
                     chartSection(snapshot: snapshot)
+                    advancedSummaryLink
                 }
             }
             .padding(.horizontal, 16)
@@ -49,10 +49,10 @@ public struct SummaryScreenView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(profile.summary.emptyStateTitle)
+            Text(summary.emptyStateTitle)
                 .font(.headline)
 
-            Text(profile.summary.emptyStateMessage)
+            Text(summary.emptyStateMessage)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -78,71 +78,34 @@ public struct SummaryScreenView: View {
                     title: "Feeds",
                     value: "\(snapshot.totalFeeds)",
                     subtitle: subtitleForFeedAverage(snapshot),
-                    symbol: "drop.fill"
+                    symbol: "drop.fill",
+                    tint: .blue
                 )
 
                 metricCard(
                     title: "Nappy Changes",
                     value: "\(snapshot.totalNappies)",
                     subtitle: "Wet: \(snapshot.wetNappyCount) • Dirty: \(snapshot.dirtyNappyCount)",
-                    symbol: "checklist.checked"
+                    symbol: "checklist.checked",
+                    tint: .green
                 )
 
                 metricCard(
                     title: "Sleep",
                     value: formatMinutes(snapshot.totalSleepMinutes),
                     subtitle: sleepRangeSubtitle(snapshot),
-                    symbol: "moon.zzz.fill"
+                    symbol: "moon.zzz.fill",
+                    tint: .indigo
                 )
 
                 metricCard(
                     title: "Logging Streak",
                     value: "\(snapshot.loggingStreakDays) day\(snapshot.loggingStreakDays == 1 ? "" : "s")",
                     subtitle: "Consecutive days with logs",
-                    symbol: "flame.fill"
+                    symbol: "flame.fill",
+                    tint: .orange
                 )
             }
-        }
-    }
-
-    private func inDepthMetrics(snapshot: SummarySnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("In-Depth")
-                .font(.headline)
-
-            VStack(spacing: 10) {
-                detailRow(
-                    title: "Average feed interval",
-                    value: snapshot.averageFeedIntervalMinutes.map { "\($0) min" } ?? "Not enough feeds"
-                )
-
-                detailRow(
-                    title: "Average sleep block",
-                    value: snapshot.averageSleepBlockMinutes.map { "\($0) min" } ?? "No completed sleeps"
-                )
-
-                detailRow(
-                    title: "Shortest sleep block",
-                    value: snapshot.shortestSleepBlockMinutes.map { "\($0) min" } ?? "No completed sleeps"
-                )
-
-                detailRow(
-                    title: "Longest sleep block",
-                    value: snapshot.longestSleepBlockMinutes.map { "\($0) min" } ?? "No completed sleeps"
-                )
-
-                detailRow(
-                    title: "Wet vs dirty ratio",
-                    value: nappyRatioText(snapshot)
-                )
-
-                detailRow(
-                    title: "Mixed/Dry nappies",
-                    value: "Mixed: \(snapshot.mixedNappyCount) • Dry: \(snapshot.dryNappyCount)"
-                )
-            }
-            .padding(14)
-            .background(cardBackground)
         }
     }
 
@@ -157,7 +120,7 @@ public struct SummaryScreenView: View {
             ) {
                 miniBarChart(
                     points: snapshot.dailyEventCounts.map { ($0.label, $0.count) },
-                    tint: .accentColor
+                    tint: .orange
                 )
             }
 
@@ -177,13 +140,14 @@ public struct SummaryScreenView: View {
         title: String,
         value: String,
         subtitle: String,
-        symbol: String
+        symbol: String,
+        tint: Color
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Label(title, systemImage: symbol)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(tint)
                 Spacer()
             }
 
@@ -200,16 +164,34 @@ public struct SummaryScreenView: View {
         .background(cardBackground)
     }
 
-    private func detailRow(title: String, value: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text(title)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-                .multilineTextAlignment(.trailing)
-                .fontWeight(.semibold)
+    private var advancedSummaryLink: some View {
+        NavigationLink {
+            AdvancedSummaryView(
+                summary: summary,
+                initialSelection: .range(selectedRange)
+            )
+        } label: {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("More Information")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+
+                    Text("Open feeds, sleep, nappies, and activity details for a range or a specific day.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.orange)
+            }
+            .padding(16)
+            .background(cardBackground)
         }
-        .font(.subheadline)
+        .buttonStyle(.plain)
     }
 
     private func chartCard<Content: View>(
@@ -287,16 +269,6 @@ public struct SummaryScreenView: View {
         return "Shortest: \(shortest)m • Longest: \(longest)m"
     }
 
-    private func nappyRatioText(_ snapshot: SummarySnapshot) -> String {
-        let dirtyIncludingMixed = snapshot.dirtyNappyCount + snapshot.mixedNappyCount
-
-        if snapshot.wetNappyCount == 0 && dirtyIncludingMixed == 0 {
-            return "No nappy data"
-        }
-
-        return "\(snapshot.wetNappyCount):\(dirtyIncludingMixed)"
-    }
-
     private func formatMinutes(_ minutes: Int) -> String {
         let hours = minutes / 60
         let remainingMinutes = minutes % 60
@@ -306,5 +278,23 @@ public struct SummaryScreenView: View {
         }
 
         return "\(hours)h \(remainingMinutes)m"
+    }
+}
+
+#Preview("With Data") {
+    NavigationStack {
+        SummaryScreenView(summary: SummaryScreenPreviewFactory.summaryState)
+    }
+}
+
+#Preview("Empty") {
+    NavigationStack {
+        SummaryScreenView(
+            summary: SummaryScreenState(
+                events: [],
+                emptyStateTitle: "No summary data yet",
+                emptyStateMessage: "Log feeds, sleep, and nappies to unlock trends."
+            )
+        )
     }
 }
