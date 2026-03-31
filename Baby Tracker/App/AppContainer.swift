@@ -22,6 +22,7 @@ struct AppContainer {
         let eventRepository = SwiftDataEventRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
         let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
+        let liveActivityPreferenceStore = UserDefaultsLiveActivityPreferenceStore(userDefaults: userDefaults)
 
         if let scenario = launchConfiguration.scenario {
             try? Self.seed(
@@ -61,6 +62,7 @@ struct AppContainer {
             eventRepository: eventRepository,
             syncEngine: syncEngine,
             liveActivityManager: liveActivityManager,
+            liveActivityPreferenceStore: liveActivityPreferenceStore,
             localNotificationManager: localNotificationManager,
             hapticFeedbackProvider: hapticFeedbackProvider
         )
@@ -100,6 +102,7 @@ struct AppContainer {
         let eventRepository = SwiftDataEventRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
         let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
+        let liveActivityPreferenceStore = UserDefaultsLiveActivityPreferenceStore(userDefaults: userDefaults)
 
         try? seed(
             scenario: .mixedEventsPreview,
@@ -127,6 +130,7 @@ struct AppContainer {
             eventRepository: eventRepository,
             syncEngine: syncEngine,
             liveActivityManager: NoOpFeedLiveActivityManager(),
+            liveActivityPreferenceStore: liveActivityPreferenceStore,
             localNotificationManager: NoOpLocalNotificationManager(),
             hapticFeedbackProvider: NoOpHapticFeedbackProvider()
         )
