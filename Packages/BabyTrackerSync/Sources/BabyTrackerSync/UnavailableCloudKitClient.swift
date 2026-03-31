@@ -48,11 +48,13 @@ public struct UnavailableCloudKitClient: CloudKitClient {
         saving records: [CKRecord],
         deleting recordIDs: [CKRecord.ID],
         databaseScope: CKDatabase.Scope,
-        savePolicy: CKModifyRecordsOperation.RecordSavePolicy
+        savePolicy: CKModifyRecordsOperation.RecordSavePolicy,
+        atomically: Bool
     ) async throws -> (
         saveResults: [CKRecord.ID: Result<CKRecord, Error>],
         deleteResults: [CKRecord.ID: Result<Void, Error>]
     ) {
+        _ = atomically
         throw CKError(.notAuthenticated)
     }
 
