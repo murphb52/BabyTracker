@@ -231,6 +231,10 @@ Check:
 - naming patterns already used in the project
 - existing tests and previews
 - whether a simpler change can solve the problem without introducing new abstractions
+- whether the requested work needs a new or updated plan in `/docs/plans`
+- whether the requested work should have a GitHub issue before implementation starts
+
+For requested features, tweaks, and bug fixes, default to planning first. Create or update the plan before implementing the work. If the change is large enough to be worth documenting, create the GitHub issue before writing code.
 
 ### While making changes
 Keep edits narrow and intentional.
@@ -256,6 +260,8 @@ At minimum:
 3. run the full test suite when the change has shared impact
 4. review the diff for unrelated edits
 5. confirm the commit is atomic
+6. confirm the plan document reflects the implemented approach
+7. confirm any required SwiftUI previews were added or updated
 
 If tests fail, fix them before committing.
 
@@ -265,11 +271,20 @@ If tests fail, fix them before committing.
 
 ### Views
 - Keep `body` readable.
+- Prefer small, focused SwiftUI views with one clear purpose.
 - Break large views into smaller subviews when it improves understanding.
+- If a view becomes difficult to scan, split it into smaller child views or supporting presentation types.
 - Do not extract subviews too early if the extraction makes navigation harder.
 - Prefer simple view composition over deeply generic reusable components.
 - Keep views as simple rendering and event forwarding units.
 - Avoid placing business logic directly in SwiftUI views.
+
+### Previews
+- If you create a SwiftUI file, add a `#Preview`.
+- If you touch an existing SwiftUI file, add or update its `#Preview`.
+- Previews should show the meaningful states of the view when practical, such as populated, empty, loading, error, selected, or disabled states.
+- Use lightweight preview data, simple fakes, and local fixtures so previews stay fast and easy to understand.
+- Do not leave a SwiftUI view without a useful preview unless there is a clear technical reason it cannot be previewed.
 
 ### State
 - Keep state ownership clear.
@@ -328,6 +343,7 @@ Prefer use cases that do one thing well.
 - Keep tests readable and focused on behavior.
 - Avoid overly coupled tests that break on harmless refactors.
 - Focus tests on business rules, use cases, mapping rules, and critical presentation state transformations.
+- When touching SwiftUI presentation logic, verify that previews still compile and still represent the intended states.
 
 ### Domain logic should be easy to test
 - Domain use cases should not require UI frameworks, network access, or databases to test.
@@ -362,6 +378,7 @@ Refactor when you notice:
 - domain logic buried in UI or infrastructure code
 - protocols that are too broad
 - functions that are difficult to explain simply
+- a SwiftUI view that would be easier to understand as several smaller views
 
 When in doubt, split code earlier rather than later.
 
@@ -386,6 +403,8 @@ When in doubt, split code earlier rather than later.
 - Speculative architecture
 - Large commits with multiple concerns
 - Committing without running tests
+- Large SwiftUI views that should be split into smaller pieces
+- Shipping SwiftUI changes without updating previews
 
 ---
 
@@ -443,19 +462,26 @@ When planning work, create a document in:
 
 ### Requirements
 
+Each requested feature, tweak, or bug fix should start with a plan document.
+
+Plan documents are the default, not the exception. When work is requested, create or update the plan before implementation starts so the intended approach is visible and easy to review.
+
 Each plan must:
 
 - be clearly written and easy to follow
 - describe the goal and approach in simple terms
 - avoid unnecessary complexity or speculative design
 - be numbered so progress can be tracked
+- use a sequential, unique number
+- live in `/docs/plans`
 
 Example naming:
 
 - `001-onboarding-flow.md`
 - `002-data-persistence.md`
+- `003-settings-screen-cleanup.md`
 
-Numbering should be sequential and unique.
+Choose the next available number. Do not reuse numbers.
 
 ### Completion tracking
 
@@ -473,11 +499,27 @@ When the plan has been fully implemented, update it to:
 
 This ensures it is always clear what is finished and what is still in progress.
 
+### GitHub issues and pull requests
+
+Use GitHub issues to document meaningful work.
+
+- Tiny one-line changes may skip a GitHub issue when the work is truly obvious and not worth separate tracking.
+- For anything worth documenting, create a GitHub issue before implementation.
+- The GitHub issue should explain what is changing and why it is changing.
+- When practical, the GitHub issue should also capture scope, constraints, and acceptance criteria.
+- The plan document and GitHub issue should reference each other when that improves traceability.
+- Do the implementation work against that plan and issue.
+- Raise a pull request for the change.
+- The pull request description must link the GitHub issue when one exists.
+- The pull request description should also mention the relevant plan document in `/docs/plans`.
+- If no GitHub issue was created because the change is intentionally tiny, say that briefly in the pull request description.
+
 ### Expectations
 
-- Plans should be created before implementing non-trivial work.
+- Plans should be created before implementing work.
 - Implementation should follow the plan closely unless a simpler approach is discovered.
 - If the approach changes meaningfully, update the plan.
+- Non-trivial work should leave behind a clear chain of plan document, GitHub issue, implementation, and pull request.
 
 ---
 
@@ -493,6 +535,9 @@ New code should:
 - include meaningful comments where needed
 - be testable in isolation where practical
 - align with SOLID principles
+- include a plan document when the work was requested
+- include a GitHub issue for non-trivial work
+- include useful `#Preview` coverage for any created or touched SwiftUI views
 - leave the codebase cleaner than it was before
 
 ---
@@ -509,6 +554,8 @@ Before creating a commit, confirm all of the following:
 - [ ] The project builds successfully.
 - [ ] Comments explain why, not what.
 - [ ] TODOs are specific and intentional.
+- [ ] The relevant plan document has been created or updated.
+- [ ] Any required SwiftUI previews have been created or updated.
 - [ ] The diff contains no unrelated edits.
 
 ---
@@ -521,10 +568,13 @@ When writing or reviewing code, ask:
 - Is this the right package and boundary?
 - Are dependencies pointing in the correct direction?
 - Can this logic be split into smaller functions or types?
+- Can this SwiftUI view be split into smaller views?
 - Is a protocol useful here, or is it unnecessary abstraction?
 - Is business logic placed in the domain layer?
 - Are comments explaining intent rather than narrating code?
 - Are framework details isolated at the edges?
+- Does a touched SwiftUI file have a useful `#Preview`?
+- Does the work have the right level of planning and issue tracking?
 - Will this be easy to test and maintain in six months?
 
 ---
