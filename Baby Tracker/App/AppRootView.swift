@@ -44,7 +44,7 @@ struct AppRootView: View {
         }
         // Reset the stack when the app moves between top-level flows so stale
         // detail screens do not remain visible above a new root route.
-        .id(model.route)
+        .id("\(String(describing: model.route))-\(model.navigationResetToken)")
         .overlay(alignment: .top) {
             ZStack(alignment: .topTrailing) {
                 if let errorMessage = model.errorMessage {
@@ -80,14 +80,21 @@ struct AppRootView: View {
             model.requestSleepSheetPresentation()
         }
         .safeAreaInset(edge: .bottom) {
-            if let undoDeleteMessage = model.undoDeleteMessage {
-                UndoBannerView(
-                    message: undoDeleteMessage,
-                    undoAction: model.undoLastDeletedEvent
-                )
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
+            VStack(spacing: 8) {
+                if let transientMessage = model.transientMessage {
+                    TransientMessageBannerView(message: transientMessage)
+                        .padding(.horizontal, 16)
+                }
+
+                if let undoDeleteMessage = model.undoDeleteMessage {
+                    UndoBannerView(
+                        message: undoDeleteMessage,
+                        undoAction: model.undoLastDeletedEvent
+                    )
+                    .padding(.horizontal, 16)
+                }
             }
+            .padding(.bottom, 8)
         }
     }
 }
