@@ -654,16 +654,28 @@ public final class CloudKitSyncEngine {
         logger.info("pushPendingChanges '\(childID.uuidString, privacy: .public)' — saving \(outboundRecords.count, privacy: .public) pending record(s) to \(context.databaseScope.logDescription, privacy: .public): [\(saveSummary, privacy: .public)]")
         AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — saving \(outboundRecords.count) pending record(s) to \(context.databaseScope.logDescription): [\(saveSummary)]")
 
-        let results = try await client.modifyRecords(
-            saving: outboundRecords.map(\.record),
-            deleting: [],
-            databaseScope: context.databaseScope,
-            savePolicy: .ifServerRecordUnchanged,
-            atomically: false
-        )
+        // CloudKit enforces a maximum of 400 records per CKModifyRecordsOperation.
+        // Split into batches so large imports (e.g. from Huckleberry) don't fail.
+        let cloudKitBatchLimit = 400
+        var mergedSaveResults: [CKRecord.ID: Result<CKRecord, Error>] = [:]
+        for batchStart in stride(from: 0, to: outboundRecords.count, by: cloudKitBatchLimit) {
+            let batch = Array(outboundRecords[batchStart..<min(batchStart + cloudKitBatchLimit, outboundRecords.count)])
+            if outboundRecords.count > cloudKitBatchLimit {
+                logger.info("pushPendingChanges '\(childID.uuidString, privacy: .public)' — batch \(batchStart / cloudKitBatchLimit + 1, privacy: .public): \(batch.count, privacy: .public) record(s)")
+                AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — batch \(batchStart / cloudKitBatchLimit + 1): \(batch.count) record(s)")
+            }
+            let batchResults = try await client.modifyRecords(
+                saving: batch.map(\.record),
+                deleting: [],
+                databaseScope: context.databaseScope,
+                savePolicy: .ifServerRecordUnchanged,
+                atomically: false
+            )
+            mergedSaveResults.merge(batchResults.saveResults) { _, new in new }
+        }
 
         for outboundRecord in outboundRecords {
-            if let result = results.saveResults[outboundRecord.record.recordID] {
+            if let result = mergedSaveResults[outboundRecord.record.recordID] {
                 switch result {
                 case let .success(savedRecord):
                     try recordMetadataRepository.saveSystemFields(
