@@ -16,6 +16,8 @@ public final class AppModel {
     public private(set) var errorMessage: String?
     public private(set) var undoDeleteMessage: String?
     public private(set) var isLiveActivityEnabled: Bool
+    public private(set) var transientMessage: String?
+    public private(set) var navigationResetToken: Int = 0
     public private(set) var shareAcceptanceLoadingState: ShareAcceptanceLoadingState?
     public private(set) var sleepSheetRequestToken: Int = 0
     public var shareSheetState: ShareSheetState?
@@ -45,6 +47,7 @@ public final class AppModel {
     private var pendingUndoDeletedEvent: BabyEvent?
     private var undoDeleteTask: Task<Void, Never>?
     private var syncIndicatorDismissTask: Task<Void, Never>?
+    private var transientMessageDismissTask: Task<Void, Never>?
 
     public init(
         childRepository: any ChildRepository,
@@ -190,11 +193,12 @@ public final class AppModel {
 
             do {
                 try childRepository.purgeChildData(id: childID)
-                if childSelectionStore.loadSelectedChildID() == childID {
-                    childSelectionStore.saveSelectedChildID(nil)
-                }
+                let nextSelectedChildID = try nextSelectedChildID(afterDeleting: childID)
+                childSelectionStore.saveSelectedChildID(nextSelectedChildID)
                 clearUndoDeleteState()
-                refresh(selecting: nil)
+                showTransientMessage("\(profile.child.name) deleted")
+                resetNavigationStack()
+                refresh(selecting: nextSelectedChildID)
                 if let cloudDeleteError {
                     errorMessage = "Local data was cleared, but iCloud cleanup failed: \(cloudDeleteError.localizedDescription)"
                 }
@@ -1179,6 +1183,17 @@ public final class AppModel {
         undoDeleteMessage = nil
     }
 
+    private func nextSelectedChildID(afterDeleting deletedChildID: UUID) throws -> UUID? {
+        guard let localUser else {
+            return nil
+        }
+
+        return try childRepository
+            .loadActiveChildren(for: localUser.id)
+            .first(where: { $0.id != deletedChildID })?
+            .id
+    }
+
     private func resolveErrorMessage(for error: Error) -> String {
         if let localizedError = error as? LocalizedError,
            let description = localizedError.errorDescription {
@@ -1888,6 +1903,24 @@ public final class AppModel {
     private func setDataExportError(_ message: String) {
         dataExportState = .error(message)
         playHaptic(.actionFailed)
+    }
+
+    private func showTransientMessage(_ message: String) {
+        transientMessageDismissTask?.cancel()
+        transientMessage = message
+        transientMessageDismissTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(4))
+
+            guard !Task.isCancelled else {
+                return
+            }
+
+            transientMessage = nil
+        }
+    }
+
+    private func resetNavigationStack() {
+        navigationResetToken &+= 1
     }
 
     private func playHaptic(_ event: HapticEvent) {

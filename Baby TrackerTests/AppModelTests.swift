@@ -1262,6 +1262,29 @@ struct AppModelTests {
     }
 
     @Test
+    func hardDeleteCurrentChildSelectsRemainingChildAndShowsSuccessMessage() async throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let secondChild = try harness.saveOwnedChild(name: "Juniper", owner: seed.localUser)
+
+        harness.model.load(performLaunchSync: false)
+        let previousResetToken = harness.model.navigationResetToken
+
+        harness.model.selectChild(id: seed.child.id)
+        harness.model.hardDeleteCurrentChild()
+        await Task.yield()
+        await Task.yield()
+
+        #expect(harness.childSelectionStore.loadSelectedChildID() == secondChild.id)
+        #expect(harness.model.profile?.child.id == secondChild.id)
+        #expect(harness.model.route == .childProfile)
+        #expect(harness.model.transientMessage == "Poppy deleted")
+        #expect(harness.model.navigationResetToken == previousResetToken + 1)
+    }
+
+    @Test
     func beginAcceptingSharedChildShowsFullScreenLoadingState() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }
