@@ -61,7 +61,7 @@ public struct ChildProfileSettingsView: View {
                 )
                 .accessibilityIdentifier("live-activities-toggle")
 
-                Text("This setting controls the app's Live Activities on the Lock Screen and Dynamic Island. iOS does not currently expose reliable per-size controls here.")
+                Text("This setting controls the app's Live Activities on the Lock Screen and Dynamic Island.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
