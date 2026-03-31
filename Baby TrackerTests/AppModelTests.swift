@@ -1142,6 +1142,27 @@ struct AppModelTests {
         #expect(liveActivityManager.snapshots.count == 1)
     }
 
+    @Test
+    func updatingCurrentChildAdvancesUpdatedAt() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+        let originalChild = try #require(try harness.childRepository.loadChild(id: seed.child.id))
+
+        harness.model.updateCurrentChild(
+            name: "Poppy Updated",
+            birthDate: nil,
+            imageData: Data([0x01, 0x02])
+        )
+
+        let updatedChild = try #require(try harness.childRepository.loadChild(id: seed.child.id))
+        #expect(updatedChild.name == "Poppy Updated")
+        #expect(updatedChild.imageData == Data([0x01, 0x02]))
+        #expect(updatedChild.updatedAt >= originalChild.updatedAt)
+    }
+
     // MARK: - Archive
 
     @Test
@@ -1238,6 +1259,43 @@ struct AppModelTests {
 
         let remaining = try harness.childRepository.loadAllChildren()
         #expect(remaining.map(\.id) == [secondChild.id])
+    }
+
+    @Test
+    func beginAcceptingSharedChildShowsFullScreenLoadingState() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        harness.model.beginAcceptingSharedChild()
+
+        #expect(harness.model.shareAcceptanceLoadingState == .acceptingSharedChild)
+    }
+
+    @Test
+    func completingSharedChildAcceptanceRefreshesProfileAndClearsLoadingState() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        harness.model.beginAcceptingSharedChild()
+
+        harness.model.completeAcceptingSharedChild()
+
+        #expect(harness.model.shareAcceptanceLoadingState == nil)
+        #expect(harness.model.route == .childProfile)
+        #expect(harness.model.profile?.child.name == "Poppy")
+    }
+
+    @Test
+    func failingSharedChildAcceptanceClearsLoadingStateAndShowsError() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        harness.model.beginAcceptingSharedChild()
+        harness.model.failAcceptingSharedChild(TestSyncEngineError.unimplemented)
+
+        #expect(harness.model.shareAcceptanceLoadingState == nil)
+        #expect(harness.model.errorMessage == "Couldn't accept the shared child. Something went wrong. Please try again.")
     }
 
     // MARK: - Nuke All Data

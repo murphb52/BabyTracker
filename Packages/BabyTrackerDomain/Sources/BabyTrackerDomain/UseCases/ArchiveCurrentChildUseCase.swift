@@ -41,6 +41,7 @@ public struct ArchiveChildUseCase: UseCase {
 
         var archivedChild = input.child
         archivedChild.isArchived = true
+        archivedChild.updatedAt = .now
         try childRepository.saveChild(archivedChild)
 
         if input.currentSelectedChildID == archivedChild.id {

@@ -1,3 +1,4 @@
 .DS_Store
 Packages/**/.swiftpm/
 .build/
+TestFlight/WhatToTest*.txt

@@ -16,6 +16,7 @@ public final class AppModel {
     public private(set) var errorMessage: String?
     public private(set) var undoDeleteMessage: String?
     public private(set) var isLiveActivityEnabled: Bool
+    public private(set) var shareAcceptanceLoadingState: ShareAcceptanceLoadingState?
     public private(set) var sleepSheetRequestToken: Int = 0
     public var shareSheetState: ShareSheetState?
     public private(set) var csvImportState: CSVImportState = .idle
@@ -88,6 +89,21 @@ public final class AppModel {
 
     public func dismissShareSheet() {
         shareSheetState = nil
+    }
+
+    public func beginAcceptingSharedChild() {
+        errorMessage = nil
+        shareAcceptanceLoadingState = .acceptingSharedChild
+    }
+
+    public func completeAcceptingSharedChild() {
+        load(performLaunchSync: false)
+        shareAcceptanceLoadingState = nil
+    }
+
+    public func failAcceptingSharedChild(_ error: Error) {
+        shareAcceptanceLoadingState = nil
+        setErrorMessage("Couldn't accept the shared child. \(resolveErrorMessage(for: error))")
     }
 
     public func requestSleepSheetPresentation() {

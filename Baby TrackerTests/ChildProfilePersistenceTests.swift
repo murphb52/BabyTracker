@@ -104,6 +104,27 @@ struct ChildProfilePersistenceTests {
     }
 
     @Test
+    func savesChildUpdatedAt() throws {
+        let harness = try RepositoryHarness()
+        defer { harness.cleanUp() }
+
+        let owner = try UserIdentity(displayName: "Owner")
+        let updatedAt = Date(timeIntervalSince1970: 20_000)
+        let child = try Child(
+            name: "Robin",
+            createdAt: Date(timeIntervalSince1970: 10_000),
+            updatedAt: updatedAt,
+            createdBy: owner.id
+        )
+
+        try harness.userIdentityRepository.saveLocalUser(owner)
+        try harness.childRepository.saveChild(child)
+
+        let loadedChild = try #require(try harness.childRepository.loadChild(id: child.id))
+        #expect(loadedChild.updatedAt == updatedAt)
+    }
+
+    @Test
     func savesSelectedChildIdentifier() throws {
         let harness = try RepositoryHarness()
         defer { harness.cleanUp() }

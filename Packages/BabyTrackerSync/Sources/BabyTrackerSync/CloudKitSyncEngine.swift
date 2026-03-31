@@ -1284,7 +1284,7 @@ public final class CloudKitSyncEngine {
         switch record.recordType {
         case CloudKitConfiguration.childRecordType,
              CloudKitConfiguration.userRecordType:
-            return record["createdAt"] as? Date
+            return record["updatedAt"] as? Date ?? record["createdAt"] as? Date
         case CloudKitConfiguration.membershipRecordType:
             // acceptedAt is set when the caregiver accepts the share, making it
             // the most recent mutation timestamp for a membership record.

@@ -40,6 +40,7 @@ public final class SwiftDataChildRepository: CloudKitChildRepository {
             name: child.name,
             birthDate: child.birthDate,
             createdAt: child.createdAt,
+            updatedAt: child.updatedAt,
             createdBy: child.createdBy,
             isArchived: child.isArchived
         )
@@ -47,6 +48,7 @@ public final class SwiftDataChildRepository: CloudKitChildRepository {
         storedChild.name = child.name
         storedChild.birthDate = child.birthDate
         storedChild.createdAt = child.createdAt
+        storedChild.updatedAt = child.updatedAt
         storedChild.createdBy = child.createdBy
         storedChild.isArchived = child.isArchived
         storedChild.imageData = child.imageData
@@ -151,6 +153,7 @@ public final class SwiftDataChildRepository: CloudKitChildRepository {
             name: storedChild.name,
             birthDate: storedChild.birthDate,
             createdAt: storedChild.createdAt,
+            updatedAt: storedChild.updatedAt,
             createdBy: storedChild.createdBy,
             isArchived: storedChild.isArchived,
             imageData: storedChild.imageData,
