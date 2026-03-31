@@ -15,6 +15,7 @@ public final class AppModel {
     public private(set) var profile: ChildProfileScreenState?
     public private(set) var errorMessage: String?
     public private(set) var undoDeleteMessage: String?
+    public private(set) var isLiveActivityEnabled: Bool
     public private(set) var sleepSheetRequestToken: Int = 0
     public var shareSheetState: ShareSheetState?
     public private(set) var csvImportState: CSVImportState = .idle
@@ -30,6 +31,7 @@ public final class AppModel {
     private let eventRepository: EventRepository
     private let syncEngine: any CloudKitSyncControlling
     private let liveActivityManager: any FeedLiveActivityManaging
+    private let liveActivityPreferenceStore: any LiveActivityPreferenceStore
     private let localNotificationManager: any LocalNotificationManaging
     private let hapticFeedbackProvider: any HapticFeedbackProviding
     private let buildTimelineStripDatasetUseCase = BuildTimelineStripDatasetUseCase()
@@ -51,6 +53,7 @@ public final class AppModel {
         eventRepository: EventRepository,
         syncEngine: any CloudKitSyncControlling,
         liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager(),
+        liveActivityPreferenceStore: any LiveActivityPreferenceStore = InMemoryLiveActivityPreferenceStore(),
         localNotificationManager: any LocalNotificationManaging = NoOpLocalNotificationManager(),
         hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
     ) {
@@ -61,8 +64,10 @@ public final class AppModel {
         self.eventRepository = eventRepository
         self.syncEngine = syncEngine
         self.liveActivityManager = liveActivityManager
+        self.liveActivityPreferenceStore = liveActivityPreferenceStore
         self.localNotificationManager = localNotificationManager
         self.hapticFeedbackProvider = hapticFeedbackProvider
+        self.isLiveActivityEnabled = liveActivityPreferenceStore.isLiveActivityEnabled
     }
 
     public func load(performLaunchSync: Bool = true) {
@@ -87,6 +92,21 @@ public final class AppModel {
 
     public func requestSleepSheetPresentation() {
         sleepSheetRequestToken &+= 1
+    }
+
+    public func setLiveActivitiesEnabled(_ isEnabled: Bool) {
+        guard isLiveActivityEnabled != isEnabled else {
+            return
+        }
+
+        isLiveActivityEnabled = isEnabled
+        liveActivityPreferenceStore.setLiveActivityEnabled(isEnabled)
+
+        if isEnabled {
+            refresh(selecting: childSelectionStore.loadSelectedChildID())
+        } else {
+            liveActivityManager.synchronize(with: nil)
+        }
     }
 
     public func refreshAfterShareSheet() {
@@ -800,13 +820,17 @@ public final class AppModel {
                 activeSleep: activeSleep
             )
             route = .childProfile
-            liveActivityManager.synchronize(
-                with: makeFeedLiveActivitySnapshot(
-                    from: visibleEvents,
-                    child: currentSummary.child,
-                    activeSleep: activeSleep
+            if isLiveActivityEnabled {
+                liveActivityManager.synchronize(
+                    with: makeFeedLiveActivitySnapshot(
+                        from: visibleEvents,
+                        child: currentSummary.child,
+                        activeSleep: activeSleep
+                    )
                 )
-            )
+            } else {
+                liveActivityManager.synchronize(with: nil)
+            }
         } catch {
             setErrorMessage(resolveErrorMessage(for: error))
             // Only redirect to identity onboarding when there is genuinely no

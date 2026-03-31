@@ -1096,6 +1096,52 @@ struct AppModelTests {
         #expect(liveActivityManager.latestSnapshot?.lastFeedKind == .breastFeed)
     }
 
+    @Test
+    func disablingLiveActivitiesEndsCurrentActivityAndPersistsPreference() throws {
+        let liveActivityManager = LiveActivityManagerSpy()
+        let preferenceStore = InMemoryLiveActivityPreferenceStore()
+        let harness = try Harness(
+            liveActivityManager: liveActivityManager,
+            liveActivityPreferenceStore: preferenceStore
+        )
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        _ = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 90,
+            occurredAt: Date(timeIntervalSince1970: 5_000),
+            milkType: nil
+        )
+        harness.model.load(performLaunchSync: false)
+        #expect(liveActivityManager.latestSnapshot != nil)
+
+        harness.model.setLiveActivitiesEnabled(false)
+
+        #expect(harness.model.isLiveActivityEnabled == false)
+        #expect(preferenceStore.isLiveActivityEnabled == false)
+        #expect(liveActivityManager.latestSnapshot == nil)
+    }
+
+    @Test
+    func disabledLiveActivitiesPreventNewSnapshotsDuringRefresh() throws {
+        let liveActivityManager = LiveActivityManagerSpy()
+        let preferenceStore = InMemoryLiveActivityPreferenceStore(isLiveActivityEnabled: false)
+        let harness = try Harness(
+            liveActivityManager: liveActivityManager,
+            liveActivityPreferenceStore: preferenceStore
+        )
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+
+        #expect(harness.model.isLiveActivityEnabled == false)
+        #expect(liveActivityManager.latestSnapshot == nil)
+        #expect(liveActivityManager.snapshots.count == 1)
+    }
+
     // MARK: - Archive
 
     @Test
@@ -1260,6 +1306,7 @@ extension AppModelTests {
         init(
             syncEngine: any CloudKitSyncControlling = TestSyncEngine(),
             liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager(),
+            liveActivityPreferenceStore: any LiveActivityPreferenceStore = InMemoryLiveActivityPreferenceStore(),
             hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
         ) throws {
             let userDefaults = UserDefaults(suiteName: suiteName)!
@@ -1281,6 +1328,7 @@ extension AppModelTests {
                 eventRepository: eventRepository,
                 syncEngine: syncEngine,
                 liveActivityManager: liveActivityManager,
+                liveActivityPreferenceStore: liveActivityPreferenceStore,
                 hapticFeedbackProvider: hapticFeedbackProvider
             )
         }
