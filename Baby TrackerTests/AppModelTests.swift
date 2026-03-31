@@ -1096,6 +1096,27 @@ struct AppModelTests {
         #expect(liveActivityManager.latestSnapshot?.lastFeedKind == .breastFeed)
     }
 
+    @Test
+    func updatingCurrentChildAdvancesUpdatedAt() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+        let originalChild = try #require(try harness.childRepository.loadChild(id: seed.child.id))
+
+        harness.model.updateCurrentChild(
+            name: "Poppy Updated",
+            birthDate: nil,
+            imageData: Data([0x01, 0x02])
+        )
+
+        let updatedChild = try #require(try harness.childRepository.loadChild(id: seed.child.id))
+        #expect(updatedChild.name == "Poppy Updated")
+        #expect(updatedChild.imageData == Data([0x01, 0x02]))
+        #expect(updatedChild.updatedAt >= originalChild.updatedAt)
+    }
+
     // MARK: - Archive
 
     @Test

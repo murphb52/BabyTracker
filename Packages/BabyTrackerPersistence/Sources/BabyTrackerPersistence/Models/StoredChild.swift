@@ -8,6 +8,7 @@ final class StoredChild {
     var name: String = ""
     var birthDate: Date?
     var createdAt: Date = Date()
+    var updatedAt: Date = Date()
     var createdBy: UUID = UUID()
     var isArchived: Bool = false
     var imageData: Data?
@@ -25,6 +26,7 @@ final class StoredChild {
         name: String,
         birthDate: Date?,
         createdAt: Date,
+        updatedAt: Date,
         createdBy: UUID,
         isArchived: Bool,
         imageData: Data? = nil,
@@ -41,6 +43,7 @@ final class StoredChild {
         self.name = name
         self.birthDate = birthDate
         self.createdAt = createdAt
+        self.updatedAt = updatedAt
         self.createdBy = createdBy
         self.isArchived = isArchived
         self.imageData = imageData

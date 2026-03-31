@@ -220,4 +220,25 @@ struct CloudKitRecordMapperTests {
 
         #expect(mappedChild.preferredFeedVolumeUnit == .ounces)
     }
+
+    @Test
+    func childMapperRoundTripsImageAndUpdatedAt() throws {
+        let updatedAt = Date(timeIntervalSince1970: 12_345)
+        let imageData = Data([0x01, 0x02, 0x03])
+        let child = try Child(
+            name: "Robin",
+            createdAt: Date(timeIntervalSince1970: 10_000),
+            updatedAt: updatedAt,
+            createdBy: UUID(),
+            imageData: imageData
+        )
+        let zoneID = CloudKitRecordNames.zoneID(for: child.id, ownerName: "owner")
+
+        let record = CloudKitRecordMapper.childRecord(from: child, zoneID: zoneID)
+        let mappedChild = try CloudKitRecordMapper.child(from: record)
+
+        #expect(record["updatedAt"] as? Date == updatedAt)
+        #expect(mappedChild.updatedAt == updatedAt)
+        #expect(mappedChild.imageData == imageData)
+    }
 }
