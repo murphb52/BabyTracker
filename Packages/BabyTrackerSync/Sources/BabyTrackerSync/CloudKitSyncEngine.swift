@@ -613,7 +613,11 @@ public final class CloudKitSyncEngine {
             }
             logger.info("pushPendingChanges — '\(child.name, privacy: .private)': pushing pending records (scope: \(context.databaseScope.logDescription, privacy: .public))")
             AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — pushing pending records (scope: \(context.databaseScope.logDescription))")
-            try await pushPendingChanges(for: child.id, context: context)
+            try await pushPendingChanges(
+                for: child.id,
+                context: context,
+                pendingRecords: pendingRecords
+            )
             logger.info("pushPendingChanges — '\(child.name, privacy: .private)': pending push complete")
             AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — pending push complete")
         }
@@ -621,9 +625,9 @@ public final class CloudKitSyncEngine {
 
     private func pushPendingChanges(
         for childID: UUID,
-        context: CloudKitChildContext
+        context: CloudKitChildContext,
+        pendingRecords: [SyncRecordReference]
     ) async throws {
-        let pendingRecords = try syncStateRepository.loadPendingRecords()
         let childPendingRecords = pendingRecords.filter { record in
             record.childID == childID || (record.recordType == .user && userRecordApplies(record, to: childID))
         }
@@ -672,7 +676,7 @@ public final class CloudKitSyncEngine {
                 case let .failure(error):
                     try syncStateRepository.updateSyncState(
                         for: outboundRecord.reference,
-                        state: .failed,
+                        state: .pendingSync,
                         lastSyncedAt: nil,
                         lastSyncErrorCode: (error as NSError).localizedDescription
                     )
