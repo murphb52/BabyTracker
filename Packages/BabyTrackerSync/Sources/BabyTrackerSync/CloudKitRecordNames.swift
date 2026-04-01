@@ -22,7 +22,8 @@ public enum CloudKitRecordNames {
         )
     }
 
-    static func shareRecordID(
+    // Used only during migration to detect and delete old record-level shares.
+    static func legacyShareRecordID(
         childID: UUID,
         zoneID: CKRecordZone.ID
     ) -> CKRecord.ID {
@@ -30,6 +31,10 @@ public enum CloudKitRecordNames {
             recordName: "share.child.\(childID.uuidString)",
             zoneID: zoneID
         )
+    }
+
+    static func zoneShareRecordID(zoneID: CKRecordZone.ID) -> CKRecord.ID {
+        CKRecord.ID(recordName: CKRecordNameZoneWideShare, zoneID: zoneID)
     }
 
     static func userRecordID(

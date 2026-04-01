@@ -9,13 +9,10 @@ public final class CloudKitSyncEngine {
     public private(set) var statusSummary = SyncStatusSummary()
 
     enum ShareAcceptanceError: LocalizedError {
-        case missingRootRecord
         case refreshFailed(String?)
 
         var errorDescription: String? {
             switch self {
-            case .missingRootRecord:
-                return "Accepted share did not include a root record."
             case let .refreshFailed(message):
                 return message ?? "Sync failed while loading the accepted share."
             }
@@ -98,67 +95,78 @@ public final class CloudKitSyncEngine {
         let zoneContext = try await ensureZoneContext(for: childID, preferredScope: .private)
         try await pushZoneSnapshot(for: childID, context: zoneContext)
 
-        let shareRecordID = CloudKitRecordNames.shareRecordID(
+        let legacyShareRecordID = CloudKitRecordNames.legacyShareRecordID(
             childID: childID,
             zoneID: zoneContext.zoneID
         )
-        let childRecordID = CloudKitRecordNames.childRecordID(
-            childID: childID,
-            zoneID: zoneContext.zoneID
-        )
+        let zoneShareRecordID = CloudKitRecordNames.zoneShareRecordID(zoneID: zoneContext.zoneID)
 
-        let existingShare = try await client.records(
-            for: [shareRecordID],
+        let fetched = try await client.records(
+            for: [legacyShareRecordID, zoneShareRecordID],
             databaseScope: .private
-        )[shareRecordID] as? CKShare
+        )
+        let existingZoneShare = fetched[zoneShareRecordID] as? CKShare
+        let existingLegacyShare = fetched[legacyShareRecordID] as? CKShare
 
-        if let existingShare {
-            cachePendingInvites(for: childID, share: existingShare)
-            return CloudKitSharePresentation(
-                share: existingShare,
-                container: container
+        if let existingZoneShare {
+            logger.info("prepareShare \(childID, privacy: .public): zone share already exists, returning existing share")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "prepareShare \(childID): zone share already exists, returning existing share")
+            cachePendingInvites(for: childID, share: existingZoneShare)
+            let updatedContext = CloudKitChildContext(
+                childID: childID,
+                zoneID: zoneContext.zoneID,
+                shareRecordName: nil,
+                databaseScope: .private
             )
+            try childRepository.saveCloudKitChildContext(updatedContext)
+            return CloudKitSharePresentation(share: existingZoneShare, container: container)
+        }
+
+        // Migrate: delete the old record-level share if present. Existing caregivers
+        // will lose access and need to be re-invited after the migration.
+        if existingLegacyShare != nil {
+            logger.warning("prepareShare \(childID, privacy: .public): found legacy record-level share — deleting and replacing with zone share; existing caregivers will need to re-accept")
+            AppLogger.shared.log(.warning, category: "CloudKitSync", "prepareShare \(childID): found legacy record-level share — deleting and replacing with zone share")
+            _ = try await client.modifyRecords(
+                saving: [],
+                deleting: [legacyShareRecordID],
+                databaseScope: .private,
+                savePolicy: .changedKeys,
+                atomically: true
+            )
+            logger.info("prepareShare \(childID, privacy: .public): legacy share deleted")
+            AppLogger.shared.log(.info, category: "CloudKitSync", "prepareShare \(childID): legacy share deleted")
         }
 
         guard let child = try childRepository.loadChild(id: childID) else {
             throw ChildProfileValidationError.insufficientPermissions
         }
 
-        let childRecord = try await client.records(
-            for: [childRecordID],
-            databaseScope: .private
-        )[childRecordID] ?? CloudKitRecordMapper.childRecord(
-            from: child,
-            zoneID: zoneContext.zoneID
-        )
-
-        let share = CKShare(
-            rootRecord: childRecord,
-            shareID: shareRecordID
-        )
+        logger.info("prepareShare \(childID, privacy: .public): creating zone share")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "prepareShare \(childID): creating zone share")
+        let share = CKShare(recordZoneID: zoneContext.zoneID)
         share[CKShare.SystemFieldKey.title] = CloudKitRecordMapper.shareTitle(for: child)
 
         _ = try await client.modifyRecords(
-            saving: [childRecord, share],
+            saving: [share],
             deleting: [],
             databaseScope: .private,
             savePolicy: .changedKeys,
             atomically: true
         )
+        logger.info("prepareShare \(childID, privacy: .public): zone share saved")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "prepareShare \(childID): zone share saved")
 
         let savedContext = CloudKitChildContext(
             childID: childID,
             zoneID: zoneContext.zoneID,
-            shareRecordName: shareRecordID.recordName,
+            shareRecordName: nil,
             databaseScope: .private
         )
         try childRepository.saveCloudKitChildContext(savedContext)
         cachePendingInvites(for: childID, share: share)
 
-        return CloudKitSharePresentation(
-            share: share,
-            container: container
-        )
+        return CloudKitSharePresentation(share: share, container: container)
     }
 
     public func removeParticipant(
@@ -168,14 +176,9 @@ public final class CloudKitSyncEngine {
             return
         }
 
-        let shareRecordName = context.shareRecordName ?? CloudKitRecordNames.shareRecordID(
-            childID: membership.childID,
-            zoneID: context.zoneID
-        ).recordName
-        let shareRecordID = CKRecord.ID(
-            recordName: shareRecordName,
-            zoneID: context.zoneID
-        )
+        let shareRecordID = context.shareRecordName.map {
+            CKRecord.ID(recordName: $0, zoneID: context.zoneID)
+        } ?? CloudKitRecordNames.zoneShareRecordID(zoneID: context.zoneID)
 
         guard let share = try await client.records(
             for: [shareRecordID],
@@ -273,7 +276,7 @@ public final class CloudKitSyncEngine {
         logger.info("[4/5] client.accept succeeded — forcing full pull of accepted shared zone")
         AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] client.accept succeeded — forcing full pull of accepted shared zone")
         try await forcePullAcceptedShare(
-            rootRecordID: try acceptedShareRootRecordID(from: metadata),
+            zoneID: metadata.share.recordID.zoneID,
             shareRecordName: metadata.share.recordID.recordName
         )
         logger.info("[4/5] Full accepted-share pull complete — running foreground refresh")
@@ -446,10 +449,7 @@ public final class CloudKitSyncEngine {
                 let context = CloudKitChildContext(
                     childID: childID,
                     zoneID: zoneID,
-                    shareRecordName: CloudKitRecordNames.shareRecordID(
-                        childID: childID,
-                        zoneID: zoneID
-                    ).recordName,
+                    shareRecordName: nil,
                     databaseScope: .shared
                 )
                 try childRepository.saveCloudKitChildContext(context)
@@ -723,7 +723,6 @@ public final class CloudKitSyncEngine {
         recordsToSave.append(contentsOf: users.map {
             CloudKitRecordMapper.userRecord(
                 from: $0,
-                childID: childID,
                 zoneID: context.zoneID
             )
         })
@@ -835,13 +834,9 @@ public final class CloudKitSyncEngine {
             )
         }
 
-        let shareRecordID = CKRecord.ID(
-            recordName: context.shareRecordName ?? CloudKitRecordNames.shareRecordID(
-                childID: childID,
-                zoneID: context.zoneID
-            ).recordName,
-            zoneID: context.zoneID
-        )
+        let shareRecordID = context.shareRecordName.map {
+            CKRecord.ID(recordName: $0, zoneID: context.zoneID)
+        } ?? CloudKitRecordNames.zoneShareRecordID(zoneID: context.zoneID)
         if let share = try await client.records(
             for: [shareRecordID],
             databaseScope: context.databaseScope
@@ -851,13 +846,13 @@ public final class CloudKitSyncEngine {
     }
 
     func forcePullAcceptedShare(
-        rootRecordID: CKRecord.ID,
+        zoneID: CKRecordZone.ID,
         shareRecordName: String
     ) async throws {
-        let childID = childID(fromRecordName: rootRecordID.recordName)
+        let childID = childID(from: zoneID.zoneName)
         let context = CloudKitChildContext(
             childID: childID,
-            zoneID: rootRecordID.zoneID,
+            zoneID: zoneID,
             shareRecordName: shareRecordName,
             databaseScope: .shared
         )
@@ -916,13 +911,9 @@ public final class CloudKitSyncEngine {
         try syncStateRepository.saveAnchor(updatedAnchor)
 
         let childID = context.childID
-        let shareRecordID = CKRecord.ID(
-            recordName: context.shareRecordName ?? CloudKitRecordNames.shareRecordID(
-                childID: childID,
-                zoneID: context.zoneID
-            ).recordName,
-            zoneID: context.zoneID
-        )
+        let shareRecordID = context.shareRecordName.map {
+            CKRecord.ID(recordName: $0, zoneID: context.zoneID)
+        } ?? CloudKitRecordNames.zoneShareRecordID(zoneID: context.zoneID)
         if let share = try await client.records(
             for: [shareRecordID],
             databaseScope: context.databaseScope
@@ -1094,10 +1085,7 @@ public final class CloudKitSyncEngine {
         let context = CloudKitChildContext(
             childID: childID,
             zoneID: zoneID,
-            shareRecordName: CloudKitRecordNames.shareRecordID(
-                childID: childID,
-                zoneID: zoneID
-            ).recordName,
+            shareRecordName: nil,
             databaseScope: preferredScope
         )
         try childRepository.saveCloudKitChildContext(context)
@@ -1113,13 +1101,8 @@ public final class CloudKitSyncEngine {
             return
         }
 
-        guard let rootRecordID = metadata.hierarchicalRootRecordID else {
-            logger.warning("[4/5] ensureMembership — no hierarchicalRootRecordID in metadata, skipping")
-            AppLogger.shared.log(.warning, category: "CloudKitSync", "[4/5] ensureMembership — no hierarchicalRootRecordID in metadata, skipping")
-            return
-        }
-
-        let childID = childID(fromRecordName: rootRecordID.recordName)
+        let zoneID = metadata.share.recordID.zoneID
+        let childID = childID(from: zoneID.zoneName)
         let existingMemberships = try membershipRepository.loadMemberships(for: childID)
         guard !existingMemberships.contains(where: { membership in
             membership.userID == localUser.id && membership.status == .active
@@ -1135,8 +1118,8 @@ public final class CloudKitSyncEngine {
         AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] ensureMembership — existing memberships: [\(existingRoles.isEmpty ? "none" : existingRoles)]")
         // The share recipient may not receive their membership record in the
         // first pull, so create the local caregiver membership explicitly.
-        logger.info("[4/5] ensureMembership — creating caregiver membership for zone: \(rootRecordID.zoneID.zoneName, privacy: .public)")
-        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] ensureMembership — creating caregiver membership for zone: \(rootRecordID.zoneID.zoneName)")
+        logger.info("[4/5] ensureMembership — creating caregiver membership for zone: \(zoneID.zoneName, privacy: .public)")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] ensureMembership — creating caregiver membership for zone: \(zoneID.zoneName)")
         let membership = Membership(
             childID: childID,
             userID: localUser.id,
@@ -1162,7 +1145,7 @@ public final class CloudKitSyncEngine {
         )
         let context = CloudKitChildContext(
             childID: childID,
-            zoneID: rootRecordID.zoneID,
+            zoneID: zoneID,
             shareRecordName: metadata.share.recordID.recordName,
             databaseScope: .shared
         )
@@ -1218,16 +1201,12 @@ public final class CloudKitSyncEngine {
             return false
         }
 
-        // `shareRecordName` can be present in locally-created contexts before a
-        // share actually exists, so verify that a real CKShare record is in the
-        // private zone before treating it as an owner-side shared zone.
-        let shareRecordID = CKRecord.ID(
-            recordName: context.shareRecordName ?? CloudKitRecordNames.shareRecordID(
-                childID: childID,
-                zoneID: context.zoneID
-            ).recordName,
-            zoneID: context.zoneID
-        )
+        // Verify that a real CKShare record is in the private zone before treating
+        // this as an owner-side shared zone. Zone shares always use the well-known
+        // zone-wide share record name, falling back to any explicitly stored name.
+        let shareRecordID = context.shareRecordName.map {
+            CKRecord.ID(recordName: $0, zoneID: context.zoneID)
+        } ?? CloudKitRecordNames.zoneShareRecordID(zoneID: context.zoneID)
 
         return try await client.records(
             for: [shareRecordID],
@@ -1247,14 +1226,6 @@ public final class CloudKitSyncEngine {
 
     private func event(from record: CKRecord) throws -> BabyEvent {
         try CloudKitRecordMapper.event(from: record)
-    }
-
-    private func acceptedShareRootRecordID(from metadata: CKShare.Metadata) throws -> CKRecord.ID {
-        guard let rootRecordID = metadata.hierarchicalRootRecordID else {
-            throw ShareAcceptanceError.missingRootRecord
-        }
-
-        return rootRecordID
     }
 
     private func throwIfRefreshFailed(_ summary: SyncStatusSummary) throws {
@@ -1360,7 +1331,7 @@ public final class CloudKitSyncEngine {
             return OutboundRecord(
                 reference: SyncRecordReference(recordType: .user, recordID: user.id),
                 record: try hydratedRecord(
-                    from: CloudKitRecordMapper.userRecord(from: user, childID: childID, zoneID: zoneID),
+                    from: CloudKitRecordMapper.userRecord(from: user, zoneID: zoneID),
                     databaseScope: context.databaseScope
                 )
             )

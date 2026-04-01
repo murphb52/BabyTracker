@@ -297,7 +297,7 @@ struct CloudKitSyncEngineTests {
         _ = try await client.modifyRecords(
             saving: [
                 CloudKitRecordMapper.childRecord(from: child, zoneID: zoneID),
-                CloudKitRecordMapper.userRecord(from: owner, childID: child.id, zoneID: zoneID),
+                CloudKitRecordMapper.userRecord(from: owner, zoneID: zoneID),
                 CloudKitRecordMapper.membershipRecord(from: ownerMembership, zoneID: zoneID),
                 CloudKitRecordMapper.eventRecord(from: .bottleFeed(event), zoneID: zoneID)
             ],
@@ -308,8 +308,8 @@ struct CloudKitSyncEngineTests {
         )
 
         try await syncEngine.forcePullAcceptedShare(
-            rootRecordID: rootRecordID,
-            shareRecordName: "share.child.\(child.id.uuidString)"
+            zoneID: zoneID,
+            shareRecordName: CKRecordNameZoneWideShare
         )
 
         let savedChild = try #require(try childRepository.loadChild(id: child.id))
@@ -400,15 +400,8 @@ struct CloudKitSyncEngineTests {
         )
 
         let zoneID = CloudKitRecordNames.zoneID(for: child.id)
-        let shareRecordID = CloudKitRecordNames.shareRecordID(
-            childID: child.id,
-            zoneID: zoneID
-        )
         let childRecord = CloudKitRecordMapper.childRecord(from: child, zoneID: zoneID)
-        let share = CKShare(
-            rootRecord: childRecord,
-            shareID: shareRecordID
-        )
+        let share = CKShare(recordZoneID: zoneID)
 
         try userIdentityRepository.saveLocalUser(owner)
         try userIdentityRepository.saveUser(caregiver)
@@ -420,7 +413,7 @@ struct CloudKitSyncEngineTests {
             CloudKitChildContext(
                 childID: child.id,
                 zoneID: zoneID,
-                shareRecordName: shareRecordID.recordName,
+                shareRecordName: nil,
                 databaseScope: .private
             )
         )
@@ -459,8 +452,8 @@ struct CloudKitSyncEngineTests {
             saving: [
                 childRecord,
                 share,
-                CloudKitRecordMapper.userRecord(from: owner, childID: child.id, zoneID: zoneID),
-                CloudKitRecordMapper.userRecord(from: caregiver, childID: child.id, zoneID: zoneID),
+                CloudKitRecordMapper.userRecord(from: owner, zoneID: zoneID),
+                CloudKitRecordMapper.userRecord(from: caregiver, zoneID: zoneID),
                 CloudKitRecordMapper.membershipRecord(from: ownerMembership, zoneID: zoneID),
                 CloudKitRecordMapper.membershipRecord(from: caregiverMembership, zoneID: zoneID),
                 CloudKitRecordMapper.eventRecord(from: .nappy(ownerEvent), zoneID: zoneID),
