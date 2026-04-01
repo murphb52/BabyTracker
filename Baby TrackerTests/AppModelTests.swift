@@ -333,11 +333,12 @@ struct AppModelTests {
         let profile = try #require(harness.model.profile)
 
         #expect(profile.cloudKitStatus.state == .failed)
-        #expect(profile.timeline.syncMessage == profile.cloudKitStatus.detailMessage)
+        #expect(profile.cloudKitStatus.isAccountUnavailable)
+        #expect(profile.timeline.syncMessage == nil)
     }
 
     @Test
-    func syncIndicatorShowsTransientUnavailableStateAfterFailedRefresh() async throws {
+    func syncIndicatorSuppressesUnavailableStateAfterFailedRefresh() async throws {
         let syncEngine = TestSyncEngine()
         syncEngine.refreshForegroundSummary = SyncStatusSummary(
             state: .failed,
@@ -353,19 +354,7 @@ struct AppModelTests {
 
         await harness.model.refreshSyncStatus()
 
-        guard let syncBannerState = harness.model.syncBannerState else {
-            Issue.record("Expected sync banner state after refresh")
-            return
-        }
-
-        switch syncBannerState {
-        case let .syncUnavailable(message):
-            #expect(message.localizedCaseInsensitiveContains("sync unavailable"))
-        case let .lastSyncFailed(message):
-            #expect(message.isEmpty == false)
-        case .syncing, .pendingSync:
-            Issue.record("Expected failed sync banner state after refresh completed")
-        }
+        #expect(harness.model.syncBannerState == nil)
     }
 
     @Test
@@ -1018,7 +1007,17 @@ struct AppModelTests {
 
         await harness.model.refreshSyncStatus()
 
-        #expect(hapticFeedbackProvider.events == [.actionFailed])
+        #expect(hapticFeedbackProvider.events.isEmpty)
+    }
+
+    @Test
+    func shareSheetSaveFailureSuppressesUnavailableErrorBanner() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        harness.model.handleShareSheetSaveFailure(TestLocalizedError.accountUnavailable)
+
+        #expect(harness.model.errorMessage == nil)
     }
 
     @Test
@@ -1689,5 +1688,16 @@ extension AppModelTests {
 
     private enum TestSyncEngineError: Error {
         case unimplemented
+    }
+
+    private enum TestLocalizedError: LocalizedError {
+        case accountUnavailable
+
+        var errorDescription: String? {
+            switch self {
+            case .accountUnavailable:
+                "Sync unavailable. Sign in to iCloud."
+            }
+        }
     }
 }

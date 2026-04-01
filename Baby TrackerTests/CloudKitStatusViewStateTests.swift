@@ -52,5 +52,8 @@ struct CloudKitStatusViewStateTests {
         #expect(viewState.statusTitle == "Sync unavailable")
         #expect(viewState.backupTitle == "Last backup available")
         #expect(viewState.detailMessage == "Sync unavailable. Sign in to iCloud.")
+        #expect(viewState.isAccountUnavailable)
+        #expect(viewState.syncSettingsBannerTitle == "iCloud backup is unavailable")
+        #expect(viewState.syncSettingsBannerMessage?.localizedCaseInsensitiveContains("saving data on this device") == true)
     }
 }
