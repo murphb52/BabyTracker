@@ -46,4 +46,4 @@ Replace the current single-step identity prompt with a clearer onboarding flow t
 2. Adding network-backed onboarding content or remote configuration.
 3. Building a full tutorial system for every screen in the app.
 
-- [ ] Complete
+- [x] Complete
