@@ -61,4 +61,4 @@ Incremental pulls via change tokens continue to work on the `localWrite` path. R
 3. Foregrounding the app still triggers reconciliation and caregiver edits appear.
 4. Existing sync tests pass.
 
-- [ ] Complete
+- [x] Complete
