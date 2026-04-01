@@ -93,7 +93,6 @@ public final class CloudKitSyncEngine {
         }
 
         let zoneContext = try await ensureZoneContext(for: childID, preferredScope: .private)
-        try await pushZoneSnapshot(for: childID, context: zoneContext)
 
         let legacyShareRecordID = CloudKitRecordNames.legacyShareRecordID(
             childID: childID,
@@ -141,6 +140,11 @@ public final class CloudKitSyncEngine {
         guard let child = try childRepository.loadChild(id: childID) else {
             throw ChildProfileValidationError.insufficientPermissions
         }
+
+        try await ensureRemoteChildRecordExists(
+            for: child,
+            context: zoneContext
+        )
 
         logger.info("prepareShare \(childID, privacy: .public): creating zone share")
         AppLogger.shared.log(.info, category: "CloudKitSync", "prepareShare \(childID): creating zone share")
@@ -843,6 +847,59 @@ public final class CloudKitSyncEngine {
         )[shareRecordID] as? CKShare {
             cachePendingInvites(for: childID, share: share)
         }
+    }
+
+    private func ensureRemoteChildRecordExists(
+        for child: Child,
+        context: CloudKitChildContext
+    ) async throws {
+        let childRecordID = CloudKitRecordNames.childRecordID(
+            childID: child.id,
+            zoneID: context.zoneID
+        )
+
+        let existingRecord = try await client.records(
+            for: [childRecordID],
+            databaseScope: context.databaseScope
+        )[childRecordID]
+
+        guard existingRecord == nil else {
+            return
+        }
+
+        logger.info("prepareShare \(child.id, privacy: .public): child record missing remotely, uploading child record only")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "prepareShare \(child.id): child record missing remotely, uploading child record only")
+
+        let childRecord = CloudKitRecordMapper.childRecord(
+            from: child,
+            zoneID: context.zoneID
+        )
+        let results = try await client.modifyRecords(
+            saving: [childRecord],
+            deleting: [],
+            databaseScope: context.databaseScope,
+            savePolicy: .changedKeys,
+            atomically: true
+        )
+
+        if case let .success(savedRecord)? = results.saveResults[childRecord.recordID] {
+            try recordMetadataRepository.saveSystemFields(
+                CloudKitSystemFieldsCoder.encode(savedRecord),
+                for: savedRecord.recordID,
+                databaseScope: context.databaseScope
+            )
+        }
+
+        try syncStateRepository.updateSyncState(
+            for: SyncRecordReference(
+                recordType: .child,
+                recordID: child.id,
+                childID: child.id
+            ),
+            state: .upToDate,
+            lastSyncedAt: .now,
+            lastSyncErrorCode: nil
+        )
     }
 
     func forcePullAcceptedShare(

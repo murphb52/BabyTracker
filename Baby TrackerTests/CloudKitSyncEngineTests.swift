@@ -487,10 +487,143 @@ struct CloudKitSyncEngineTests {
         let finalPrivateSavePolicy = try #require((await client.savedRecordBatches).last(where: { $0.databaseScope == .private })?.savePolicy)
         #expect(finalPrivateSavePolicy == .ifServerRecordUnchanged)
     }
+
+    @Test
+    func prepareShareUploadsOnlyChildRecordBeforeCreatingZoneShareWhenChildIsMissingRemotely() async throws {
+        let store = try BabyTrackerModelStore(isStoredInMemoryOnly: true)
+        let userDefaults = UserDefaults(suiteName: "CloudKitSyncEngineTests.prepareShareUploadsOnlyChildRecord")!
+        userDefaults.removePersistentDomain(forName: "CloudKitSyncEngineTests.prepareShareUploadsOnlyChildRecord")
+        defer {
+            userDefaults.removePersistentDomain(forName: "CloudKitSyncEngineTests.prepareShareUploadsOnlyChildRecord")
+        }
+
+        let childRepository = SwiftDataChildRepository(store: store)
+        let userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
+        let membershipRepository = SwiftDataMembershipRepository(store: store)
+        let eventRepository = SwiftDataEventRepository(store: store)
+        let syncStateRepository = SwiftDataSyncStateRepository(store: store)
+        let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
+        let client = CloudKitClientSpy()
+        let syncEngine = CloudKitSyncEngine(
+            childRepository: childRepository,
+            userIdentityRepository: userIdentityRepository,
+            membershipRepository: membershipRepository,
+            eventRepository: eventRepository,
+            syncStateRepository: syncStateRepository,
+            recordMetadataRepository: recordMetadataRepository,
+            client: client
+        )
+
+        let owner = try UserIdentity(displayName: "Sam Owner")
+        let child = try Child(name: "Robin", createdBy: owner.id)
+        let ownerMembership = Membership.owner(
+            childID: child.id,
+            userID: owner.id,
+            createdAt: child.createdAt
+        )
+        let zoneID = CloudKitRecordNames.zoneID(for: child.id)
+
+        try userIdentityRepository.saveLocalUser(owner)
+        try childRepository.saveChild(child)
+        try membershipRepository.saveMembership(ownerMembership)
+        try childRepository.saveCloudKitChildContext(
+            CloudKitChildContext(
+                childID: child.id,
+                zoneID: zoneID,
+                shareRecordName: nil,
+                databaseScope: .private
+            )
+        )
+
+        try await client.modifyRecordZones(
+            saving: [CKRecordZone(zoneID: zoneID)],
+            deleting: [],
+            databaseScope: .private
+        )
+        await client.resetSavedRecordBatches()
+
+        let presentation = try await syncEngine.prepareShare(for: child.id)
+
+        #expect(presentation.share.recordID.recordName == CKRecordNameZoneWideShare)
+
+        let privateBatches = await client.savedRecordBatches.filter { $0.databaseScope == .private }
+        #expect(privateBatches.count == 2)
+        #expect(privateBatches.map(\.recordTypes) == [["Child"], ["cloudkit.share"]])
+    }
+
+    @Test
+    func prepareShareCreatesOnlyZoneShareWhenChildRecordAlreadyExistsRemotely() async throws {
+        let store = try BabyTrackerModelStore(isStoredInMemoryOnly: true)
+        let userDefaults = UserDefaults(suiteName: "CloudKitSyncEngineTests.prepareShareOnlyCreatesZoneShare")!
+        userDefaults.removePersistentDomain(forName: "CloudKitSyncEngineTests.prepareShareOnlyCreatesZoneShare")
+        defer {
+            userDefaults.removePersistentDomain(forName: "CloudKitSyncEngineTests.prepareShareOnlyCreatesZoneShare")
+        }
+
+        let childRepository = SwiftDataChildRepository(store: store)
+        let userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
+        let membershipRepository = SwiftDataMembershipRepository(store: store)
+        let eventRepository = SwiftDataEventRepository(store: store)
+        let syncStateRepository = SwiftDataSyncStateRepository(store: store)
+        let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
+        let client = CloudKitClientSpy()
+        let syncEngine = CloudKitSyncEngine(
+            childRepository: childRepository,
+            userIdentityRepository: userIdentityRepository,
+            membershipRepository: membershipRepository,
+            eventRepository: eventRepository,
+            syncStateRepository: syncStateRepository,
+            recordMetadataRepository: recordMetadataRepository,
+            client: client
+        )
+
+        let owner = try UserIdentity(displayName: "Sam Owner")
+        let child = try Child(name: "Robin", createdBy: owner.id)
+        let ownerMembership = Membership.owner(
+            childID: child.id,
+            userID: owner.id,
+            createdAt: child.createdAt
+        )
+        let zoneID = CloudKitRecordNames.zoneID(for: child.id)
+
+        try userIdentityRepository.saveLocalUser(owner)
+        try childRepository.saveChild(child)
+        try membershipRepository.saveMembership(ownerMembership)
+        try childRepository.saveCloudKitChildContext(
+            CloudKitChildContext(
+                childID: child.id,
+                zoneID: zoneID,
+                shareRecordName: nil,
+                databaseScope: .private
+            )
+        )
+
+        try await client.modifyRecordZones(
+            saving: [CKRecordZone(zoneID: zoneID)],
+            deleting: [],
+            databaseScope: .private
+        )
+        _ = try await client.modifyRecords(
+            saving: [CloudKitRecordMapper.childRecord(from: child, zoneID: zoneID)],
+            deleting: [],
+            databaseScope: .private,
+            savePolicy: .changedKeys,
+            atomically: true
+        )
+        await client.resetSavedRecordBatches()
+
+        let presentation = try await syncEngine.prepareShare(for: child.id)
+
+        #expect(presentation.share.recordID.recordName == CKRecordNameZoneWideShare)
+
+        let privateBatches = await client.savedRecordBatches.filter { $0.databaseScope == .private }
+        #expect(privateBatches.count == 1)
+        #expect(privateBatches.first?.recordTypes == ["cloudkit.share"])
+    }
 }
 
 private actor CloudKitClientSpy: CloudKitClient {
-    nonisolated let container: CKContainer? = nil
+    nonisolated let container: CKContainer? = CKContainer(identifier: "iCloud.com.adappt.BabyTracker.tests")
 
     private(set) var existingZoneIDs: Set<CKRecordZone.ID> = []
     private(set) var createdZoneIDs: [CKRecordZone.ID] = []
