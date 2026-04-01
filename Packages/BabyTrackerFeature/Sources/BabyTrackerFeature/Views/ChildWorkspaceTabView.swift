@@ -5,7 +5,6 @@ public struct ChildWorkspaceTabView: View {
     let model: AppModel
     let profile: ChildProfileScreenState
 
-    @State private var selectedTab: Tab = .home
     @State private var activeEventSheet: ChildEventSheet?
     @State private var deleteCandidate: EventDeleteCandidate?
     @State private var showingEditChildSheet = false
@@ -23,7 +22,7 @@ public struct ChildWorkspaceTabView: View {
     public var body: some View {
         @Bindable var bindableModel = model
 
-        TabView(selection: $selectedTab) {
+        TabView(selection: $bindableModel.selectedWorkspaceTab) {
             ChildHomeView(
                 profile: profile,
                 stopSleep: showSleepSheet,
@@ -34,7 +33,7 @@ public struct ChildWorkspaceTabView: View {
                     activeEventSheet = .quickLogNappy(.wee)
                 }
             )
-            .tag(Tab.home)
+            .tag(ChildWorkspaceTab.home)
             .tabItem {
                 Label("Home", systemImage: "house")
             }
@@ -49,7 +48,7 @@ public struct ChildWorkspaceTabView: View {
                 onFilterUpdate: model.updateEventFilter,
                 onRefresh: model.forceFullSyncRefresh
             )
-            .tag(Tab.events)
+            .tag(ChildWorkspaceTab.events)
             .tabItem {
                 Label("Events", systemImage: "list.bullet.rectangle")
             }
@@ -63,14 +62,13 @@ public struct ChildWorkspaceTabView: View {
                 confirmDelete: performDelete,
                 cancelDelete: cancelDelete
             )
-            .tag(Tab.timeline)
+            .tag(ChildWorkspaceTab.timeline)
             .tabItem {
                 Label("Timeline", systemImage: "calendar")
             }
 
-
             SummaryScreenView(summary: profile.summary)
-            .tag(Tab.summary)
+            .tag(ChildWorkspaceTab.summary)
             .tabItem {
                 Label("Summary", systemImage: "chart.bar.fill")
             }
@@ -83,7 +81,7 @@ public struct ChildWorkspaceTabView: View {
                 archiveAction: { model.archiveCurrentChild() },
                 hardDeleteAction: { model.hardDeleteCurrentChild() }
             )
-            .tag(Tab.profile)
+            .tag(ChildWorkspaceTab.profile)
             .tabItem {
                 Label("Profile", systemImage: "person.crop.circle")
             }
@@ -91,7 +89,7 @@ public struct ChildWorkspaceTabView: View {
         .navigationTitle(profile.child.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if selectedTab == .events {
+            if model.selectedWorkspaceTab == .events {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingEventFilter = true
@@ -104,7 +102,7 @@ public struct ChildWorkspaceTabView: View {
                     .accessibilityIdentifier("event-history-filter-button")
                 }
             }
-            if selectedTab == .timeline {
+            if model.selectedWorkspaceTab == .timeline {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(profile.timeline.displayMode == .day ? "Week View" : "Day View") {
                         model.toggleTimelineDisplayMode()
@@ -422,15 +420,5 @@ public struct ChildWorkspaceTabView: View {
         }
 
         return max(now, startedAt.addingTimeInterval(1))
-    }
-}
-
-extension ChildWorkspaceTabView {
-    public enum Tab: Hashable {
-        case home
-        case summary
-        case events
-        case timeline
-        case profile
     }
 }

@@ -313,6 +313,47 @@ struct AppModelTests {
     }
 
     @Test
+    func selectingDifferentChildResetsNavigationAndShowsProfileFeedback() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let secondChild = try harness.saveOwnedChild(
+            name: "Juniper",
+            owner: seed.localUser
+        )
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.selectedWorkspaceTab = .timeline
+        let previousResetToken = harness.model.navigationResetToken
+
+        harness.model.selectChild(id: secondChild.id)
+
+        #expect(harness.model.profile?.child.id == secondChild.id)
+        #expect(harness.model.selectedWorkspaceTab == .profile)
+        #expect(harness.model.transientMessage == "Child changed.")
+        #expect(harness.model.navigationResetToken == previousResetToken + 1)
+    }
+
+    @Test
+    func reselectingCurrentChildDoesNotResetNavigationOrShowSwitchMessage() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.selectedWorkspaceTab = .summary
+        let previousResetToken = harness.model.navigationResetToken
+
+        harness.model.selectChild(id: seed.child.id)
+
+        #expect(harness.model.selectedWorkspaceTab == .summary)
+        #expect(harness.model.transientMessage == nil)
+        #expect(harness.model.navigationResetToken == previousResetToken)
+    }
+
+    @Test
     func timelineShowsSyncMessageWhenSyncStatusIsNotUpToDate() async throws {
         let syncEngine = TestSyncEngine()
         syncEngine.refreshForegroundSummary = SyncStatusSummary(
