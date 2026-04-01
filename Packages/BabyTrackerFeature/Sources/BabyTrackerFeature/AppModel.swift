@@ -107,6 +107,7 @@ public final class AppModel {
 
     public func failAcceptingSharedChild(_ error: Error) {
         shareAcceptanceLoadingState = nil
+        AppLogger.shared.log(.error, category: "CloudKitShare", "Failed to accept shared child: \(error)")
         setErrorMessage("Couldn't accept the shared child. \(resolveErrorMessage(for: error))")
     }
 
@@ -220,6 +221,7 @@ public final class AppModel {
                     membershipRepository: membershipRepository
                 ).execute(.init(localUserID: localUser.id))
             } catch {
+                AppLogger.shared.log(.error, category: "CloudKitSync", "Nuke: failed to resolve intent: \(error)")
                 errorMessage = resolveErrorMessage(for: error)
                 return
             }
@@ -246,6 +248,7 @@ public final class AppModel {
                 refresh(selecting: nil)
                 playHaptic(.destructiveActionConfirmed)
             } catch {
+                AppLogger.shared.log(.error, category: "CloudKitSync", "Nuke: failed to reset local data: \(error)")
                 setErrorMessage(resolveErrorMessage(for: error))
                 refresh(selecting: nil)
             }
@@ -418,6 +421,7 @@ public final class AppModel {
                 refresh(selecting: childSelectionStore.loadSelectedChildID())
                 playHaptic(.actionSucceeded)
             } catch {
+                AppLogger.shared.log(.error, category: "CloudKitShare", "prepareShare failed: \(error)")
                 setErrorMessage(resolveErrorMessage(for: error))
             }
         }
@@ -440,7 +444,11 @@ public final class AppModel {
                 ))
 
             Task { @MainActor in
-                try? await syncEngine.removeParticipant(membership: removedMembership)
+                do {
+                    try await syncEngine.removeParticipant(membership: removedMembership)
+                } catch {
+                    AppLogger.shared.log(.error, category: "CloudKitShare", "removeParticipant failed for membership \(removedMembership.id): \(error)")
+                }
                 refresh(selecting: childSelectionStore.loadSelectedChildID())
             }
         }
@@ -458,6 +466,7 @@ public final class AppModel {
                 }
                 playHaptic(.actionSucceeded)
             } catch {
+                AppLogger.shared.log(.error, category: "CloudKitShare", "leaveChildShare failed for child \(childID): \(error)")
                 setErrorMessage(resolveErrorMessage(for: error))
             }
             refresh(selecting: childSelectionStore.loadSelectedChildID())
@@ -780,6 +789,7 @@ public final class AppModel {
             }
             return true
         } catch {
+            AppLogger.shared.log(.error, category: "AppModel", "perform failed: \(error)")
             setErrorMessage(resolveErrorMessage(for: error), haptic: failureHaptic)
             refresh(selecting: childSelectionStore.loadSelectedChildID())
             return false
@@ -863,6 +873,7 @@ public final class AppModel {
                 liveActivityManager.synchronize(with: nil)
             }
         } catch {
+            AppLogger.shared.log(.error, category: "AppModel", "refresh failed: \(error)")
             setErrorMessage(resolveErrorMessage(for: error))
             // Only redirect to identity onboarding when there is genuinely no
             // local user. Data errors (e.g. owner membership not yet synced on a
