@@ -6,8 +6,6 @@ public struct ChildProfileSharingView: View {
     let profile: ChildProfileScreenState
     let shareChildAction: () -> Void
 
-    @State private var showingLeaveConfirmation = false
-
     public init(
         model: AppModel,
         profile: ChildProfileScreenState,
@@ -21,7 +19,7 @@ public struct ChildProfileSharingView: View {
     public var body: some View {
         List {
             if profile.canManageSharing {
-                Section {
+                Section("Invite") {
                     Button {
                         shareChildAction()
                     } label: {
@@ -73,36 +71,16 @@ public struct ChildProfileSharingView: View {
             }
 
             if !profile.removedCaregivers.isEmpty {
-                Section("Removed Caregivers") {
+                Section("Past Access") {
                     ForEach(profile.removedCaregivers) { caregiver in
                         caregiverRow(for: caregiver, showsRemoval: false)
                     }
                 }
             }
-            if profile.canLeaveShare {
-                Section {
-                    Button("Leave Profile", role: .destructive) {
-                        showingLeaveConfirmation = true
-                    }
-                    .accessibilityIdentifier("leave-share-button")
-                }
-            }
         }
-        .navigationTitle("Sharing")
+        .navigationTitle("Sharing & Caregivers")
         .navigationBarTitleDisplayMode(.inline)
         .listStyle(.insetGrouped)
-        .confirmationDialog(
-            "Leave \(profile.child.name)?",
-            isPresented: $showingLeaveConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Leave Profile", role: .destructive) {
-                model.leaveChildShare()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("All data for \(profile.child.name) will be removed from this device. You can rejoin if the owner invites you again.")
-        }
     }
 
     private var shareUnavailableMessage: String? {
@@ -148,5 +126,18 @@ public struct ChildProfileSharingView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+#Preview {
+    NavigationStack {
+        let model = ChildProfilePreviewFactory.makeModel()
+        if let profile = model.profile {
+            ChildProfileSharingView(
+                model: model,
+                profile: profile,
+                shareChildAction: {}
+            )
+        }
     }
 }

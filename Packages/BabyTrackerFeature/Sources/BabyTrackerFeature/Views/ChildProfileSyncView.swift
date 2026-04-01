@@ -47,7 +47,11 @@ public struct ChildProfileSyncView: View {
                     }
                 }
 
-                if let pendingChangesTitle = profile.cloudKitStatus.pendingChangesTitle {
+                if !profile.pendingChanges.isEmpty {
+                    LabeledContent("Pending Changes") {
+                        Text("\(profile.pendingChanges.reduce(0) { $0 + $1.count })")
+                    }
+                } else if let pendingChangesTitle = profile.cloudKitStatus.pendingChangesTitle {
                     LabeledContent("Pending Changes") {
                         Text(pendingChangesTitle)
                     }
@@ -55,7 +59,7 @@ public struct ChildProfileSyncView: View {
             }
 
             if !profile.pendingChanges.isEmpty {
-                Section("Pending Changes") {
+                Section("Current Child Pending Changes") {
                     ForEach(profile.pendingChanges, id: \.label) { item in
                         LabeledContent {
                             Text("\(item.count)")
@@ -75,12 +79,12 @@ public struct ChildProfileSyncView: View {
                 }
             }
 
-            Section("Sync Marker") {
-                LabeledContent("Visible Events") {
-                    Text("\(profile.totalEventCount)")
-                }
+            if let latestEventSyncMarker = profile.latestEventSyncMarker {
+                Section("Advanced Diagnostics") {
+                    LabeledContent("Visible Events") {
+                        Text("\(profile.totalEventCount)")
+                    }
 
-                if let latestEventSyncMarker = profile.latestEventSyncMarker {
                     LabeledContent("Latest Event Type") {
                         Text(BabyEventPresentation.title(for: latestEventSyncMarker.kind))
                     }
@@ -102,13 +106,10 @@ public struct ChildProfileSyncView: View {
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                     }
-                } else {
-                    Text("No events available yet.")
-                        .foregroundStyle(.secondary)
                 }
             }
 
-            Section {
+            Section("Actions") {
                 Button("Refresh Sync Status") {
                     Task { await model.refreshSyncStatus() }
                 }
@@ -136,6 +137,15 @@ public struct ChildProfileSyncView: View {
             .orange
         case .failed:
             .red
+        }
+    }
+}
+
+#Preview {
+    NavigationStack {
+        let model = ChildProfilePreviewFactory.makeModel()
+        if let profile = model.profile {
+            ChildProfileSyncView(model: model, profile: profile)
         }
     }
 }

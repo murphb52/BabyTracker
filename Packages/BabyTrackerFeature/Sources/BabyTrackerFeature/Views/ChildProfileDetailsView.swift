@@ -28,7 +28,7 @@ public struct ChildProfileDetailsView: View {
                 .listRowBackground(Color.clear)
             }
 
-            Section("Child") {
+            Section("Identity") {
                 LabeledContent("Name") {
                     Text(profile.child.name)
                         .accessibilityIdentifier("child-profile-name")
@@ -38,23 +38,9 @@ public struct ChildProfileDetailsView: View {
                     Text(birthDateText)
                 }
             }
-
-            Section("Account") {
-                LabeledContent("Signed In As") {
-                    Text(profile.localUser.displayName)
-                }
-            }
-
-            Section("Feeding") {
-                Picker("Bottle volume unit", selection: volumeUnitBinding) {
-                    ForEach(FeedVolumeUnit.allCases, id: \.rawValue) { unit in
-                        Text(unit.title).tag(unit)
-                    }
-                }
-                .accessibilityIdentifier("child-feed-volume-unit-picker")
-            }
         }
-        .navigationTitle("Details")
+        .listStyle(.insetGrouped)
+        .navigationTitle("Child Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if profile.canEditChild {
@@ -95,18 +81,17 @@ public struct ChildProfileDetailsView: View {
 
         return "Not set"
     }
+}
 
-    private var volumeUnitBinding: Binding<FeedVolumeUnit> {
-        Binding(
-            get: { profile.child.preferredFeedVolumeUnit },
-            set: { selectedUnit in
-                model.updateCurrentChild(
-                    name: profile.child.name,
-                    birthDate: profile.child.birthDate,
-                    imageData: profile.child.imageData,
-                    preferredFeedVolumeUnit: selectedUnit
-                )
-            }
-        )
+#Preview {
+    NavigationStack {
+        let model = ChildProfilePreviewFactory.makeModel()
+        if let profile = model.profile {
+            ChildProfileDetailsView(
+                model: model,
+                profile: profile,
+                editChildAction: {}
+            )
+        }
     }
 }
