@@ -30,4 +30,4 @@ Update `localWriteRefreshPullsRemoteCaregiverEventsFromPrivateZone`:
 4. The manual "Force full sync" button still triggers a full pull.
 5. Accepting a share still triggers a full pull of the new zone.
 
-- [ ] Complete
+- [x] Complete
