@@ -339,7 +339,11 @@ struct CloudKitSyncEngineTests {
     }
 
     @Test
-    func localWriteRefreshFullyReconcilesOwnerSharedPrivateZoneBeforePush() async throws {
+    func localWriteRefreshPullsRemoteCaregiverEventsFromPrivateZone() async throws {
+        // Reconciliation (forced full zone pull) is intentionally skipped on localWrite
+        // syncs for performance — the zone pull that follows the push still picks up
+        // caregiver events, either via an incremental token or a full initial fetch when
+        // no anchor has been stored yet.
         let store = try BabyTrackerModelStore(isStoredInMemoryOnly: true)
         let userDefaults = UserDefaults(suiteName: "CloudKitSyncEngineTests.ownerSharedPrivateZoneReconcile")!
         userDefaults.removePersistentDomain(forName: "CloudKitSyncEngineTests.ownerSharedPrivateZoneReconcile")

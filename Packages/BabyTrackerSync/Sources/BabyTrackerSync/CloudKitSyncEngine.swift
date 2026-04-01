@@ -336,8 +336,11 @@ public final class CloudKitSyncEngine {
             if reason == .localWrite {
                 // Push local changes before pulling so a pending write (e.g. archive)
                 // reaches CloudKit before the pull can overwrite the local state.
-                try await pushPendingChanges()
-                try await pullKnownChildZones(forceFullFetch: false)
+                // Skip owner-zone reconciliation here — the incremental pull that
+                // follows handles caregiver edits via change tokens, and running a
+                // full reconciliation on every write is expensive.
+                try await pushPendingChanges(skipReconciliation: true)
+                try await pullKnownChildZones(forceFullFetch: false, skipReconciliation: true)
             } else {
                 try await pullKnownChildZones(forceFullFetch: reason == .manualFullRefresh)
                 try await pushPendingChanges()
@@ -475,7 +478,7 @@ public final class CloudKitSyncEngine {
         }
     }
 
-    private func pullKnownChildZones(forceFullFetch: Bool = false) async throws {
+    private func pullKnownChildZones(forceFullFetch: Bool = false, skipReconciliation: Bool = false) async throws {
         let children = try childRepository.loadAllChildren()
         logger.info("Found \(children.count, privacy: .public) child(ren) in local store")
         AppLogger.shared.log(.info, category: "CloudKitSync", "Found \(children.count) child(ren) in local store")
@@ -493,14 +496,14 @@ public final class CloudKitSyncEngine {
                     logger.info("Child '\(child.name, privacy: .private)' — forcing manual full pull")
                     AppLogger.shared.log(.info, category: "CloudKitSync", "Child — forcing manual full pull")
                     try await pullZoneSnapshot(context: context, forceFullFetch: true)
-                } else if try await shouldForceOwnerSharedZoneReconciliation(
-                    for: child.id,
-                    context: context
-                ) {
+                } else if !skipReconciliation,
+                          try await shouldForceOwnerSharedZoneReconciliation(for: child.id, context: context) {
                     // Caregiver edits can already exist in the owner's private
                     // zone even when incremental zone changes report nothing.
                     // Force a full pull for shared private zones so the owner
                     // does not keep reading a stale local snapshot.
+                    // Skipped on localWrite syncs — the incremental pull that
+                    // follows handles caregiver edits via change tokens there.
                     logger.info("Child '\(child.name, privacy: .private)' — forcing full pull for owner shared private zone")
                     AppLogger.shared.log(.info, category: "CloudKitSync", "Child — forcing full pull for owner shared private zone")
                     try await pullZoneSnapshot(context: context, forceFullFetch: true)
@@ -563,7 +566,7 @@ public final class CloudKitSyncEngine {
         return true
     }
 
-    private func pushPendingChanges() async throws {
+    private func pushPendingChanges(skipReconciliation: Bool = false) async throws {
         let pendingRecords = try syncStateRepository.loadPendingRecords()
 
         if pendingRecords.isEmpty {
@@ -609,12 +612,12 @@ public final class CloudKitSyncEngine {
             }
 
             let context = try await ensureZoneContext(for: child.id, preferredScope: .private)
-            if try await shouldForceOwnerSharedZoneReconciliation(
-                for: child.id,
-                context: context
-            ) {
+            if !skipReconciliation,
+               try await shouldForceOwnerSharedZoneReconciliation(for: child.id, context: context) {
                 // Reconcile before pushing so a stale owner snapshot never gets
                 // written back over caregiver-authored records.
+                // Skipped on localWrite syncs — the incremental pull that
+                // follows handles caregiver edits via change tokens there.
                 logger.info("pushPendingChanges — '\(child.name, privacy: .private)': reconciling owner shared private zone before push")
                 AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — reconciling owner shared private zone before push")
                 try await pullZoneSnapshot(context: context, forceFullFetch: true)
