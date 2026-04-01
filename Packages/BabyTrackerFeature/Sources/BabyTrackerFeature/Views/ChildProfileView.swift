@@ -30,7 +30,7 @@ public struct ChildProfileView: View {
 
     public var body: some View {
         List {
-            Section {
+            Section("This Child") {
                 NavigationLink {
                     ChildProfileDetailsView(
                         model: model,
@@ -41,9 +41,39 @@ public struct ChildProfileView: View {
                     childHeaderRow
                 }
                 .accessibilityIdentifier("profile-details-row")
+
+                NavigationLink {
+                    ChildProfileFeedingPreferencesView(
+                        model: model,
+                        profile: profile
+                    )
+                } label: {
+                    settingsRow(
+                        title: "Feeding Preferences",
+                        value: profile.child.preferredFeedVolumeUnit.title,
+                        accessibilityIdentifier: "profile-feeding-preferences-row"
+                    )
+                }
+
+                if showsManageChild {
+                    NavigationLink {
+                        ChildProfileManageView(
+                            model: model,
+                            profile: profile,
+                            archiveAction: archiveAction,
+                            hardDeleteAction: hardDeleteAction
+                        )
+                    } label: {
+                        settingsRow(
+                            title: "Manage Child",
+                            value: nil,
+                            accessibilityIdentifier: "profile-manage-child-row"
+                        )
+                    }
+                }
             }
 
-            Section("Sharing") {
+            Section("Family & Sharing") {
                 NavigationLink {
                     ChildProfileSharingView(
                         model: model,
@@ -52,23 +82,31 @@ public struct ChildProfileView: View {
                     )
                 } label: {
                     settingsRow(
-                        title: "Sharing",
+                        title: "Sharing & Caregivers",
                         value: sharingSummary,
                         accessibilityIdentifier: "profile-sharing-row"
                     )
                 }
+
+                LabeledContent("Signed In As") {
+                    Text(profile.localUser.displayName)
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityIdentifier("profile-signed-in-as-row")
             }
 
-            if canSelectFromMultipleChildren || canCreateLocalChild {
-                Section("Children") {
-                    ForEach(model.activeChildren) { summary in
-                        Button {
-                            model.selectChild(id: summary.child.id)
-                        } label: {
-                            childSelectionRow(for: summary)
+            if canSelectFromMultipleChildren || canCreateLocalChild || hasArchivedChildren {
+                Section("Profiles") {
+                    if canSelectFromMultipleChildren {
+                        ForEach(model.activeChildren) { summary in
+                            Button {
+                                model.selectChild(id: summary.child.id)
+                            } label: {
+                                childSelectionRow(for: summary)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("profile-select-child-\(summary.child.id.uuidString)")
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("profile-select-child-\(summary.child.id.uuidString)")
                     }
 
                     if canCreateLocalChild {
@@ -82,10 +120,22 @@ public struct ChildProfileView: View {
                             )
                         }
                     }
+
+                    if hasArchivedChildren {
+                        NavigationLink {
+                            ArchivedProfilesView(model: model)
+                        } label: {
+                            settingsRow(
+                                title: "Archived Profiles",
+                                value: "\(model.archivedChildren.count)",
+                                accessibilityIdentifier: "profile-archived-profiles-row"
+                            )
+                        }
+                    }
                 }
             }
 
-            Section {
+            Section("Support") {
                 NavigationLink {
                     HelpFAQView()
                 } label: {
@@ -97,17 +147,15 @@ public struct ChildProfileView: View {
                 }
 
                 NavigationLink {
-                    ChildProfileSettingsView(
+                    AppSettingsView(
                         model: model,
-                        profile: profile,
-                        archiveAction: archiveAction,
-                        hardDeleteAction: hardDeleteAction
+                        profile: profile
                     )
                 } label: {
                     settingsRow(
-                        title: "Settings",
+                        title: "App Settings",
                         value: nil,
-                        accessibilityIdentifier: "profile-settings-row"
+                        accessibilityIdentifier: "profile-app-settings-row"
                     )
                 }
             }
@@ -186,8 +234,16 @@ public struct ChildProfileView: View {
         model.localUser != nil
     }
 
+    private var hasArchivedChildren: Bool {
+        !model.archivedChildren.isEmpty
+    }
+
     private var canSelectFromMultipleChildren: Bool {
         model.activeChildren.count > 1
+    }
+
+    private var showsManageChild: Bool {
+        profile.canArchiveChild || profile.canLeaveShare || profile.canHardDelete
     }
 
     private var sharingSummary: String {

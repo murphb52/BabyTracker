@@ -65,17 +65,6 @@ public struct ChildCreationView: View {
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier("create-child-button")
             }
-
-            if !model.archivedChildren.isEmpty {
-                Section("Archived Profiles") {
-                    ForEach(model.archivedChildren) { summary in
-                        Button("Restore \(summary.child.name)") {
-                            model.restoreChild(id: summary.child.id)
-                        }
-                        .accessibilityIdentifier("restore-child-\(summary.child.id.uuidString)")
-                    }
-                }
-            }
         }
         .navigationTitle("Add a Child")
         .navigationBarTitleDisplayMode(.inline)
@@ -107,5 +96,12 @@ public struct ChildCreationView: View {
                     .foregroundStyle(Color.accentColor)
             }
         }
+    }
+}
+
+#Preview {
+    NavigationStack {
+        let model = ChildProfilePreviewFactory.makeModel()
+        ChildCreationView(model: model)
     }
 }
