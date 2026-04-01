@@ -47,4 +47,4 @@ Add a focused FAQ and Help area that is reachable from Profile and answers the m
 2. Live chat, support tickets, or web-hosted documentation systems.
 3. Medical recommendations or diagnostic guidance.
 
-- [ ] Complete
+- [x] Complete

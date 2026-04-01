@@ -1,4 +1,6 @@
 import BabyTrackerDomain
+import BabyTrackerPersistence
+import BabyTrackerSync
 import SwiftUI
 import UIKit
 
@@ -84,6 +86,16 @@ public struct ChildProfileView: View {
             }
 
             Section {
+                NavigationLink {
+                    HelpFAQView()
+                } label: {
+                    settingsRow(
+                        title: "Help & FAQ",
+                        value: nil,
+                        accessibilityIdentifier: "profile-help-faq-row"
+                    )
+                }
+
                 NavigationLink {
                     ChildProfileSettingsView(
                         model: model,
@@ -210,5 +222,21 @@ public struct ChildProfileView: View {
         }
         .contentShape(Rectangle())
         .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}
+
+#Preview {
+    NavigationStack {
+        let model = ChildProfilePreviewFactory.makeModel()
+        if let profile = model.profile {
+            ChildProfileView(
+                model: model,
+                profile: profile,
+                editChildAction: {},
+                shareChildAction: {},
+                archiveAction: {},
+                hardDeleteAction: {}
+            )
+        }
     }
 }
