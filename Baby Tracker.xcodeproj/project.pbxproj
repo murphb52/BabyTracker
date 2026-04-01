@@ -477,7 +477,7 @@
 			baseConfigurationReference = D0A000000000000000000023 /* App.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = "Baby Tracker/Baby Tracker.entitlements";
-				CURRENT_PROJECT_VERSION = 77;
+				CURRENT_PROJECT_VERSION = 89;
 				DEVELOPMENT_TEAM = 8AGZ5RNUVG;
 				ENABLE_APP_SANDBOX = YES;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -491,7 +491,7 @@
 			baseConfigurationReference = D0A000000000000000000023 /* App.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = "Baby Tracker/Baby Tracker.entitlements";
-				CURRENT_PROJECT_VERSION = 77;
+				CURRENT_PROJECT_VERSION = 89;
 				DEVELOPMENT_TEAM = 8AGZ5RNUVG;
 				ENABLE_APP_SANDBOX = YES;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
