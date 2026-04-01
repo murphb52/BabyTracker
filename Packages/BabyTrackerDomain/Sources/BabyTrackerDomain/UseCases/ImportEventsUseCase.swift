@@ -2,8 +2,11 @@ import Foundation
 
 /// Saves a batch of parsed CSV events for a specific child.
 /// Reuses existing `Log*UseCase` types to ensure consistent validation and persistence.
+///
+/// This is a long-running batch operation, not an atomic action, so it does not conform
+/// to `UseCase`. It is async and reports progress incrementally via `onProgress`.
 @MainActor
-public struct ImportEventsUseCase: UseCase {
+public struct ImportEventsUseCase {
     public struct Input {
         public let events: [ImportableEvent]
         public let childID: UUID
@@ -34,22 +37,34 @@ public struct ImportEventsUseCase: UseCase {
         self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
-    public func execute(_ input: Input) throws -> CSVImportResult {
+    /// - Parameters:
+    ///   - input: The batch of events to save.
+    ///   - onProgress: Called periodically with (completed, total) so the caller can update UI.
+    public func execute(_ input: Input, onProgress: ((Int, Int) -> Void)? = nil) async throws -> CSVImportResult {
         guard ChildAccessPolicy.canPerform(.logEvent, membership: input.membership) else {
             throw ChildProfileValidationError.insufficientPermissions
         }
 
+        let total = input.events.count
         var importedCount = 0
         var skippedReasons: [String] = []
 
-        for event in input.events {
+        for (index, event) in input.events.enumerated() {
             do {
                 try save(event, childID: input.childID, localUserID: input.localUserID, membership: input.membership)
                 importedCount += 1
             } catch {
                 skippedReasons.append("\(event.eventKindLabel) at \(event.occurredAt.formatted()): \(error.localizedDescription)")
             }
+
+            // Yield periodically so the run loop can process UI updates.
+            if index % 20 == 19 {
+                onProgress?(index + 1, total)
+                await Task.yield()
+            }
         }
+
+        onProgress?(total, total)
 
         if importedCount > 0 {
             hapticFeedbackProvider.play(.actionSucceeded)

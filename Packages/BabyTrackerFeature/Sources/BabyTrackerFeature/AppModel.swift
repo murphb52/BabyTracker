@@ -1687,20 +1687,26 @@ public final class AppModel {
             return
         }
 
-        csvImportState = .importing
+        let importTotal = eventsToImport.count
+        csvImportState = .importing(.init(completed: 0, total: importTotal))
 
         Task { @MainActor in
             do {
-                let saveResult = try ImportEventsUseCase(
+                let saveResult = try await ImportEventsUseCase(
                     eventRepository: eventRepository,
                     hapticFeedbackProvider: hapticFeedbackProvider
                 )
-                    .execute(.init(
-                        events: eventsToImport,
-                        childID: profile.child.id,
-                        localUserID: localUser.id,
-                        membership: profile.currentMembership
-                    ))
+                    .execute(
+                        .init(
+                            events: eventsToImport,
+                            childID: profile.child.id,
+                            localUserID: localUser.id,
+                            membership: profile.currentMembership
+                        ),
+                        onProgress: { [weak self] completed, total in
+                            self?.csvImportState = .importing(.init(completed: completed, total: total))
+                        }
+                    )
                 // Combine parse-level skips with save-level skips in the final result
                 let result = CSVImportResult(
                     importedCount: saveResult.importedCount,
@@ -1823,20 +1829,26 @@ public final class AppModel {
             return
         }
 
-        nestImportState = .importing
+        let nestImportTotal = eventsToImport.count
+        nestImportState = .importing(.init(completed: 0, total: nestImportTotal))
 
         Task { @MainActor in
             do {
-                let saveResult = try ImportEventsUseCase(
+                let saveResult = try await ImportEventsUseCase(
                     eventRepository: eventRepository,
                     hapticFeedbackProvider: hapticFeedbackProvider
                 )
-                    .execute(.init(
-                        events: eventsToImport,
-                        childID: profile.child.id,
-                        localUserID: localUser.id,
-                        membership: profile.currentMembership
-                    ))
+                    .execute(
+                        .init(
+                            events: eventsToImport,
+                            childID: profile.child.id,
+                            localUserID: localUser.id,
+                            membership: profile.currentMembership
+                        ),
+                        onProgress: { [weak self] completed, total in
+                            self?.nestImportState = .importing(.init(completed: completed, total: total))
+                        }
+                    )
                 let result = CSVImportResult(
                     importedCount: saveResult.importedCount,
                     skippedParseCount: previewState.parseResult.skippedCount,

@@ -1,4 +1,6 @@
 import BabyTrackerDomain
+import BabyTrackerPersistence
+import BabyTrackerSync
 import SwiftUI
 
 public struct ChildProfileImportView: View {
@@ -17,8 +19,8 @@ public struct ChildProfileImportView: View {
                 idleView
             case .previewing(let previewState):
                 previewView(previewState)
-            case .importing:
-                importingView
+            case .importing(let progress):
+                importingView(progress)
             case .complete(let result):
                 completeView(result)
             case .error(let message):
@@ -216,17 +218,8 @@ public struct ChildProfileImportView: View {
 
     // MARK: - Importing phase
 
-    private var importingView: some View {
-        VStack(spacing: 20) {
-            ProgressView()
-                .controlSize(.large)
-            Text("Importing events…")
-                .font(.headline)
-            Text("This won't take long.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    private func importingView(_ progress: ImportProgress) -> some View {
+        ImportProgressBodyView(progress: progress)
     }
 
     // MARK: - Complete phase
@@ -431,3 +424,10 @@ private struct ImportEventRow: View {
         }
     }
 }
+
+#Preview("Idle") {
+    NavigationStack {
+        ChildProfileImportView(model: ChildProfilePreviewFactory.makeModel())
+    }
+}
+

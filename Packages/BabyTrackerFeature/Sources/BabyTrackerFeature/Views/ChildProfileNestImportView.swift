@@ -1,4 +1,6 @@
 import BabyTrackerDomain
+import BabyTrackerPersistence
+import BabyTrackerSync
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -18,8 +20,8 @@ public struct ChildProfileNestImportView: View {
                 idleView
             case .previewing(let previewState):
                 previewView(previewState)
-            case .importing:
-                importingView
+            case .importing(let progress):
+                importingView(progress)
             case .complete(let result):
                 completeView(result)
             case .error(let message):
@@ -210,17 +212,8 @@ public struct ChildProfileNestImportView: View {
 
     // MARK: - Importing
 
-    private var importingView: some View {
-        VStack(spacing: 20) {
-            ProgressView()
-                .controlSize(.large)
-            Text("Importing events…")
-                .font(.headline)
-            Text("This won't take long.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    private func importingView(_ progress: ImportProgress) -> some View {
+        ImportProgressBodyView(progress: progress)
     }
 
     // MARK: - Complete
@@ -363,6 +356,14 @@ public struct ChildProfileNestImportView: View {
         let end = range.upperBound.formatted(formatter)
         if start == end { return start }
         return "\(start) – \(end)"
+    }
+}
+
+// MARK: - Preview
+
+#Preview("Idle") {
+    NavigationStack {
+        ChildProfileNestImportView(model: ChildProfilePreviewFactory.makeModel())
     }
 }
 
