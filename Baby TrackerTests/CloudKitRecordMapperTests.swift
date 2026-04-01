@@ -7,7 +7,10 @@ import Testing
 
 struct CloudKitRecordMapperTests {
     @Test
-    func sharedHierarchyRecordsPointBackToChild() throws {
+    func zoneSharedRecordsHaveNoParentReference() throws {
+        // Zone-level sharing shares the entire zone automatically. Records must
+        // not set record.parent — the parent chain was only needed for record-level
+        // sharing and its removal prevents accidental hierarchy coupling.
         let childID = UUID()
         let userID = UUID()
         let zoneID = CloudKitRecordNames.zoneID(
@@ -35,28 +38,13 @@ struct CloudKitRecordMapperTests {
             amountMilliliters: 120
         )
 
-        let expectedParentRecordID = CloudKitRecordNames.childRecordID(
-            childID: childID,
-            zoneID: zoneID
-        )
+        let userRecord = CloudKitRecordMapper.userRecord(from: user, zoneID: zoneID)
+        let membershipRecord = CloudKitRecordMapper.membershipRecord(from: membership, zoneID: zoneID)
+        let eventRecord = CloudKitRecordMapper.eventRecord(from: .bottleFeed(event), zoneID: zoneID)
 
-        let userRecord = CloudKitRecordMapper.userRecord(
-            from: user,
-            childID: childID,
-            zoneID: zoneID
-        )
-        let membershipRecord = CloudKitRecordMapper.membershipRecord(
-            from: membership,
-            zoneID: zoneID
-        )
-        let eventRecord = CloudKitRecordMapper.eventRecord(
-            from: .bottleFeed(event),
-            zoneID: zoneID
-        )
-
-        #expect(userRecord.parent?.recordID == expectedParentRecordID)
-        #expect(membershipRecord.parent?.recordID == expectedParentRecordID)
-        #expect(eventRecord.parent?.recordID == expectedParentRecordID)
+        #expect(userRecord.parent == nil)
+        #expect(membershipRecord.parent == nil)
+        #expect(eventRecord.parent == nil)
     }
 
     @Test
