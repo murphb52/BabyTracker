@@ -40,12 +40,14 @@ public struct ChildHomeView: View {
                     currentSleepSection(currentSleep)
                 }
 
-                syncSection
+                
                 statusSection
 
                 if profile.canLogEvents {
                     quickLogSection
                 }
+                
+                syncSection
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
