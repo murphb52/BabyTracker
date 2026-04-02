@@ -34,19 +34,33 @@ public struct BuildRemoteCaregiverNotificationUseCase: Sendable {
 
         let distinctCaregivers = Set(input.changes.map(\.actorDisplayName)).count
         if distinctCaregivers == 1, let caregiver = input.changes.first?.actorDisplayName {
+            let allDeleted = input.changes.allSatisfy(\.isDeleted)
+            if allDeleted {
+                return .init(
+                    title: "Baby Tracker",
+                    body: "\(caregiver) deleted \(input.changes.count) events."
+                )
+            }
             return .init(
                 title: "Baby Tracker",
-                body: "\(caregiver) logged \(input.changes.count) updates."
+                body: "\(caregiver) made \(input.changes.count) updates."
             )
         }
 
         return .init(
             title: "Baby Tracker",
-            body: "\(input.changes.count) new updates from caregivers."
+            body: "Caregivers made \(input.changes.count) updates."
         )
     }
 
     private func message(for change: RemoteCaregiverEventChange) -> String {
+        if change.isDeleted {
+            return deletedMessage(for: change)
+        }
+        return addedMessage(for: change)
+    }
+
+    private func addedMessage(for change: RemoteCaregiverEventChange) -> String {
         switch change.event {
         case let .sleep(event):
             if event.endedAt == nil {
@@ -60,6 +74,19 @@ public struct BuildRemoteCaregiverNotificationUseCase: Sendable {
             return "\(change.actorDisplayName) logged a bottle feed at \(formatTime(event.metadata.occurredAt))."
         case let .breastFeed(event):
             return "\(change.actorDisplayName) logged a breast feed at \(formatTime(event.metadata.occurredAt))."
+        }
+    }
+
+    private func deletedMessage(for change: RemoteCaregiverEventChange) -> String {
+        switch change.event {
+        case .sleep:
+            return "\(change.actorDisplayName) deleted a sleep log."
+        case let .nappy(event):
+            return "\(change.actorDisplayName) deleted a \(nappyDescriptor(for: event.type)) nappy log."
+        case .bottleFeed:
+            return "\(change.actorDisplayName) deleted a bottle feed log."
+        case .breastFeed:
+            return "\(change.actorDisplayName) deleted a breast feed log."
         }
     }
 
