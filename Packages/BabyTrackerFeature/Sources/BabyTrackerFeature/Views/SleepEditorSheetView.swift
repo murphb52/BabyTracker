@@ -9,6 +9,7 @@ public struct SleepEditorSheetView: View {
     let startSuggestions: [(label: String, date: Date)]
     let saveAction: (_ startedAt: Date, _ endedAt: Date?) -> Bool
     let deleteAction: (() -> Void)?
+    let resumeAction: (() -> Void)?
     private let endTimeInitialPreset: QuickTimeSelectorView.TimePreset
 
     @Environment(\.dismiss) private var dismiss
@@ -24,13 +25,15 @@ public struct SleepEditorSheetView: View {
         startSuggestions: [(label: String, date: Date)] = [],
         endTimeInitialPreset: QuickTimeSelectorView.TimePreset = .now,
         saveAction: @escaping (_ startedAt: Date, _ endedAt: Date?) -> Bool,
-        deleteAction: (() -> Void)? = nil
+        deleteAction: (() -> Void)? = nil,
+        resumeAction: (() -> Void)? = nil
     ) {
         self.mode = mode
         self.childName = childName
         self.startSuggestions = startSuggestions
         self.saveAction = saveAction
         self.deleteAction = deleteAction
+        self.resumeAction = resumeAction
         self.endTimeInitialPreset = endTimeInitialPreset
         _startedAt = State(initialValue: initialStartedAt)
         _endedAt = State(initialValue: initialEndedAt ?? Date())
@@ -54,6 +57,16 @@ public struct SleepEditorSheetView: View {
                     Section {
                         Text(validationMessage)
                             .foregroundStyle(.red)
+                    }
+                }
+
+                if case .edit = mode, let resumeAction {
+                    Section {
+                        Button("Resume Sleep") {
+                            resumeAction()
+                        }
+                        .foregroundStyle(.orange)
+                        .accessibilityIdentifier("resume-sleep-button")
                     }
                 }
 
@@ -317,4 +330,16 @@ extension SleepEditorSheetView {
             }
         }
     }
+}
+
+#Preview("Edit with Resume") {
+    SleepEditorSheetView(
+        mode: .edit,
+        childName: "Isla",
+        initialStartedAt: Date(timeIntervalSinceNow: -3_600),
+        initialEndedAt: Date(timeIntervalSinceNow: -1_800),
+        endTimeInitialPreset: .custom,
+        saveAction: { _, _ in true },
+        resumeAction: {}
+    )
 }

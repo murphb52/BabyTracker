@@ -721,6 +721,71 @@ struct AppModelTests {
     }
 
     @Test
+    func resumeSleepClearsEndedAtAndMakesSleepActive() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let sleep = try harness.saveSleep(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            startedAt: Date(timeIntervalSince1970: 9_000),
+            endedAt: Date(timeIntervalSince1970: 9_900)
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        #expect(harness.model.resumeSleep(id: sleep.id, startedAt: sleep.startedAt))
+
+        let resumedEvent = try #require(try harness.eventRepository.loadEvent(id: sleep.id))
+        switch resumedEvent {
+        case let .sleep(event):
+            #expect(event.id == sleep.id)
+            #expect(event.startedAt == sleep.startedAt)
+            #expect(event.endedAt == nil)
+            #expect(event.metadata.occurredAt == sleep.startedAt)
+        default:
+            Issue.record("Expected a resumed sleep event")
+        }
+
+        let profile = try #require(harness.model.profile)
+        #expect(profile.activeSleepSession?.id == sleep.id)
+    }
+
+    @Test
+    func resumeSleepFailsWhenSleepIsAlreadyActive() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let activeSleep = try harness.saveSleep(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            startedAt: Date(timeIntervalSince1970: 10_000),
+            endedAt: nil
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        #expect(harness.model.resumeSleep(id: activeSleep.id, startedAt: activeSleep.startedAt) == false)
+        #expect(harness.model.errorMessage == BabyEventError.sleepAlreadyActive.errorDescription)
+    }
+
+    @Test
+    func resumeSleepFailsForNonExistentEvent() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+
+        harness.model.load(performLaunchSync: false)
+
+        let missingID = UUID()
+        #expect(harness.model.resumeSleep(id: missingID, startedAt: Date()) == false)
+        #expect(harness.model.errorMessage == BabyEventError.noActiveSleepInProgress.errorDescription)
+    }
+
+    @Test
     func completedSleepCanBeEditedDeletedAndUndone() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }

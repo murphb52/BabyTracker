@@ -742,6 +742,24 @@ public final class AppModel {
     }
 
     @discardableResult
+    public func resumeSleep(id: UUID, startedAt: Date) -> Bool {
+        perform {
+            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            _ = try ResumeSleepUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
+                .execute(.init(
+                    eventID: id,
+                    localUserID: localUser.id,
+                    startedAt: startedAt,
+                    membership: profile.currentMembership
+                ))
+        }
+    }
+
+    @discardableResult
     public func deleteEvent(id: UUID) -> Bool {
         perform {
             guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
