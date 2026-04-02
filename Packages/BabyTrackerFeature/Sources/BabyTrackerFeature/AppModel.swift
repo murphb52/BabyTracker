@@ -1752,8 +1752,10 @@ public final class AppModel {
                 let childName = profile.child.name
                     .replacingOccurrences(of: " ", with: "-")
                     .filter { $0.isLetter || $0 == "-" }
-                let dateStamp = Date().formatted(.iso8601.year().month().day())
-                let fileName = "Nest-\(childName)-\(dateStamp).json"
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd-HHmmss"
+                let timeStamp = formatter.string(from: Date())
+                let fileName = "nest-export-\(childName)-\(timeStamp).json"
 
                 let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
                 try data.write(to: tempURL, options: .atomic)
