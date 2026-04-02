@@ -1016,7 +1016,12 @@ public final class AppModel {
             canLogEvents: canLogEvents,
             canManageEvents: canManageEvents,
             activeSleepSession: activeSleep.map(ActiveSleepSessionViewState.init),
-            home: makeHomeScreenState(from: visibleEvents, child: child, activeSleep: activeSleep),
+            home: makeHomeScreenState(
+                from: visibleEvents,
+                child: child,
+                activeSleep: activeSleep,
+                cloudKitStatus: cloudKitStatus
+            ),
             eventHistory: makeEventHistoryScreenState(from: visibleEvents, child: child),
             timeline: makeTimelineScreenState(
                 child: child,
@@ -1112,11 +1117,13 @@ public final class AppModel {
     private func makeHomeScreenState(
         from events: [BabyEvent],
         child: Child,
-        activeSleep: SleepEvent?
+        activeSleep: SleepEvent?,
+        cloudKitStatus: CloudKitStatusViewState
     ) -> HomeScreenState {
         HomeScreenState(
             currentSleep: makeCurrentSleepCardState(activeSleep: activeSleep),
             currentStatus: makeCurrentStatusCardState(from: events, child: child),
+            syncStatus: cloudKitStatus,
             recentEvents: Array(events.compactMap {
                 EventCardViewState(
                     event: $0,
@@ -1914,6 +1921,18 @@ public final class AppModel {
 
     private func updateSyncIndicator(using summary: SyncStatusSummary) {
         switch summary.state {
+        case .upToDate:
+            guard summary.lastSyncAt != nil else {
+                setSyncIndicator(nil)
+                return
+            }
+
+            setSyncIndicator(.synced)
+            syncIndicatorDismissTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.2))
+                guard !Task.isCancelled else { return }
+                syncBannerState = nil
+            }
         case .failed:
             let cloudKitStatus = CloudKitStatusViewState(summary: summary)
             guard !cloudKitStatus.isAccountUnavailable else {

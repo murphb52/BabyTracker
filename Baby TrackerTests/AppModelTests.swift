@@ -399,6 +399,68 @@ struct AppModelTests {
     }
 
     @Test
+    func successfulSyncRefreshShowsSyncedIndicator() async throws {
+        let syncEngine = TestSyncEngine()
+        syncEngine.refreshForegroundSummary = SyncStatusSummary(
+            state: .upToDate,
+            pendingRecordCount: 0,
+            lastSyncAt: Date(timeIntervalSince1970: 2_000),
+            lastErrorDescription: nil
+        )
+        let harness = try Harness(syncEngine: syncEngine)
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+
+        await harness.model.refreshSyncStatus()
+
+        #expect(harness.model.syncBannerState == .synced)
+    }
+
+    @Test
+    func homeSyncStatusUsesSharedCloudKitStatusSummary() throws {
+        let syncEngine = TestSyncEngine()
+        syncEngine.statusSummary = SyncStatusSummary(
+            state: .pendingSync,
+            pendingRecordCount: 2,
+            lastSyncAt: nil,
+            lastErrorDescription: nil
+        )
+        let harness = try Harness(syncEngine: syncEngine)
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+
+        let profile = try #require(harness.model.profile)
+
+        #expect(profile.home.syncStatus.statusTitle == "Waiting to sync")
+        #expect(profile.home.syncStatus.pendingChangesTitle == "2 changes")
+        #expect(profile.cloudKitStatus == profile.home.syncStatus)
+    }
+
+    @Test
+    func failedSyncRefreshShowsFailureIndicatorForRecoverableErrors() async throws {
+        let syncEngine = TestSyncEngine()
+        syncEngine.refreshForegroundSummary = SyncStatusSummary(
+            state: .failed,
+            pendingRecordCount: 0,
+            lastSyncAt: nil,
+            lastErrorDescription: "Network connection was lost."
+        )
+        let harness = try Harness(syncEngine: syncEngine)
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+
+        await harness.model.refreshSyncStatus()
+
+        #expect(harness.model.syncBannerState == .lastSyncFailed("Network connection was lost."))
+    }
+
+    @Test
     func timelineWeekUsesEventPrecedenceAndShowsAtLeastSevenColumns() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }

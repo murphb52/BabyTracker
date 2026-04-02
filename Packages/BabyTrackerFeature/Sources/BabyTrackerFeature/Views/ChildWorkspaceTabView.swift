@@ -24,6 +24,7 @@ public struct ChildWorkspaceTabView: View {
 
         TabView(selection: $bindableModel.selectedWorkspaceTab) {
             ChildHomeView(
+                model: model,
                 profile: profile,
                 stopSleep: showSleepSheet,
                 quickLogBreastFeed: { activeEventSheet = .quickLogBreastFeed },
