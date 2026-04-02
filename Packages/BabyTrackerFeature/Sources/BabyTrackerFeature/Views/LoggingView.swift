@@ -7,6 +7,7 @@ public struct LoggingView: View {
 
     @State private var searchText = ""
     @State private var selectedLevel: LogLevel?
+    @State private var exportItem: ExportItem?
 
     public init(appLogger: AppLogger) {
         self.appLogger = appLogger
@@ -27,6 +28,9 @@ public struct LoggingView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 actionsMenu
             }
+        }
+        .sheet(item: $exportItem) { item in
+            ShareSheet(url: item.url)
         }
         .overlay {
             if appLogger.entries.isEmpty {
@@ -77,7 +81,17 @@ public struct LoggingView: View {
                 Label("Copy Visible", systemImage: "doc.on.doc")
             }
 
-            ShareLink(item: formattedText(for: appLogger.entries)) {
+            Button {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd-HHmmss"
+                let timestamp = formatter.string(from: Date())
+                let filename = "nest-logs-\(timestamp).txt"
+                let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+                if let data = formattedText(for: appLogger.entries).data(using: .utf8) {
+                    try? data.write(to: url, options: .atomic)
+                    exportItem = ExportItem(url: url)
+                }
+            } label: {
                 Label("Export All as File", systemImage: "square.and.arrow.up")
             }
 
@@ -110,6 +124,21 @@ public struct LoggingView: View {
             "[\(formatter.string(from: entry.timestamp))] [\(entry.level.rawValue.uppercased())] [\(entry.category)] \(entry.message)"
         }.joined(separator: "\n")
     }
+}
+
+private struct ExportItem: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 private struct LogEntryRow: View {
