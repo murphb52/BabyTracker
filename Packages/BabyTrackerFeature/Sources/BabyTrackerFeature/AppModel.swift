@@ -1046,6 +1046,7 @@ public final class AppModel {
                 date: day,
                 dayTitle: timelineDayTitle(for: day),
                 shortWeekdayTitle: shortWeekdayTitle(for: day),
+                dayNumberTitle: day.formatted(.dateTime.day()),
                 isToday: calendar.isDateInToday(day),
                 blocks: makeTimelineBlocks(from: events, child: child, on: day),
                 emptyStateTitle: "No events for this day",
