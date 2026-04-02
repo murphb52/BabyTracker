@@ -1914,6 +1914,18 @@ public final class AppModel {
 
     private func updateSyncIndicator(using summary: SyncStatusSummary) {
         switch summary.state {
+        case .upToDate:
+            guard summary.lastSyncAt != nil else {
+                setSyncIndicator(nil)
+                return
+            }
+
+            setSyncIndicator(.synced)
+            syncIndicatorDismissTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.2))
+                guard !Task.isCancelled else { return }
+                syncBannerState = nil
+            }
         case .failed:
             let cloudKitStatus = CloudKitStatusViewState(summary: summary)
             guard !cloudKitStatus.isAccountUnavailable else {
