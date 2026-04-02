@@ -1497,12 +1497,7 @@ public final class AppModel {
     private func minimumTimelineDurationMinutes(
         for event: BabyEvent
     ) -> Int {
-        switch event {
-        case .sleep, .breastFeed:
-            return 5
-        case .bottleFeed, .nappy:
-            return 10
-        }
+        35
     }
 
     private func minuteOfDay(

@@ -211,26 +211,23 @@ public struct TimelineDayPageView: View {
         for event: TimelineEventBlockViewState
     ) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 5) {
+            HStack(alignment: .center, spacing: 5) {
                 Image(systemName: BabyEventStyle.systemImage(for: event.kind))
                     .font(.caption2.weight(.semibold))
 
                 Text(primaryLineText(for: event))
                     .font(.caption2.weight(.semibold))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.72)
             }
 
             if event.kind == .sleep {
                 Text(event.timeText)
                     .font(.caption2)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.78)
                     .opacity(0.9)
             }
         }
         .foregroundStyle(BabyEventStyle.timelineForegroundColor(for: event.kind))
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
     }
@@ -242,7 +239,11 @@ public struct TimelineDayPageView: View {
             return event.title
         }
 
-        return "\(event.title) • \(event.detailText)"
+        if event.kind == .sleep {
+            return "\(event.detailText)"
+        } else {
+            return "\(event.detailText) • \(event.timeText)"
+        }
     }
 
     private func primaryActionTitle(
@@ -360,7 +361,7 @@ public struct TimelineDayPageView: View {
     let bottleMinute = calendar.component(.hour, from: bottleTime) * 60 + calendar.component(.minute, from: bottleTime)
     let nappyMinute = calendar.component(.hour, from: nappyTime) * 60 + calendar.component(.minute, from: nappyTime)
 
-    return TimelineDayPageView(
+    TimelineDayPageView(
         page: TimelineDayPageState(
             date: now,
             dayTitle: "Today",
@@ -388,7 +389,7 @@ public struct TimelineDayPageView: View {
                     timeText: "9:00 AM",
                     compactText: "Bottle • 120 ml",
                     startMinute: bottleMinute,
-                    endMinute: bottleMinute + 10,
+                    endMinute: bottleMinute + 35,
                     laneIndex: 0,
                     laneCount: 1,
                     actionPayload: .editBottleFeed(
@@ -405,11 +406,11 @@ public struct TimelineDayPageView: View {
                     timeText: "11:00 AM",
                     compactText: "Nappy • Wet",
                     startMinute: nappyMinute,
-                    endMinute: nappyMinute + 10,
+                    endMinute: nappyMinute + 35,
                     laneIndex: 0,
                     laneCount: 1,
                     actionPayload: .editNappy(
-                        type: .wet,
+                        type: .wee,
                         occurredAt: nappyTime,
                         peeVolume: nil,
                         pooVolume: nil,
