@@ -6,7 +6,6 @@ import Foundation
 @MainActor
 final class FeedLiveActivityManager: FeedLiveActivityManaging {
     private var activeActivityID: String?
-    private var lastSnapshot: FeedLiveActivitySnapshot?
     private var synchronizationTask: Task<Void, Never>?
 
     func synchronize(with snapshot: FeedLiveActivitySnapshot?) {
@@ -22,7 +21,6 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         guard let snapshot else {
             await Self.endAllActivities()
             activeActivityID = nil
-            lastSnapshot = nil
             return
         }
 
@@ -37,10 +35,6 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
             activeActivityID = nil
         }
 
-        guard lastSnapshot != snapshot || activeActivityID == nil else {
-            return
-        }
-
         if let activeActivityID {
             let didUpdate = await Self.updateActivity(
                 withID: activeActivityID,
@@ -48,7 +42,6 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
             )
 
             if didUpdate {
-                lastSnapshot = snapshot
                 return
             }
 
@@ -62,10 +55,8 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
                 pushType: nil
             )
             activeActivityID = activity.id
-            lastSnapshot = snapshot
         } catch {
             activeActivityID = nil
-            lastSnapshot = nil
         }
     }
 
