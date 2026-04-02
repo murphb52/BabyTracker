@@ -1486,12 +1486,23 @@ public final class AppModel {
     ) -> Int {
         let dayStart = normalizedTimelineDay(for: selectedDay)
         let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
-        let minimumDurationMinutes = 20
+        let minimumDurationMinutes = minimumTimelineDurationMinutes(for: event)
         let visibleEnd = min(timelineEndDate(for: event), dayEnd)
         let unclampedMinute = minuteOfDay(for: visibleEnd, relativeTo: dayStart)
         let minimumEndMinute = visibleTimelineStartMinute(for: event, on: selectedDay) + minimumDurationMinutes
 
         return min(1_440, max(unclampedMinute, minimumEndMinute))
+    }
+
+    private func minimumTimelineDurationMinutes(
+        for event: BabyEvent
+    ) -> Int {
+        switch event {
+        case .sleep, .breastFeed:
+            return 5
+        case .bottleFeed, .nappy:
+            return 10
+        }
     }
 
     private func minuteOfDay(

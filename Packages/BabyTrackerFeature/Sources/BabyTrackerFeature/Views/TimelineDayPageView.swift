@@ -10,10 +10,19 @@ public struct TimelineDayPageView: View {
     let confirmDelete: () -> Void
     let cancelDelete: () -> Void
 
-    private let hourRowHeight: CGFloat = 72
+    private let minutesPerSlot: CGFloat = 5
+    private let slotHeight: CGFloat = 4
     private let timeColumnWidth: CGFloat = 46
     private let laneSpacing: CGFloat = 6
-    private let blockCornerRadius: CGFloat = 14
+    private let blockCornerRadius: CGFloat = 12
+
+    private var hourRowHeight: CGFloat {
+        slotsPerHour * slotHeight
+    }
+
+    private var slotsPerHour: CGFloat {
+        60 / minutesPerSlot
+    }
 
     public init(
         page: TimelineDayPageState,
@@ -105,16 +114,21 @@ public struct TimelineDayPageView: View {
             ForEach(0..<24, id: \.self) { hour in
                 HStack(alignment: .top, spacing: 12) {
                     Text(hourLabel(for: hour))
-                        .font(.caption.weight(.medium))
+                        .font(.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
                         .frame(width: timeColumnWidth, alignment: .trailing)
-                        .padding(.top, 6)
+                        .padding(.top, 4)
                         .id(hourAnchorID(for: hour))
 
-                    ZStack(alignment: .topLeading) {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(backgroundColor(forHour: hour))
-
+                    VStack(spacing: 0) {
+                        ForEach(0..<Int(slotsPerHour), id: \.self) { slotIndex in
+                            Rectangle()
+                                .fill(backgroundColor(forHour: hour, slotIndex: slotIndex))
+                                .frame(height: slotHeight)
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(alignment: .topLeading) {
                         Rectangle()
                             .fill(Color(.separator))
                             .frame(height: 1)
@@ -139,7 +153,7 @@ public struct TimelineDayPageView: View {
         let yPosition = yOffset + (height / 2)
         let isPendingDelete = pendingDeleteEvent?.id == event.id
 
-        let baseBlock = timelineBlockContent(for: event, height: height)
+        let baseBlock = timelineBlockContent(for: event)
             .frame(width: width, height: height, alignment: .topLeading)
             .background(BabyEventStyle.timelineFillColor(for: event.kind))
             .clipShape(RoundedRectangle(cornerRadius: blockCornerRadius, style: .continuous))
@@ -193,63 +207,42 @@ public struct TimelineDayPageView: View {
         blockView
     }
 
-    @ViewBuilder
     private func timelineBlockContent(
-        for event: TimelineEventBlockViewState,
-        height: CGFloat
+        for event: TimelineEventBlockViewState
     ) -> some View {
-        if event.kind == .sleep, height > 56 {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Image(systemName: BabyEventStyle.systemImage(for: event.kind))
-                        .font(.caption.weight(.semibold))
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 5) {
+                Image(systemName: BabyEventStyle.systemImage(for: event.kind))
+                    .font(.caption2.weight(.semibold))
 
-                    Text(event.title)
-                        .font(height > 72 ? .footnote.weight(.semibold) : .caption.weight(.semibold))
-                        .lineLimit(1)
-                }
+                Text(primaryLineText(for: event))
+                    .font(.caption2.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
 
-                Text(event.detailText)
-                    .font(.caption)
-                    .lineLimit(height > 84 ? 2 : 1)
+            if event.kind == .sleep {
+                Text(event.timeText)
+                    .font(.caption2)
+                    .lineLimit(1)
                     .minimumScaleFactor(0.78)
-                    .opacity(0.94)
-
-                if height > 86 {
-                    Text(event.timeText)
-                        .font(.caption2.weight(.medium))
-                        .opacity(0.85)
-                        .lineLimit(1)
-                }
+                    .opacity(0.9)
             }
-            .foregroundStyle(BabyEventStyle.timelineForegroundColor(for: event.kind))
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-        } else {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    Image(systemName: BabyEventStyle.systemImage(for: event.kind))
-                        .font(.caption.weight(.semibold))
-
-                    Text(event.compactText)
-                        .font(height <= 48 ? .caption2.weight(.semibold) : .caption.weight(.semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-                }
-
-                if height > 72 {
-                    Text(event.timeText)
-                        .font(.caption2.weight(.medium))
-                        .lineLimit(1)
-                        .opacity(0.85)
-                }
-            }
-            .foregroundStyle(BabyEventStyle.timelineForegroundColor(for: event.kind))
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
         }
+        .foregroundStyle(BabyEventStyle.timelineForegroundColor(for: event.kind))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+    }
+
+    private func primaryLineText(
+        for event: TimelineEventBlockViewState
+    ) -> String {
+        guard event.detailText.isEmpty == false else {
+            return event.title
+        }
+
+        return "\(event.title) • \(event.detailText)"
     }
 
     private func primaryActionTitle(
@@ -277,8 +270,9 @@ public struct TimelineDayPageView: View {
     private func blockHeight(
         for event: TimelineEventBlockViewState
     ) -> CGFloat {
-        let minutes = max(20, event.endMinute - event.startMinute)
-        return max(36, CGFloat(minutes) * hourRowHeight / 60)
+        let minutes = max(10, event.endMinute - event.startMinute)
+        let slotCount = ceil(CGFloat(minutes) / minutesPerSlot)
+        return max(slotHeight * 2, slotCount * slotHeight)
     }
 
     private func blockXOffset(
@@ -292,18 +286,33 @@ public struct TimelineDayPageView: View {
     private func blockYOffset(
         for event: TimelineEventBlockViewState
     ) -> CGFloat {
-        CGFloat(event.startMinute) * hourRowHeight / 60
+        let minuteOffset = CGFloat(event.startMinute)
+        let slotOffset = floor(minuteOffset / minutesPerSlot)
+        return slotOffset * slotHeight
     }
 
     private func backgroundColor(
-        forHour hour: Int
+        forHour hour: Int,
+        slotIndex: Int
     ) -> Color {
-        guard Calendar.autoupdatingCurrent.isDateInToday(page.date),
-              Calendar.autoupdatingCurrent.component(.hour, from: .now) == hour else {
-            return Color(.secondarySystemGroupedBackground)
+        let baseColor: Color
+
+        if Calendar.autoupdatingCurrent.isDateInToday(page.date),
+           Calendar.autoupdatingCurrent.component(.hour, from: .now) == hour {
+            baseColor = Color.accentColor.opacity(0.08)
+        } else {
+            baseColor = Color(.secondarySystemGroupedBackground)
         }
 
-        return Color.accentColor.opacity(0.12)
+        if slotIndex == 0 {
+            return baseColor.opacity(0.98)
+        }
+
+        if slotIndex % 3 == 0 {
+            return baseColor.opacity(0.9)
+        }
+
+        return baseColor.opacity(0.72)
     }
 
     private func hourLabel(
@@ -332,4 +341,90 @@ public struct TimelineDayPageView: View {
             proxy.scrollTo(hourAnchorID(for: currentHour), anchor: .top)
         }
     }
+}
+
+#Preview("Compact Day Timeline") {
+    let now = Date()
+    let calendar = Calendar.autoupdatingCurrent
+    let startOfDay = calendar.startOfDay(for: now)
+
+    let sleepStart = calendar.date(byAdding: .hour, value: 1, to: startOfDay) ?? startOfDay
+    let sleepEnd = calendar.date(byAdding: .hour, value: 3, to: sleepStart) ?? sleepStart
+
+    let bottleTime = calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
+    let nappyTime = calendar.date(byAdding: .hour, value: 11, to: startOfDay) ?? startOfDay
+
+    let sleepStartMinute = calendar.dateComponents([.hour, .minute], from: sleepStart).hour.map { ($0 * 60) + calendar.component(.minute, from: sleepStart) } ?? 0
+    let sleepEndMinute = calendar.dateComponents([.hour, .minute], from: sleepEnd).hour.map { ($0 * 60) + calendar.component(.minute, from: sleepEnd) } ?? 120
+
+    let bottleMinute = calendar.component(.hour, from: bottleTime) * 60 + calendar.component(.minute, from: bottleTime)
+    let nappyMinute = calendar.component(.hour, from: nappyTime) * 60 + calendar.component(.minute, from: nappyTime)
+
+    return TimelineDayPageView(
+        page: TimelineDayPageState(
+            date: now,
+            dayTitle: "Today",
+            shortWeekdayTitle: "Thu",
+            isToday: true,
+            blocks: [
+                TimelineEventBlockViewState(
+                    id: UUID(),
+                    kind: .sleep,
+                    title: "Sleep",
+                    detailText: "2h 0m",
+                    timeText: "1:00 AM - 3:00 AM",
+                    compactText: "Sleep • 2h 0m",
+                    startMinute: sleepStartMinute,
+                    endMinute: sleepEndMinute,
+                    laneIndex: 0,
+                    laneCount: 1,
+                    actionPayload: .editSleep(startedAt: sleepStart, endedAt: sleepEnd)
+                ),
+                TimelineEventBlockViewState(
+                    id: UUID(),
+                    kind: .bottleFeed,
+                    title: "Bottle",
+                    detailText: "120 ml",
+                    timeText: "9:00 AM",
+                    compactText: "Bottle • 120 ml",
+                    startMinute: bottleMinute,
+                    endMinute: bottleMinute + 10,
+                    laneIndex: 0,
+                    laneCount: 1,
+                    actionPayload: .editBottleFeed(
+                        amountMilliliters: 120,
+                        occurredAt: bottleTime,
+                        milkType: nil
+                    )
+                ),
+                TimelineEventBlockViewState(
+                    id: UUID(),
+                    kind: .nappy,
+                    title: "Nappy",
+                    detailText: "Wet",
+                    timeText: "11:00 AM",
+                    compactText: "Nappy • Wet",
+                    startMinute: nappyMinute,
+                    endMinute: nappyMinute + 10,
+                    laneIndex: 0,
+                    laneCount: 1,
+                    actionPayload: .editNappy(
+                        type: .wet,
+                        occurredAt: nappyTime,
+                        peeVolume: nil,
+                        pooVolume: nil,
+                        pooColor: nil
+                    )
+                )
+            ],
+            emptyStateTitle: "No events yet",
+            emptyStateMessage: "Log your first event to build your timeline."
+        ),
+        canManageEvents: true,
+        openEvent: { _ in },
+        deleteEvent: { _ in },
+        pendingDeleteEvent: nil,
+        confirmDelete: {},
+        cancelDelete: {}
+    )
 }
