@@ -266,7 +266,7 @@ public final class AppModel {
     }
 
     public func createChild(name: String, birthDate: Date?, imageData: Data? = nil) {
-        perform {
+        let succeeded = perform {
             guard let localUser else { return }
             _ = try CreateChildUseCase(
                 childRepository: childRepository,
@@ -275,6 +275,7 @@ public final class AppModel {
                 hapticFeedbackProvider: hapticFeedbackProvider
             ).execute(.init(name: name, birthDate: birthDate, localUser: localUser, imageData: imageData))
         }
+        if succeeded { resetNavigationStack() }
     }
 
     public func updateCurrentChild(
@@ -301,7 +302,7 @@ public final class AppModel {
     }
 
     public func archiveCurrentChild() {
-        perform {
+        let succeeded = perform {
             guard let profile else { return }
             let revokedCaregivers = try ArchiveChildUseCase(
                 childRepository: childRepository,
@@ -319,6 +320,7 @@ public final class AppModel {
                 }
             }
         }
+        if succeeded { resetNavigationStack() }
     }
 
     public func restoreChild(id: UUID) {
@@ -465,6 +467,7 @@ public final class AppModel {
                     childSelectionStore.saveSelectedChildID(nil)
                 }
                 playHaptic(.actionSucceeded)
+                resetNavigationStack()
             } catch {
                 AppLogger.shared.log(.error, category: "CloudKitShare", "leaveChildShare failed for child \(childID): \(error)")
                 setErrorMessage(resolveErrorMessage(for: error))
