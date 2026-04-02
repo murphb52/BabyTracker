@@ -419,6 +419,28 @@ struct AppModelTests {
     }
 
     @Test
+    func homeSyncStatusUsesSharedCloudKitStatusSummary() throws {
+        let syncEngine = TestSyncEngine()
+        syncEngine.statusSummary = SyncStatusSummary(
+            state: .pendingSync,
+            pendingRecordCount: 2,
+            lastSyncAt: nil,
+            lastErrorDescription: nil
+        )
+        let harness = try Harness(syncEngine: syncEngine)
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+
+        let profile = try #require(harness.model.profile)
+
+        #expect(profile.home.syncStatus.statusTitle == "Waiting to sync")
+        #expect(profile.home.syncStatus.pendingChangesTitle == "2 changes")
+        #expect(profile.cloudKitStatus == profile.home.syncStatus)
+    }
+
+    @Test
     func failedSyncRefreshShowsFailureIndicatorForRecoverableErrors() async throws {
         let syncEngine = TestSyncEngine()
         syncEngine.refreshForegroundSummary = SyncStatusSummary(
