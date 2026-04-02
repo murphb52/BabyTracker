@@ -42,18 +42,22 @@ public struct ChildProfileView: View {
                 }
                 .accessibilityIdentifier("profile-details-row")
 
-                NavigationLink {
-                    ChildProfileFeedingPreferencesView(
-                        model: model,
-                        profile: profile
-                    )
-                } label: {
-                    settingsRow(
-                        title: "Feeding Preferences",
-                        value: profile.child.preferredFeedVolumeUnit.title,
-                        accessibilityIdentifier: "profile-feeding-preferences-row"
-                    )
+                Picker("Bottle Volume Unit", selection: volumeUnitBinding) {
+                    ForEach(FeedVolumeUnit.allCases, id: \.rawValue) { unit in
+                        Text(unit.shortTitle).tag(unit)
+                    }
                 }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("child-feed-volume-unit-picker")
+
+                Toggle(
+                    "Live Activities",
+                    isOn: Binding(
+                        get: { model.isLiveActivityEnabled },
+                        set: { model.setLiveActivitiesEnabled($0) }
+                    )
+                )
+                .accessibilityIdentifier("live-activities-toggle")
 
                 if showsManageChild {
                     NavigationLink {
@@ -220,6 +224,20 @@ public struct ChildProfileView: View {
             }
         }
         .contentShape(Rectangle())
+    }
+
+    private var volumeUnitBinding: Binding<FeedVolumeUnit> {
+        Binding(
+            get: { profile.child.preferredFeedVolumeUnit },
+            set: { selectedUnit in
+                model.updateCurrentChild(
+                    name: profile.child.name,
+                    birthDate: profile.child.birthDate,
+                    imageData: profile.child.imageData,
+                    preferredFeedVolumeUnit: selectedUnit
+                )
+            }
+        )
     }
 
     private var birthDateText: String {

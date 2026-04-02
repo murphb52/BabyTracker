@@ -26,18 +26,6 @@ public struct AppSettingsView: View {
                     )
                 }
 
-                Toggle(
-                    "Enable Live Activities",
-                    isOn: Binding(
-                        get: { model.isLiveActivityEnabled },
-                        set: { model.setLiveActivitiesEnabled($0) }
-                    )
-                )
-                .accessibilityIdentifier("live-activities-toggle")
-
-                Text("This setting controls the app's Live Activities on the Lock Screen and Dynamic Island.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
 
             Section("Data Tools") {
