@@ -368,22 +368,29 @@ public struct ChildWorkspaceTabView: View {
                 childName: profile.child.name,
                 initialStartedAt: startedAt,
                 initialEndedAt: endedAt,
-                endTimeInitialPreset: .custom
-            ) { updatedStartedAt, updatedEndedAt in
-                guard let updatedEndedAt else {
-                    return false
-                }
+                endTimeInitialPreset: .custom,
+                saveAction: { updatedStartedAt, updatedEndedAt in
+                    guard let updatedEndedAt else {
+                        return false
+                    }
 
-                let didSave = model.updateSleep(
-                    id: id,
-                    startedAt: updatedStartedAt,
-                    endedAt: updatedEndedAt
-                )
-                if didSave {
-                    activeEventSheet = nil
+                    let didSave = model.updateSleep(
+                        id: id,
+                        startedAt: updatedStartedAt,
+                        endedAt: updatedEndedAt
+                    )
+                    if didSave {
+                        activeEventSheet = nil
+                    }
+                    return didSave
+                },
+                resumeAction: {
+                    let didResume = model.resumeSleep(id: id, startedAt: startedAt)
+                    if didResume {
+                        activeEventSheet = nil
+                    }
                 }
-                return didSave
-            }
+            )
         case let .editNappy(id, type, occurredAt, peeVolume, pooVolume, pooColor):
             NappyEditorSheetView(
                 navigationTitle: "Edit Nappy",
