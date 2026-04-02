@@ -10,7 +10,6 @@ public struct TimelineScreenView: View {
     let cancelDelete: () -> Void
 
     @State private var showingDayPicker = false
-    @State private var dragStartPageIndex: Int = 0
 
     public init(
         model: AppModel,
@@ -41,38 +40,17 @@ public struct TimelineScreenView: View {
             }
 
             if profile.timeline.displayMode == .day {
-                TabView(selection: timelinePageBinding) {
-                    ForEach(Array(profile.timeline.pages.enumerated()), id: \.offset) { index, page in
-                        TimelineDayPageView(
-                            page: page,
-                            canManageEvents: profile.canManageEvents,
-                            openEvent: openEvent,
-                            deleteEvent: deleteEvent,
-                            pendingDeleteEvent: pendingDeleteEvent,
-                            confirmDelete: confirmDelete,
-                            cancelDelete: cancelDelete
-                        )
-                        .tag(index)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .background(Color(.systemGroupedBackground).ignoresSafeArea())
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 20)
-                        .onChanged { _ in
-                            if dragStartPageIndex != profile.timeline.selectedPageIndex {
-                                dragStartPageIndex = profile.timeline.selectedPageIndex
-                            }
-                        }
-                        .onEnded { value in
-                            let swipe = value.translation.width
-                            if swipe > 60 && dragStartPageIndex == 0 {
-                                model.showPreviousTimelineDay()
-                            } else if swipe < -60 && dragStartPageIndex == profile.timeline.pages.count - 1 {
-                                model.showNextTimelineDay()
-                            }
-                        }
+                TimelineDayGridView(
+                    pages: profile.timeline.pages,
+                    selectedDay: profile.timeline.selectedDay,
+                    canManageEvents: profile.canManageEvents,
+                    openEvent: openEvent,
+                    deleteEvent: deleteEvent,
+                    pendingDeleteEvent: pendingDeleteEvent,
+                    confirmDelete: confirmDelete,
+                    cancelDelete: cancelDelete
                 )
+                .background(Color(.systemGroupedBackground).ignoresSafeArea())
             } else {
                 TimelineWeekView(
                     columns: profile.timeline.stripColumns,
@@ -140,36 +118,6 @@ public struct TimelineScreenView: View {
                 .accessibilityIdentifier("timeline-next-day-button")
             }
 
-            if timeline.displayMode == .day {
-                HStack(spacing: 8) {
-                    ForEach(Array(timeline.pages.enumerated()), id: \.offset) { index, page in
-                        Button {
-                            model.showTimelineDay(page.date)
-                        } label: {
-                            VStack(spacing: 4) {
-                                Text(page.shortWeekdayTitle)
-                                    .font(.caption.weight(.semibold))
-
-                                Text(page.date.formatted(.dateTime.day()))
-                                    .font(.subheadline.weight(.semibold))
-                            }
-                            .foregroundStyle(index == timeline.selectedPageIndex ? Color.white : Color.primary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(
-                                        index == timeline.selectedPageIndex ?
-                                            Color.accentColor :
-                                            Color(.secondarySystemGroupedBackground)
-                                )
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("timeline-weekday-\(index)")
-                    }
-                }
-            }
         }
         .padding(.horizontal, 12)
         .padding(.top, 10)
@@ -228,19 +176,6 @@ public struct TimelineScreenView: View {
                     .fill(Color(.tertiarySystemGroupedBackground))
             )
             .accessibilityIdentifier("timeline-sync-message")
-    }
-
-    private var timelinePageBinding: Binding<Int> {
-        Binding(
-            get: { profile.timeline.selectedPageIndex },
-            set: { index in
-                guard profile.timeline.pages.indices.contains(index) else {
-                    return
-                }
-
-                model.showTimelineDay(profile.timeline.pages[index].date)
-            }
-        )
     }
 
     private var timelineDayBinding: Binding<Date> {
