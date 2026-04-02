@@ -1056,7 +1056,8 @@ public final class CloudKitSyncEngine {
         remoteCaregiverEventChanges.append(
             RemoteCaregiverEventChange(
                 actorDisplayName: actorDisplayName,
-                event: event
+                event: event,
+                isDeleted: event.metadata.isDeleted
             )
         )
     }
