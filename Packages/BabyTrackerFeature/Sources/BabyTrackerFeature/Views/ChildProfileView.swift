@@ -6,7 +6,7 @@ import UIKit
 
 public struct ChildProfileView: View {
     let model: AppModel
-    let profile: ChildProfileScreenState
+    let viewModel: ChildProfileViewModel
     let editChildAction: () -> Void
     let shareChildAction: () -> Void
     let archiveAction: () -> Void
@@ -14,14 +14,14 @@ public struct ChildProfileView: View {
 
     public init(
         model: AppModel,
-        profile: ChildProfileScreenState,
+        viewModel: ChildProfileViewModel,
         editChildAction: @escaping () -> Void,
         shareChildAction: @escaping () -> Void,
         archiveAction: @escaping () -> Void,
         hardDeleteAction: @escaping () -> Void
     ) {
         self.model = model
-        self.profile = profile
+        self.viewModel = viewModel
         self.editChildAction = editChildAction
         self.shareChildAction = shareChildAction
         self.archiveAction = archiveAction
@@ -31,16 +31,18 @@ public struct ChildProfileView: View {
     public var body: some View {
         List {
             Section("This Child") {
-                NavigationLink {
-                    ChildProfileDetailsView(
-                        model: model,
-                        profile: profile,
-                        editChildAction: editChildAction
-                    )
-                } label: {
-                    childHeaderRow
+                if let profile = viewModel.profile {
+                    NavigationLink {
+                        ChildProfileDetailsView(
+                            model: model,
+                            profile: profile,
+                            editChildAction: editChildAction
+                        )
+                    } label: {
+                        childHeaderRow
+                    }
+                    .accessibilityIdentifier("profile-details-row")
                 }
-                .accessibilityIdentifier("profile-details-row")
 
                 Picker("Bottle Volume Unit", selection: volumeUnitBinding) {
                     ForEach(FeedVolumeUnit.allCases, id: \.rawValue) { unit in
@@ -59,7 +61,7 @@ public struct ChildProfileView: View {
                 )
                 .accessibilityIdentifier("live-activities-toggle")
 
-                if showsManageChild {
+                if showsManageChild, let profile = viewModel.profile {
                     NavigationLink {
                         ChildProfileManageView(
                             model: model,
@@ -78,22 +80,24 @@ public struct ChildProfileView: View {
             }
 
             Section("Family & Sharing") {
-                NavigationLink {
-                    ChildProfileSharingView(
-                        model: model,
-                        profile: profile,
-                        shareChildAction: shareChildAction
-                    )
-                } label: {
-                    settingsRow(
-                        title: "Sharing & Caregivers",
-                        value: sharingSummary,
-                        accessibilityIdentifier: "profile-sharing-row"
-                    )
+                if let profile = viewModel.profile {
+                    NavigationLink {
+                        ChildProfileSharingView(
+                            model: model,
+                            profile: profile,
+                            shareChildAction: shareChildAction
+                        )
+                    } label: {
+                        settingsRow(
+                            title: "Sharing & Caregivers",
+                            value: sharingSummary,
+                            accessibilityIdentifier: "profile-sharing-row"
+                        )
+                    }
                 }
 
                 LabeledContent("Signed In As") {
-                    Text(profile.localUser.displayName)
+                    Text(viewModel.localUser?.displayName ?? "")
                         .foregroundStyle(.secondary)
                 }
                 .accessibilityIdentifier("profile-signed-in-as-row")
@@ -150,17 +154,19 @@ public struct ChildProfileView: View {
                     )
                 }
 
-                NavigationLink {
-                    AppSettingsView(
-                        model: model,
-                        profile: profile
-                    )
-                } label: {
-                    settingsRow(
-                        title: "App Settings",
-                        value: nil,
-                        accessibilityIdentifier: "profile-app-settings-row"
-                    )
+                if let profile = viewModel.profile {
+                    NavigationLink {
+                        AppSettingsView(
+                            model: model,
+                            profile: profile
+                        )
+                    } label: {
+                        settingsRow(
+                            title: "App Settings",
+                            value: nil,
+                            accessibilityIdentifier: "profile-app-settings-row"
+                        )
+                    }
                 }
             }
         }
@@ -174,7 +180,7 @@ public struct ChildProfileView: View {
             avatarView
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(profile.child.name)
+                Text(viewModel.childName)
                     .font(.headline)
 
                 Text(birthDateText)
@@ -187,7 +193,7 @@ public struct ChildProfileView: View {
 
     @ViewBuilder
     private var avatarView: some View {
-        if let imageData = profile.child.imageData, let uiImage = UIImage(data: imageData) {
+        if let imageData = viewModel.child?.imageData, let uiImage = UIImage(data: imageData) {
             Image(uiImage: uiImage)
                 .resizable()
                 .scaledToFill()
@@ -198,7 +204,7 @@ public struct ChildProfileView: View {
                 Circle()
                     .fill(Color.accentColor.opacity(0.15))
                     .frame(width: 60, height: 60)
-                Text(profile.child.name.prefix(1).uppercased())
+                Text(viewModel.childName.prefix(1).uppercased())
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(Color.accentColor)
             }
@@ -217,7 +223,7 @@ public struct ChildProfileView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            if summary.child.id == profile.child.id {
+            if summary.child.id == viewModel.child?.id {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(Color.accentColor)
                     .accessibilityLabel("Selected child")
@@ -228,12 +234,12 @@ public struct ChildProfileView: View {
 
     private var volumeUnitBinding: Binding<FeedVolumeUnit> {
         Binding(
-            get: { profile.child.preferredFeedVolumeUnit },
+            get: { viewModel.child?.preferredFeedVolumeUnit ?? .milliliters },
             set: { selectedUnit in
                 model.updateCurrentChild(
-                    name: profile.child.name,
-                    birthDate: profile.child.birthDate,
-                    imageData: profile.child.imageData,
+                    name: viewModel.childName,
+                    birthDate: viewModel.child?.birthDate,
+                    imageData: viewModel.child?.imageData,
                     preferredFeedVolumeUnit: selectedUnit
                 )
             }
@@ -241,7 +247,7 @@ public struct ChildProfileView: View {
     }
 
     private var birthDateText: String {
-        if let birthDate = profile.child.birthDate {
+        if let birthDate = viewModel.child?.birthDate {
             return birthDate.formatted(date: .abbreviated, time: .omitted)
         }
 
@@ -261,12 +267,12 @@ public struct ChildProfileView: View {
     }
 
     private var showsManageChild: Bool {
-        profile.canArchiveChild || profile.canLeaveShare || profile.canHardDelete
+        viewModel.canArchiveChild || viewModel.canLeaveShare || viewModel.canHardDelete
     }
 
     private var sharingSummary: String {
-        let caregiverCount = 1 + profile.activeCaregivers.count
-        let inviteCount = profile.pendingShareInvites.count
+        let caregiverCount = 1 + viewModel.activeCaregivers.count
+        let inviteCount = viewModel.pendingShareInvites.count
         let caregiverText = caregiverCount == 1 ? "1 person" : "\(caregiverCount) people"
 
         guard inviteCount > 0 else {
@@ -302,15 +308,13 @@ public struct ChildProfileView: View {
 #Preview {
     NavigationStack {
         let model = ChildProfilePreviewFactory.makeModel()
-        if let profile = model.profile {
-            ChildProfileView(
-                model: model,
-                profile: profile,
-                editChildAction: {},
-                shareChildAction: {},
-                archiveAction: {},
-                hardDeleteAction: {}
-            )
-        }
+        ChildProfileView(
+            model: model,
+            viewModel: ChildProfileViewModel(appModel: model),
+            editChildAction: {},
+            shareChildAction: {},
+            archiveAction: {},
+            hardDeleteAction: {}
+        )
     }
 }

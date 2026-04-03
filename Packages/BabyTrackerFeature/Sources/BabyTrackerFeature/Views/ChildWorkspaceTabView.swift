@@ -3,7 +3,6 @@ import SwiftUI
 
 public struct ChildWorkspaceTabView: View {
     let model: AppModel
-    let profile: ChildProfileScreenState
 
     @State private var activeEventSheet: ChildEventSheet?
     @State private var deleteCandidate: EventDeleteCandidate?
@@ -14,17 +13,15 @@ public struct ChildWorkspaceTabView: View {
     @State private var eventHistoryViewModel: EventHistoryViewModel
     @State private var homeViewModel: HomeViewModel
     @State private var timelineViewModel: TimelineViewModel
+    @State private var childProfileViewModel: ChildProfileViewModel
 
-    public init(
-        model: AppModel,
-        profile: ChildProfileScreenState
-    ) {
+    public init(model: AppModel) {
         self.model = model
-        self.profile = profile
         _summaryViewModel = State(initialValue: SummaryViewModel(appModel: model))
         _eventHistoryViewModel = State(initialValue: EventHistoryViewModel(appModel: model))
         _homeViewModel = State(initialValue: HomeViewModel(appModel: model))
         _timelineViewModel = State(initialValue: TimelineViewModel(appModel: model))
+        _childProfileViewModel = State(initialValue: ChildProfileViewModel(appModel: model))
     }
 
     public var body: some View {
@@ -34,6 +31,7 @@ public struct ChildWorkspaceTabView: View {
             ChildHomeView(
                 model: model,
                 viewModel: homeViewModel,
+                childProfileViewModel: childProfileViewModel,
                 stopSleep: showSleepSheet,
                 quickLogBreastFeed: { activeEventSheet = .quickLogBreastFeed },
                 quickLogBottleFeed: { activeEventSheet = .quickLogBottleFeed },
@@ -49,7 +47,7 @@ public struct ChildWorkspaceTabView: View {
 
             EventHistoryView(
                 viewModel: eventHistoryViewModel,
-                canManageEvents: profile.canManageEvents,
+                canManageEvents: childProfileViewModel.canManageEvents,
                 openEvent: showEventSheet(for:),
                 deleteEvent: confirmDelete(for:),
                 pendingDeleteEvent: deleteCandidate,
@@ -83,7 +81,7 @@ public struct ChildWorkspaceTabView: View {
 
             ChildProfileView(
                 model: model,
-                profile: profile,
+                viewModel: childProfileViewModel,
                 editChildAction: { showingEditChildSheet = true },
                 shareChildAction: { model.presentShareSheet() },
                 archiveAction: { model.archiveCurrentChild() },
@@ -94,7 +92,7 @@ public struct ChildWorkspaceTabView: View {
                 Label("Profile", systemImage: "person.crop.circle")
             }
         }
-        .navigationTitle(profile.child.name)
+        .navigationTitle(childProfileViewModel.childName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if model.selectedWorkspaceTab == .events {
@@ -132,9 +130,9 @@ public struct ChildWorkspaceTabView: View {
         }
         .sheet(isPresented: $showingEditChildSheet) {
             ChildEditSheetView(
-                initialName: profile.child.name,
-                initialBirthDate: profile.child.birthDate,
-                initialImageData: profile.child.imageData,
+                initialName: childProfileViewModel.childName,
+                initialBirthDate: childProfileViewModel.child?.birthDate,
+                initialImageData: childProfileViewModel.child?.imageData,
                 saveAction: { name, birthDate, imageData in
                     model.updateCurrentChild(name: name, birthDate: birthDate, imageData: imageData)
                 }
@@ -143,7 +141,7 @@ public struct ChildWorkspaceTabView: View {
         .sheet(item: $bindableModel.shareSheetState) { shareState in
             CloudKitShareSheetView(
                 shareState: shareState,
-                childName: profile.child.name,
+                childName: childProfileViewModel.childName,
                 onSaveFailure: model.handleShareSheetSaveFailure
             )
                 .onDisappear {
@@ -215,7 +213,7 @@ public struct ChildWorkspaceTabView: View {
             BreastFeedEditorSheetView(
                 navigationTitle: "Breast Feed",
                 primaryActionTitle: "Save",
-                childName: profile.child.name,
+                childName: childProfileViewModel.childName,
                 initialDurationMinutes: 15,
                 initialEndTime: Date(),
                 initialSide: nil
@@ -236,8 +234,8 @@ public struct ChildWorkspaceTabView: View {
             BottleFeedEditorSheetView(
                 navigationTitle: "Bottle Feed",
                 primaryActionTitle: "Save",
-                childName: profile.child.name,
-                preferredVolumeUnit: profile.child.preferredFeedVolumeUnit,
+                childName: childProfileViewModel.childName,
+                preferredVolumeUnit: childProfileViewModel.child?.preferredFeedVolumeUnit ?? .milliliters,
                 initialAmountMilliliters: 120,
                 initialOccurredAt: Date(),
                 initialMilkType: nil
@@ -255,7 +253,7 @@ public struct ChildWorkspaceTabView: View {
         case let .startSleep(suggestions):
             SleepEditorSheetView(
                 mode: .start,
-                childName: profile.child.name,
+                childName: childProfileViewModel.childName,
                 initialStartedAt: Date(),
                 initialEndedAt: nil,
                 startSuggestions: suggestions
@@ -274,7 +272,7 @@ public struct ChildWorkspaceTabView: View {
         case let .endSleep(id, startedAt):
             SleepEditorSheetView(
                 mode: .end,
-                childName: profile.child.name,
+                childName: childProfileViewModel.childName,
                 initialStartedAt: startedAt,
                 initialEndedAt: defaultSleepEndTime(for: startedAt),
                 saveAction: { updatedStartedAt, updatedEndedAt in
@@ -292,7 +290,7 @@ public struct ChildWorkspaceTabView: View {
                     }
                     return didSave
                 },
-                deleteAction: profile.canManageEvents ? {
+                deleteAction: childProfileViewModel.canManageEvents ? {
                     if model.deleteEvent(id: id) {
                         activeEventSheet = nil
                     }
@@ -302,7 +300,7 @@ public struct ChildWorkspaceTabView: View {
             NappyEditorSheetView(
                 navigationTitle: "Nappy",
                 primaryActionTitle: "Save",
-                childName: profile.child.name,
+                childName: childProfileViewModel.childName,
                 initialType: type,
                 initialOccurredAt: Date(),
                 initialPeeVolume: nil,
@@ -325,7 +323,7 @@ public struct ChildWorkspaceTabView: View {
             BreastFeedEditorSheetView(
                 navigationTitle: "Edit Breast Feed",
                 primaryActionTitle: "Update",
-                childName: profile.child.name,
+                childName: childProfileViewModel.childName,
                 initialDurationMinutes: durationMinutes,
                 initialEndTime: endTime,
                 initialSide: side,
@@ -351,8 +349,8 @@ public struct ChildWorkspaceTabView: View {
             BottleFeedEditorSheetView(
                 navigationTitle: "Edit Bottle Feed",
                 primaryActionTitle: "Update",
-                childName: profile.child.name,
-                preferredVolumeUnit: profile.child.preferredFeedVolumeUnit,
+                childName: childProfileViewModel.childName,
+                preferredVolumeUnit: childProfileViewModel.child?.preferredFeedVolumeUnit ?? .milliliters,
                 initialAmountMilliliters: amountMilliliters,
                 initialOccurredAt: occurredAt,
                 initialMilkType: milkType,
@@ -373,7 +371,7 @@ public struct ChildWorkspaceTabView: View {
         case let .editSleep(id, startedAt, endedAt):
             SleepEditorSheetView(
                 mode: .edit,
-                childName: profile.child.name,
+                childName: childProfileViewModel.childName,
                 initialStartedAt: startedAt,
                 initialEndedAt: endedAt,
                 endTimeInitialPreset: .custom,
@@ -403,7 +401,7 @@ public struct ChildWorkspaceTabView: View {
             NappyEditorSheetView(
                 navigationTitle: "Edit Nappy",
                 primaryActionTitle: "Update",
-                childName: profile.child.name,
+                childName: childProfileViewModel.childName,
                 initialType: type,
                 initialOccurredAt: occurredAt,
                 initialPeeVolume: peeVolume,

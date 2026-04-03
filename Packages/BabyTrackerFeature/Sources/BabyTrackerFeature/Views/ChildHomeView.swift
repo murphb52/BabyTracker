@@ -3,7 +3,8 @@ import SwiftUI
 
 public struct ChildHomeView: View {
     let model: AppModel
-    let profile: ChildProfileScreenState
+    let viewModel: HomeViewModel
+    let childProfileViewModel: ChildProfileViewModel
     let stopSleep: () -> Void
     let quickLogBreastFeed: () -> Void
     let quickLogBottleFeed: () -> Void
@@ -17,7 +18,8 @@ public struct ChildHomeView: View {
 
     public init(
         model: AppModel,
-        profile: ChildProfileScreenState,
+        viewModel: HomeViewModel,
+        childProfileViewModel: ChildProfileViewModel,
         stopSleep: @escaping () -> Void,
         quickLogBreastFeed: @escaping () -> Void,
         quickLogBottleFeed: @escaping () -> Void,
@@ -25,7 +27,8 @@ public struct ChildHomeView: View {
         quickLogNappy: @escaping () -> Void
     ) {
         self.model = model
-        self.profile = profile
+        self.viewModel = viewModel
+        self.childProfileViewModel = childProfileViewModel
         self.stopSleep = stopSleep
         self.quickLogBreastFeed = quickLogBreastFeed
         self.quickLogBottleFeed = quickLogBottleFeed
@@ -36,14 +39,14 @@ public struct ChildHomeView: View {
     public var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
-                if let currentSleep = profile.home.currentSleep {
+                if let currentSleep = viewModel.currentSleep {
                     currentSleepSection(currentSleep)
                 }
 
                 
                 statusSection
 
-                if profile.canLogEvents {
+                if viewModel.canLogEvents {
                     quickLogSection
                 }
                 
@@ -68,13 +71,15 @@ public struct ChildHomeView: View {
             Text("iCloud Sync")
                 .font(.headline)
 
-            NavigationLink {
-                ChildProfileSyncView(model: model, profile: profile)
-            } label: {
-                syncStatusCard
+            if let profile = childProfileViewModel.profile {
+                NavigationLink {
+                    ChildProfileSyncView(model: model, profile: profile)
+                } label: {
+                    syncStatusCard
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("home-sync-status-row")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("home-sync-status-row")
         }
     }
 
@@ -89,11 +94,11 @@ public struct ChildHomeView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Text(profile.home.syncStatus.statusTitle)
+                    Text(viewModel.syncStatus.statusTitle)
                         .font(.headline)
                         .foregroundStyle(.primary)
 
-                    if let pendingChangesTitle = profile.home.syncStatus.pendingChangesTitle {
+                    if let pendingChangesTitle = viewModel.syncStatus.pendingChangesTitle {
                         Text(pendingChangesTitle)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(syncStatusColor)
@@ -129,12 +134,12 @@ public struct ChildHomeView: View {
 
     @ViewBuilder
     private var syncStatusDetail: some View {
-        if let lastSyncAt = profile.home.syncStatus.lastSyncAt,
-           profile.home.syncStatus.state == .upToDate {
+        if let lastSyncAt = viewModel.syncStatus.lastSyncAt,
+           viewModel.syncStatus.state == .upToDate {
             TimelineView(.everyMinute) { context in
                 Text(syncLastUpdatedText(for: lastSyncAt, relativeTo: context.date))
             }
-        } else if let detailMessage = profile.home.syncStatus.detailMessage {
+        } else if let detailMessage = viewModel.syncStatus.detailMessage {
             Text(detailMessage)
         } else {
             Text("Open iCloud Sync for more details.")
@@ -146,7 +151,7 @@ public struct ChildHomeView: View {
             Text("Current Status")
                 .font(.headline)
 
-            CurrentStatusCardView(status: profile.home.currentStatus)
+            CurrentStatusCardView(status: viewModel.currentStatus)
         }
     }
 
@@ -214,15 +219,15 @@ public struct ChildHomeView: View {
     }
 
     private var sleepQuickLogTitle: String {
-        profile.activeSleepSession == nil ? "Start Sleep" : "End Sleep"
+        viewModel.activeSleepSession == nil ? "Start Sleep" : "End Sleep"
     }
 
     private var syncStatusSymbolName: String {
-        if profile.home.syncStatus.isAccountUnavailable {
+        if viewModel.syncStatus.isAccountUnavailable {
             return "icloud.slash"
         }
 
-        switch profile.home.syncStatus.state {
+        switch viewModel.syncStatus.state {
         case .upToDate:
             return "checkmark.circle.fill"
         case .pendingSync:
@@ -235,11 +240,11 @@ public struct ChildHomeView: View {
     }
 
     private var syncStatusColor: Color {
-        if profile.home.syncStatus.isAccountUnavailable {
+        if viewModel.syncStatus.isAccountUnavailable {
             return .orange
         }
 
-        switch profile.home.syncStatus.state {
+        switch viewModel.syncStatus.state {
         case .upToDate:
             return .green
         case .pendingSync:
@@ -260,113 +265,18 @@ public struct ChildHomeView: View {
     }
 }
 
-#Preview("Synced") {
+#Preview {
     NavigationStack {
         let model = ChildProfilePreviewFactory.makeModel()
-        if let profile = model.profile {
-            ChildHomeView(
-                model: model,
-                profile: previewProfile(
-                    from: profile,
-                    syncSummary: SyncStatusSummary(
-                        state: .upToDate,
-                        pendingRecordCount: 0,
-                        lastSyncAt: .now.addingTimeInterval(-600)
-                    )
-                ),
-                stopSleep: {},
-                quickLogBreastFeed: {},
-                quickLogBottleFeed: {},
-                quickLogSleep: {},
-                quickLogNappy: {}
-            )
-        }
+        ChildHomeView(
+            model: model,
+            viewModel: HomeViewModel(appModel: model),
+            childProfileViewModel: ChildProfileViewModel(appModel: model),
+            stopSleep: {},
+            quickLogBreastFeed: {},
+            quickLogBottleFeed: {},
+            quickLogSleep: {},
+            quickLogNappy: {}
+        )
     }
-}
-
-#Preview("Waiting To Sync") {
-    NavigationStack {
-        let model = ChildProfilePreviewFactory.makeModel()
-        if let profile = model.profile {
-            ChildHomeView(
-                model: model,
-                profile: previewProfile(
-                    from: profile,
-                    syncSummary: SyncStatusSummary(
-                        state: .pendingSync,
-                        pendingRecordCount: 3,
-                        lastSyncAt: nil
-                    )
-                ),
-                stopSleep: {},
-                quickLogBreastFeed: {},
-                quickLogBottleFeed: {},
-                quickLogSleep: {},
-                quickLogNappy: {}
-            )
-        }
-    }
-}
-
-#Preview("Unavailable") {
-    NavigationStack {
-        let model = ChildProfilePreviewFactory.makeModel()
-        if let profile = model.profile {
-            ChildHomeView(
-                model: model,
-                profile: previewProfile(
-                    from: profile,
-                    syncSummary: SyncStatusSummary(
-                        state: .failed,
-                        pendingRecordCount: 0,
-                        lastSyncAt: nil,
-                        lastErrorDescription: "Sync unavailable. Sign in to iCloud."
-                    )
-                ),
-                stopSleep: {},
-                quickLogBreastFeed: {},
-                quickLogBottleFeed: {},
-                quickLogSleep: {},
-                quickLogNappy: {}
-            )
-        }
-    }
-}
-
-private func previewProfile(
-    from profile: ChildProfileScreenState,
-    syncSummary: SyncStatusSummary
-) -> ChildProfileScreenState {
-    let syncStatus = CloudKitStatusViewState(summary: syncSummary)
-
-    return ChildProfileScreenState(
-        child: profile.child,
-        localUser: profile.localUser,
-        currentMembership: profile.currentMembership,
-        owner: profile.owner,
-        activeCaregivers: profile.activeCaregivers,
-        pendingShareInvites: profile.pendingShareInvites,
-        removedCaregivers: profile.removedCaregivers,
-        canLogEvents: profile.canLogEvents,
-        canManageEvents: profile.canManageEvents,
-        activeSleepSession: profile.activeSleepSession,
-        home: HomeScreenState(
-            currentSleep: profile.home.currentSleep,
-            currentStatus: profile.home.currentStatus,
-            syncStatus: syncStatus,
-            recentEvents: profile.home.recentEvents,
-            emptyStateTitle: profile.home.emptyStateTitle,
-            emptyStateMessage: profile.home.emptyStateMessage
-        ),
-        eventHistory: profile.eventHistory,
-        timeline: profile.timeline,
-        summary: profile.summary,
-        cloudKitStatus: syncStatus,
-        latestEventSyncMarker: profile.latestEventSyncMarker,
-        totalEventCount: profile.totalEventCount,
-        canShareChild: profile.canShareChild,
-        pendingChanges: profile.pendingChanges,
-        availableChildren: profile.availableChildren,
-        canCreateLocalChild: profile.canCreateLocalChild
-    )
 }
