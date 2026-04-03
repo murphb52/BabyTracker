@@ -11,7 +11,7 @@ public struct TimelineDayGridView: View {
     let confirmDelete: () -> Void
     let cancelDelete: () -> Void
 
-    private let timeColumnWidth: CGFloat = 48
+    private let timeColumnWidth: CGFloat = 20
     private let columnSpacing: CGFloat = 8
     private let slotHeight: CGFloat = 22
 
@@ -42,7 +42,11 @@ public struct TimelineDayGridView: View {
             GeometryReader { geometry in
                 let columnWidth = max(
                     72,
-                    (geometry.size.width - timeColumnWidth - (columnSpacing * CGFloat(max(0, grid.columns.count - 1)))) / CGFloat(max(1, grid.columns.count))
+                    (
+                        geometry.size.width
+                        - timeColumnWidth
+                        - (columnSpacing * CGFloat(grid.columns.count))
+                    ) / CGFloat(max(1, grid.columns.count))
                 )
 
                 ZStack(alignment: .topLeading) {
@@ -102,6 +106,7 @@ public struct TimelineDayGridView: View {
                             .foregroundStyle(.secondary)
                             .frame(width: timeColumnWidth, alignment: .trailing)
                             .id(hourAnchorID(for: slotIndex / slotsPerHour))
+                    } else {
                         Color.clear
                             .frame(width: timeColumnWidth)
                     }
@@ -125,12 +130,8 @@ public struct TimelineDayGridView: View {
         isHourBoundary: Bool
     ) -> some View {
         ZStack(alignment: .top) {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(
-                    slotIndex.isMultiple(of: slotsPerHour)
-                        ? Color(.secondarySystemGroupedBackground)
-                        : Color(.tertiarySystemGroupedBackground)
-                )
+            Rectangle()
+                .fill(Color(.secondarySystemGroupedBackground))
 
             Rectangle()
                 .fill(isHourBoundary ? Color(.separator) : Color(.separator).opacity(0.25))
@@ -147,7 +148,7 @@ public struct TimelineDayGridView: View {
     }
 
     private func xOffset(for columnIndex: Int, columnWidth: CGFloat) -> CGFloat {
-        timeColumnWidth + CGFloat(columnIndex) * (columnWidth + columnSpacing)
+        timeColumnWidth + columnSpacing + CGFloat(columnIndex) * (columnWidth + columnSpacing)
     }
 
     private func itemHeight(for item: TimelineDayGridItemViewState) -> CGFloat {
