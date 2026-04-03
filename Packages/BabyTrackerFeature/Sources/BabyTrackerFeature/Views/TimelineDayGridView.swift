@@ -13,7 +13,7 @@ public struct TimelineDayGridView: View {
 
     private let timeColumnWidth: CGFloat = 20
     private let columnSpacing: CGFloat = 8
-    private let slotHeight: CGFloat = 22
+    private let slotHeight: CGFloat = 30
     private let itemVerticalInset: CGFloat = 3
 
     public init(
