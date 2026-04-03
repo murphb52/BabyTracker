@@ -141,7 +141,9 @@ public struct TimelineDayGridPageView: View {
                                 title: "Sleep",
                                 detailText: "180 min",
                                 timeText: "02:00-05:00",
-                                actionPayloads: [.editSleep(startedAt: .now, endedAt: .now)]
+                                actionPayloads: [
+                                    EventActionPayload.editSleep(startedAt: .now, endedAt: .now)
+                                ]
                             )
                         ]
                     ),
@@ -159,7 +161,9 @@ public struct TimelineDayGridPageView: View {
                                 title: "Nappy",
                                 detailText: "Pee",
                                 timeText: "06:00",
-                                actionPayloads: [.editNappy(type: .wee, occurredAt: .now, peeVolume: nil, pooVolume: nil, pooColor: nil)]
+                                actionPayloads: [
+                                    EventActionPayload.editNappy(type: .wee, occurredAt: .now, peeVolume: nil, pooVolume: nil, pooColor: nil)
+                                ]
                             )
                         ]
                     ),
@@ -183,8 +187,8 @@ public struct TimelineDayGridPageView: View {
                                 detailText: "Multiple events",
                                 timeText: "08:00-09:00",
                                 actionPayloads: [
-                                    .editBreastFeed(durationMinutes: 15, endTime: .now, side: nil, leftDurationSeconds: nil, rightDurationSeconds: nil),
-                                    .editBreastFeed(durationMinutes: 20, endTime: .now, side: .left, leftDurationSeconds: nil, rightDurationSeconds: nil)
+                                    EventActionPayload.editBreastFeed(durationMinutes: 15, endTime: .now, side: nil, leftDurationSeconds: nil, rightDurationSeconds: nil),
+                                    EventActionPayload.editBreastFeed(durationMinutes: 20, endTime: .now, side: .left, leftDurationSeconds: nil, rightDurationSeconds: nil)
                                 ]
                             )
                         ]

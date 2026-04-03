@@ -1,3 +1,4 @@
+import BabyTrackerDomain
 import SwiftUI
 
 public struct TimelineDayGridView: View {
@@ -101,7 +102,6 @@ public struct TimelineDayGridView: View {
                             .foregroundStyle(.secondary)
                             .frame(width: timeColumnWidth, alignment: .trailing)
                             .id(hourAnchorID(for: slotIndex / slotsPerHour))
-                    } else {
                         Color.clear
                             .frame(width: timeColumnWidth)
                     }
@@ -164,5 +164,237 @@ public struct TimelineDayGridView: View {
 
     private func hourAnchorID(for hour: Int) -> String {
         "timeline-day-grid-hour-\(hour)"
+    }
+}
+
+#Preview("Empty Columns") {
+    ScrollView {
+        TimelineDayGridView(
+            day: TimelineDayGridPreviewFactory.day,
+            grid: TimelineDayGridPreviewFactory.emptyGrid,
+            canManageEvents: false,
+            openItem: { _ in },
+            deleteItem: { _ in },
+            pendingDeleteEvent: nil,
+            confirmDelete: {},
+            cancelDelete: {}
+        )
+        .padding()
+    }
+    .background(Color(.systemGroupedBackground))
+}
+
+#Preview("Mixed Events") {
+    ScrollView {
+        TimelineDayGridView(
+            day: TimelineDayGridPreviewFactory.day,
+            grid: TimelineDayGridPreviewFactory.mixedGrid,
+            canManageEvents: true,
+            openItem: { _ in },
+            deleteItem: { _ in },
+            pendingDeleteEvent: nil,
+            confirmDelete: {},
+            cancelDelete: {}
+        )
+        .padding()
+    }
+    .background(Color(.systemGroupedBackground))
+}
+
+#Preview("Grouped Overlap") {
+    ScrollView {
+        TimelineDayGridView(
+            day: TimelineDayGridPreviewFactory.day,
+            grid: TimelineDayGridPreviewFactory.groupedGrid,
+            canManageEvents: true,
+            openItem: { _ in },
+            deleteItem: { _ in },
+            pendingDeleteEvent: nil,
+            confirmDelete: {},
+            cancelDelete: {}
+        )
+        .padding()
+    }
+    .background(Color(.systemGroupedBackground))
+}
+
+private enum TimelineDayGridPreviewFactory {
+    static let day = Calendar.autoupdatingCurrent.startOfDay(for: .now)
+
+    static let emptyGrid = TimelineDayGridViewState(
+        slotMinutes: 15,
+        columns: [
+            TimelineDayGridColumnViewState(kind: .sleep, title: "Sleep", items: []),
+            TimelineDayGridColumnViewState(kind: .nappy, title: "Nappy", items: []),
+            TimelineDayGridColumnViewState(kind: .bottleFeed, title: "Bottle", items: []),
+            TimelineDayGridColumnViewState(kind: .breastFeed, title: "Breast", items: [])
+        ]
+    )
+
+    static let mixedGrid = TimelineDayGridViewState(
+        slotMinutes: 15,
+        columns: [
+            TimelineDayGridColumnViewState(
+                kind: .sleep,
+                title: "Sleep",
+                items: [
+                    item(
+                        id: "sleep-1",
+                        kind: TimelineDayGridColumnKind.sleep,
+                        startSlotIndex: 4,
+                        endSlotIndex: 16,
+                        title: "Sleep",
+                        detailText: "180 min",
+                        timeText: "01:00-04:00",
+                        payloads: [.editSleep(startedAt: day, endedAt: day)]
+                    )
+                ]
+            ),
+            TimelineDayGridColumnViewState(
+                kind: .nappy,
+                title: "Nappy",
+                items: [
+                    item(
+                        id: "nappy-1",
+                        kind: TimelineDayGridColumnKind.nappy,
+                        startSlotIndex: 28,
+                        endSlotIndex: 29,
+                        title: "Nappy",
+                        detailText: "Pee",
+                        timeText: "07:00",
+                        payloads: [
+                            EventActionPayload.editNappy(
+                                type: .wee,
+                                occurredAt: day,
+                                peeVolume: nil,
+                                pooVolume: nil,
+                                pooColor: nil
+                            )
+                        ]
+                    )
+                ]
+            ),
+            TimelineDayGridColumnViewState(
+                kind: .bottleFeed,
+                title: "Bottle",
+                items: [
+                    item(
+                        id: "bottle-1",
+                        kind: TimelineDayGridColumnKind.bottleFeed,
+                        startSlotIndex: 36,
+                        endSlotIndex: 37,
+                        title: "Bottle Feed",
+                        detailText: "120 ml",
+                        timeText: "09:00",
+                        payloads: [
+                            EventActionPayload.editBottleFeed(
+                                amountMilliliters: 120,
+                                occurredAt: day,
+                                milkType: .formula
+                            )
+                        ]
+                    )
+                ]
+            ),
+            TimelineDayGridColumnViewState(
+                kind: .breastFeed,
+                title: "Breast",
+                items: [
+                    item(
+                        id: "breast-1",
+                        kind: TimelineDayGridColumnKind.breastFeed,
+                        startSlotIndex: 42,
+                        endSlotIndex: 46,
+                        title: "Breast Feed",
+                        detailText: "25 min",
+                        timeText: "10:30-11:30",
+                        payloads: [
+                            EventActionPayload.editBreastFeed(
+                                durationMinutes: 25,
+                                endTime: day,
+                                side: .left,
+                                leftDurationSeconds: nil,
+                                rightDurationSeconds: nil
+                            )
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    static let groupedGrid = TimelineDayGridViewState(
+        slotMinutes: 15,
+        columns: [
+            TimelineDayGridColumnViewState(
+                kind: .sleep,
+                title: "Sleep",
+                items: [
+                    item(
+                        id: "sleep-2",
+                        kind: TimelineDayGridColumnKind.sleep,
+                        startSlotIndex: 52,
+                        endSlotIndex: 68,
+                        title: "Sleep",
+                        detailText: "240 min",
+                        timeText: "13:00-17:00",
+                        payloads: [
+                            EventActionPayload.editSleep(
+                                startedAt: day,
+                                endedAt: day
+                            )
+                        ]
+                    )
+                ]
+            ),
+            TimelineDayGridColumnViewState(kind: .nappy, title: "Nappy", items: []),
+            TimelineDayGridColumnViewState(kind: .bottleFeed, title: "Bottle", items: []),
+            TimelineDayGridColumnViewState(
+                kind: .breastFeed,
+                title: "Breast",
+                items: [
+                    TimelineDayGridItemViewState(
+                        id: "grouped-breast",
+                        columnKind: .breastFeed,
+                        startSlotIndex: 34,
+                        endSlotIndex: 40,
+                        eventIDs: [UUID(), UUID(), UUID()],
+                        count: 3,
+                        title: "3 events",
+                        detailText: "Breast Feed, Bottle Feed",
+                        timeText: "08:30-10:00",
+                        actionPayloads: [
+                            EventActionPayload.editBreastFeed(durationMinutes: 10, endTime: day, side: .left, leftDurationSeconds: nil, rightDurationSeconds: nil),
+                            EventActionPayload.editBreastFeed(durationMinutes: 14, endTime: day, side: .right, leftDurationSeconds: nil, rightDurationSeconds: nil),
+                            EventActionPayload.editBreastFeed(durationMinutes: 12, endTime: day, side: nil, leftDurationSeconds: nil, rightDurationSeconds: nil)
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    private static func item(
+        id: String,
+        kind: TimelineDayGridColumnKind,
+        startSlotIndex: Int,
+        endSlotIndex: Int,
+        title: String,
+        detailText: String,
+        timeText: String,
+        payloads: [EventActionPayload]
+    ) -> TimelineDayGridItemViewState {
+        TimelineDayGridItemViewState(
+            id: id,
+            columnKind: kind,
+            startSlotIndex: startSlotIndex,
+            endSlotIndex: endSlotIndex,
+            eventIDs: [UUID()],
+            count: 1,
+            title: title,
+            detailText: detailText,
+            timeText: timeText,
+            actionPayloads: payloads
+        )
     }
 }
