@@ -45,7 +45,7 @@ public struct TimelineDayGridItemView: View {
             )
 
         ZStack(alignment: .bottomTrailing) {
-            if canManageEvents && item.isInteractive {
+            if item.opensGroupedSheet || (canManageEvents && item.isInteractive) {
                 Button {
                     openItem(item)
                 } label: {
@@ -54,12 +54,14 @@ public struct TimelineDayGridItemView: View {
                 .buttonStyle(.plain)
                 .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .contextMenu {
-                    Button("Edit") {
-                        openItem(item)
-                    }
+                    if item.isInteractive {
+                        Button("Edit") {
+                            openItem(item)
+                        }
 
-                    Button("Delete", role: .destructive) {
-                        deleteItem(item)
+                        Button("Delete", role: .destructive) {
+                            deleteItem(item)
+                        }
                     }
                 }
             } else {
@@ -236,6 +238,10 @@ private enum TimelineDayGridItemPreviewFactory {
                 leftDurationSeconds: nil,
                 rightDurationSeconds: nil
             )
+        ],
+        groupedEntries: [
+            TimelineDayGridItemPreviewFactory.groupedBreastFeedEntry,
+            TimelineDayGridItemPreviewFactory.groupedBottleFeedEntry
         ]
     )
 
@@ -252,5 +258,33 @@ private enum TimelineDayGridItemPreviewFactory {
         actionPayloads: [
             EventActionPayload.editSleep(startedAt: .now, endedAt: .now)
         ]
+    )
+
+    static let groupedBreastFeedEntry = EventCardViewState(
+        id: UUID(),
+        kind: .breastFeed,
+        title: "Breast Feed",
+        detailText: "10 min • Left",
+        timestampText: "08:30-08:40",
+        actionPayload: .editBreastFeed(
+            durationMinutes: 10,
+            endTime: .now,
+            side: .left,
+            leftDurationSeconds: nil,
+            rightDurationSeconds: nil
+        )
+    )
+
+    static let groupedBottleFeedEntry = EventCardViewState(
+        id: UUID(),
+        kind: .bottleFeed,
+        title: "Bottle Feed",
+        detailText: "120 ml • Formula",
+        timestampText: "09:00",
+        actionPayload: .editBottleFeed(
+            amountMilliliters: 120,
+            occurredAt: .now,
+            milkType: .formula
+        )
     )
 }

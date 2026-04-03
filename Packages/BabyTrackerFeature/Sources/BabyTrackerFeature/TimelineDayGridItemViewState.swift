@@ -12,6 +12,7 @@ public struct TimelineDayGridItemViewState: Equatable, Identifiable, Sendable {
     public let detailText: String
     public let timeText: String
     public let actionPayloads: [EventActionPayload]
+    public let groupedEntries: [EventCardViewState]
 
     public init(
         id: String,
@@ -23,7 +24,8 @@ public struct TimelineDayGridItemViewState: Equatable, Identifiable, Sendable {
         title: String,
         detailText: String,
         timeText: String,
-        actionPayloads: [EventActionPayload]
+        actionPayloads: [EventActionPayload],
+        groupedEntries: [EventCardViewState] = []
     ) {
         self.id = id
         self.columnKind = columnKind
@@ -35,6 +37,7 @@ public struct TimelineDayGridItemViewState: Equatable, Identifiable, Sendable {
         self.detailText = detailText
         self.timeText = timeText
         self.actionPayloads = actionPayloads
+        self.groupedEntries = groupedEntries
     }
 
     public var isGrouped: Bool {
@@ -43,6 +46,10 @@ public struct TimelineDayGridItemViewState: Equatable, Identifiable, Sendable {
 
     public var isInteractive: Bool {
         count == 1 && actionPayloads.count == 1
+    }
+
+    public var opensGroupedSheet: Bool {
+        isGrouped && !groupedEntries.isEmpty
     }
 
     public var primaryEventID: UUID? {

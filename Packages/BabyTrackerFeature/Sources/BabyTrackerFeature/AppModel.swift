@@ -1144,7 +1144,14 @@ public final class AppModel {
                 endSlotIndex: placement.endSlotIndex,
                 slotMinutes: slotMinutes
             ),
-            actionPayloads: actionPayloads
+            actionPayloads: actionPayloads,
+            groupedEntries: events.compactMap {
+                EventCardViewState(
+                    event: $0,
+                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit,
+                    timestampText: timelineTimeText(for: $0)
+                )
+            }
         )
     }
 
