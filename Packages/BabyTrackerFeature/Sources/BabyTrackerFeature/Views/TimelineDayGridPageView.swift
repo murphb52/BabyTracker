@@ -138,9 +138,9 @@ public struct TimelineDayGridPageView: View {
                                 endSlotIndex: 20,
                                 eventIDs: [UUID()],
                                 count: 1,
-                                title: "Sleep",
-                                detailText: "180 min",
-                                timeText: "02:00-05:00",
+                                title: "3h",
+                                detailText: "02:00",
+                                timeText: "05:00",
                                 actionPayloads: [
                                     EventActionPayload.editSleep(startedAt: .now, endedAt: .now)
                                 ]
@@ -158,9 +158,9 @@ public struct TimelineDayGridPageView: View {
                                 endSlotIndex: 25,
                                 eventIDs: [UUID()],
                                 count: 1,
-                                title: "Nappy",
-                                detailText: "Pee",
-                                timeText: "06:00",
+                                title: "Pee",
+                                detailText: "",
+                                timeText: "",
                                 actionPayloads: [
                                     EventActionPayload.editNappy(type: .wee, occurredAt: .now, peeVolume: nil, pooVolume: nil, pooColor: nil)
                                 ]

@@ -272,9 +272,9 @@ private enum TimelineDayGridPreviewFactory {
                         kind: TimelineDayGridColumnKind.sleep,
                         startSlotIndex: 4,
                         endSlotIndex: 16,
-                        title: "Sleep",
-                        detailText: "180 min",
-                        timeText: "01:00-04:00",
+                        title: "3h",
+                        detailText: "01:00",
+                        timeText: "04:00",
                         payloads: [.editSleep(startedAt: day, endedAt: day)]
                     )
                 ]
@@ -288,9 +288,9 @@ private enum TimelineDayGridPreviewFactory {
                         kind: TimelineDayGridColumnKind.nappy,
                         startSlotIndex: 28,
                         endSlotIndex: 29,
-                        title: "Nappy",
-                        detailText: "Pee",
-                        timeText: "07:00",
+                        title: "Pee",
+                        detailText: "",
+                        timeText: "",
                         payloads: [
                             EventActionPayload.editNappy(
                                 type: .wee,
@@ -312,9 +312,9 @@ private enum TimelineDayGridPreviewFactory {
                         kind: TimelineDayGridColumnKind.bottleFeed,
                         startSlotIndex: 36,
                         endSlotIndex: 37,
-                        title: "Bottle Feed",
-                        detailText: "120 ml",
-                        timeText: "09:00",
+                        title: "120 ml",
+                        detailText: "",
+                        timeText: "",
                         payloads: [
                             EventActionPayload.editBottleFeed(
                                 amountMilliliters: 120,
@@ -334,9 +334,9 @@ private enum TimelineDayGridPreviewFactory {
                         kind: TimelineDayGridColumnKind.breastFeed,
                         startSlotIndex: 42,
                         endSlotIndex: 46,
-                        title: "Breast Feed",
-                        detailText: "25 min",
-                        timeText: "10:30-11:30",
+                        title: "25 min",
+                        detailText: "",
+                        timeText: "",
                         payloads: [
                             EventActionPayload.editBreastFeed(
                                 durationMinutes: 25,
@@ -364,9 +364,9 @@ private enum TimelineDayGridPreviewFactory {
                         kind: TimelineDayGridColumnKind.sleep,
                         startSlotIndex: 52,
                         endSlotIndex: 68,
-                        title: "Sleep",
-                        detailText: "240 min",
-                        timeText: "13:00-17:00",
+                        title: "4h",
+                        detailText: "13:00",
+                        timeText: "17:00",
                         payloads: [
                             EventActionPayload.editSleep(
                                 startedAt: day,

@@ -1113,6 +1113,7 @@ public final class AppModel {
     ) -> TimelineDayGridItemViewState {
         if let event = events.first, events.count == 1 {
             let actionPayload = eventActionPayload(for: event)
+            let lines = timelineDayGridLines(for: event)
             return TimelineDayGridItemViewState(
                 id: event.id.uuidString,
                 columnKind: placement.columnKind,
@@ -1120,12 +1121,9 @@ public final class AppModel {
                 endSlotIndex: placement.endSlotIndex,
                 eventIDs: placement.eventIDs,
                 count: 1,
-                title: BabyEventPresentation.title(for: event),
-                detailText: BabyEventPresentation.detailText(
-                    for: event,
-                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
-                ) ?? "",
-                timeText: timelineTimeText(for: event),
+                title: lines.title,
+                detailText: lines.detailText,
+                timeText: lines.timeText,
                 actionPayloads: [actionPayload]
             )
         }
@@ -1204,6 +1202,70 @@ public final class AppModel {
             return "Started \(shortTimeText(for: sleep.startedAt))"
         case let .nappy(nappy):
             return shortTimeText(for: nappy.metadata.occurredAt)
+        }
+    }
+
+    private func timelineDayGridLines(for event: BabyEvent) -> (
+        title: String,
+        detailText: String,
+        timeText: String
+    ) {
+        switch event {
+        case let .sleep(sleep):
+            return (
+                title: sleepDurationText(for: sleep),
+                detailText: shortTimeText(for: sleep.startedAt),
+                timeText: sleep.endedAt.map(shortTimeText(for:)) ?? ""
+            )
+        case let .nappy(nappy):
+            return (
+                title: timelineNappyTypeText(for: nappy.type),
+                detailText: "",
+                timeText: ""
+            )
+        case let .bottleFeed(feed):
+            return (
+                title: "\(feed.amountMilliliters) ml",
+                detailText: "",
+                timeText: ""
+            )
+        case let .breastFeed(feed):
+            let durationMinutes = max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
+            return (
+                title: "\(durationMinutes) min",
+                detailText: "",
+                timeText: ""
+            )
+        }
+    }
+
+    private func sleepDurationText(for sleep: SleepEvent) -> String {
+        let end = sleep.endedAt ?? .now
+        let durationMinutes = max(1, Int(end.timeIntervalSince(sleep.startedAt) / 60))
+        let hours = durationMinutes / 60
+        let minutes = durationMinutes % 60
+
+        if hours > 0, minutes > 0 {
+            return "\(hours)h \(minutes)m"
+        }
+
+        if hours > 0 {
+            return "\(hours)h"
+        }
+
+        return "\(minutes)m"
+    }
+
+    private func timelineNappyTypeText(for type: NappyType) -> String {
+        switch type {
+        case .dry:
+            "Dry"
+        case .wee:
+            "Pee"
+        case .poo:
+            "Poo"
+        case .mixed:
+            "Mixed"
         }
     }
 

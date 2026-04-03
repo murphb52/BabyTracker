@@ -76,7 +76,7 @@ public struct TimelineDayGridItemView: View {
             }
         }
         .accessibilityIdentifier("timeline-day-grid-item-\(item.id)")
-        .accessibilityLabel("\(item.title), \(item.detailText), \(item.timeText)")
+        .accessibilityLabel(accessibilityLabelText)
     }
 
     @ViewBuilder
@@ -86,13 +86,13 @@ public struct TimelineDayGridItemView: View {
                 .font(height > 66 ? .caption.weight(.semibold) : .caption2.weight(.semibold))
                 .lineLimit(1)
 
-            if height > 52 {
+            if height > 52, !item.detailText.isEmpty {
                 Text(item.detailText)
                     .font(.caption2)
                     .lineLimit(height > 92 ? 2 : 1)
             }
 
-            if height > 78 {
+            if height > 78, !item.timeText.isEmpty {
                 Text(item.timeText)
                     .font(.caption2.weight(.medium))
                     .lineLimit(1)
@@ -100,5 +100,11 @@ public struct TimelineDayGridItemView: View {
             }
         }
         .foregroundStyle(BabyEventStyle.timelineForegroundColor(for: item.eventKind))
+    }
+
+    private var accessibilityLabelText: String {
+        [item.title, item.detailText, item.timeText]
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
     }
 }
