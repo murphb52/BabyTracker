@@ -44,10 +44,7 @@ public struct TimelineScreenView: View {
                             page: page,
                             canManageEvents: viewModel.canManageEvents,
                             openItem: openEvent,
-                            deleteItem: deleteEvent,
-                            pendingDeleteEvent: pendingDeleteEvent,
-                            confirmDelete: confirmDelete,
-                            cancelDelete: cancelDelete
+                            deleteItem: deleteEvent
                         )
                         .tag(index)
                     }
@@ -81,6 +78,23 @@ public struct TimelineScreenView: View {
         }
         .sheet(isPresented: $showingDayPicker) {
             dayPickerSheet
+        }
+        .confirmationDialog(
+            pendingDeleteEvent?.dialogTitle ?? "Delete Event?",
+            isPresented: timelineDeleteDialogBinding,
+            presenting: pendingDeleteEvent
+        ) { event in
+            Button(event.confirmButtonTitle, role: .destructive) {
+                confirmDelete()
+            }
+
+            Button("Cancel", role: .cancel) {
+                cancelDelete()
+            }
+        } message: { event in
+            if !event.timestampText.isEmpty {
+                Text(event.timestampText)
+            }
         }
     }
 
@@ -243,6 +257,17 @@ public struct TimelineScreenView: View {
             get: { viewModel.selectedDay },
             set: { day in
                 viewModel.showDay(day)
+            }
+        )
+    }
+
+    private var timelineDeleteDialogBinding: Binding<Bool> {
+        Binding(
+            get: { pendingDeleteEvent != nil && viewModel.displayMode == .day },
+            set: { isPresented in
+                if !isPresented {
+                    cancelDelete()
+                }
             }
         )
     }

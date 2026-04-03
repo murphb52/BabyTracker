@@ -7,9 +7,6 @@ public struct TimelineDayGridView: View {
     let canManageEvents: Bool
     let openItem: (TimelineDayGridItemViewState) -> Void
     let deleteItem: (TimelineDayGridItemViewState) -> Void
-    let pendingDeleteEvent: EventDeleteCandidate?
-    let confirmDelete: () -> Void
-    let cancelDelete: () -> Void
 
     private let timeColumnWidth: CGFloat = 20
     private let columnSpacing: CGFloat = 8
@@ -21,19 +18,13 @@ public struct TimelineDayGridView: View {
         grid: TimelineDayGridViewState,
         canManageEvents: Bool,
         openItem: @escaping (TimelineDayGridItemViewState) -> Void,
-        deleteItem: @escaping (TimelineDayGridItemViewState) -> Void,
-        pendingDeleteEvent: EventDeleteCandidate?,
-        confirmDelete: @escaping () -> Void,
-        cancelDelete: @escaping () -> Void
+        deleteItem: @escaping (TimelineDayGridItemViewState) -> Void
     ) {
         self.day = day
         self.grid = grid
         self.canManageEvents = canManageEvents
         self.openItem = openItem
         self.deleteItem = deleteItem
-        self.pendingDeleteEvent = pendingDeleteEvent
-        self.confirmDelete = confirmDelete
-        self.cancelDelete = cancelDelete
     }
 
     public var body: some View {
@@ -60,10 +51,7 @@ public struct TimelineDayGridView: View {
                                 height: itemHeight(for: item),
                                 canManageEvents: canManageEvents,
                                 openItem: openItem,
-                                deleteItem: deleteItem,
-                                pendingDeleteEvent: pendingDeleteEvent,
-                                confirmDelete: confirmDelete,
-                                cancelDelete: cancelDelete
+                                deleteItem: deleteItem
                             )
                         .frame(width: columnWidth, height: itemHeight(for: item))
                         .offset(
@@ -204,10 +192,7 @@ public struct TimelineDayGridView: View {
             grid: TimelineDayGridPreviewFactory.emptyGrid,
             canManageEvents: false,
             openItem: { _ in },
-            deleteItem: { _ in },
-            pendingDeleteEvent: nil,
-            confirmDelete: {},
-            cancelDelete: {}
+            deleteItem: { _ in }
         )
         .padding()
     }
@@ -221,10 +206,7 @@ public struct TimelineDayGridView: View {
             grid: TimelineDayGridPreviewFactory.mixedGrid,
             canManageEvents: true,
             openItem: { _ in },
-            deleteItem: { _ in },
-            pendingDeleteEvent: nil,
-            confirmDelete: {},
-            cancelDelete: {}
+            deleteItem: { _ in }
         )
         .padding()
     }
@@ -238,10 +220,7 @@ public struct TimelineDayGridView: View {
             grid: TimelineDayGridPreviewFactory.groupedGrid,
             canManageEvents: true,
             openItem: { _ in },
-            deleteItem: { _ in },
-            pendingDeleteEvent: nil,
-            confirmDelete: {},
-            cancelDelete: {}
+            deleteItem: { _ in }
         )
         .padding()
     }

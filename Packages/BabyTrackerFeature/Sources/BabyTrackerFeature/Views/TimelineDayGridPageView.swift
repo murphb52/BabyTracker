@@ -5,26 +5,17 @@ public struct TimelineDayGridPageView: View {
     let canManageEvents: Bool
     let openItem: (TimelineDayGridItemViewState) -> Void
     let deleteItem: (TimelineDayGridItemViewState) -> Void
-    let pendingDeleteEvent: EventDeleteCandidate?
-    let confirmDelete: () -> Void
-    let cancelDelete: () -> Void
 
     public init(
         page: TimelineDayGridPageState,
         canManageEvents: Bool,
         openItem: @escaping (TimelineDayGridItemViewState) -> Void,
-        deleteItem: @escaping (TimelineDayGridItemViewState) -> Void,
-        pendingDeleteEvent: EventDeleteCandidate?,
-        confirmDelete: @escaping () -> Void,
-        cancelDelete: @escaping () -> Void
+        deleteItem: @escaping (TimelineDayGridItemViewState) -> Void
     ) {
         self.page = page
         self.canManageEvents = canManageEvents
         self.openItem = openItem
         self.deleteItem = deleteItem
-        self.pendingDeleteEvent = pendingDeleteEvent
-        self.confirmDelete = confirmDelete
-        self.cancelDelete = cancelDelete
     }
 
     public var body: some View {
@@ -44,10 +35,7 @@ public struct TimelineDayGridPageView: View {
                             grid: grid,
                             canManageEvents: canManageEvents,
                             openItem: openItem,
-                            deleteItem: deleteItem,
-                            pendingDeleteEvent: pendingDeleteEvent,
-                            confirmDelete: confirmDelete,
-                            cancelDelete: cancelDelete
+                            deleteItem: deleteItem
                         )
                     }
                 }
@@ -110,10 +98,7 @@ public struct TimelineDayGridPageView: View {
         ),
         canManageEvents: true,
         openItem: { _ in },
-        deleteItem: { _ in },
-        pendingDeleteEvent: nil,
-        confirmDelete: {},
-        cancelDelete: {}
+        deleteItem: { _ in }
     )
 }
 
@@ -200,9 +185,6 @@ public struct TimelineDayGridPageView: View {
         ),
         canManageEvents: true,
         openItem: { _ in },
-        deleteItem: { _ in },
-        pendingDeleteEvent: nil,
-        confirmDelete: {},
-        cancelDelete: {}
+        deleteItem: { _ in }
     )
 }

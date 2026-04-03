@@ -7,32 +7,29 @@ public struct TimelineDayGridItemView: View {
     let canManageEvents: Bool
     let openItem: (TimelineDayGridItemViewState) -> Void
     let deleteItem: (TimelineDayGridItemViewState) -> Void
-    let pendingDeleteEvent: EventDeleteCandidate?
-    let confirmDelete: () -> Void
-    let cancelDelete: () -> Void
 
     public init(
         item: TimelineDayGridItemViewState,
         height: CGFloat,
         canManageEvents: Bool,
         openItem: @escaping (TimelineDayGridItemViewState) -> Void,
-        deleteItem: @escaping (TimelineDayGridItemViewState) -> Void,
-        pendingDeleteEvent: EventDeleteCandidate?,
-        confirmDelete: @escaping () -> Void,
-        cancelDelete: @escaping () -> Void
+        deleteItem: @escaping (TimelineDayGridItemViewState) -> Void
     ) {
         self.item = item
         self.height = height
         self.canManageEvents = canManageEvents
         self.openItem = openItem
         self.deleteItem = deleteItem
-        self.pendingDeleteEvent = pendingDeleteEvent
-        self.confirmDelete = confirmDelete
-        self.cancelDelete = cancelDelete
     }
 
     public var body: some View {
-        let isPendingDelete = pendingDeleteEvent?.id == item.primaryEventID
+        bodyContent
+            .accessibilityIdentifier("timeline-day-grid-item-\(item.id)")
+            .accessibilityLabel(accessibilityLabelText)
+    }
+
+    @ViewBuilder
+    private var bodyContent: some View {
         let base = content
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(.horizontal, 10)
@@ -44,42 +41,28 @@ public struct TimelineDayGridItemView: View {
                     .stroke(BabyEventStyle.timelineBorderColor(for: item.eventKind), lineWidth: 1)
             )
 
-        ZStack(alignment: .bottomTrailing) {
-            if item.opensGroupedSheet || (canManageEvents && item.isInteractive) {
-                Button {
-                    openItem(item)
-                } label: {
-                    base
-                }
-                .buttonStyle(.plain)
-                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .contextMenu {
-                    if item.isInteractive {
-                        Button("Edit") {
-                            openItem(item)
-                        }
-
-                        Button("Delete", role: .destructive) {
-                            deleteItem(item)
-                        }
-                    }
-                }
-            } else {
+        if item.opensGroupedSheet || (canManageEvents && item.isInteractive) {
+            Button {
+                openItem(item)
+            } label: {
                 base
             }
+            .buttonStyle(.plain)
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contextMenu {
+                if item.isInteractive {
+                    Button("Edit") {
+                        openItem(item)
+                    }
 
-            if isPendingDelete, let pendingDeleteEvent {
-                AnchoredDeletePromptView(
-                    title: "Delete \(pendingDeleteEvent.title.lowercased())?",
-                    confirmTitle: pendingDeleteEvent.confirmButtonTitle,
-                    confirmAction: confirmDelete,
-                    cancelAction: cancelDelete
-                )
-                .padding(8)
+                    Button("Delete", role: .destructive) {
+                        deleteItem(item)
+                    }
+                }
             }
+        } else {
+            base
         }
-        .accessibilityIdentifier("timeline-day-grid-item-\(item.id)")
-        .accessibilityLabel(accessibilityLabelText)
     }
 
     @ViewBuilder
@@ -119,9 +102,6 @@ public struct TimelineDayGridItemView: View {
         canManageEvents: true,
         openItem: { _ in },
         deleteItem: { _ in },
-        pendingDeleteEvent: nil,
-        confirmDelete: {},
-        cancelDelete: {}
     )
     .frame(width: 132, height: 124)
     .padding()
@@ -135,9 +115,6 @@ public struct TimelineDayGridItemView: View {
         canManageEvents: true,
         openItem: { _ in },
         deleteItem: { _ in },
-        pendingDeleteEvent: nil,
-        confirmDelete: {},
-        cancelDelete: {}
     )
     .frame(width: 132, height: 18)
     .padding()
@@ -151,27 +128,8 @@ public struct TimelineDayGridItemView: View {
         canManageEvents: true,
         openItem: { _ in },
         deleteItem: { _ in },
-        pendingDeleteEvent: nil,
-        confirmDelete: {},
-        cancelDelete: {}
     )
     .frame(width: 132, height: 72)
-    .padding()
-    .background(Color(.systemGroupedBackground))
-}
-
-#Preview("Pending Delete") {
-    TimelineDayGridItemView(
-        item: TimelineDayGridItemPreviewFactory.deleteCandidateItem,
-        height: 96,
-        canManageEvents: true,
-        openItem: { _ in },
-        deleteItem: { _ in },
-        pendingDeleteEvent: EventDeleteCandidate(event: TimelineDayGridItemPreviewFactory.deleteCandidateItem),
-        confirmDelete: {},
-        cancelDelete: {}
-    )
-    .frame(width: 180, height: 140)
     .padding()
     .background(Color(.systemGroupedBackground))
 }
@@ -242,21 +200,6 @@ private enum TimelineDayGridItemPreviewFactory {
         groupedEntries: [
             TimelineDayGridItemPreviewFactory.groupedBreastFeedEntry,
             TimelineDayGridItemPreviewFactory.groupedBottleFeedEntry
-        ]
-    )
-
-    static let deleteCandidateItem = TimelineDayGridItemViewState(
-        id: "delete-preview",
-        columnKind: .sleep,
-        startSlotIndex: 52,
-        endSlotIndex: 60,
-        eventIDs: [UUID()],
-        count: 1,
-        title: "2h",
-        detailText: "13:00",
-        timeText: "15:00",
-        actionPayloads: [
-            EventActionPayload.editSleep(startedAt: .now, endedAt: .now)
         ]
     )
 
