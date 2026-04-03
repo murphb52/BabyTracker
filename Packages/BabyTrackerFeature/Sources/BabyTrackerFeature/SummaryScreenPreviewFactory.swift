@@ -1,6 +1,7 @@
 import BabyTrackerDomain
 import Foundation
 
+@MainActor
 enum SummaryScreenPreviewFactory {
     static var summaryViewModel: SummaryViewModel {
         SummaryViewModel(events: sampleEvents)

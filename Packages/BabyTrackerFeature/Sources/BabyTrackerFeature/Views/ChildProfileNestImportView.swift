@@ -363,7 +363,7 @@ public struct ChildProfileNestImportView: View {
 
 #Preview("Idle") {
     NavigationStack {
-        ChildProfileNestImportView(model: ChildProfilePreviewFactory.makeModel())
+        ChildProfileNestImportView(appModel: ChildProfilePreviewFactory.makeModel())
     }
 }
 

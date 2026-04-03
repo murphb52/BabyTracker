@@ -427,7 +427,7 @@ private struct ImportEventRow: View {
 
 #Preview("Idle") {
     NavigationStack {
-        ChildProfileImportView(model: ChildProfilePreviewFactory.makeModel())
+        ChildProfileImportView(appModel: ChildProfilePreviewFactory.makeModel())
     }
 }
 
