@@ -32,7 +32,7 @@ public final class TimelineViewModel {
         return "\(start.formatted(.dateTime.month(.abbreviated).day()))-\(end.formatted(.dateTime.month(.abbreviated).day()))"
     }
 
-    public var pages: [TimelineDayPageState] {
+    public var pages: [TimelineDayGridPageState] {
         appModel.timelinePages
     }
 

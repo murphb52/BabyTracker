@@ -181,15 +181,25 @@ public struct ChildWorkspaceTabView: View {
         activeEventSheet = ChildEventSheet(id: event.id, actionPayload: event.actionPayload)
     }
 
-    private func showEventSheet(for event: TimelineEventBlockViewState) {
-        activeEventSheet = ChildEventSheet(id: event.id, actionPayload: event.actionPayload)
+    private func showEventSheet(for event: TimelineDayGridItemViewState) {
+        guard let eventID = event.primaryEventID,
+              let actionPayload = event.primaryActionPayload,
+              event.isInteractive else {
+            return
+        }
+
+        activeEventSheet = ChildEventSheet(id: eventID, actionPayload: actionPayload)
     }
 
     private func confirmDelete(for event: EventCardViewState) {
         deleteCandidate = EventDeleteCandidate(event: event)
     }
 
-    private func confirmDelete(for event: TimelineEventBlockViewState) {
+    private func confirmDelete(for event: TimelineDayGridItemViewState) {
+        guard event.isInteractive else {
+            return
+        }
+
         deleteCandidate = EventDeleteCandidate(event: event)
     }
 

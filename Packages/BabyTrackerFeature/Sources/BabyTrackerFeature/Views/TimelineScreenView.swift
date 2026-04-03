@@ -2,8 +2,8 @@ import SwiftUI
 
 public struct TimelineScreenView: View {
     let viewModel: TimelineViewModel
-    let openEvent: (TimelineEventBlockViewState) -> Void
-    let deleteEvent: (TimelineEventBlockViewState) -> Void
+    let openEvent: (TimelineDayGridItemViewState) -> Void
+    let deleteEvent: (TimelineDayGridItemViewState) -> Void
     let pendingDeleteEvent: EventDeleteCandidate?
     let confirmDelete: () -> Void
     let cancelDelete: () -> Void
@@ -13,8 +13,8 @@ public struct TimelineScreenView: View {
 
     public init(
         viewModel: TimelineViewModel,
-        openEvent: @escaping (TimelineEventBlockViewState) -> Void,
-        deleteEvent: @escaping (TimelineEventBlockViewState) -> Void,
+        openEvent: @escaping (TimelineDayGridItemViewState) -> Void,
+        deleteEvent: @escaping (TimelineDayGridItemViewState) -> Void,
         pendingDeleteEvent: EventDeleteCandidate?,
         confirmDelete: @escaping () -> Void,
         cancelDelete: @escaping () -> Void
@@ -40,11 +40,11 @@ public struct TimelineScreenView: View {
             if viewModel.displayMode == .day {
                 TabView(selection: timelinePageBinding) {
                     ForEach(Array(viewModel.pages.enumerated()), id: \.offset) { index, page in
-                        TimelineDayPageView(
+                        TimelineDayGridPageView(
                             page: page,
                             canManageEvents: viewModel.canManageEvents,
-                            openEvent: openEvent,
-                            deleteEvent: deleteEvent,
+                            openItem: openEvent,
+                            deleteItem: deleteEvent,
                             pendingDeleteEvent: pendingDeleteEvent,
                             confirmDelete: confirmDelete,
                             cancelDelete: cancelDelete
@@ -244,6 +244,20 @@ public struct TimelineScreenView: View {
             set: { day in
                 viewModel.showDay(day)
             }
+        )
+    }
+}
+
+#Preview {
+    NavigationStack {
+        let model = ChildProfilePreviewFactory.makeModel()
+        TimelineScreenView(
+            viewModel: TimelineViewModel(appModel: model),
+            openEvent: { _ in },
+            deleteEvent: { _ in },
+            pendingDeleteEvent: nil,
+            confirmDelete: {},
+            cancelDelete: {}
         )
     }
 }

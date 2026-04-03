@@ -26,4 +26,4 @@ The end state keeps both timeline modes:
 - GitHub issue: `#120`
 - Branch: `codex/120-day-grid-foundation`
 
-- [ ] Complete
+- [x] Complete
