@@ -2,15 +2,8 @@ import BabyTrackerDomain
 import Foundation
 import Observation
 
-/// Owns the event history filter state and provides the filtered event list.
-///
-/// During the staged migration, filter changes are forwarded to `AppModel` which
-/// rebuilds `profile.eventHistory` using the updated filter. The computed
-/// properties simply mirror `profile.eventHistory.*` so views bind to this
-/// ViewModel rather than to `profile.eventHistory` directly.
-///
-/// When `ChildProfileScreenState` is removed, this ViewModel will hold raw
-/// events and apply the filter itself without delegating to AppModel.
+/// Owns the event history filter state and provides the filtered event list,
+/// computed directly from `AppModel` raw data.
 @MainActor
 @Observable
 public final class EventHistoryViewModel {
@@ -20,27 +13,36 @@ public final class EventHistoryViewModel {
         self.appModel = appModel
     }
 
-    // MARK: - Computed state (bridge to profile.eventHistory)
+    // MARK: - Computed state
 
     public var events: [EventCardViewState] {
-        appModel.profile?.eventHistory.events ?? []
+        guard let child = appModel.currentChild else { return [] }
+        let filter = appModel.activeEventFilter
+        let filtered = filter.isEmpty
+            ? appModel.events
+            : appModel.events.filter { filter.matches($0) }
+        return BuildEventCardsUseCase.execute(
+            events: filtered,
+            preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
+        )
     }
 
     public var activeFilter: EventFilter {
-        appModel.profile?.eventHistory.activeFilter ?? .empty
+        appModel.activeEventFilter
     }
 
     public var filterIsActive: Bool {
-        appModel.profile?.eventHistory.filterIsActive ?? false
+        !appModel.activeEventFilter.isEmpty
     }
 
     public var emptyStateTitle: String {
-        appModel.profile?.eventHistory.emptyStateTitle ?? "No events logged yet"
+        appModel.activeEventFilter.isEmpty ? "No events logged yet" : "No matching events"
     }
 
     public var emptyStateMessage: String {
-        appModel.profile?.eventHistory.emptyStateMessage
-            ?? "Use Quick Log on Home to add the first event."
+        appModel.activeEventFilter.isEmpty
+            ? "Use Quick Log on Home to add the first event."
+            : "Try adjusting or clearing your filters."
     }
 
     // MARK: - Actions

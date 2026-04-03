@@ -3,17 +3,14 @@ import SwiftUI
 import UIKit
 
 public struct ChildProfileDetailsView: View {
-    let model: AppModel
-    let profile: ChildProfileScreenState
+    let viewModel: ChildProfileViewModel
     let editChildAction: () -> Void
 
     public init(
-        model: AppModel,
-        profile: ChildProfileScreenState,
+        viewModel: ChildProfileViewModel,
         editChildAction: @escaping () -> Void
     ) {
-        self.model = model
-        self.profile = profile
+        self.viewModel = viewModel
         self.editChildAction = editChildAction
     }
 
@@ -30,7 +27,7 @@ public struct ChildProfileDetailsView: View {
 
             Section("Identity") {
                 LabeledContent("Name") {
-                    Text(profile.child.name)
+                    Text(viewModel.childName)
                         .accessibilityIdentifier("child-profile-name")
                 }
 
@@ -43,7 +40,7 @@ public struct ChildProfileDetailsView: View {
         .navigationTitle("Child Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if profile.canEditChild {
+            if viewModel.canEditChild {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Edit") {
                         editChildAction()
@@ -56,7 +53,7 @@ public struct ChildProfileDetailsView: View {
 
     @ViewBuilder
     private var profileImageView: some View {
-        if let imageData = profile.child.imageData, let uiImage = UIImage(data: imageData) {
+        if let imageData = viewModel.child?.imageData, let uiImage = UIImage(data: imageData) {
             Image(uiImage: uiImage)
                 .resizable()
                 .scaledToFill()
@@ -67,7 +64,7 @@ public struct ChildProfileDetailsView: View {
                 Circle()
                     .fill(Color.accentColor.opacity(0.15))
                     .frame(width: 88, height: 88)
-                Text(profile.child.name.prefix(1).uppercased())
+                Text(viewModel.childName.prefix(1).uppercased())
                     .font(.largeTitle.weight(.semibold))
                     .foregroundStyle(Color.accentColor)
             }
@@ -75,10 +72,9 @@ public struct ChildProfileDetailsView: View {
     }
 
     private var birthDateText: String {
-        if let birthDate = profile.child.birthDate {
+        if let birthDate = viewModel.child?.birthDate {
             return birthDate.formatted(date: .abbreviated, time: .omitted)
         }
-
         return "Not set"
     }
 }
@@ -86,12 +82,9 @@ public struct ChildProfileDetailsView: View {
 #Preview {
     NavigationStack {
         let model = ChildProfilePreviewFactory.makeModel()
-        if let profile = model.profile {
-            ChildProfileDetailsView(
-                model: model,
-                profile: profile,
-                editChildAction: {}
-            )
-        }
+        ChildProfileDetailsView(
+            viewModel: ChildProfileViewModel(appModel: model),
+            editChildAction: {}
+        )
     }
 }

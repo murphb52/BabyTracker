@@ -2,14 +2,14 @@ import BabyTrackerDomain
 import SwiftUI
 
 public struct ChildProfileArchiveView: View {
-    let profile: ChildProfileScreenState
+    let childName: String
     let archiveAction: () -> Void
 
     public init(
-        profile: ChildProfileScreenState,
+        childName: String,
         archiveAction: @escaping () -> Void
     ) {
-        self.profile = profile
+        self.childName = childName
         self.archiveAction = archiveAction
     }
 
@@ -24,7 +24,7 @@ public struct ChildProfileArchiveView: View {
             }
 
             Section {
-                Button("Archive \(profile.child.name)", role: .destructive) {
+                Button("Archive \(childName)", role: .destructive) {
                     archiveAction()
                 }
                 .accessibilityIdentifier("archive-child-button")

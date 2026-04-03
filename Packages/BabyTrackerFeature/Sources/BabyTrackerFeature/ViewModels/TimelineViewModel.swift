@@ -2,64 +2,74 @@ import BabyTrackerDomain
 import Foundation
 import Observation
 
-/// Provides timeline screen state by observing `AppModel.profile`.
-///
-/// Currently bridges `profile.timeline.*` and `profile.canManageEvents`.
-/// When `ChildProfileScreenState` is removed (Stage 10) these will be
-/// computed directly from raw AppModel data using `BuildTimelineBlocksUseCase`.
+/// Provides timeline screen state computed directly from `AppModel` flat data.
 @MainActor
 @Observable
 public final class TimelineViewModel {
     private let appModel: AppModel
+    private let calendar = Calendar.autoupdatingCurrent
 
     public init(appModel: AppModel) {
         self.appModel = appModel
     }
 
-    // MARK: - Computed state (bridge to profile.timeline)
+    // MARK: - Computed state
 
     public var selectedDay: Date {
-        appModel.profile?.timeline.selectedDay ?? Date()
+        appModel.timelineSelectedDay
     }
 
     public var selectedDayTitle: String {
-        appModel.profile?.timeline.selectedDayTitle ?? ""
+        timelineDayTitle(for: appModel.timelineSelectedDay)
     }
 
     public var weekTitle: String {
-        appModel.profile?.timeline.weekTitle ?? ""
+        let dates = appModel.timelinePages.map(\.date)
+        guard let start = dates.first, let end = dates.last else { return "" }
+        if calendar.isDate(start, equalTo: end, toGranularity: .month) {
+            return "\(start.formatted(.dateTime.month(.abbreviated))) \(start.formatted(.dateTime.day()))-\(end.formatted(.dateTime.day()))"
+        }
+        return "\(start.formatted(.dateTime.month(.abbreviated).day()))-\(end.formatted(.dateTime.month(.abbreviated).day()))"
     }
 
     public var pages: [TimelineDayPageState] {
-        appModel.profile?.timeline.pages ?? []
+        appModel.timelinePages
     }
 
     public var selectedPageIndex: Int {
-        appModel.profile?.timeline.selectedPageIndex ?? 0
+        appModel.timelinePages.firstIndex(where: { page in
+            calendar.isDate(page.date, inSameDayAs: appModel.timelineSelectedDay)
+        }) ?? 0
     }
 
     public var showsJumpToToday: Bool {
-        appModel.profile?.timeline.showsJumpToToday ?? false
+        appModel.timelineSelectedDay != calendar.startOfDay(for: .now)
     }
 
-    public var canMoveToNextDay: Bool {
-        appModel.profile?.timeline.canMoveToNextDay ?? false
-    }
+    public var canMoveToNextDay: Bool { true }
 
     public var syncMessage: String? {
-        appModel.profile?.timeline.syncMessage
+        let status = appModel.cloudKitStatus
+        guard !status.isAccountUnavailable else { return nil }
+        switch status.state {
+        case .upToDate: return nil
+        case .pendingSync: return "Changes are saved locally and will sync automatically."
+        case .syncing, .failed: return status.detailMessage
+        }
     }
 
-    public var displayMode: TimelineScreenState.DisplayMode {
-        appModel.profile?.timeline.displayMode ?? .day
+    public var displayMode: TimelineDisplayMode {
+        appModel.timelineDisplayMode
     }
 
     public var stripColumns: [TimelineStripDayColumnViewState] {
-        appModel.profile?.timeline.stripColumns ?? []
+        appModel.timelineStripColumns
     }
 
     public var canManageEvents: Bool {
-        appModel.profile?.canManageEvents ?? false
+        guard let membership = appModel.currentMembership else { return false }
+        return ChildAccessPolicy.canPerform(.editEvent, membership: membership)
+            && ChildAccessPolicy.canPerform(.deleteEvent, membership: membership)
     }
 
     // MARK: - Navigation actions
@@ -82,5 +92,13 @@ public final class TimelineViewModel {
 
     public func toggleDisplayMode() {
         appModel.toggleTimelineDisplayMode()
+    }
+
+    // MARK: - Private helpers
+
+    private func timelineDayTitle(for day: Date) -> String {
+        if calendar.isDateInToday(day) { return "Today" }
+        if calendar.isDateInYesterday(day) { return "Yesterday" }
+        return day.formatted(date: .numeric, time: .omitted)
     }
 }

@@ -12,7 +12,6 @@ public final class AppModel {
     public private(set) var localUser: UserIdentity?
     public private(set) var activeChildren: [ChildSummary] = []
     public private(set) var archivedChildren: [ChildSummary] = []
-    public private(set) var profile: ChildProfileScreenState?
     public private(set) var errorMessage: String?
     public private(set) var undoDeleteMessage: String?
     public private(set) var isLiveActivityEnabled: Bool
@@ -26,6 +25,37 @@ public final class AppModel {
     public private(set) var nestImportState: NestImportState = .idle
     public private(set) var dataExportState: DataExportState = .idle
     public private(set) var syncBannerState: SyncBannerState?
+
+    // MARK: - Flat profile data (replaces ChildProfileScreenState)
+
+    /// All visible events for the currently selected child.
+    public private(set) var events: [BabyEvent] = []
+    /// The currently selected child.
+    public private(set) var currentChild: Child?
+    /// The local user's active membership for the current child.
+    public private(set) var currentMembership: Membership?
+    /// Currently running sleep session, if any.
+    public private(set) var activeSleep: SleepEvent?
+    /// Pre-built timeline day pages for the visible week.
+    public private(set) var timelinePages: [TimelineDayPageState] = []
+    /// Pre-built strip columns for the weekly overview.
+    public private(set) var timelineStripColumns: [TimelineStripDayColumnViewState] = []
+    /// Latest CloudKit sync status.
+    public private(set) var cloudKitStatus: CloudKitStatusViewState = CloudKitStatusViewState(summary: SyncStatusSummary())
+    /// All memberships for the current child (used by ChildProfileViewModel).
+    public private(set) var memberships: [Membership] = []
+    /// Users associated with each membership.
+    public private(set) var membershipUsers: [UserIdentity] = []
+    /// Pending CloudKit changes awaiting upload.
+    public private(set) var pendingChanges: [PendingChangeSummaryItem] = []
+    /// Pending share invites for the current child.
+    public private(set) var pendingShareInvites: [PendingShareInviteViewState] = []
+    /// The day currently visible in the timeline.
+    public private(set) var timelineSelectedDay: Date = Calendar.autoupdatingCurrent.startOfDay(for: .now)
+    /// The current timeline display mode (day vs. week).
+    public private(set) var timelineDisplayMode: TimelineDisplayMode = .day
+    /// The active event filter for the event history screen.
+    public private(set) var activeEventFilter: EventFilter = .empty
 
     private let logger = Logger(subsystem: "com.adappt.BabyTracker", category: "AppModel")
     private let childRepository: any ChildRepository
@@ -41,10 +71,7 @@ public final class AppModel {
     private let buildTimelineStripDatasetUseCase = BuildTimelineStripDatasetUseCase()
     private let buildRemoteNotificationUseCase = BuildRemoteCaregiverNotificationUseCase()
     private let calendar = Calendar.autoupdatingCurrent
-    private var timelineSelectedDay = Calendar.autoupdatingCurrent.startOfDay(for: .now)
-    private var timelineDisplayMode: TimelineScreenState.DisplayMode = .day
     private var timelineChildID: UUID?
-    private var activeEventFilter: EventFilter = .empty
     private var pendingUndoDeletedEvent: BabyEvent?
     private var undoDeleteTask: Task<Void, Never>?
     private var syncIndicatorDismissTask: Task<Void, Never>?
@@ -168,12 +195,13 @@ public final class AppModel {
     }
 
     public func hardDeleteCurrentChild() {
-        guard let profile else { return }
-        let childID = profile.child.id
+        guard let currentChild, let currentMembership else { return }
+        let childID = currentChild.id
+        let childName = currentChild.name
         let intent: HardDeleteChildIntent
         do {
             intent = try HardDeleteChildUseCase()
-                .execute(.init(membership: profile.currentMembership))
+                .execute(.init(membership: currentMembership))
         } catch {
             errorMessage = resolveErrorMessage(for: error)
             return
@@ -198,7 +226,7 @@ public final class AppModel {
                 let nextSelectedChildID = try nextSelectedChildID(afterDeleting: childID)
                 childSelectionStore.saveSelectedChildID(nextSelectedChildID)
                 clearUndoDeleteState()
-                showTransientMessage("\(profile.child.name) deleted")
+                showTransientMessage("\(childName) deleted")
                 resetNavigationStack()
                 refresh(selecting: nextSelectedChildID)
                 if let cloudDeleteError {
@@ -285,33 +313,33 @@ public final class AppModel {
         preferredFeedVolumeUnit: FeedVolumeUnit? = nil
     ) {
         perform {
-            guard let profile else { return }
+            guard let currentChild, let currentMembership else { return }
             _ = try UpdateCurrentChildUseCase(
                 childRepository: childRepository,
                 hapticFeedbackProvider: hapticFeedbackProvider
             )
                 .execute(.init(
-                    child: profile.child,
+                    child: currentChild,
                     name: name,
                     birthDate: birthDate,
-                    membership: profile.currentMembership,
+                    membership: currentMembership,
                     imageData: imageData,
-                    preferredFeedVolumeUnit: preferredFeedVolumeUnit ?? profile.child.preferredFeedVolumeUnit
+                    preferredFeedVolumeUnit: preferredFeedVolumeUnit ?? currentChild.preferredFeedVolumeUnit
                 ))
         }
     }
 
     public func archiveCurrentChild() {
         let succeeded = perform {
-            guard let profile else { return }
+            guard let currentChild, let currentMembership else { return }
             let revokedCaregivers = try ArchiveChildUseCase(
                 childRepository: childRepository,
                 membershipRepository: membershipRepository,
                 childSelectionStore: childSelectionStore,
                 hapticFeedbackProvider: hapticFeedbackProvider
             ).execute(.init(
-                child: profile.child,
-                membership: profile.currentMembership,
+                child: currentChild,
+                membership: currentMembership,
                 currentSelectedChildID: childSelectionStore.loadSelectedChildID()
             ))
             for membership in revokedCaregivers {
@@ -410,14 +438,16 @@ public final class AppModel {
     }
 
     public func presentShareSheet() {
-        guard let profile, profile.canShareChild else {
+        guard let currentChild, let currentMembership,
+              ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership),
+              syncEngine.statusSummary.state != .failed else {
             return
         }
 
         Task { @MainActor in
             do {
                 let presentation = try await syncEngine.prepareShare(
-                    for: profile.child.id
+                    for: currentChild.id
                 )
                 shareSheetState = ShareSheetState(presentation: presentation)
                 refresh(selecting: childSelectionStore.loadSelectedChildID())
@@ -430,7 +460,7 @@ public final class AppModel {
     }
 
     public func removeCaregiver(membershipID: UUID) {
-        guard let profile else {
+        guard let currentChild, let currentMembership else {
             return
         }
 
@@ -441,8 +471,8 @@ public final class AppModel {
             )
                 .execute(.init(
                     membershipID: membershipID,
-                    childID: profile.child.id,
-                    actingMembership: profile.currentMembership
+                    childID: currentChild.id,
+                    actingMembership: currentMembership
                 ))
 
             Task { @MainActor in
@@ -457,8 +487,9 @@ public final class AppModel {
     }
 
     public func leaveChildShare() {
-        guard let profile, profile.canLeaveShare else { return }
-        let childID = profile.child.id
+        guard let currentChild, let currentMembership,
+              currentMembership.role == .caregiver && currentMembership.status == .active else { return }
+        let childID = currentChild.id
         Task { @MainActor in
             do {
                 try await syncEngine.leaveShare(childID: childID)
@@ -485,21 +516,21 @@ public final class AppModel {
         rightDurationSeconds: Int? = nil
     ) -> Bool {
         perform {
-            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try LogBreastFeedUseCase(
                 eventRepository: eventRepository,
                 hapticFeedbackProvider: hapticFeedbackProvider
             )
                 .execute(.init(
-                    childID: profile.child.id,
+                    childID: currentChild.id,
                     localUserID: localUser.id,
                     durationMinutes: durationMinutes,
                     endTime: endTime,
                     side: side,
                     leftDurationSeconds: leftDurationSeconds,
                     rightDurationSeconds: rightDurationSeconds,
-                    membership: profile.currentMembership
+                    membership: currentMembership
                 ))
         }
     }
@@ -511,19 +542,19 @@ public final class AppModel {
         milkType: MilkType?
     ) -> Bool {
         perform {
-            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try LogBottleFeedUseCase(
                 eventRepository: eventRepository,
                 hapticFeedbackProvider: hapticFeedbackProvider
             )
                 .execute(.init(
-                    childID: profile.child.id,
+                    childID: currentChild.id,
                     localUserID: localUser.id,
                     amountMilliliters: amountMilliliters,
                     occurredAt: occurredAt,
                     milkType: milkType,
-                    membership: profile.currentMembership
+                    membership: currentMembership
                 ))
         }
     }
@@ -537,21 +568,21 @@ public final class AppModel {
         pooColor: PooColor? = nil
     ) -> Bool {
         perform {
-            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try LogNappyUseCase(
                 eventRepository: eventRepository,
                 hapticFeedbackProvider: hapticFeedbackProvider
             )
                 .execute(.init(
-                    childID: profile.child.id,
+                    childID: currentChild.id,
                     localUserID: localUser.id,
                     type: type,
                     occurredAt: occurredAt,
                     peeVolume: peeVolume,
                     pooVolume: pooVolume,
                     pooColor: pooColor,
-                    membership: profile.currentMembership
+                    membership: currentMembership
                 ))
         }
     }
@@ -559,17 +590,17 @@ public final class AppModel {
     @discardableResult
     public func startSleep(startedAt: Date) -> Bool {
         perform {
-            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try StartSleepUseCase(
                 eventRepository: eventRepository,
                 hapticFeedbackProvider: hapticFeedbackProvider
             )
                 .execute(.init(
-                    childID: profile.child.id,
+                    childID: currentChild.id,
                     localUserID: localUser.id,
                     startedAt: startedAt,
-                    membership: profile.currentMembership
+                    membership: currentMembership
                 ))
         }
     }
@@ -577,18 +608,18 @@ public final class AppModel {
     @discardableResult
     public func logSleep(startedAt: Date, endedAt: Date) -> Bool {
         perform {
-            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try LogSleepUseCase(
                 eventRepository: eventRepository,
                 hapticFeedbackProvider: hapticFeedbackProvider
             )
                 .execute(.init(
-                    childID: profile.child.id,
+                    childID: currentChild.id,
                     localUserID: localUser.id,
                     startedAt: startedAt,
                     endedAt: endedAt,
-                    membership: profile.currentMembership
+                    membership: currentMembership
                 ))
         }
     }
@@ -600,7 +631,7 @@ public final class AppModel {
         endedAt: Date
     ) -> Bool {
         perform {
-            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try EndSleepUseCase(
                 eventRepository: eventRepository,
@@ -611,7 +642,7 @@ public final class AppModel {
                     localUserID: localUser.id,
                     startedAt: startedAt,
                     endedAt: endedAt,
-                    membership: profile.currentMembership
+                    membership: currentMembership
                 ))
         }
     }
@@ -626,7 +657,7 @@ public final class AppModel {
         rightDurationSeconds: Int? = nil
     ) -> Bool {
         perform {
-            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             try UpdateBreastFeedUseCase(
                 eventRepository: eventRepository,
@@ -640,7 +671,7 @@ public final class AppModel {
                     side: side,
                     leftDurationSeconds: leftDurationSeconds,
                     rightDurationSeconds: rightDurationSeconds,
-                    membership: profile.currentMembership
+                    membership: currentMembership
                 ))
         }
     }
@@ -653,7 +684,7 @@ public final class AppModel {
         milkType: MilkType?
     ) -> Bool {
         perform {
-            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             try UpdateBottleFeedUseCase(
                 eventRepository: eventRepository,
@@ -665,7 +696,7 @@ public final class AppModel {
                     amountMilliliters: amountMilliliters,
                     occurredAt: occurredAt,
                     milkType: milkType,
-                    membership: profile.currentMembership
+                    membership: currentMembership
                 ))
         }
     }
@@ -680,7 +711,7 @@ public final class AppModel {
         pooColor: PooColor? = nil
     ) -> Bool {
         perform {
-            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             try UpdateNappyUseCase(
                 eventRepository: eventRepository,
@@ -694,14 +725,14 @@ public final class AppModel {
                     peeVolume: peeVolume,
                     pooVolume: pooVolume,
                     pooColor: pooColor,
-                    membership: profile.currentMembership
+                    membership: currentMembership
                 ))
         }
     }
 
     public func sleepStartSuggestions() -> [(label: String, date: Date)] {
-        guard let profile else { return [] }
-        let timeline = (try? eventRepository.loadTimeline(for: profile.child.id, includingDeleted: false)) ?? []
+        guard let currentChild else { return [] }
+        let timeline = (try? eventRepository.loadTimeline(for: currentChild.id, includingDeleted: false)) ?? []
 
         var suggestions: [(label: String, date: Date)] = []
         let timeFormatter = Date.FormatStyle(date: .omitted, time: .shortened)
@@ -728,7 +759,7 @@ public final class AppModel {
         endedAt: Date
     ) -> Bool {
         perform {
-            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             try UpdateSleepUseCase(
                 eventRepository: eventRepository,
@@ -739,7 +770,7 @@ public final class AppModel {
                     localUserID: localUser.id,
                     startedAt: startedAt,
                     endedAt: endedAt,
-                    membership: profile.currentMembership
+                    membership: currentMembership
                 ))
         }
     }
@@ -747,7 +778,7 @@ public final class AppModel {
     @discardableResult
     public func resumeSleep(id: UUID, startedAt: Date) -> Bool {
         perform {
-            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try ResumeSleepUseCase(
                 eventRepository: eventRepository,
@@ -757,7 +788,7 @@ public final class AppModel {
                     eventID: id,
                     localUserID: localUser.id,
                     startedAt: startedAt,
-                    membership: profile.currentMembership
+                    membership: currentMembership
                 ))
         }
     }
@@ -765,7 +796,7 @@ public final class AppModel {
     @discardableResult
     public func deleteEvent(id: UUID) -> Bool {
         perform {
-            guard let profile else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             clearUndoDeleteState()
             if let event = try DeleteEventUseCase(
@@ -775,7 +806,7 @@ public final class AppModel {
                 .execute(.init(
                     eventID: id,
                     localUserID: localUser.id,
-                    membership: profile.currentMembership
+                    membership: currentMembership
                 )) {
                 pendingUndoDeletedEvent = event
                 undoDeleteMessage = "\(eventTitle(for: event)) deleted"
@@ -825,8 +856,7 @@ public final class AppModel {
                 route = .identityOnboarding
                 activeChildren = []
                 archivedChildren = []
-                profile = nil
-                timelineChildID = nil
+                clearProfileData()
                 liveActivityManager.synchronize(with: nil)
                 return
             }
@@ -844,8 +874,7 @@ public final class AppModel {
 
             guard !activeChildren.isEmpty else {
                 route = .noChildren
-                profile = nil
-                timelineChildID = nil
+                clearProfileData()
                 liveActivityManager.synchronize(with: nil)
                 return
             }
@@ -857,8 +886,7 @@ public final class AppModel {
 
             if activeChildren.count > 1 && selectedSummary == nil {
                 route = .childPicker
-                profile = nil
-                timelineChildID = nil
+                clearProfileData()
                 liveActivityManager.synchronize(with: nil)
                 return
             }
@@ -866,28 +894,69 @@ public final class AppModel {
             let currentSummary = selectedSummary ?? activeChildren[0]
             childSelectionStore.saveSelectedChildID(currentSummary.child.id)
             synchronizeTimelineSelection(for: currentSummary.child.id)
+
             let visibleEvents = try loadVisibleEvents(for: currentSummary.child.id)
-            let timelinePages = try loadTimelinePages(
+            let builtTimelinePages = try loadTimelinePages(
                 child: currentSummary.child,
                 for: currentSummary.child.id,
                 days: timelineVisibleDays(for: timelineSelectedDay)
             )
-            let activeSleep = try eventRepository.loadActiveSleepEvent(for: currentSummary.child.id)
-            profile = try makeProfile(
-                child: currentSummary.child,
-                localUser: localUser,
-                availableChildren: activeChildren,
-                visibleEvents: visibleEvents,
-                timelinePages: timelinePages,
-                activeSleep: activeSleep
+            let currentActiveSleep = try eventRepository.loadActiveSleepEvent(for: currentSummary.child.id)
+            let childMemberships = try membershipRepository.loadMemberships(for: currentSummary.child.id)
+            let userIDs = childMemberships.map(\.userID)
+            let users = try userIdentityRepository.loadUsers(for: userIDs)
+
+            guard let resolvedMembership = childMemberships.first(where: { m in
+                m.userID == localUser.id && m.status == .active
+            }) else {
+                throw ChildProfileValidationError.invalidMembershipTransition(from: .removed, to: .active)
+            }
+
+            let status = CloudKitStatusViewState(summary: syncEngine.statusSummary)
+            let pendingCounts = (try? syncEngine.loadPendingChangeCounts()) ?? [:]
+            let builtPendingChanges: [PendingChangeSummaryItem] = [
+                (.breastFeedEvent, "figure.seated.side.air.upper", "Breast feeds"),
+                (.bottleFeedEvent, "waterbottle.fill",             "Bottle feeds"),
+                (.sleepEvent,      "moon.zzz.fill",                "Sleep sessions"),
+                (.nappyEvent,      "checklist.checked",            "Nappy changes"),
+                (.membership,      "person.2.fill",                "Sharing info"),
+                (.child,           "person.fill",                  "Profile data"),
+            ].compactMap { (type, icon, label) in
+                guard let count = pendingCounts[type], count > 0 else { return nil }
+                return PendingChangeSummaryItem(icon: icon, label: label, count: count)
+            }
+            let builtPendingInvites = syncEngine.pendingInvites(for: currentSummary.child.id).map { invite in
+                PendingShareInviteViewState(
+                    id: invite.id,
+                    displayName: invite.displayName,
+                    statusLabel: invite.acceptanceStatus == .pending ? "Pending invitation" : "Invited"
+                )
+            }
+            let stripDataset = buildTimelineStripDatasetUseCase.execute(
+                events: visibleEvents,
+                calendar: calendar
             )
+
+            // Set flat observable properties — triggers ViewModel recomputation
+            events = visibleEvents
+            currentChild = currentSummary.child
+            currentMembership = resolvedMembership
+            activeSleep = currentActiveSleep
+            timelinePages = builtTimelinePages
+            timelineStripColumns = buildTimelineStripColumns(from: stripDataset)
+            cloudKitStatus = status
+            memberships = childMemberships
+            membershipUsers = users
+            pendingChanges = builtPendingChanges
+            pendingShareInvites = builtPendingInvites
+
             route = .childProfile
             if isLiveActivityEnabled {
                 liveActivityManager.synchronize(
-                    with: makeFeedLiveActivitySnapshot(
-                        from: visibleEvents,
+                    with: BuildFeedLiveActivitySnapshotUseCase.execute(
+                        events: visibleEvents,
                         child: currentSummary.child,
-                        activeSleep: activeSleep
+                        activeSleep: currentActiveSleep
                     )
                 )
             } else {
@@ -904,6 +973,20 @@ public final class AppModel {
                 liveActivityManager.synchronize(with: nil)
             }
         }
+    }
+
+    private func clearProfileData() {
+        events = []
+        currentChild = nil
+        currentMembership = nil
+        activeSleep = nil
+        timelinePages = []
+        timelineStripColumns = []
+        memberships = []
+        membershipUsers = []
+        pendingChanges = []
+        pendingShareInvites = []
+        timelineChildID = nil
     }
 
     private func loadChildSummaries(
@@ -939,125 +1022,8 @@ public final class AppModel {
         }
     }
 
-    private func makeProfile(
-        child: Child,
-        localUser: UserIdentity,
-        availableChildren: [ChildSummary],
-        visibleEvents: [BabyEvent],
-        timelinePages: [TimelineDayPageState],
-        activeSleep: SleepEvent?
-    ) throws -> ChildProfileScreenState {
-        let memberships = try membershipRepository.loadMemberships(for: child.id)
-        let userIDs = memberships.map(\.userID)
-        let users = try userIdentityRepository.loadUsers(for: userIDs)
-        let usersByID = Dictionary(uniqueKeysWithValues: users.map { ($0.id, $0) })
-
-        guard let currentMembership = memberships.first(where: { membership in
-            membership.userID == localUser.id && membership.status == .active
-        }) else {
-            throw ChildProfileValidationError.invalidMembershipTransition(
-                from: .removed,
-                to: .active
-            )
-        }
-
-        let pairs = memberships.compactMap { membership -> CaregiverMembershipViewState? in
-            guard let user = usersByID[membership.userID] else {
-                return nil
-            }
-
-            return CaregiverMembershipViewState(user: user, membership: membership)
-        }
-
-        let owner = pairs.first(where: { pair in
-            pair.membership.role == .owner && pair.membership.status == .active
-        })
-
-        let activeCaregivers = pairs.filter { pair in
-            pair.membership.role == .caregiver && pair.membership.status == .active
-        }
-        let removedCaregivers = pairs.filter { pair in
-            pair.membership.status == .removed
-        }
-
-        let pendingShareInvites = syncEngine.pendingInvites(for: child.id).map { invite in
-            PendingShareInviteViewState(
-                id: invite.id,
-                displayName: invite.displayName,
-                statusLabel: invite.acceptanceStatus == .pending ? "Pending invitation" : "Invited"
-            )
-        }
-        let canLogEvents = ChildAccessPolicy.canPerform(.logEvent, membership: currentMembership)
-        let canManageEvents =
-            ChildAccessPolicy.canPerform(.editEvent, membership: currentMembership) &&
-            ChildAccessPolicy.canPerform(.deleteEvent, membership: currentMembership)
-        let cloudKitStatus = CloudKitStatusViewState(summary: syncEngine.statusSummary)
-        let pendingCounts = (try? syncEngine.loadPendingChangeCounts()) ?? [:]
-        let pendingChanges: [PendingChangeSummaryItem] = [
-            (.breastFeedEvent, "figure.seated.side.air.upper", "Breast feeds"),
-            (.bottleFeedEvent, "waterbottle.fill",             "Bottle feeds"),
-            (.sleepEvent,      "moon.zzz.fill",                "Sleep sessions"),
-            (.nappyEvent,      "checklist.checked",            "Nappy changes"),
-            (.membership,      "person.2.fill",                "Sharing info"),
-            (.child,           "person.fill",                  "Profile data"),
-        ].compactMap { (type, icon, label) in
-            guard let count = pendingCounts[type], count > 0 else { return nil }
-            return PendingChangeSummaryItem(icon: icon, label: label, count: count)
-        }
-
-        return ChildProfileScreenState(
-            child: child,
-            localUser: localUser,
-            currentMembership: currentMembership,
-            owner: owner,
-            activeCaregivers: activeCaregivers,
-            pendingShareInvites: pendingShareInvites,
-            removedCaregivers: removedCaregivers,
-            canLogEvents: canLogEvents,
-            canManageEvents: canManageEvents,
-            activeSleepSession: activeSleep.map(ActiveSleepSessionViewState.init),
-            home: makeHomeScreenState(
-                from: visibleEvents,
-                child: child,
-                activeSleep: activeSleep,
-                cloudKitStatus: cloudKitStatus
-            ),
-            eventHistory: makeEventHistoryScreenState(from: visibleEvents, child: child),
-            timeline: makeTimelineScreenState(
-                child: child,
-                from: timelinePages,
-                selectedDay: timelineSelectedDay,
-                timelineEvents: visibleEvents,
-                cloudKitStatus: cloudKitStatus
-            ),
-            summary: makeSummaryScreenState(from: visibleEvents),
-            cloudKitStatus: cloudKitStatus,
-            latestEventSyncMarker: makeLatestEventSyncMarker(from: visibleEvents),
-            totalEventCount: visibleEvents.count,
-            canShareChild: ChildAccessPolicy.canPerform(.inviteCaregiver, membership: currentMembership) &&
-                syncEngine.statusSummary.state != .failed,
-            pendingChanges: pendingChanges,
-            availableChildren: availableChildren,
-            canCreateLocalChild: true
-        )
-    }
-
     private func loadVisibleEvents(for childID: UUID) throws -> [BabyEvent] {
         try eventRepository.loadTimeline(for: childID, includingDeleted: false)
-    }
-
-    private func loadTimelineEvents(
-        for childID: UUID,
-        on day: Date
-    ) throws -> [BabyEvent] {
-        try eventRepository.loadEvents(
-            for: childID,
-            on: day,
-            calendar: calendar,
-            includingDeleted: false
-        ).sorted { left, right in
-            timelineStartDate(for: left) < timelineStartDate(for: right)
-        }
     }
 
     private func loadTimelinePages(
@@ -1066,148 +1032,26 @@ public final class AppModel {
         days: [Date]
     ) throws -> [TimelineDayPageState] {
         try days.map { day in
-            let events = try loadTimelineEvents(for: childID, on: day)
+            let dayStart = calendar.startOfDay(for: day)
+            let events = try eventRepository.loadEvents(
+                for: childID,
+                on: day,
+                calendar: calendar,
+                includingDeleted: false
+            ).sorted { left, right in
+                BuildTimelineBlocksUseCase.startDate(for: left) < BuildTimelineBlocksUseCase.startDate(for: right)
+            }
 
             return TimelineDayPageState(
-                date: day,
-                dayTitle: timelineDayTitle(for: day),
-                shortWeekdayTitle: shortWeekdayTitle(for: day),
-                isToday: calendar.isDateInToday(day),
-                blocks: makeTimelineBlocks(from: events, child: child, on: day),
+                date: dayStart,
+                dayTitle: timelineDayTitle(for: dayStart),
+                shortWeekdayTitle: dayStart.formatted(.dateTime.weekday(.abbreviated)),
+                isToday: calendar.isDateInToday(dayStart),
+                blocks: BuildTimelineBlocksUseCase.execute(events: events, child: child, day: dayStart, calendar: calendar),
                 emptyStateTitle: "No events for this day",
                 emptyStateMessage: "Try another day or use Quick Log to add the next event."
             )
         }
-    }
-
-    private func makeCurrentSleepCardState(
-        activeSleep: SleepEvent?
-    ) -> CurrentSleepCardViewState? {
-        guard let activeSleep else {
-            return nil
-        }
-
-        return CurrentSleepCardViewState(
-            sleepEventID: activeSleep.id,
-            startedAt: activeSleep.startedAt
-        )
-    }
-
-    private func makeCurrentStatusCardState(
-        from events: [BabyEvent],
-        child: Child,
-        day: Date = .now,
-        calendar: Calendar = .current
-    ) -> CurrentStatusCardViewState {
-        let feedSummary = FeedSummaryCalculator.makeSummary(
-            from: events,
-            preferredFeedVolumeUnit: child.preferredFeedVolumeUnit,
-            on: day,
-            calendar: calendar
-        )
-        let lastNappy = LastNappySummaryCalculator.makeSummary(from: events)
-
-        return CurrentStatusCardViewState(
-            timeSinceLastFeedAt: feedSummary?.lastFeedAt,
-            feedsTodayCount: feedSummary?.feedsTodayCount ?? 0,
-            timeSinceLastNappyAt: lastNappy?.occurredAt
-        )
-    }
-
-    private func makeHomeScreenState(
-        from events: [BabyEvent],
-        child: Child,
-        activeSleep: SleepEvent?,
-        cloudKitStatus: CloudKitStatusViewState
-    ) -> HomeScreenState {
-        HomeScreenState(
-            currentSleep: makeCurrentSleepCardState(activeSleep: activeSleep),
-            currentStatus: makeCurrentStatusCardState(from: events, child: child),
-            syncStatus: cloudKitStatus,
-            recentEvents: Array(events.compactMap {
-                EventCardViewState(
-                    event: $0,
-                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
-                )
-            }.prefix(6)),
-            emptyStateTitle: "No recent activity",
-            emptyStateMessage: "Use Quick Log to add the first event."
-        )
-    }
-
-    private func makeEventHistoryScreenState(
-        from events: [BabyEvent],
-        child: Child
-    ) -> EventHistoryScreenState {
-        let filtered = activeEventFilter.isEmpty
-            ? events
-            : events.filter { activeEventFilter.matches($0) }
-        return EventHistoryScreenState(
-            events: filtered.compactMap {
-                EventCardViewState(
-                    event: $0,
-                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
-                )
-            },
-            filterIsActive: !activeEventFilter.isEmpty,
-            activeFilter: activeEventFilter,
-            emptyStateTitle: activeEventFilter.isEmpty ? "No events logged yet" : "No matching events",
-            emptyStateMessage: activeEventFilter.isEmpty
-                ? "Use Quick Log on Home to add the first event."
-                : "Try adjusting or clearing your filters."
-        )
-    }
-
-
-    private func makeSummaryScreenState(
-        from events: [BabyEvent]
-    ) -> SummaryScreenState {
-        SummaryScreenState(
-            events: events,
-            emptyStateTitle: "No summary data yet",
-            emptyStateMessage: "Add events and your key trends will appear here."
-        )
-    }
-
-    private func makeLatestEventSyncMarker(
-        from events: [BabyEvent]
-    ) -> EventSyncMarkerViewState? {
-        events.max { left, right in
-            if left.metadata.updatedAt != right.metadata.updatedAt {
-                return left.metadata.updatedAt < right.metadata.updatedAt
-            }
-
-            return left.id.uuidString < right.id.uuidString
-        }.map(EventSyncMarkerViewState.init)
-    }
-
-    private func makeFeedLiveActivitySnapshot(
-        from events: [BabyEvent],
-        child: Child,
-        activeSleep: SleepEvent?
-    ) -> FeedLiveActivitySnapshot? {
-        guard let summary = FeedSummaryCalculator.makeSummary(
-            from: events,
-            preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
-        ) else {
-            return nil
-        }
-
-        let lastSleep = LastSleepSummaryCalculator.makeSummary(
-            from: events,
-            activeSleep: activeSleep
-        )
-        let lastNappy = LastNappySummaryCalculator.makeSummary(from: events)
-
-        return FeedLiveActivitySnapshot(
-            childID: child.id,
-            childName: child.name,
-            lastFeedKind: summary.lastFeedKind,
-            lastFeedAt: summary.lastFeedAt,
-            lastSleepAt: lastSleep?.endedAt ?? lastSleep?.startedAt,
-            activeSleepStartedAt: lastSleep?.isActive == true ? lastSleep?.startedAt : nil,
-            lastNappyAt: lastNappy?.occurredAt
-        )
     }
 
     private func eventTitle(for event: BabyEvent) -> String {
@@ -1268,291 +1112,17 @@ public final class AppModel {
         activeEventFilter = .empty
     }
 
-    private func makeTimelineScreenState(
-        child: Child,
-        from pages: [TimelineDayPageState],
-        selectedDay: Date,
-        timelineEvents: [BabyEvent],
-        cloudKitStatus: CloudKitStatusViewState
-    ) -> TimelineScreenState {
-        let today = normalizedTimelineDay(for: .now)
-        let selectedPageIndex = pages.firstIndex(where: { page in
-            calendar.isDate(page.date, inSameDayAs: selectedDay)
-        }) ?? 0
-        let stripDataset = buildTimelineStripDatasetUseCase.execute(
-            events: timelineEvents,
-            calendar: calendar
-        )
-        let stripColumns = makeTimelineStripColumns(from: stripDataset)
-        let selectedStripColumnIndex = stripColumns.firstIndex(where: { column in
-            calendar.isDate(column.date, inSameDayAs: selectedDay)
-        }) ?? stripDataset.todayIndex
-
-        return TimelineScreenState(
-            selectedDay: selectedDay,
-            selectedDayTitle: timelineDayTitle(for: selectedDay),
-            weekTitle: timelineWeekTitle(for: pages.map(\.date)),
-            pages: pages,
-            selectedPageIndex: selectedPageIndex,
-            showsJumpToToday: selectedDay != today,
-            canMoveToNextDay: true,
-            syncMessage: timelineSyncMessage(for: cloudKitStatus),
-            displayMode: timelineDisplayMode,
-            stripColumns: stripColumns,
-            selectedStripColumnIndex: selectedStripColumnIndex
-        )
-    }
-
-    private func makeTimelineStripColumns(
+    private func buildTimelineStripColumns(
         from dataset: TimelineStripDataset
     ) -> [TimelineStripDayColumnViewState] {
         dataset.columns.map { column in
             TimelineStripDayColumnViewState(
                 date: column.date,
-                shortWeekdayTitle: shortWeekdayTitle(for: column.date),
+                shortWeekdayTitle: column.date.formatted(.dateTime.weekday(.abbreviated)),
                 dayNumberTitle: column.date.formatted(.dateTime.day()),
                 isToday: calendar.isDateInToday(column.date),
                 slots: column.slots.map(\.kind)
             )
-        }
-    }
-
-    private func makeTimelineBlocks(
-        from events: [BabyEvent],
-        child: Child,
-        on selectedDay: Date
-    ) -> [TimelineEventBlockViewState] {
-        let blocks = events.map { event in
-            makeTimelineBlock(from: event, child: child, on: selectedDay)
-        }
-
-        return assignTimelineLayout(to: blocks)
-    }
-
-    private func makeTimelineBlock(
-        from event: BabyEvent,
-        child: Child,
-        on selectedDay: Date
-    ) -> TimelineEventBlockViewState {
-        let startMinute = visibleTimelineStartMinute(for: event, on: selectedDay)
-        let endMinute = visibleTimelineEndMinute(for: event, on: selectedDay)
-
-        switch event {
-        case let .breastFeed(feed):
-            let durationMinutes = max(
-                1,
-                Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60)
-            )
-
-            return TimelineEventBlockViewState(
-                id: feed.id,
-                kind: .breastFeed,
-                title: BabyEventPresentation.title(for: event),
-                detailText: BabyEventPresentation.detailText(
-                    for: event,
-                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
-                ) ?? "",
-                timeText: "\(shortTimeText(for: feed.startedAt))-\(shortTimeText(for: feed.endedAt))",
-                compactText: compactTimelineText(for: event, child: child),
-                startMinute: startMinute,
-                endMinute: endMinute,
-                laneIndex: 0,
-                laneCount: 1,
-                actionPayload: .editBreastFeed(
-                    durationMinutes: durationMinutes,
-                    endTime: feed.endedAt,
-                    side: feed.side,
-                    leftDurationSeconds: feed.leftDurationSeconds,
-                    rightDurationSeconds: feed.rightDurationSeconds
-                )
-            )
-        case let .bottleFeed(feed):
-            return TimelineEventBlockViewState(
-                id: feed.id,
-                kind: .bottleFeed,
-                title: BabyEventPresentation.title(for: event),
-                detailText: BabyEventPresentation.detailText(
-                    for: event,
-                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
-                ) ?? "",
-                timeText: shortTimeText(for: feed.metadata.occurredAt),
-                compactText: compactTimelineText(for: event, child: child),
-                startMinute: startMinute,
-                endMinute: endMinute,
-                laneIndex: 0,
-                laneCount: 1,
-                actionPayload: .editBottleFeed(
-                    amountMilliliters: feed.amountMilliliters,
-                    occurredAt: feed.metadata.occurredAt,
-                    milkType: feed.milkType
-                )
-            )
-        case let .sleep(sleep):
-            if let endedAt = sleep.endedAt {
-                return TimelineEventBlockViewState(
-                    id: sleep.id,
-                    kind: .sleep,
-                    title: BabyEventPresentation.title(for: event),
-                    detailText: BabyEventPresentation.detailText(
-                        for: event,
-                        preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
-                    ) ?? "",
-                    timeText: "\(shortTimeText(for: sleep.startedAt))-\(shortTimeText(for: endedAt))",
-                    compactText: compactTimelineText(for: event, child: child),
-                    startMinute: startMinute,
-                    endMinute: endMinute,
-                    laneIndex: 0,
-                    laneCount: 1,
-                    actionPayload: .editSleep(
-                        startedAt: sleep.startedAt,
-                        endedAt: endedAt
-                    )
-                )
-            }
-
-            return TimelineEventBlockViewState(
-                id: sleep.id,
-                kind: .sleep,
-                title: BabyEventPresentation.title(for: event),
-                detailText: BabyEventPresentation.detailText(
-                    for: event,
-                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
-                ) ?? "",
-                timeText: "Started \(shortTimeText(for: sleep.startedAt))",
-                compactText: compactTimelineText(for: event, child: child),
-                startMinute: startMinute,
-                endMinute: endMinute,
-                laneIndex: 0,
-                laneCount: 1,
-                actionPayload: .endSleep(startedAt: sleep.startedAt)
-            )
-        case let .nappy(nappy):
-            return TimelineEventBlockViewState(
-                id: nappy.id,
-                kind: .nappy,
-                title: BabyEventPresentation.title(for: event),
-                detailText: BabyEventPresentation.detailText(
-                    for: event,
-                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
-                ) ?? "",
-                timeText: shortTimeText(for: nappy.metadata.occurredAt),
-                compactText: compactTimelineText(for: event, child: child),
-                startMinute: startMinute,
-                endMinute: endMinute,
-                laneIndex: 0,
-                laneCount: 1,
-                actionPayload: .editNappy(
-                    type: nappy.type,
-                    occurredAt: nappy.metadata.occurredAt,
-                    peeVolume: nappy.peeVolume,
-                    pooVolume: nappy.pooVolume,
-                    pooColor: nappy.pooColor
-                )
-            )
-        }
-    }
-
-    private func assignTimelineLayout(
-        to blocks: [TimelineEventBlockViewState]
-    ) -> [TimelineEventBlockViewState] {
-        var laneEndMinutes: [Int] = []
-        var laneIndexesByID: [UUID: Int] = [:]
-
-        for block in blocks {
-            if let laneIndex = laneEndMinutes.firstIndex(where: { block.startMinute >= $0 }) {
-                laneEndMinutes[laneIndex] = block.endMinute
-                laneIndexesByID[block.id] = laneIndex
-            } else {
-                laneIndexesByID[block.id] = laneEndMinutes.count
-                laneEndMinutes.append(block.endMinute)
-            }
-        }
-
-        return blocks.map { block in
-            let laneIndex = laneIndexesByID[block.id] ?? 0
-            let laneCount = timelineLaneCount(for: block, within: blocks)
-
-            return block.updatingLayout(
-                laneIndex: laneIndex,
-                laneCount: laneCount
-            )
-        }
-    }
-
-    private func timelineLaneCount(
-        for block: TimelineEventBlockViewState,
-        within blocks: [TimelineEventBlockViewState]
-    ) -> Int {
-        let candidateMinutes = blocks
-            .filter { other in
-                other.endMinute > block.startMinute &&
-                    other.startMinute < block.endMinute
-            }
-            .map(\.startMinute) + [block.startMinute]
-
-        return candidateMinutes.reduce(into: 1) { currentMax, minute in
-            let concurrentCount = blocks.count { other in
-                other.startMinute <= minute && other.endMinute > minute
-            }
-            currentMax = max(currentMax, concurrentCount)
-        }
-    }
-
-    private func visibleTimelineStartMinute(
-        for event: BabyEvent,
-        on selectedDay: Date
-    ) -> Int {
-        let dayStart = normalizedTimelineDay(for: selectedDay)
-        let visibleStart = max(timelineStartDate(for: event), dayStart)
-
-        return minuteOfDay(for: visibleStart, relativeTo: dayStart)
-    }
-
-    private func visibleTimelineEndMinute(
-        for event: BabyEvent,
-        on selectedDay: Date
-    ) -> Int {
-        let dayStart = normalizedTimelineDay(for: selectedDay)
-        let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
-        let minimumDurationMinutes = 20
-        let visibleEnd = min(timelineEndDate(for: event), dayEnd)
-        let unclampedMinute = minuteOfDay(for: visibleEnd, relativeTo: dayStart)
-        let minimumEndMinute = visibleTimelineStartMinute(for: event, on: selectedDay) + minimumDurationMinutes
-
-        return min(1_440, max(unclampedMinute, minimumEndMinute))
-    }
-
-    private func minuteOfDay(
-        for date: Date,
-        relativeTo dayStart: Date
-    ) -> Int {
-        let interval = date.timeIntervalSince(dayStart)
-        return max(0, min(1_440, Int(interval / 60)))
-    }
-
-    private func timelineStartDate(for event: BabyEvent) -> Date {
-        switch event {
-        case let .breastFeed(feed):
-            return feed.startedAt
-        case let .bottleFeed(feed):
-            return feed.metadata.occurredAt
-        case let .sleep(sleep):
-            return sleep.startedAt
-        case let .nappy(event):
-            return event.metadata.occurredAt
-        }
-    }
-
-    private func timelineEndDate(for event: BabyEvent) -> Date {
-        switch event {
-        case let .breastFeed(feed):
-            return feed.endedAt
-        case let .bottleFeed(feed):
-            return feed.metadata.occurredAt
-        case let .sleep(sleep):
-            return sleep.endedAt ?? Date()
-        case let .nappy(event):
-            return event.metadata.occurredAt
         }
     }
 
@@ -1568,101 +1138,26 @@ public final class AppModel {
         return day.formatted(date: .numeric, time: .omitted)
     }
 
-    private func timelineVisibleDays(
-        for selectedDay: Date
-    ) -> [Date] {
+    private func timelineVisibleDays(for selectedDay: Date) -> [Date] {
         let normalizedDay = normalizedTimelineDay(for: selectedDay)
-        var sundayCalendar = calendar
-        sundayCalendar.firstWeekday = 2
+        var mondayCalendar = calendar
+        mondayCalendar.firstWeekday = 2
 
-        let components = sundayCalendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: normalizedDay)
-        guard let weekStart = sundayCalendar.date(from: components) else {
+        let components = mondayCalendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: normalizedDay)
+        guard let weekStart = mondayCalendar.date(from: components) else {
             return [normalizedDay]
         }
 
         return (0..<7).compactMap { offset in
-            sundayCalendar.date(byAdding: .day, value: offset, to: weekStart).map(normalizedTimelineDay(for:))
+            mondayCalendar.date(byAdding: .day, value: offset, to: weekStart).map(normalizedTimelineDay(for:))
         }
     }
 
-    private func shortWeekdayTitle(for day: Date) -> String {
-        day.formatted(.dateTime.weekday(.abbreviated))
-    }
-
-    private func timelineWeekTitle(for days: [Date]) -> String {
-        guard let start = days.first, let end = days.last else {
-            return ""
-        }
-
-        if calendar.isDate(start, equalTo: end, toGranularity: .month) {
-            return "\(start.formatted(.dateTime.month(.abbreviated))) \(start.formatted(.dateTime.day()))-\(end.formatted(.dateTime.day()))"
-        }
-
-        return "\(start.formatted(.dateTime.month(.abbreviated).day()))-\(end.formatted(.dateTime.month(.abbreviated).day()))"
-    }
-
-    private func timelineSyncMessage(
-        for cloudKitStatus: CloudKitStatusViewState
-    ) -> String? {
-        if cloudKitStatus.isAccountUnavailable {
-            return nil
-        }
-
-        switch cloudKitStatus.state {
-        case .upToDate:
-            return nil
-        case .pendingSync:
-            return "Changes are saved locally and will sync automatically."
-        case .syncing, .failed:
-            return cloudKitStatus.detailMessage
-        }
-    }
-
-    private func shortTimeText(for date: Date) -> String {
-        date.formatted(date: .omitted, time: .shortened)
-    }
-
-    private func compactTimelineText(for event: BabyEvent, child: Child) -> String {
-        switch event {
-        case let .breastFeed(feed):
-            let durationMinutes = max(
-                1,
-                Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60)
-            )
-            return "\(durationMinutes) min"
-        case let .bottleFeed(feed):
-            return FeedVolumeConverter.format(
-                amountMilliliters: feed.amountMilliliters,
-                in: child.preferredFeedVolumeUnit
-            )
-        case let .sleep(sleep):
-            guard let endedAt = sleep.endedAt else {
-                return "Sleep"
-            }
-
-            let durationMinutes = max(
-                1,
-                Int(endedAt.timeIntervalSince(sleep.startedAt) / 60)
-            )
-            return "\(durationMinutes) min"
-        case let .nappy(event):
-            switch event.type {
-            case .dry:
-                return "Dry"
-            case .wee:
-                return "Wee"
-            case .poo:
-                return "Poo"
-            case .mixed:
-                return "Mixed"
-            }
-        }
-    }
 
     // MARK: - CSV Import
 
     public func parseCSVForImport(data: Data) {
-        guard let profile else {
+        guard let currentChild else {
             setCSVImportError("No active child selected")
             return
         }
@@ -1671,7 +1166,7 @@ public final class AppModel {
 
         do {
             let taggedEvents = try CheckImportDuplicatesUseCase(eventRepository: eventRepository)
-                .execute(.init(events: parseResult.events, childID: profile.child.id))
+                .execute(.init(events: parseResult.events, childID: currentChild.id))
             csvImportState = .previewing(ImportPreviewState(parseResult: parseResult, taggedEvents: taggedEvents))
         } catch {
             // If duplicate check fails, treat everything as new
@@ -1704,7 +1199,7 @@ public final class AppModel {
 
     public func confirmImport() {
         guard case .previewing(let previewState) = csvImportState else { return }
-        guard let profile, let localUser else {
+        guard let currentChild, let currentMembership, let localUser else {
             setCSVImportError("No active child selected")
             return
         }
@@ -1727,9 +1222,9 @@ public final class AppModel {
                     .execute(
                         .init(
                             events: eventsToImport,
-                            childID: profile.child.id,
+                            childID: currentChild.id,
                             localUserID: localUser.id,
-                            membership: profile.currentMembership
+                            membership: currentMembership
                         ),
                         onProgress: { [weak self] completed, total in
                             self?.csvImportState = .importing(.init(completed: completed, total: total))
@@ -1762,7 +1257,7 @@ public final class AppModel {
     // MARK: - Export
 
     public func exportData() {
-        guard let profile else {
+        guard let currentChild, let currentMembership else {
             setDataExportError("No active child selected")
             return
         }
@@ -1771,7 +1266,7 @@ public final class AppModel {
 
         Task { @MainActor in
             do {
-                let tempURL = try performExport(child: profile.child, membership: profile.currentMembership)
+                let tempURL = try performExport(child: currentChild, membership: currentMembership)
                 dataExportState = .ready(tempURL)
             } catch {
                 setDataExportError(resolveErrorMessage(for: error))
@@ -1834,7 +1329,7 @@ public final class AppModel {
     // MARK: - Nest Import
 
     public func parseNestFileForImport(data: Data) {
-        guard let profile else {
+        guard let currentChild else {
             setNestImportError("No active child selected")
             return
         }
@@ -1848,7 +1343,7 @@ public final class AppModel {
 
         do {
             let taggedEvents = try CheckImportDuplicatesUseCase(eventRepository: eventRepository)
-                .execute(.init(events: parseResult.events, childID: profile.child.id))
+                .execute(.init(events: parseResult.events, childID: currentChild.id))
             nestImportState = .previewing(ImportPreviewState(parseResult: parseResult, taggedEvents: taggedEvents))
         } catch {
             let taggedEvents = parseResult.events.map { TaggedImportEvent(event: $0, duplicateStatus: .new) }
@@ -1880,7 +1375,7 @@ public final class AppModel {
 
     public func confirmNestImport() {
         guard case .previewing(let previewState) = nestImportState else { return }
-        guard let profile, let localUser else {
+        guard let currentChild, let currentMembership, let localUser else {
             setNestImportError("No active child selected")
             return
         }
@@ -1903,9 +1398,9 @@ public final class AppModel {
                     .execute(
                         .init(
                             events: eventsToImport,
-                            childID: profile.child.id,
+                            childID: currentChild.id,
                             localUserID: localUser.id,
-                            membership: profile.currentMembership
+                            membership: currentMembership
                         ),
                         onProgress: { [weak self] completed, total in
                             self?.nestImportState = .importing(.init(completed: completed, total: total))

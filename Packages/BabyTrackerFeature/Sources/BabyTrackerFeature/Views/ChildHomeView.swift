@@ -71,15 +71,13 @@ public struct ChildHomeView: View {
             Text("iCloud Sync")
                 .font(.headline)
 
-            if let profile = childProfileViewModel.profile {
-                NavigationLink {
-                    ChildProfileSyncView(model: model, profile: profile)
-                } label: {
-                    syncStatusCard
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("home-sync-status-row")
+            NavigationLink {
+                ChildProfileSyncView(model: model, viewModel: childProfileViewModel)
+            } label: {
+                syncStatusCard
             }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("home-sync-status-row")
         }
     }
 

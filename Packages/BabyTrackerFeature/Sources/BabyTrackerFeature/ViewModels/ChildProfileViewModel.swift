@@ -2,13 +2,7 @@ import BabyTrackerDomain
 import Foundation
 import Observation
 
-/// Provides child profile screen state by observing `AppModel.profile`.
-///
-/// Currently bridges `profile.*` for child data, permissions, caregivers,
-/// and sharing. Exposes `profile` directly for sub-views that still depend
-/// on `ChildProfileScreenState`. When `ChildProfileScreenState` is removed
-/// (Stage 10) these will be computed directly from raw AppModel data using
-/// `BuildCaregiverMembershipsUseCase` and related UseCases.
+/// Provides child profile screen state computed directly from `AppModel` flat data.
 @MainActor
 @Observable
 public final class ChildProfileViewModel {
@@ -18,113 +12,126 @@ public final class ChildProfileViewModel {
         self.appModel = appModel
     }
 
-    // MARK: - Raw profile access (for sub-views still using ChildProfileScreenState)
-
-    public var profile: ChildProfileScreenState? {
-        appModel.profile
-    }
-
     // MARK: - Child data
 
     public var child: Child? {
-        appModel.profile?.child
+        appModel.currentChild
     }
 
     public var childName: String {
-        appModel.profile?.child.name ?? ""
+        appModel.currentChild?.name ?? ""
     }
 
     // MARK: - User & membership
 
     public var localUser: UserIdentity? {
-        appModel.profile?.localUser
+        appModel.localUser
     }
 
     public var currentMembership: Membership? {
-        appModel.profile?.currentMembership
+        appModel.currentMembership
     }
 
     // MARK: - Permissions
 
     public var canLogEvents: Bool {
-        appModel.profile?.canLogEvents ?? false
+        guard let m = appModel.currentMembership else { return false }
+        return ChildAccessPolicy.canPerform(.logEvent, membership: m)
     }
 
     public var canManageEvents: Bool {
-        appModel.profile?.canManageEvents ?? false
+        guard let m = appModel.currentMembership else { return false }
+        return ChildAccessPolicy.canPerform(.editEvent, membership: m)
+            && ChildAccessPolicy.canPerform(.deleteEvent, membership: m)
     }
 
     public var canShareChild: Bool {
-        appModel.profile?.canShareChild ?? false
+        guard let m = appModel.currentMembership else { return false }
+        return ChildAccessPolicy.canPerform(.inviteCaregiver, membership: m)
+            && appModel.cloudKitStatus.state != .failed
     }
 
     public var canEditChild: Bool {
-        appModel.profile?.canEditChild ?? false
+        guard let m = appModel.currentMembership else { return false }
+        return ChildAccessPolicy.canPerform(.editChild, membership: m)
     }
 
     public var canArchiveChild: Bool {
-        appModel.profile?.canArchiveChild ?? false
+        guard let m = appModel.currentMembership else { return false }
+        return ChildAccessPolicy.canPerform(.archiveChild, membership: m)
     }
 
     public var canHardDelete: Bool {
-        appModel.profile?.canHardDelete ?? false
+        guard let m = appModel.currentMembership else { return false }
+        return ChildAccessPolicy.isActiveOwner(m)
     }
 
     public var canLeaveShare: Bool {
-        appModel.profile?.canLeaveShare ?? false
+        guard let m = appModel.currentMembership else { return false }
+        return m.role == .caregiver && m.status == .active
     }
 
     public var canManageSharing: Bool {
-        appModel.profile?.canManageSharing ?? false
+        guard let m = appModel.currentMembership else { return false }
+        return ChildAccessPolicy.canPerform(.inviteCaregiver, membership: m)
     }
 
     public var canCreateLocalChild: Bool {
-        appModel.profile?.canCreateLocalChild ?? false
+        appModel.localUser != nil
     }
 
     // MARK: - Caregivers & sharing
 
+    private var caregiverOutput: BuildCaregiverMembershipsUseCase.Output {
+        let usersByID = Dictionary(uniqueKeysWithValues: appModel.membershipUsers.map { ($0.id, $0) })
+        return BuildCaregiverMembershipsUseCase.execute(
+            memberships: appModel.memberships,
+            usersByID: usersByID,
+            pendingInvites: appModel.pendingShareInvites
+        )
+    }
+
     public var owner: CaregiverMembershipViewState? {
-        appModel.profile?.owner
+        caregiverOutput.owner
     }
 
     public var activeCaregivers: [CaregiverMembershipViewState] {
-        appModel.profile?.activeCaregivers ?? []
+        caregiverOutput.activeCaregivers
     }
 
     public var pendingShareInvites: [PendingShareInviteViewState] {
-        appModel.profile?.pendingShareInvites ?? []
+        caregiverOutput.pendingShareInvites
     }
 
     public var removedCaregivers: [CaregiverMembershipViewState] {
-        appModel.profile?.removedCaregivers ?? []
+        caregiverOutput.removedCaregivers
     }
 
     // MARK: - Sync & events
 
     public var cloudKitStatus: CloudKitStatusViewState {
-        appModel.profile?.cloudKitStatus ?? CloudKitStatusViewState(summary: SyncStatusSummary())
+        appModel.cloudKitStatus
     }
 
     public var latestEventSyncMarker: EventSyncMarkerViewState? {
-        appModel.profile?.latestEventSyncMarker
+        BuildLatestEventSyncMarkerUseCase.execute(events: appModel.events)
     }
 
     public var totalEventCount: Int {
-        appModel.profile?.totalEventCount ?? 0
+        appModel.events.count
     }
 
     public var pendingChanges: [PendingChangeSummaryItem] {
-        appModel.profile?.pendingChanges ?? []
+        appModel.pendingChanges
     }
 
     public var activeSleepSession: ActiveSleepSessionViewState? {
-        appModel.profile?.activeSleepSession
+        appModel.activeSleep.map(ActiveSleepSessionViewState.init)
     }
 
     // MARK: - Child list
 
     public var availableChildren: [ChildSummary] {
-        appModel.profile?.availableChildren ?? []
+        appModel.activeChildren
     }
 }

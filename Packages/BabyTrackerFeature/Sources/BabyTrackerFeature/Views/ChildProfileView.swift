@@ -31,18 +31,15 @@ public struct ChildProfileView: View {
     public var body: some View {
         List {
             Section("This Child") {
-                if let profile = viewModel.profile {
-                    NavigationLink {
-                        ChildProfileDetailsView(
-                            model: model,
-                            profile: profile,
-                            editChildAction: editChildAction
-                        )
-                    } label: {
-                        childHeaderRow
-                    }
-                    .accessibilityIdentifier("profile-details-row")
+                NavigationLink {
+                    ChildProfileDetailsView(
+                        viewModel: viewModel,
+                        editChildAction: editChildAction
+                    )
+                } label: {
+                    childHeaderRow
                 }
+                .accessibilityIdentifier("profile-details-row")
 
                 Picker("Bottle Volume Unit", selection: volumeUnitBinding) {
                     ForEach(FeedVolumeUnit.allCases, id: \.rawValue) { unit in
@@ -61,11 +58,11 @@ public struct ChildProfileView: View {
                 )
                 .accessibilityIdentifier("live-activities-toggle")
 
-                if showsManageChild, let profile = viewModel.profile {
+                if showsManageChild {
                     NavigationLink {
                         ChildProfileManageView(
                             model: model,
-                            profile: profile,
+                            viewModel: viewModel,
                             archiveAction: archiveAction,
                             hardDeleteAction: hardDeleteAction
                         )
@@ -80,20 +77,18 @@ public struct ChildProfileView: View {
             }
 
             Section("Family & Sharing") {
-                if let profile = viewModel.profile {
-                    NavigationLink {
-                        ChildProfileSharingView(
-                            model: model,
-                            profile: profile,
-                            shareChildAction: shareChildAction
-                        )
-                    } label: {
-                        settingsRow(
-                            title: "Sharing & Caregivers",
-                            value: sharingSummary,
-                            accessibilityIdentifier: "profile-sharing-row"
-                        )
-                    }
+                NavigationLink {
+                    ChildProfileSharingView(
+                        model: model,
+                        viewModel: viewModel,
+                        shareChildAction: shareChildAction
+                    )
+                } label: {
+                    settingsRow(
+                        title: "Sharing & Caregivers",
+                        value: sharingSummary,
+                        accessibilityIdentifier: "profile-sharing-row"
+                    )
                 }
 
                 LabeledContent("Signed In As") {
@@ -154,19 +149,17 @@ public struct ChildProfileView: View {
                     )
                 }
 
-                if let profile = viewModel.profile {
-                    NavigationLink {
-                        AppSettingsView(
-                            model: model,
-                            profile: profile
-                        )
-                    } label: {
-                        settingsRow(
-                            title: "App Settings",
-                            value: nil,
-                            accessibilityIdentifier: "profile-app-settings-row"
-                        )
-                    }
+                NavigationLink {
+                    AppSettingsView(
+                        model: model,
+                        viewModel: viewModel
+                    )
+                } label: {
+                    settingsRow(
+                        title: "App Settings",
+                        value: nil,
+                        accessibilityIdentifier: "profile-app-settings-row"
+                    )
                 }
             }
         }

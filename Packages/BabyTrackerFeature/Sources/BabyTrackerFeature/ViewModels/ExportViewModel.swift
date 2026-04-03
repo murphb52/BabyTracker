@@ -17,8 +17,8 @@ public final class ExportViewModel {
     }
 
     public func exportData() {
-        guard let child = appModel.profile?.child,
-              let membership = appModel.profile?.currentMembership else {
+        guard let child = appModel.currentChild,
+              let membership = appModel.currentMembership else {
             state = .error("No active child selected")
             return
         }

@@ -3,20 +3,20 @@ import SwiftUI
 
 public struct ChildProfileSyncView: View {
     let model: AppModel
-    let profile: ChildProfileScreenState
+    let viewModel: ChildProfileViewModel
 
     public init(
         model: AppModel,
-        profile: ChildProfileScreenState
+        viewModel: ChildProfileViewModel
     ) {
         self.model = model
-        self.profile = profile
+        self.viewModel = viewModel
     }
 
     public var body: some View {
         List {
-            if let bannerTitle = profile.cloudKitStatus.syncSettingsBannerTitle,
-               let bannerMessage = profile.cloudKitStatus.syncSettingsBannerMessage {
+            if let bannerTitle = viewModel.cloudKitStatus.syncSettingsBannerTitle,
+               let bannerMessage = viewModel.cloudKitStatus.syncSettingsBannerMessage {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
                         Label(bannerTitle, systemImage: "icloud.slash")
@@ -33,34 +33,34 @@ public struct ChildProfileSyncView: View {
 
             Section("Status") {
                 LabeledContent("Sync") {
-                    Text(profile.cloudKitStatus.statusTitle)
-                        .foregroundStyle(syncStatusColor(for: profile.cloudKitStatus))
+                    Text(viewModel.cloudKitStatus.statusTitle)
+                        .foregroundStyle(syncStatusColor(for: viewModel.cloudKitStatus))
                 }
 
                 LabeledContent("Backup") {
-                    Text(profile.cloudKitStatus.backupTitle)
+                    Text(viewModel.cloudKitStatus.backupTitle)
                 }
 
-                if let lastSyncAt = profile.cloudKitStatus.lastSyncAt {
+                if let lastSyncAt = viewModel.cloudKitStatus.lastSyncAt {
                     LabeledContent("Last Sync") {
                         Text(lastSyncAt, format: .dateTime.month(.abbreviated).day().hour().minute())
                     }
                 }
 
-                if !profile.pendingChanges.isEmpty {
+                if !viewModel.pendingChanges.isEmpty {
                     LabeledContent("Pending Changes") {
-                        Text("\(profile.pendingChanges.reduce(0) { $0 + $1.count })")
+                        Text("\(viewModel.pendingChanges.reduce(0) { $0 + $1.count })")
                     }
-                } else if let pendingChangesTitle = profile.cloudKitStatus.pendingChangesTitle {
+                } else if let pendingChangesTitle = viewModel.cloudKitStatus.pendingChangesTitle {
                     LabeledContent("Pending Changes") {
                         Text(pendingChangesTitle)
                     }
                 }
             }
 
-            if !profile.pendingChanges.isEmpty {
+            if !viewModel.pendingChanges.isEmpty {
                 Section("Current Child Pending Changes") {
-                    ForEach(profile.pendingChanges, id: \.label) { item in
+                    ForEach(viewModel.pendingChanges, id: \.label) { item in
                         LabeledContent {
                             Text("\(item.count)")
                                 .foregroundStyle(.secondary)
@@ -71,7 +71,7 @@ public struct ChildProfileSyncView: View {
                 }
             }
 
-            if let detailMessage = profile.cloudKitStatus.detailMessage {
+            if let detailMessage = viewModel.cloudKitStatus.detailMessage {
                 Section("Details") {
                     Text(detailMessage)
                         .font(.subheadline)
@@ -79,29 +79,29 @@ public struct ChildProfileSyncView: View {
                 }
             }
 
-            if let latestEventSyncMarker = profile.latestEventSyncMarker {
+            if let marker = viewModel.latestEventSyncMarker {
                 Section("Advanced Diagnostics") {
                     LabeledContent("Visible Events") {
-                        Text("\(profile.totalEventCount)")
+                        Text("\(viewModel.totalEventCount)")
                     }
 
                     LabeledContent("Latest Event Type") {
-                        Text(BabyEventPresentation.title(for: latestEventSyncMarker.kind))
+                        Text(BabyEventPresentation.title(for: marker.kind))
                     }
 
                     LabeledContent("Latest Updated") {
-                        Text(latestEventSyncMarker.updatedAt, format: .dateTime.month(.abbreviated).day().hour().minute().second())
+                        Text(marker.updatedAt, format: .dateTime.month(.abbreviated).day().hour().minute().second())
                     }
 
                     LabeledContent("Latest Occurred") {
-                        Text(latestEventSyncMarker.occurredAt, format: .dateTime.month(.abbreviated).day().hour().minute().second())
+                        Text(marker.occurredAt, format: .dateTime.month(.abbreviated).day().hour().minute().second())
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Latest Event ID")
                             .font(.subheadline.weight(.medium))
 
-                        Text(latestEventSyncMarker.id.uuidString)
+                        Text(marker.id.uuidString)
                             .font(.footnote.monospaced())
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
@@ -129,14 +129,10 @@ public struct ChildProfileSyncView: View {
 
     private func syncStatusColor(for state: CloudKitStatusViewState) -> Color {
         switch state.state {
-        case .upToDate:
-            .green
-        case .syncing:
-            .blue
-        case .pendingSync:
-            .orange
-        case .failed:
-            .red
+        case .upToDate: .green
+        case .syncing: .blue
+        case .pendingSync: .orange
+        case .failed: .red
         }
     }
 }
@@ -144,8 +140,9 @@ public struct ChildProfileSyncView: View {
 #Preview {
     NavigationStack {
         let model = ChildProfilePreviewFactory.makeModel()
-        if let profile = model.profile {
-            ChildProfileSyncView(model: model, profile: profile)
-        }
+        ChildProfileSyncView(
+            model: model,
+            viewModel: ChildProfileViewModel(appModel: model)
+        )
     }
 }

@@ -20,7 +20,7 @@ public final class ImportViewModel {
     // MARK: - CSV Import
 
     public func parseCSVForImport(data: Data) {
-        guard let profile = appModel.profile else {
+        guard let child = appModel.currentChild else {
             csvImportState = .error("No active child selected")
             return
         }
@@ -31,7 +31,7 @@ public final class ImportViewModel {
         do {
             taggedEvents = try appModel.checkImportDuplicates(
                 events: parseResult.events,
-                childID: profile.child.id
+                childID: child.id
             )
         } catch {
             taggedEvents = parseResult.events.map { TaggedImportEvent(event: $0, duplicateStatus: .new) }
@@ -64,7 +64,9 @@ public final class ImportViewModel {
 
     public func confirmImport() {
         guard case .previewing(let previewState) = csvImportState else { return }
-        guard let profile = appModel.profile, let localUser = appModel.localUser else {
+        guard let child = appModel.currentChild,
+              let localUser = appModel.localUser,
+              let membership = appModel.currentMembership else {
             csvImportState = .error("No active child selected")
             return
         }
@@ -81,9 +83,9 @@ public final class ImportViewModel {
             do {
                 let saveResult = try await appModel.performImport(
                     events: eventsToImport,
-                    childID: profile.child.id,
+                    childID: child.id,
                     localUserID: localUser.id,
-                    membership: profile.currentMembership,
+                    membership: membership,
                     onProgress: { [weak self] completed, total in
                         self?.csvImportState = .importing(.init(completed: completed, total: total))
                     }
@@ -112,7 +114,7 @@ public final class ImportViewModel {
     // MARK: - Nest Import
 
     public func parseNestFileForImport(data: Data) {
-        guard let profile = appModel.profile else {
+        guard let child = appModel.currentChild else {
             nestImportState = .error("No active child selected")
             return
         }
@@ -128,7 +130,7 @@ public final class ImportViewModel {
         do {
             taggedEvents = try appModel.checkImportDuplicates(
                 events: parseResult.events,
-                childID: profile.child.id
+                childID: child.id
             )
         } catch {
             taggedEvents = parseResult.events.map { TaggedImportEvent(event: $0, duplicateStatus: .new) }
@@ -161,7 +163,9 @@ public final class ImportViewModel {
 
     public func confirmNestImport() {
         guard case .previewing(let previewState) = nestImportState else { return }
-        guard let profile = appModel.profile, let localUser = appModel.localUser else {
+        guard let child = appModel.currentChild,
+              let localUser = appModel.localUser,
+              let membership = appModel.currentMembership else {
             nestImportState = .error("No active child selected")
             return
         }
@@ -178,9 +182,9 @@ public final class ImportViewModel {
             do {
                 let saveResult = try await appModel.performImport(
                     events: eventsToImport,
-                    childID: profile.child.id,
+                    childID: child.id,
                     localUserID: localUser.id,
-                    membership: profile.currentMembership,
+                    membership: membership,
                     onProgress: { [weak self] completed, total in
                         self?.nestImportState = .importing(.init(completed: completed, total: total))
                     }

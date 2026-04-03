@@ -205,7 +205,7 @@ public enum BuildTimelineBlocksUseCase {
         max(0, min(1_440, Int(date.timeIntervalSince(dayStart) / 60)))
     }
 
-    private static func startDate(for event: BabyEvent) -> Date {
+    public static func startDate(for event: BabyEvent) -> Date {
         switch event {
         case let .breastFeed(feed): return feed.startedAt
         case let .bottleFeed(feed): return feed.metadata.occurredAt

@@ -2,13 +2,7 @@ import BabyTrackerDomain
 import Foundation
 import Observation
 
-/// Provides the home-screen state by observing `AppModel.profile`.
-///
-/// Currently bridges `profile.home.*`, `profile.activeSleepSession`,
-/// and `profile.canLogEvents`. When `ChildProfileScreenState` is removed
-/// (Stage 10) these will be computed directly from raw AppModel data
-/// using `BuildCurrentStatusViewStateUseCase`, `BuildEventCardsUseCase`,
-/// and `GetActiveSleepUseCase`.
+/// Provides the home-screen state by computing directly from `AppModel` raw data.
 @MainActor
 @Observable
 public final class HomeViewModel {
@@ -21,38 +15,41 @@ public final class HomeViewModel {
     // MARK: - Computed state
 
     public var currentSleep: CurrentSleepCardViewState? {
-        appModel.profile?.home.currentSleep
+        guard let activeSleep = appModel.activeSleep else { return nil }
+        return CurrentSleepCardViewState(sleepEventID: activeSleep.id, startedAt: activeSleep.startedAt)
     }
 
     public var currentStatus: CurrentStatusCardViewState {
-        appModel.profile?.home.currentStatus ?? CurrentStatusCardViewState(
-            timeSinceLastFeedAt: nil,
-            feedsTodayCount: 0,
-            timeSinceLastNappyAt: nil
-        )
+        guard let child = appModel.currentChild else {
+            return CurrentStatusCardViewState(timeSinceLastFeedAt: nil, feedsTodayCount: 0, timeSinceLastNappyAt: nil)
+        }
+        return BuildCurrentStatusViewStateUseCase.execute(events: appModel.events, child: child)
     }
 
     public var recentEvents: [EventCardViewState] {
-        appModel.profile?.home.recentEvents ?? []
+        guard let child = appModel.currentChild else { return [] }
+        return Array(
+            BuildEventCardsUseCase.execute(
+                events: appModel.events,
+                preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
+            ).prefix(6)
+        )
     }
 
     public var syncStatus: CloudKitStatusViewState {
-        appModel.profile?.home.syncStatus ?? CloudKitStatusViewState(summary: SyncStatusSummary())
+        appModel.cloudKitStatus
     }
 
-    public var emptyStateTitle: String {
-        appModel.profile?.home.emptyStateTitle ?? "No recent activity"
-    }
+    public var emptyStateTitle: String { "No recent activity" }
 
-    public var emptyStateMessage: String {
-        appModel.profile?.home.emptyStateMessage ?? "Use Quick Log to add the first event."
-    }
+    public var emptyStateMessage: String { "Use Quick Log to add the first event." }
 
     public var canLogEvents: Bool {
-        appModel.profile?.canLogEvents ?? false
+        guard let membership = appModel.currentMembership else { return false }
+        return ChildAccessPolicy.canPerform(.logEvent, membership: membership)
     }
 
     public var activeSleepSession: ActiveSleepSessionViewState? {
-        appModel.profile?.activeSleepSession
+        appModel.activeSleep.map(ActiveSleepSessionViewState.init)
     }
 }
