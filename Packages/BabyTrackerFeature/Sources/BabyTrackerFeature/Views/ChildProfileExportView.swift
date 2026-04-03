@@ -1,15 +1,15 @@
 import SwiftUI
 
 public struct ChildProfileExportView: View {
-    let model: AppModel
+    @State private var viewModel: ExportViewModel
 
-    public init(model: AppModel) {
-        self.model = model
+    public init(appModel: AppModel) {
+        _viewModel = State(initialValue: ExportViewModel(appModel: appModel))
     }
 
     public var body: some View {
         Group {
-            switch model.dataExportState {
+            switch viewModel.state {
             case .idle:
                 idleView
             case .exporting:
@@ -23,7 +23,7 @@ public struct ChildProfileExportView: View {
         .navigationTitle("Export Data")
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear {
-            model.dismissExport()
+            viewModel.dismiss()
         }
     }
 
@@ -63,7 +63,7 @@ public struct ChildProfileExportView: View {
 
             Section {
                 Button {
-                    model.exportData()
+                    viewModel.exportData()
                 } label: {
                     Label("Export Data", systemImage: "square.and.arrow.up")
                         .frame(maxWidth: .infinity)
@@ -122,7 +122,7 @@ public struct ChildProfileExportView: View {
                 .accessibilityIdentifier("share-export-file-button")
 
                 Button {
-                    model.dismissExport()
+                    viewModel.dismiss()
                 } label: {
                     Text("Done")
                         .frame(maxWidth: .infinity)
@@ -158,7 +158,7 @@ public struct ChildProfileExportView: View {
 
             Section {
                 Button {
-                    model.dismissExport()
+                    viewModel.dismiss()
                 } label: {
                     Text("Try Again")
                         .frame(maxWidth: .infinity)

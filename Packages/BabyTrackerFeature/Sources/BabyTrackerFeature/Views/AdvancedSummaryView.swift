@@ -1,21 +1,21 @@
 import SwiftUI
 
 public struct AdvancedSummaryView: View {
-    let summary: SummaryScreenState
+    let viewModel: SummaryViewModel
 
     @State private var selection: AdvancedSummarySelection
 
     public init(
-        summary: SummaryScreenState,
+        viewModel: SummaryViewModel,
         initialSelection: AdvancedSummarySelection = .range(.today)
     ) {
-        self.summary = summary
+        self.viewModel = viewModel
         _selection = State(initialValue: initialSelection)
     }
 
     public var body: some View {
         let viewState = AdvancedSummaryMetricsCalculator.makeViewState(
-            from: summary.events,
+            from: viewModel.events,
             selection: selection
         )
 
@@ -248,7 +248,7 @@ public struct AdvancedSummaryView: View {
 #Preview {
     NavigationStack {
         AdvancedSummaryView(
-            summary: SummaryScreenPreviewFactory.summaryState,
+            viewModel: SummaryScreenPreviewFactory.summaryViewModel,
             initialSelection: .range(.sevenDays)
         )
     }

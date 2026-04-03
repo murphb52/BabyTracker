@@ -2,12 +2,8 @@ import BabyTrackerDomain
 import Foundation
 
 enum SummaryScreenPreviewFactory {
-    static var summaryState: SummaryScreenState {
-        SummaryScreenState(
-            events: sampleEvents,
-            emptyStateTitle: "No summary data yet",
-            emptyStateMessage: "Log feeds, sleep, and nappies to unlock trends."
-        )
+    static var summaryViewModel: SummaryViewModel {
+        SummaryViewModel(events: sampleEvents)
     }
 
     private static var sampleEvents: [BabyEvent] {

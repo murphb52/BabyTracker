@@ -30,7 +30,7 @@ public struct AppSettingsView: View {
 
             Section("Data Tools") {
                 NavigationLink {
-                    ChildProfileExportView(model: model)
+                    ChildProfileExportView(appModel: model)
                 } label: {
                     settingsRow(
                         title: "Export Data",

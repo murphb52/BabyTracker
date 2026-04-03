@@ -4,17 +4,17 @@ import BabyTrackerSync
 import SwiftUI
 
 public struct ChildProfileImportView: View {
-    let model: AppModel
+    @State private var viewModel: ImportViewModel
 
     @State private var isFilePickerPresented = false
 
-    public init(model: AppModel) {
-        self.model = model
+    public init(appModel: AppModel) {
+        _viewModel = State(initialValue: ImportViewModel(appModel: appModel))
     }
 
     public var body: some View {
         Group {
-            switch model.csvImportState {
+            switch viewModel.csvImportState {
             case .idle:
                 idleView
             case .previewing(let previewState):
@@ -111,14 +111,14 @@ public struct ChildProfileImportView: View {
             if !state.duplicateEvents.isEmpty {
                 Section {
                     Button {
-                        model.skipAllDuplicates()
+                        viewModel.skipAllDuplicates()
                     } label: {
                         Label("Skip all duplicates", systemImage: "xmark.circle")
                     }
                     .accessibilityIdentifier("skip-all-duplicates-button")
 
                     Button {
-                        model.selectAllImportEvents()
+                        viewModel.selectAllImportEvents()
                     } label: {
                         Label("Import all including duplicates", systemImage: "arrow.down.circle")
                     }
@@ -162,7 +162,7 @@ public struct ChildProfileImportView: View {
                     ForEach(state.duplicateEvents) { tagged in
                         let isSelected = state.selectedEventIDs.contains(tagged.id)
                         Button {
-                            model.toggleImportEvent(id: tagged.id)
+                            viewModel.toggleImportEvent(id: tagged.id)
                         } label: {
                             ImportEventRow(tagged: tagged, isSelected: isSelected)
                         }
@@ -192,7 +192,7 @@ public struct ChildProfileImportView: View {
             Section {
                 let count = state.selectedCount
                 Button {
-                    model.confirmImport()
+                    viewModel.confirmImport()
                 } label: {
                     Label(
                         count == 0 ? "No Events Selected" : "Import \(count) Event\(count == 1 ? "" : "s")",
@@ -205,7 +205,7 @@ public struct ChildProfileImportView: View {
                 .accessibilityIdentifier("confirm-import-button")
 
                 Button(role: .cancel) {
-                    model.cancelImport()
+                    viewModel.cancelImport()
                 } label: {
                     Text("Cancel")
                         .frame(maxWidth: .infinity)
@@ -263,7 +263,7 @@ public struct ChildProfileImportView: View {
 
             Section {
                 Button {
-                    model.dismissImportResult()
+                    viewModel.dismissImportResult()
                 } label: {
                     Text("Done")
                         .frame(maxWidth: .infinity)
@@ -300,7 +300,7 @@ public struct ChildProfileImportView: View {
 
             Section {
                 Button {
-                    model.cancelImport()
+                    viewModel.cancelImport()
                 } label: {
                     Text("Try Again")
                         .frame(maxWidth: .infinity)
@@ -345,12 +345,12 @@ public struct ChildProfileImportView: View {
             let accessing = url.startAccessingSecurityScopedResource()
             defer { if accessing { url.stopAccessingSecurityScopedResource() } }
             guard let data = try? Data(contentsOf: url) else {
-                model.reportImportFileError("Could not read the selected file")
+                viewModel.reportImportFileError("Could not read the selected file")
                 return
             }
-            model.parseCSVForImport(data: data)
+            viewModel.parseCSVForImport(data: data)
         case .failure(let error):
-            model.reportImportFileError(error.localizedDescription)
+            viewModel.reportImportFileError(error.localizedDescription)
         }
     }
 

@@ -1771,21 +1771,7 @@ public final class AppModel {
 
         Task { @MainActor in
             do {
-                let data = try ExportEventsUseCase(
-                    eventRepository: eventRepository,
-                    hapticFeedbackProvider: hapticFeedbackProvider
-                )
-                    .execute(.init(child: profile.child, membership: profile.currentMembership))
-
-                let childName = profile.child.name
-                    .replacingOccurrences(of: " ", with: "-")
-                    .filter { $0.isLetter || $0 == "-" }
-                let dateStamp = Date().formatted(.iso8601.year().month().day())
-                let fileName = "Nest-\(childName)-\(dateStamp).json"
-
-                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-                try data.write(to: tempURL, options: .atomic)
-
+                let tempURL = try performExport(child: profile.child, membership: profile.currentMembership)
                 dataExportState = .ready(tempURL)
             } catch {
                 setDataExportError(resolveErrorMessage(for: error))
@@ -1795,6 +1781,54 @@ public final class AppModel {
 
     public func dismissExport() {
         dataExportState = .idle
+    }
+
+    /// Executes the export and returns the temp-file URL. Used by ``ExportViewModel``.
+    public func performExport(child: Child, membership: Membership) throws -> URL {
+        let data = try ExportEventsUseCase(
+            eventRepository: eventRepository,
+            hapticFeedbackProvider: hapticFeedbackProvider
+        )
+        .execute(.init(child: child, membership: membership))
+
+        let childName = child.name
+            .replacingOccurrences(of: " ", with: "-")
+            .filter { $0.isLetter || $0 == "-" }
+        let dateStamp = Date().formatted(.iso8601.year().month().day())
+        let fileName = "Nest-\(childName)-\(dateStamp).json"
+
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        try data.write(to: tempURL, options: .atomic)
+        return tempURL
+    }
+
+    // MARK: - Import delegation (used by ImportViewModel)
+
+    /// Tags import candidates as new or duplicate. Used by ``ImportViewModel``.
+    public func checkImportDuplicates(events: [ImportableEvent], childID: UUID) throws -> [TaggedImportEvent] {
+        try CheckImportDuplicatesUseCase(eventRepository: eventRepository)
+            .execute(.init(events: events, childID: childID))
+    }
+
+    /// Executes an import batch and triggers a data refresh. Used by ``ImportViewModel``.
+    public func performImport(
+        events: [ImportableEvent],
+        childID: UUID,
+        localUserID: UUID,
+        membership: Membership,
+        onProgress: @escaping @MainActor (Int, Int) -> Void
+    ) async throws -> CSVImportResult {
+        let result = try await ImportEventsUseCase(
+            eventRepository: eventRepository,
+            hapticFeedbackProvider: hapticFeedbackProvider
+        )
+        .execute(
+            .init(events: events, childID: childID, localUserID: localUserID, membership: membership),
+            onProgress: onProgress
+        )
+        refresh(selecting: childSelectionStore.loadSelectedChildID())
+        await runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
+        return result
     }
 
     // MARK: - Nest Import
