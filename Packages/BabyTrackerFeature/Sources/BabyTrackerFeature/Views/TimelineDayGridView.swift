@@ -85,12 +85,19 @@ public struct TimelineDayGridView: View {
             ForEach(grid.columns, id: \.kind) { column in
                 Text(column.title)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(BabyEventStyle.accentColor(for: eventKind(for: column.kind)))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                     .background(
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color(.secondarySystemGroupedBackground))
+                            .fill(BabyEventStyle.backgroundColor(for: eventKind(for: column.kind)))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(
+                                BabyEventStyle.accentColor(for: eventKind(for: column.kind)).opacity(0.35),
+                                lineWidth: 1
+                            )
                     )
             }
         }
@@ -165,6 +172,19 @@ public struct TimelineDayGridView: View {
 
     private func hourAnchorID(for hour: Int) -> String {
         "timeline-day-grid-hour-\(hour)"
+    }
+
+    private func eventKind(for columnKind: TimelineDayGridColumnKind) -> BabyEventKind {
+        switch columnKind {
+        case .sleep:
+            .sleep
+        case .nappy:
+            .nappy
+        case .bottleFeed:
+            .bottleFeed
+        case .breastFeed:
+            .breastFeed
+        }
     }
 }
 
