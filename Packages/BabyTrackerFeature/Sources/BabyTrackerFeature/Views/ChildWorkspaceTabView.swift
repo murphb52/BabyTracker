@@ -10,6 +10,10 @@ public struct ChildWorkspaceTabView: View {
     @State private var showingEditChildSheet = false
     @State private var showingEventFilter = false
     @State private var handledSleepSheetRequestToken = 0
+    @State private var summaryViewModel: SummaryViewModel
+    @State private var eventHistoryViewModel: EventHistoryViewModel
+    @State private var homeViewModel: HomeViewModel
+    @State private var timelineViewModel: TimelineViewModel
 
     public init(
         model: AppModel,
@@ -17,6 +21,10 @@ public struct ChildWorkspaceTabView: View {
     ) {
         self.model = model
         self.profile = profile
+        _summaryViewModel = State(initialValue: SummaryViewModel(appModel: model))
+        _eventHistoryViewModel = State(initialValue: EventHistoryViewModel(appModel: model))
+        _homeViewModel = State(initialValue: HomeViewModel(appModel: model))
+        _timelineViewModel = State(initialValue: TimelineViewModel(appModel: model))
     }
 
     public var body: some View {
@@ -25,7 +33,7 @@ public struct ChildWorkspaceTabView: View {
         TabView(selection: $bindableModel.selectedWorkspaceTab) {
             ChildHomeView(
                 model: model,
-                profile: profile,
+                viewModel: homeViewModel,
                 stopSleep: showSleepSheet,
                 quickLogBreastFeed: { activeEventSheet = .quickLogBreastFeed },
                 quickLogBottleFeed: { activeEventSheet = .quickLogBottleFeed },
@@ -40,13 +48,13 @@ public struct ChildWorkspaceTabView: View {
             }
 
             EventHistoryView(
-                profile: profile,
+                viewModel: eventHistoryViewModel,
+                canManageEvents: profile.canManageEvents,
                 openEvent: showEventSheet(for:),
                 deleteEvent: confirmDelete(for:),
                 pendingDeleteEvent: deleteCandidate,
                 confirmDelete: performDelete,
                 cancelDelete: cancelDelete,
-                onFilterUpdate: model.updateEventFilter,
                 onRefresh: model.forceFullSyncRefresh
             )
             .tag(ChildWorkspaceTab.events)
@@ -55,8 +63,7 @@ public struct ChildWorkspaceTabView: View {
             }
 
             TimelineScreenView(
-                model: model,
-                profile: profile,
+                viewModel: timelineViewModel,
                 openEvent: showEventSheet(for:),
                 deleteEvent: confirmDelete(for:),
                 pendingDeleteEvent: deleteCandidate,
@@ -68,7 +75,7 @@ public struct ChildWorkspaceTabView: View {
                 Label("Timeline", systemImage: "calendar")
             }
 
-            SummaryScreenView(summary: profile.summary)
+            SummaryScreenView(viewModel: summaryViewModel)
             .tag(ChildWorkspaceTab.summary)
             .tabItem {
                 Label("Summary", systemImage: "chart.bar.fill")
@@ -95,18 +102,18 @@ public struct ChildWorkspaceTabView: View {
                     Button {
                         showingEventFilter = true
                     } label: {
-                        Image(systemName: profile.eventHistory.filterIsActive
+                        Image(systemName: eventHistoryViewModel.filterIsActive
                             ? "line.3.horizontal.decrease.circle.fill"
                             : "line.3.horizontal.decrease.circle")
                     }
-                    .tint(profile.eventHistory.filterIsActive ? .accentColor : nil)
+                    .tint(eventHistoryViewModel.filterIsActive ? .accentColor : nil)
                     .accessibilityIdentifier("event-history-filter-button")
                 }
             }
             if model.selectedWorkspaceTab == .timeline {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(profile.timeline.displayMode == .day ? "Week View" : "Day View") {
-                        model.toggleTimelineDisplayMode()
+                    Button(timelineViewModel.displayMode == .day ? "Week View" : "Day View") {
+                        timelineViewModel.toggleDisplayMode()
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("timeline-display-mode-button")
@@ -119,8 +126,8 @@ public struct ChildWorkspaceTabView: View {
             eventSheet(for: sheet)
         }
         .sheet(isPresented: $showingEventFilter) {
-            EventFilterView(currentFilter: model.eventFilter) { newFilter in
-                model.updateEventFilter(newFilter)
+            EventFilterView(currentFilter: eventHistoryViewModel.activeFilter) { newFilter in
+                eventHistoryViewModel.updateFilter(newFilter)
             }
         }
         .sheet(isPresented: $showingEditChildSheet) {
@@ -162,7 +169,7 @@ public struct ChildWorkspaceTabView: View {
     }
 
     private func showSleepSheet() {
-        if let activeSleepSession = profile.activeSleepSession {
+        if let activeSleepSession = homeViewModel.activeSleepSession {
             activeEventSheet = .endSleep(
                 id: activeSleepSession.id,
                 startedAt: activeSleepSession.startedAt
