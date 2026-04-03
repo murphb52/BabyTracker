@@ -14,6 +14,7 @@ public struct TimelineDayGridView: View {
     private let timeColumnWidth: CGFloat = 20
     private let columnSpacing: CGFloat = 8
     private let slotHeight: CGFloat = 22
+    private let itemVerticalInset: CGFloat = 3
 
     public init(
         day: Date,
@@ -64,14 +65,14 @@ public struct TimelineDayGridView: View {
                                 confirmDelete: confirmDelete,
                                 cancelDelete: cancelDelete
                             )
-                            .frame(width: columnWidth, height: itemHeight(for: item))
-                            .offset(
-                                x: xOffset(for: index, columnWidth: columnWidth),
-                                y: CGFloat(item.startSlotIndex) * slotHeight + 2
-                            )
-                        }
+                        .frame(width: columnWidth, height: itemHeight(for: item))
+                        .offset(
+                            x: xOffset(for: index, columnWidth: columnWidth),
+                            y: CGFloat(item.startSlotIndex) * slotHeight + itemVerticalInset
+                        )
                     }
                 }
+            }
             }
             .frame(height: CGFloat(slotCount) * slotHeight)
         }
@@ -168,8 +169,8 @@ public struct TimelineDayGridView: View {
 
     private func itemHeight(for item: TimelineDayGridItemViewState) -> CGFloat {
         max(
-            slotHeight - 4,
-            (CGFloat(item.endSlotIndex - item.startSlotIndex) * slotHeight) - 4
+            slotHeight - (itemVerticalInset * 2),
+            (CGFloat(item.endSlotIndex - item.startSlotIndex) * slotHeight) - (itemVerticalInset * 2)
         )
     }
 
