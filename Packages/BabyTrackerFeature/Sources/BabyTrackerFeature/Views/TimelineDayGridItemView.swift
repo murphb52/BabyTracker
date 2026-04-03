@@ -1,3 +1,4 @@
+import BabyTrackerDomain
 import SwiftUI
 
 public struct TimelineDayGridItemView: View {
@@ -107,4 +108,149 @@ public struct TimelineDayGridItemView: View {
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
     }
+}
+
+#Preview("Sleep Block") {
+    TimelineDayGridItemView(
+        item: TimelineDayGridItemPreviewFactory.sleepItem,
+        height: 124,
+        canManageEvents: true,
+        openItem: { _ in },
+        deleteItem: { _ in },
+        pendingDeleteEvent: nil,
+        confirmDelete: {},
+        cancelDelete: {}
+    )
+    .frame(width: 132, height: 124)
+    .padding()
+    .background(Color(.systemGroupedBackground))
+}
+
+#Preview("Compact Nappy Block") {
+    TimelineDayGridItemView(
+        item: TimelineDayGridItemPreviewFactory.nappyItem,
+        height: 18,
+        canManageEvents: true,
+        openItem: { _ in },
+        deleteItem: { _ in },
+        pendingDeleteEvent: nil,
+        confirmDelete: {},
+        cancelDelete: {}
+    )
+    .frame(width: 132, height: 18)
+    .padding()
+    .background(Color(.systemGroupedBackground))
+}
+
+#Preview("Grouped Block") {
+    TimelineDayGridItemView(
+        item: TimelineDayGridItemPreviewFactory.groupedItem,
+        height: 72,
+        canManageEvents: true,
+        openItem: { _ in },
+        deleteItem: { _ in },
+        pendingDeleteEvent: nil,
+        confirmDelete: {},
+        cancelDelete: {}
+    )
+    .frame(width: 132, height: 72)
+    .padding()
+    .background(Color(.systemGroupedBackground))
+}
+
+#Preview("Pending Delete") {
+    TimelineDayGridItemView(
+        item: TimelineDayGridItemPreviewFactory.deleteCandidateItem,
+        height: 96,
+        canManageEvents: true,
+        openItem: { _ in },
+        deleteItem: { _ in },
+        pendingDeleteEvent: EventDeleteCandidate(event: TimelineDayGridItemPreviewFactory.deleteCandidateItem),
+        confirmDelete: {},
+        cancelDelete: {}
+    )
+    .frame(width: 180, height: 140)
+    .padding()
+    .background(Color(.systemGroupedBackground))
+}
+
+private enum TimelineDayGridItemPreviewFactory {
+    static let sleepItem = TimelineDayGridItemViewState(
+        id: "sleep-preview",
+        columnKind: .sleep,
+        startSlotIndex: 4,
+        endSlotIndex: 16,
+        eventIDs: [UUID()],
+        count: 1,
+        title: "3h 15m",
+        detailText: "01:00",
+        timeText: "04:15",
+        actionPayloads: [
+            EventActionPayload.editSleep(startedAt: .now, endedAt: .now)
+        ]
+    )
+
+    static let nappyItem = TimelineDayGridItemViewState(
+        id: "nappy-preview",
+        columnKind: .nappy,
+        startSlotIndex: 28,
+        endSlotIndex: 29,
+        eventIDs: [UUID()],
+        count: 1,
+        title: "Pee",
+        detailText: "",
+        timeText: "",
+        actionPayloads: [
+            EventActionPayload.editNappy(
+                type: .wee,
+                occurredAt: .now,
+                peeVolume: nil,
+                pooVolume: nil,
+                pooColor: nil
+            )
+        ]
+    )
+
+    static let groupedItem = TimelineDayGridItemViewState(
+        id: "grouped-preview",
+        columnKind: .breastFeed,
+        startSlotIndex: 34,
+        endSlotIndex: 40,
+        eventIDs: [UUID(), UUID()],
+        count: 2,
+        title: "2 events",
+        detailText: "Multiple events",
+        timeText: "08:30-10:00",
+        actionPayloads: [
+            EventActionPayload.editBreastFeed(
+                durationMinutes: 10,
+                endTime: .now,
+                side: .left,
+                leftDurationSeconds: nil,
+                rightDurationSeconds: nil
+            ),
+            EventActionPayload.editBreastFeed(
+                durationMinutes: 12,
+                endTime: .now,
+                side: .right,
+                leftDurationSeconds: nil,
+                rightDurationSeconds: nil
+            )
+        ]
+    )
+
+    static let deleteCandidateItem = TimelineDayGridItemViewState(
+        id: "delete-preview",
+        columnKind: .sleep,
+        startSlotIndex: 52,
+        endSlotIndex: 60,
+        eventIDs: [UUID()],
+        count: 1,
+        title: "2h",
+        detailText: "13:00",
+        timeText: "15:00",
+        actionPayloads: [
+            EventActionPayload.editSleep(startedAt: .now, endedAt: .now)
+        ]
+    )
 }
