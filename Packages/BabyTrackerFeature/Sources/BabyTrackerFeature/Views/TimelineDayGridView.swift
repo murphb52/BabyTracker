@@ -83,22 +83,30 @@ public struct TimelineDayGridView: View {
                 .frame(width: timeColumnWidth, height: 1)
 
             ForEach(grid.columns, id: \.kind) { column in
-                Text(column.title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(BabyEventStyle.accentColor(for: eventKind(for: column.kind)))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(BabyEventStyle.backgroundColor(for: eventKind(for: column.kind)))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(
-                                BabyEventStyle.accentColor(for: eventKind(for: column.kind)).opacity(0.35),
-                                lineWidth: 1
-                            )
-                    )
+                let kind = eventKind(for: column.kind)
+
+                HStack(spacing: 6) {
+                    Image(systemName: BabyEventStyle.systemImage(for: kind))
+                        .font(.caption.weight(.semibold))
+
+                    Text(column.title)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(BabyEventStyle.accentColor(for: kind))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(BabyEventStyle.backgroundColor(for: kind))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(
+                            BabyEventStyle.accentColor(for: kind).opacity(0.35),
+                            lineWidth: 1
+                        )
+                )
             }
         }
     }

@@ -82,14 +82,9 @@ public struct TimelineDayGridItemView: View {
     @ViewBuilder
     private var content: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: BabyEventStyle.systemImage(for: item.eventKind))
-                    .font(.caption.weight(.semibold))
-
-                Text(item.title)
-                    .font(height > 66 ? .caption.weight(.semibold) : .caption2.weight(.semibold))
-                    .lineLimit(1)
-            }
+            Text(item.title)
+                .font(height > 66 ? .caption.weight(.semibold) : .caption2.weight(.semibold))
+                .lineLimit(1)
 
             if height > 52 {
                 Text(item.detailText)
