@@ -5,17 +5,17 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 public struct ChildProfileNestImportView: View {
-    let model: AppModel
+    @State private var viewModel: ImportViewModel
 
     @State private var isFilePickerPresented = false
 
-    public init(model: AppModel) {
-        self.model = model
+    public init(appModel: AppModel) {
+        _viewModel = State(initialValue: ImportViewModel(appModel: appModel))
     }
 
     public var body: some View {
         Group {
-            switch model.nestImportState {
+            switch viewModel.nestImportState {
             case .idle:
                 idleView
             case .previewing(let previewState):
@@ -110,14 +110,14 @@ public struct ChildProfileNestImportView: View {
             if !state.duplicateEvents.isEmpty {
                 Section {
                     Button {
-                        model.skipAllNestDuplicates()
+                        viewModel.skipAllNestDuplicates()
                     } label: {
                         Label("Skip all duplicates", systemImage: "xmark.circle")
                     }
                     .accessibilityIdentifier("nest-skip-all-duplicates-button")
 
                     Button {
-                        model.selectAllNestImportEvents()
+                        viewModel.selectAllNestImportEvents()
                     } label: {
                         Label("Import all including duplicates", systemImage: "arrow.down.circle")
                     }
@@ -158,7 +158,7 @@ public struct ChildProfileNestImportView: View {
                     ForEach(state.duplicateEvents) { tagged in
                         let isSelected = state.selectedEventIDs.contains(tagged.id)
                         Button {
-                            model.toggleNestImportEvent(id: tagged.id)
+                            viewModel.toggleNestImportEvent(id: tagged.id)
                         } label: {
                             NestImportEventRow(tagged: tagged, isSelected: isSelected)
                         }
@@ -186,7 +186,7 @@ public struct ChildProfileNestImportView: View {
             Section {
                 let count = state.selectedCount
                 Button {
-                    model.confirmNestImport()
+                    viewModel.confirmNestImport()
                 } label: {
                     Label(
                         count == 0 ? "No Events Selected" : "Import \(count) Event\(count == 1 ? "" : "s")",
@@ -199,7 +199,7 @@ public struct ChildProfileNestImportView: View {
                 .accessibilityIdentifier("nest-confirm-import-button")
 
                 Button(role: .cancel) {
-                    model.cancelNestImport()
+                    viewModel.cancelNestImport()
                 } label: {
                     Text("Cancel")
                         .frame(maxWidth: .infinity)
@@ -257,7 +257,7 @@ public struct ChildProfileNestImportView: View {
 
             Section {
                 Button {
-                    model.dismissNestImportResult()
+                    viewModel.dismissNestImportResult()
                 } label: {
                     Text("Done")
                         .frame(maxWidth: .infinity)
@@ -294,7 +294,7 @@ public struct ChildProfileNestImportView: View {
 
             Section {
                 Button {
-                    model.cancelNestImport()
+                    viewModel.cancelNestImport()
                 } label: {
                     Text("Try Again")
                         .frame(maxWidth: .infinity)
@@ -339,12 +339,12 @@ public struct ChildProfileNestImportView: View {
             let accessing = url.startAccessingSecurityScopedResource()
             defer { if accessing { url.stopAccessingSecurityScopedResource() } }
             guard let data = try? Data(contentsOf: url) else {
-                model.reportNestImportFileError("Could not read the selected file")
+                viewModel.reportNestImportFileError("Could not read the selected file")
                 return
             }
-            model.parseNestFileForImport(data: data)
+            viewModel.parseNestFileForImport(data: data)
         case .failure(let error):
-            model.reportNestImportFileError(error.localizedDescription)
+            viewModel.reportNestImportFileError(error.localizedDescription)
         }
     }
 
@@ -363,7 +363,7 @@ public struct ChildProfileNestImportView: View {
 
 #Preview("Idle") {
     NavigationStack {
-        ChildProfileNestImportView(model: ChildProfilePreviewFactory.makeModel())
+        ChildProfileNestImportView(appModel: ChildProfilePreviewFactory.makeModel())
     }
 }
 

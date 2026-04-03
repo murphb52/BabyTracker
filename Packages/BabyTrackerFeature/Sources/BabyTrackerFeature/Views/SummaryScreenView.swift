@@ -1,17 +1,17 @@
 import SwiftUI
 
 public struct SummaryScreenView: View {
-    let summary: SummaryScreenState
+    let viewModel: SummaryViewModel
 
     @State private var selectedRange: SummaryTimeRange = .today
 
-    public init(summary: SummaryScreenState) {
-        self.summary = summary
+    public init(viewModel: SummaryViewModel) {
+        self.viewModel = viewModel
     }
 
     public var body: some View {
         let snapshot = SummaryMetricsCalculator.makeSnapshot(
-            from: summary.events,
+            from: viewModel.events,
             range: selectedRange
         )
 
@@ -49,10 +49,10 @@ public struct SummaryScreenView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(summary.emptyStateTitle)
+            Text(viewModel.emptyStateTitle)
                 .font(.headline)
 
-            Text(summary.emptyStateMessage)
+            Text(viewModel.emptyStateMessage)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -167,7 +167,7 @@ public struct SummaryScreenView: View {
     private var advancedSummaryLink: some View {
         NavigationLink {
             AdvancedSummaryView(
-                summary: summary,
+                viewModel: viewModel,
                 initialSelection: .range(selectedRange)
             )
         } label: {
@@ -283,18 +283,12 @@ public struct SummaryScreenView: View {
 
 #Preview("With Data") {
     NavigationStack {
-        SummaryScreenView(summary: SummaryScreenPreviewFactory.summaryState)
+        SummaryScreenView(viewModel: SummaryScreenPreviewFactory.summaryViewModel)
     }
 }
 
 #Preview("Empty") {
     NavigationStack {
-        SummaryScreenView(
-            summary: SummaryScreenState(
-                events: [],
-                emptyStateTitle: "No summary data yet",
-                emptyStateMessage: "Log feeds, sleep, and nappies to unlock trends."
-            )
-        )
+        SummaryScreenView(viewModel: SummaryViewModel(events: []))
     }
 }

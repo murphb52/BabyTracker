@@ -53,11 +53,12 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        let profile = try #require(harness.model.profile)
+        let child = try #require(harness.model.currentChild)
+        let recentEvents = Array(BuildEventCardsUseCase.execute(events: harness.model.events, preferredFeedVolumeUnit: child.preferredFeedVolumeUnit).prefix(6))
 
-        #expect(profile.home.recentEvents.count == 2)
-        #expect(profile.home.recentEvents.map(\.id) == [laterFeed.id, earlierFeed.id])
-        #expect(profile.home.recentEvents.first?.detailText == "150 mL • Formula")
+        #expect(recentEvents.count == 2)
+        #expect(recentEvents.map(\.id) == [laterFeed.id, earlierFeed.id])
+        #expect(recentEvents.first?.detailText == "150 mL • Formula")
     }
 
     @Test
@@ -85,11 +86,12 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        let profile = try #require(harness.model.profile)
+        let child = try #require(harness.model.currentChild)
+        let eventCards = BuildEventCardsUseCase.execute(events: harness.model.events, preferredFeedVolumeUnit: child.preferredFeedVolumeUnit)
 
-        #expect(profile.eventHistory.events.count == 2)
-        #expect(profile.eventHistory.events.map(\.id) == [laterNappy.id, earlierNappy.id])
-        #expect(profile.eventHistory.events.first?.detailText == "Mixed • Poo: Heavy • Green")
+        #expect(eventCards.count == 2)
+        #expect(eventCards.map(\.id) == [laterNappy.id, earlierNappy.id])
+        #expect(eventCards.first?.detailText == "Mixed • Poo: Heavy • Green")
     }
 
     @Test
@@ -111,9 +113,10 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        let profile = try #require(harness.model.profile)
-        #expect(profile.home.recentEvents.count == 6)
-        #expect(profile.eventHistory.events.count == 8)
+        let child = try #require(harness.model.currentChild)
+        let allEventCards = BuildEventCardsUseCase.execute(events: harness.model.events, preferredFeedVolumeUnit: child.preferredFeedVolumeUnit)
+        #expect(Array(allEventCards.prefix(6)).count == 6)
+        #expect(allEventCards.count == 8)
     }
 
 
@@ -133,9 +136,6 @@ struct AppModelTests {
 
         #expect(harness.model.route == .childProfile)
         #expect(harness.model.activeChildren.map(\.child.id) == [seed.child.id, secondChild.id])
-        let profile = try #require(harness.model.profile)
-        #expect(profile.availableChildren.map(\.child.id) == [seed.child.id, secondChild.id])
-        #expect(profile.canCreateLocalChild)
     }
 
     @Test
@@ -184,15 +184,17 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        let timeline = try #require(harness.model.profile?.timeline)
-        let blocks = selectedTimelineBlocks(in: timeline)
+        let blocks = selectedTimelineBlocks(
+            pages: harness.model.timelinePages,
+            selectedDay: harness.model.timelineSelectedDay
+        )
         let firstWeekday = Calendar.autoupdatingCurrent.component(
             .weekday,
-            from: try #require(timeline.pages.first?.date)
+            from: try #require(harness.model.timelinePages.first?.date)
         )
 
         #expect(blocks.map(\.id) == [breastFeed.id, sleep.id, bottleFeed.id, nappy.id])
-        #expect(timeline.pages.count == 7)
+        #expect(harness.model.timelinePages.count == 7)
         #expect(firstWeekday == 2)
         #expect(blocks[0].startMinute == 360)
         #expect(blocks[0].endMinute == 380)
@@ -241,24 +243,18 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        var timeline = try #require(harness.model.profile?.timeline)
-        #expect(selectedTimelineBlocks(in: timeline).map(\.id) == [todayEvent.id])
-        #expect(timeline.canMoveToNextDay == true)
-        #expect(timeline.showsJumpToToday == false)
-        #expect(timeline.pages.count == 7)
+        #expect(selectedTimelineBlocks(pages: harness.model.timelinePages, selectedDay: harness.model.timelineSelectedDay).map(\.id) == [todayEvent.id])
+        #expect(Calendar.autoupdatingCurrent.isDateInToday(harness.model.timelineSelectedDay))
+        #expect(harness.model.timelinePages.count == 7)
 
         harness.model.showPreviousTimelineDay()
 
-        timeline = try #require(harness.model.profile?.timeline)
-        #expect(selectedTimelineBlocks(in: timeline).map(\.id) == [yesterdayEvent.id])
-        #expect(timeline.canMoveToNextDay)
-        #expect(timeline.showsJumpToToday)
+        #expect(selectedTimelineBlocks(pages: harness.model.timelinePages, selectedDay: harness.model.timelineSelectedDay).map(\.id) == [yesterdayEvent.id])
+        #expect(!Calendar.autoupdatingCurrent.isDateInToday(harness.model.timelineSelectedDay))
 
         harness.model.showNextTimelineDay()
 
-        timeline = try #require(harness.model.profile?.timeline)
-        #expect(selectedTimelineBlocks(in: timeline).map(\.id) == [todayEvent.id])
-        #expect(timeline.canMoveToNextDay == true)
+        #expect(selectedTimelineBlocks(pages: harness.model.timelinePages, selectedDay: harness.model.timelineSelectedDay).map(\.id) == [todayEvent.id])
     }
 
     @Test
@@ -280,9 +276,11 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        let timeline = try #require(harness.model.profile?.timeline)
         let block = try #require(
-            selectedTimelineBlocks(in: timeline).first(where: { $0.id == activeSleep.id })
+            selectedTimelineBlocks(
+                pages: harness.model.timelinePages,
+                selectedDay: harness.model.timelineSelectedDay
+            ).first(where: { $0.id == activeSleep.id })
         )
 
         #expect(block.startMinute == 420)
@@ -305,11 +303,7 @@ struct AppModelTests {
         harness.model.showPreviousTimelineDay()
         harness.model.selectChild(id: secondChild.id)
 
-        let timeline = try #require(harness.model.profile?.timeline)
-
-        #expect(Calendar.autoupdatingCurrent.isDateInToday(timeline.selectedDay))
-        #expect(timeline.canMoveToNextDay == true)
-        #expect(timeline.showsJumpToToday == false)
+        #expect(Calendar.autoupdatingCurrent.isDateInToday(harness.model.timelineSelectedDay))
     }
 
     @Test
@@ -329,7 +323,7 @@ struct AppModelTests {
 
         harness.model.selectChild(id: secondChild.id)
 
-        #expect(harness.model.profile?.child.id == secondChild.id)
+        #expect(harness.model.currentChild?.id == secondChild.id)
         #expect(harness.model.selectedWorkspaceTab == .profile)
         #expect(harness.model.transientMessage == "Child changed.")
         #expect(harness.model.navigationResetToken == previousResetToken + 1)
@@ -371,11 +365,10 @@ struct AppModelTests {
         _ = await harness.syncEngine.refreshForeground()
         harness.model.load(performLaunchSync: false)
 
-        let profile = try #require(harness.model.profile)
-
-        #expect(profile.cloudKitStatus.state == .failed)
-        #expect(profile.cloudKitStatus.isAccountUnavailable)
-        #expect(profile.timeline.syncMessage == nil)
+        #expect(harness.model.cloudKitStatus.state == .failed)
+        #expect(harness.model.cloudKitStatus.isAccountUnavailable)
+        let timelineVM = TimelineViewModel(appModel: harness.model)
+        #expect(timelineVM.syncMessage == nil)
     }
 
     @Test
@@ -433,11 +426,8 @@ struct AppModelTests {
         _ = try harness.seedOwnerProfile()
         harness.model.load(performLaunchSync: false)
 
-        let profile = try #require(harness.model.profile)
-
-        #expect(profile.home.syncStatus.statusTitle == "Waiting to sync")
-        #expect(profile.home.syncStatus.pendingChangesTitle == "2 changes")
-        #expect(profile.cloudKitStatus == profile.home.syncStatus)
+        #expect(harness.model.cloudKitStatus.statusTitle == "Waiting to sync")
+        #expect(harness.model.cloudKitStatus.pendingChangesTitle == "2 changes")
     }
 
     @Test
@@ -495,12 +485,11 @@ struct AppModelTests {
         harness.model.load(performLaunchSync: false)
         harness.model.toggleTimelineDisplayMode()
 
-        let timeline = try #require(harness.model.profile?.timeline)
-        let todayColumn = try #require(timeline.stripColumns.last(where: { $0.isToday }))
+        let todayColumn = try #require(harness.model.timelineStripColumns.last(where: { $0.isToday }))
         let tenAMSlot = (10 * 60) / BuildTimelineStripDatasetUseCase.defaultSlotMinutes
 
-        #expect(timeline.displayMode == .week)
-        #expect(timeline.stripColumns.count >= 7)
+        #expect(harness.model.timelineDisplayMode == .week)
+        #expect(harness.model.timelineStripColumns.count >= 7)
         #expect(
             todayColumn.slots.count ==
                 (24 * 60) / BuildTimelineStripDatasetUseCase.defaultSlotMinutes
@@ -531,11 +520,13 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        let profile = try #require(harness.model.profile)
-        #expect(profile.home.currentSleep == nil)
-        #expect(profile.home.currentStatus.timeSinceLastFeedAt == feed.metadata.occurredAt)
-        #expect(profile.home.currentStatus.timeSinceLastNappyAt == nil)
-        #expect(profile.home.recentEvents.map(\.id) == [sleep.id, feed.id])
+        let child = try #require(harness.model.currentChild)
+        #expect(harness.model.activeSleep == nil)
+        let currentStatus = BuildCurrentStatusViewStateUseCase.execute(events: harness.model.events, child: child)
+        #expect(currentStatus.timeSinceLastFeedAt == feed.metadata.occurredAt)
+        #expect(currentStatus.timeSinceLastNappyAt == nil)
+        let recentEvents = Array(BuildEventCardsUseCase.execute(events: harness.model.events, preferredFeedVolumeUnit: child.preferredFeedVolumeUnit).prefix(6))
+        #expect(recentEvents.map(\.id) == [sleep.id, feed.id])
         #expect(
             liveActivityManager.latestSnapshot == FeedLiveActivitySnapshot(
                 childID: seed.child.id,
@@ -586,11 +577,11 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        let profile = try #require(harness.model.profile)
-
-        #expect(profile.home.currentStatus.timeSinceLastFeedAt == latestFeed.metadata.occurredAt)
-        #expect(profile.home.currentStatus.feedsTodayCount == 2)
-        #expect(profile.home.currentStatus.timeSinceLastNappyAt == latestNappy.metadata.occurredAt)
+        let child = try #require(harness.model.currentChild)
+        let currentStatus = BuildCurrentStatusViewStateUseCase.execute(events: harness.model.events, child: child)
+        #expect(currentStatus.timeSinceLastFeedAt == latestFeed.metadata.occurredAt)
+        #expect(currentStatus.feedsTodayCount == 2)
+        #expect(currentStatus.timeSinceLastNappyAt == latestNappy.metadata.occurredAt)
     }
 
     @Test
@@ -609,8 +600,8 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        let profile = try #require(harness.model.profile)
-        #expect(profile.canManageEvents)
+        let membership = try #require(harness.model.currentMembership)
+        #expect(ChildAccessPolicy.canPerform(.editEvent, membership: membership))
 
         #expect(
             harness.model.updateBottleFeed(
@@ -649,9 +640,9 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        let profile = try #require(harness.model.profile)
-        #expect(profile.canLogEvents)
-        #expect(profile.canManageEvents)
+        let membership = try #require(harness.model.currentMembership)
+        #expect(ChildAccessPolicy.canPerform(.logEvent, membership: membership))
+        #expect(ChildAccessPolicy.canPerform(.editEvent, membership: membership))
 
         #expect(
             harness.model.logNappy(
@@ -721,20 +712,20 @@ struct AppModelTests {
 
         #expect(harness.model.startSleep(startedAt: sleepStart))
 
-        var profile = try #require(harness.model.profile)
-        let activeSleep = try #require(profile.activeSleepSession)
-        let currentSleep = try #require(profile.home.currentSleep)
+        let activeSleepState = try #require(harness.model.activeSleep.map(ActiveSleepSessionViewState.init))
+        let child = try #require(harness.model.currentChild)
+        let currentSleep = CurrentSleepCardViewState(sleepEventID: activeSleepState.id, startedAt: activeSleepState.startedAt)
 
-        #expect(activeSleep.startedAt == sleepStart)
+        #expect(activeSleepState.startedAt == sleepStart)
         #expect(currentSleep.startedAt == sleepStart)
-        #expect(currentSleep.sleepEventID == activeSleep.id)
-        #expect(profile.home.recentEvents.map(\.id) == [activeSleep.id])
+        #expect(currentSleep.sleepEventID == activeSleepState.id)
+        let recentEvents1 = Array(BuildEventCardsUseCase.execute(events: harness.model.events, preferredFeedVolumeUnit: child.preferredFeedVolumeUnit).prefix(6))
+        #expect(recentEvents1.map(\.id) == [activeSleepState.id])
 
         harness.model.load(performLaunchSync: false)
 
-        profile = try #require(harness.model.profile)
-        let recoveredSleep = try #require(profile.activeSleepSession)
-        #expect(recoveredSleep.id == activeSleep.id)
+        let recoveredSleep = try #require(harness.model.activeSleep.map(ActiveSleepSessionViewState.init))
+        #expect(recoveredSleep.id == activeSleepState.id)
 
         #expect(
             harness.model.endSleep(
@@ -755,10 +746,9 @@ struct AppModelTests {
             Issue.record("Expected a completed sleep event")
         }
 
-        profile = try #require(harness.model.profile)
-        #expect(profile.activeSleepSession == nil)
-        #expect(profile.home.recentEvents.map(\.id) == [recoveredSleep.id])
-        #expect(profile.home.currentSleep == nil)
+        #expect(harness.model.activeSleep == nil)
+        let recentEvents2 = Array(BuildEventCardsUseCase.execute(events: harness.model.events, preferredFeedVolumeUnit: child.preferredFeedVolumeUnit).prefix(6))
+        #expect(recentEvents2.map(\.id) == [recoveredSleep.id])
 
         let visibleTimeline = try harness.eventRepository.loadTimeline(
             for: seed.child.id,
@@ -810,8 +800,7 @@ struct AppModelTests {
             Issue.record("Expected a resumed sleep event")
         }
 
-        let profile = try #require(harness.model.profile)
-        #expect(profile.activeSleepSession?.id == sleep.id)
+        #expect(harness.model.activeSleep?.id == sleep.id)
     }
 
     @Test
@@ -928,7 +917,7 @@ struct AppModelTests {
         #expect(liveActivityManager.latestSnapshot?.activeSleepStartedAt == Date(timeIntervalSince1970: 11_500))
         #expect(liveActivityManager.latestSnapshot?.lastSleepAt == Date(timeIntervalSince1970: 11_500))
 
-        let activeSleep = try #require(harness.model.profile?.activeSleepSession)
+        let activeSleep = try #require(harness.model.activeSleep.map(ActiveSleepSessionViewState.init))
 
         #expect(
             harness.model.endSleep(
@@ -1390,8 +1379,8 @@ struct AppModelTests {
         let seed = try harness.seedActiveCaregiverProfile()
         harness.model.load(performLaunchSync: false)
 
-        let profile = try #require(harness.model.profile)
-        #expect(profile.canArchiveChild == false)
+        let membership = try #require(harness.model.currentMembership)
+        #expect(ChildAccessPolicy.canPerform(.archiveChild, membership: membership) == false)
     }
 
     // MARK: - Hard Delete Child
@@ -1429,8 +1418,8 @@ struct AppModelTests {
         _ = try harness.seedActiveCaregiverProfile()
         harness.model.load(performLaunchSync: false)
 
-        let profile = try #require(harness.model.profile)
-        #expect(profile.canHardDelete == false)
+        let membership = try #require(harness.model.currentMembership)
+        #expect(ChildAccessPolicy.isActiveOwner(membership) == false)
     }
 
     @Test
@@ -1468,7 +1457,7 @@ struct AppModelTests {
         await Task.yield()
 
         #expect(harness.childSelectionStore.loadSelectedChildID() == secondChild.id)
-        #expect(harness.model.profile?.child.id == secondChild.id)
+        #expect(harness.model.currentChild?.id == secondChild.id)
         #expect(harness.model.route == .childProfile)
         #expect(harness.model.transientMessage == "Poppy deleted")
         #expect(harness.model.navigationResetToken == previousResetToken + 1)
@@ -1496,7 +1485,7 @@ struct AppModelTests {
 
         #expect(harness.model.shareAcceptanceLoadingState == nil)
         #expect(harness.model.route == .childProfile)
-        #expect(harness.model.profile?.child.name == "Poppy")
+        #expect(harness.model.currentChild?.name == "Poppy")
     }
 
     @Test
@@ -1553,9 +1542,13 @@ struct AppModelTests {
     }
 
     private func selectedTimelineBlocks(
-        in timeline: TimelineScreenState
+        pages: [TimelineDayPageState],
+        selectedDay: Date
     ) -> [TimelineEventBlockViewState] {
-        timeline.pages[timeline.selectedPageIndex].blocks
+        let calendar = Calendar.autoupdatingCurrent
+        let index = pages.firstIndex(where: { calendar.isDate($0.date, inSameDayAs: selectedDay) }) ?? 0
+        guard !pages.isEmpty else { return [] }
+        return pages[index].blocks
     }
 
 }

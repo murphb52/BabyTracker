@@ -32,12 +32,7 @@ struct AppRootView: View {
                         ChildPickerView(model: model)
                             .navigationTitle("Baby Tracker")
                     case .childProfile:
-                        if let profile = model.profile {
-                            ChildWorkspaceTabView(model: model, profile: profile)
-                        } else {
-                            ProgressView("Loading profile…")
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
+                        ChildWorkspaceTabView(model: model)
                     }
                 }
             }

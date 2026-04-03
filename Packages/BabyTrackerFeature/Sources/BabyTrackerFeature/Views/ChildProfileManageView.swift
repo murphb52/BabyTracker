@@ -2,7 +2,7 @@ import SwiftUI
 
 public struct ChildProfileManageView: View {
     let model: AppModel
-    let profile: ChildProfileScreenState
+    let viewModel: ChildProfileViewModel
     let archiveAction: () -> Void
     let hardDeleteAction: () -> Void
 
@@ -10,12 +10,12 @@ public struct ChildProfileManageView: View {
 
     public init(
         model: AppModel,
-        profile: ChildProfileScreenState,
+        viewModel: ChildProfileViewModel,
         archiveAction: @escaping () -> Void,
         hardDeleteAction: @escaping () -> Void
     ) {
         self.model = model
-        self.profile = profile
+        self.viewModel = viewModel
         self.archiveAction = archiveAction
         self.hardDeleteAction = hardDeleteAction
     }
@@ -23,17 +23,17 @@ public struct ChildProfileManageView: View {
     public var body: some View {
         List {
             Section {
-                Text("Manage changes that affect access to \(profile.child.name) or remove this child from your active workspace.")
+                Text("Manage changes that affect access to \(viewModel.childName) or remove this child from your active workspace.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 4)
             }
 
             Section("Child Lifecycle") {
-                if profile.canArchiveChild {
+                if viewModel.canArchiveChild {
                     NavigationLink {
                         ChildProfileArchiveView(
-                            profile: profile,
+                            childName: viewModel.childName,
                             archiveAction: archiveAction
                         )
                     } label: {
@@ -45,7 +45,7 @@ public struct ChildProfileManageView: View {
                     }
                 }
 
-                if profile.canLeaveShare {
+                if viewModel.canLeaveShare {
                     Button(role: .destructive) {
                         showingLeaveConfirmation = true
                     } label: {
@@ -59,10 +59,10 @@ public struct ChildProfileManageView: View {
                     .accessibilityIdentifier("profile-manage-leave-row")
                 }
 
-                if profile.canHardDelete {
+                if viewModel.canHardDelete {
                     NavigationLink {
                         ChildProfileHardDeleteView(
-                            childName: profile.child.name,
+                            childName: viewModel.childName,
                             hardDeleteAction: hardDeleteAction
                         )
                     } label: {
@@ -80,7 +80,7 @@ public struct ChildProfileManageView: View {
         .navigationTitle("Manage Child")
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(
-            "Leave \(profile.child.name)?",
+            "Leave \(viewModel.childName)?",
             isPresented: $showingLeaveConfirmation,
             titleVisibility: .visible
         ) {
@@ -89,7 +89,7 @@ public struct ChildProfileManageView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("All data for \(profile.child.name) will be removed from this device. You can rejoin if the owner invites you again.")
+            Text("All data for \(viewModel.childName) will be removed from this device. You can rejoin if the owner invites you again.")
         }
     }
 
@@ -115,13 +115,11 @@ public struct ChildProfileManageView: View {
 #Preview {
     NavigationStack {
         let model = ChildProfilePreviewFactory.makeModel()
-        if let profile = model.profile {
-            ChildProfileManageView(
-                model: model,
-                profile: profile,
-                archiveAction: {},
-                hardDeleteAction: {}
-            )
-        }
+        ChildProfileManageView(
+            model: model,
+            viewModel: ChildProfileViewModel(appModel: model),
+            archiveAction: {},
+            hardDeleteAction: {}
+        )
     }
 }

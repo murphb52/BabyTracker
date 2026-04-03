@@ -3,29 +3,29 @@ import SwiftUI
 
 public struct ChildProfileSharingView: View {
     let model: AppModel
-    let profile: ChildProfileScreenState
+    let viewModel: ChildProfileViewModel
     let shareChildAction: () -> Void
 
     public init(
         model: AppModel,
-        profile: ChildProfileScreenState,
+        viewModel: ChildProfileViewModel,
         shareChildAction: @escaping () -> Void
     ) {
         self.model = model
-        self.profile = profile
+        self.viewModel = viewModel
         self.shareChildAction = shareChildAction
     }
 
     public var body: some View {
         List {
-            if profile.canManageSharing {
+            if viewModel.canManageSharing {
                 Section("Invite") {
                     Button {
                         shareChildAction()
                     } label: {
                         Label("Share Child", systemImage: "person.crop.circle.badge.plus")
                     }
-                    .disabled(!profile.canShareChild)
+                    .disabled(!viewModel.canShareChild)
                     .accessibilityIdentifier("share-child-button")
 
                     if let shareUnavailableMessage {
@@ -37,26 +37,26 @@ public struct ChildProfileSharingView: View {
                 }
             }
 
-            if let owner = profile.owner {
+            if let owner = viewModel.owner {
                 Section("Owner") {
                     caregiverRow(for: owner, showsRemoval: false)
                 }
             }
 
-            if !profile.activeCaregivers.isEmpty {
+            if !viewModel.activeCaregivers.isEmpty {
                 Section("Active Caregivers") {
-                    ForEach(profile.activeCaregivers) { caregiver in
+                    ForEach(viewModel.activeCaregivers) { caregiver in
                         caregiverRow(
                             for: caregiver,
-                            showsRemoval: profile.canManageSharing
+                            showsRemoval: viewModel.canManageSharing
                         )
                     }
                 }
             }
 
-            if !profile.pendingShareInvites.isEmpty {
+            if !viewModel.pendingShareInvites.isEmpty {
                 Section("Pending Invitations") {
-                    ForEach(profile.pendingShareInvites) { invite in
+                    ForEach(viewModel.pendingShareInvites) { invite in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(invite.displayName)
                                 .font(.headline)
@@ -70,9 +70,9 @@ public struct ChildProfileSharingView: View {
                 }
             }
 
-            if !profile.removedCaregivers.isEmpty {
+            if !viewModel.removedCaregivers.isEmpty {
                 Section("Past Access") {
-                    ForEach(profile.removedCaregivers) { caregiver in
+                    ForEach(viewModel.removedCaregivers) { caregiver in
                         caregiverRow(for: caregiver, showsRemoval: false)
                     }
                 }
@@ -84,15 +84,13 @@ public struct ChildProfileSharingView: View {
     }
 
     private var shareUnavailableMessage: String? {
-        guard !profile.canShareChild else {
-            return nil
-        }
+        guard !viewModel.canShareChild else { return nil }
 
-        if profile.cloudKitStatus.isAccountUnavailable {
+        if viewModel.cloudKitStatus.isAccountUnavailable {
             return "Sharing is unavailable until iCloud backup is available. Check the iCloud Sync screen for details."
         }
 
-        if let detailMessage = profile.cloudKitStatus.detailMessage {
+        if let detailMessage = viewModel.cloudKitStatus.detailMessage {
             return "Sharing is unavailable right now. \(detailMessage)"
         }
 
@@ -132,12 +130,10 @@ public struct ChildProfileSharingView: View {
 #Preview {
     NavigationStack {
         let model = ChildProfilePreviewFactory.makeModel()
-        if let profile = model.profile {
-            ChildProfileSharingView(
-                model: model,
-                profile: profile,
-                shareChildAction: {}
-            )
-        }
+        ChildProfileSharingView(
+            model: model,
+            viewModel: ChildProfileViewModel(appModel: model),
+            shareChildAction: {}
+        )
     }
 }

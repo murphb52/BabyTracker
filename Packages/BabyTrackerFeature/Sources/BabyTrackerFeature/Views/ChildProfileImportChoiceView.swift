@@ -18,7 +18,7 @@ public struct ChildProfileImportChoiceView: View {
 
             Section {
                 NavigationLink {
-                    ChildProfileImportView(model: model)
+                    ChildProfileImportView(appModel: model)
                 } label: {
                     importSourceRow(
                         icon: "bird.fill",
@@ -30,7 +30,7 @@ public struct ChildProfileImportChoiceView: View {
                 }
 
                 NavigationLink {
-                    ChildProfileNestImportView(model: model)
+                    ChildProfileNestImportView(appModel: model)
                 } label: {
                     importSourceRow(
                         icon: "square.and.arrow.down",

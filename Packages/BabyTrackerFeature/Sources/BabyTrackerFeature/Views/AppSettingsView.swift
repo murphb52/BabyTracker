@@ -3,34 +3,33 @@ import SwiftUI
 
 public struct AppSettingsView: View {
     let model: AppModel
-    let profile: ChildProfileScreenState
+    let viewModel: ChildProfileViewModel
 
     public init(
         model: AppModel,
-        profile: ChildProfileScreenState
+        viewModel: ChildProfileViewModel
     ) {
         self.model = model
-        self.profile = profile
+        self.viewModel = viewModel
     }
 
     public var body: some View {
         List {
             Section("iCloud & Backup") {
                 NavigationLink {
-                    ChildProfileSyncView(model: model, profile: profile)
+                    ChildProfileSyncView(model: model, viewModel: viewModel)
                 } label: {
                     settingsRow(
                         title: "Sync Status",
-                        value: profile.cloudKitStatus.statusTitle,
+                        value: viewModel.cloudKitStatus.statusTitle,
                         accessibilityIdentifier: "app-settings-sync-row"
                     )
                 }
-
             }
 
             Section("Data Tools") {
                 NavigationLink {
-                    ChildProfileExportView(model: model)
+                    ChildProfileExportView(appModel: model)
                 } label: {
                     settingsRow(
                         title: "Export Data",
@@ -105,8 +104,9 @@ public struct AppSettingsView: View {
 #Preview {
     NavigationStack {
         let model = ChildProfilePreviewFactory.makeModel()
-        if let profile = model.profile {
-            AppSettingsView(model: model, profile: profile)
-        }
+        AppSettingsView(
+            model: model,
+            viewModel: ChildProfileViewModel(appModel: model)
+        )
     }
 }

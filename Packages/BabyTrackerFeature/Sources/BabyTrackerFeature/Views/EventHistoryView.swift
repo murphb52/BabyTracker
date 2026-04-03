@@ -2,49 +2,49 @@ import BabyTrackerDomain
 import SwiftUI
 
 public struct EventHistoryView: View {
-    let profile: ChildProfileScreenState
+    let viewModel: EventHistoryViewModel
+    let canManageEvents: Bool
     let openEvent: (EventCardViewState) -> Void
     let deleteEvent: (EventCardViewState) -> Void
     let pendingDeleteEvent: EventDeleteCandidate?
     let confirmDelete: () -> Void
     let cancelDelete: () -> Void
-    let onFilterUpdate: (EventFilter) -> Void
     let onRefresh: () async -> Void
 
     public init(
-        profile: ChildProfileScreenState,
+        viewModel: EventHistoryViewModel,
+        canManageEvents: Bool,
         openEvent: @escaping (EventCardViewState) -> Void,
         deleteEvent: @escaping (EventCardViewState) -> Void,
         pendingDeleteEvent: EventDeleteCandidate?,
         confirmDelete: @escaping () -> Void,
         cancelDelete: @escaping () -> Void,
-        onFilterUpdate: @escaping (EventFilter) -> Void,
         onRefresh: @escaping () async -> Void
     ) {
-        self.profile = profile
+        self.viewModel = viewModel
+        self.canManageEvents = canManageEvents
         self.openEvent = openEvent
         self.deleteEvent = deleteEvent
         self.pendingDeleteEvent = pendingDeleteEvent
         self.confirmDelete = confirmDelete
         self.cancelDelete = cancelDelete
-        self.onFilterUpdate = onFilterUpdate
         self.onRefresh = onRefresh
     }
 
     public var body: some View {
         VStack(spacing: 0) {
-            if !profile.eventHistory.activeFilter.isEmpty {
+            if !viewModel.activeFilter.isEmpty {
                 filterPillsBar
             }
 
             List {
-                if profile.eventHistory.events.isEmpty {
+                if viewModel.events.isEmpty {
                     emptyState
                         .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                 } else {
-                    ForEach(profile.eventHistory.events) { event in
+                    ForEach(viewModel.events) { event in
                         eventRow(for: event)
                             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                             .listRowSeparator(.hidden)
@@ -67,7 +67,7 @@ public struct EventHistoryView: View {
     private var filterPillsBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(ActiveFilterPill.pills(for: profile.eventHistory.activeFilter)) { pill in
+                ForEach(ActiveFilterPill.pills(for: viewModel.activeFilter)) { pill in
                     filterPill(pill)
                 }
             }
@@ -84,7 +84,7 @@ public struct EventHistoryView: View {
                 .font(.subheadline.weight(.medium))
 
             Button {
-                onFilterUpdate(pill.removing(from: profile.eventHistory.activeFilter))
+                viewModel.updateFilter(pill.removing(from: viewModel.activeFilter))
             } label: {
                 Image(systemName: "xmark")
                     .font(.caption.weight(.bold))
@@ -104,7 +104,7 @@ public struct EventHistoryView: View {
     private func eventRow(for event: EventCardViewState) -> some View {
         let isPendingDelete = pendingDeleteEvent?.id == event.id
 
-        if profile.canManageEvents {
+        if canManageEvents {
             VStack(alignment: .leading, spacing: 8) {
                 Button {
                     openEvent(event)
@@ -142,9 +142,9 @@ public struct EventHistoryView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(profile.eventHistory.emptyStateTitle)
+            Text(viewModel.emptyStateTitle)
                 .font(.headline)
-            Text(profile.eventHistory.emptyStateMessage)
+            Text(viewModel.emptyStateMessage)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
