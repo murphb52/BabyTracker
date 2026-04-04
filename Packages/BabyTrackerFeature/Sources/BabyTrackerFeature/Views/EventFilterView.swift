@@ -22,6 +22,7 @@ public struct EventFilterView: View {
             ScrollView {
                 VStack(spacing: 12) {
                     eventTypeSection
+                    dateSection
                     if shouldShowNappySection { nappyTypeSection }
                     if shouldShowMilkSection { milkTypeSection }
                     if shouldShowBreastSection { breastSideSection }
@@ -41,7 +42,7 @@ public struct EventFilterView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Apply") {
-                        onApply(draft)
+                        onApply(normalizedDateRangeFilter(from: draft))
                         dismiss()
                     }
                     .fontWeight(.semibold)
@@ -75,6 +76,32 @@ public struct EventFilterView: View {
                         color: BabyEventStyle.accentColor(for: .nappy)
                     ) { toggleMembership(type, in: \.nappyTypes) }
                 }
+            }
+        }
+    }
+
+    private var dateSection: some View {
+        filterCard("Date") {
+            VStack(spacing: 12) {
+                optionalDateRow(
+                    title: "From",
+                    keyPath: \.occurredOnOrAfter,
+                    date: draft.occurredOnOrAfter,
+                    normalizeDate: { Calendar.current.startOfDay(for: $0) },
+                    setDateToNow: { draft.occurredOnOrAfter = Calendar.current.startOfDay(for: Date()) },
+                    clearDate: { draft.occurredOnOrAfter = nil }
+                )
+
+                Divider()
+
+                optionalDateRow(
+                    title: "To",
+                    keyPath: \.occurredOnOrBefore,
+                    date: draft.occurredOnOrBefore,
+                    normalizeDate: { endOfDay(for: $0) },
+                    setDateToNow: { draft.occurredOnOrBefore = endOfDay(for: Date()) },
+                    clearDate: { draft.occurredOnOrBefore = nil }
+                )
             }
         }
     }
@@ -234,6 +261,49 @@ public struct EventFilterView: View {
     }
 
     @ViewBuilder
+    private func optionalDateRow(
+        title: String,
+        keyPath: WritableKeyPath<EventFilter, Date?>,
+        date: Date?,
+        normalizeDate: @escaping (Date) -> Date,
+        setDateToNow: @escaping () -> Void,
+        clearDate: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title)
+                    .font(.subheadline)
+                Spacer()
+
+                if let date {
+                    Button("Clear", role: .destructive, action: clearDate)
+                        .font(.caption.weight(.semibold))
+                        .buttonStyle(.borderless)
+                } else {
+                    Button("Set", action: setDateToNow)
+                        .font(.caption.weight(.semibold))
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                }
+            }
+
+            if let date {
+                DatePicker(
+                    title,
+                    selection: binding(for: keyPath, fallback: date, normalizeDate: normalizeDate),
+                    displayedComponents: .date
+                )
+                .labelsHidden()
+                .datePickerStyle(.graphical)
+            } else {
+                Text("Any date")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
     private func filterCard<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
@@ -280,6 +350,33 @@ public struct EventFilterView: View {
         }
         draft = updated
     }
+
+    private func binding(
+        for keyPath: WritableKeyPath<EventFilter, Date?>,
+        fallback: Date,
+        normalizeDate: @escaping (Date) -> Date
+    ) -> Binding<Date> {
+        Binding<Date>(
+            get: { draft[keyPath: keyPath] ?? fallback },
+            set: { draft[keyPath: keyPath] = normalizeDate($0) }
+        )
+    }
+
+    private func endOfDay(for date: Date) -> Date {
+        let start = Calendar.current.startOfDay(for: date)
+        return Calendar.current.date(byAdding: DateComponents(day: 1, second: -1), to: start) ?? start
+    }
+
+    private func normalizedDateRangeFilter(from filter: EventFilter) -> EventFilter {
+        guard let from = filter.occurredOnOrAfter, let to = filter.occurredOnOrBefore, from > to else {
+            return filter
+        }
+
+        var normalized = filter
+        normalized.occurredOnOrAfter = to
+        normalized.occurredOnOrBefore = from
+        return normalized
+    }
 }
 
 // MARK: - Display names
@@ -314,4 +411,8 @@ extension BreastSide {
         case .both: "Both"
         }
     }
+}
+
+#Preview {
+    EventFilterView(currentFilter: .empty) { _ in }
 }
