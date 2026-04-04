@@ -175,6 +175,7 @@ public final class AppModel {
     }
 
     public func refreshSyncStatus() async {
+        refresh(selecting: childSelectionStore.loadSelectedChildID())
         await runSyncRefresh { await self.syncEngine.refreshForeground() }
     }
 
