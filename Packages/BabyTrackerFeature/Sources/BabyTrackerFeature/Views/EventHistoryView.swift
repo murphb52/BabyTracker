@@ -38,17 +38,23 @@ public struct EventHistoryView: View {
             }
 
             List {
-                if viewModel.events.isEmpty {
+                if viewModel.sections.isEmpty {
                     emptyState
                         .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                 } else {
-                    ForEach(viewModel.events) { event in
-                        eventRow(for: event)
-                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
+                    ForEach(viewModel.sections) { section in
+                        Section {
+                            ForEach(section.events) { event in
+                                eventRow(for: event)
+                                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
+                            }
+                        } header: {
+                            sectionHeader(for: section.date)
+                        }
                     }
                 }
             }
@@ -123,6 +129,14 @@ public struct EventHistoryView: View {
                         deleteEvent(event)
                     }
                 }
+                .contextMenu {
+                    Button(primaryActionTitle(for: event)) {
+                        openEvent(event)
+                    }
+                    Button("Delete", role: .destructive) {
+                        deleteEvent(event)
+                    }
+                }
 
                 if isPendingDelete, let pendingDeleteEvent {
                     AnchoredDeletePromptView(
@@ -165,6 +179,13 @@ public struct EventHistoryView: View {
             "Edit"
         }
     }
+
+    private func sectionHeader(for date: Date) -> some View {
+        Text(date.formatted(date: .abbreviated, time: .omitted))
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .textCase(.none)
+    }
 }
 
 // MARK: - Active filter pills
@@ -177,6 +198,8 @@ struct ActiveFilterPill: Identifiable {
         case breastSide(BreastSide)
         case sleepMin
         case sleepMax
+        case occurredOnOrAfter
+        case occurredOnOrBefore
     }
 
     let id: String
@@ -193,6 +216,8 @@ struct ActiveFilterPill: Identifiable {
         case .breastSide(let side): updated.breastSides.remove(side)
         case .sleepMin: updated.sleepMinDurationMinutes = nil
         case .sleepMax: updated.sleepMaxDurationMinutes = nil
+        case .occurredOnOrAfter: updated.occurredOnOrAfter = nil
+        case .occurredOnOrBefore: updated.occurredOnOrBefore = nil
         }
         return updated
     }
@@ -255,6 +280,24 @@ struct ActiveFilterPill: Identifiable {
             ))
         }
 
+        if let date = filter.occurredOnOrAfter {
+            pills.append(ActiveFilterPill(
+                id: "occurredOnOrAfter",
+                label: "From \(date.formatted(date: .abbreviated, time: .omitted))",
+                color: .indigo,
+                criterion: .occurredOnOrAfter
+            ))
+        }
+
+        if let date = filter.occurredOnOrBefore {
+            pills.append(ActiveFilterPill(
+                id: "occurredOnOrBefore",
+                label: "To \(date.formatted(date: .abbreviated, time: .omitted))",
+                color: .indigo,
+                criterion: .occurredOnOrBefore
+            ))
+        }
+
         return pills
     }
 }
@@ -291,4 +334,20 @@ private extension BreastSide {
         case .both: "Both sides"
         }
     }
+}
+
+#Preview {
+    let model = ChildProfilePreviewFactory.makeModel()
+    let viewModel = EventHistoryViewModel(appModel: model)
+
+    return EventHistoryView(
+        viewModel: viewModel,
+        canManageEvents: true,
+        openEvent: { _ in },
+        deleteEvent: { _ in },
+        pendingDeleteEvent: nil,
+        confirmDelete: {},
+        cancelDelete: {},
+        onRefresh: { await Task.yield() }
+    )
 }
