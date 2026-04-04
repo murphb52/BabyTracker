@@ -71,9 +71,9 @@ public struct BuildTimelineDayGridDatasetUseCase {
 
             // Placements are already grouped by column before this method runs,
             // so "overlap" here only means overlap within the same event-type
-            // column. We also merge placements that touch on the same boundary,
-            // for example one ending at slot 20 and the next starting at 20.
-            if placement.startSlotIndex <= lastPlacement.endSlotIndex {
+            // column. Events that merely touch on a boundary (one ending at
+            // slot 20 and the next starting at 20) are kept separate.
+            if placement.startSlotIndex < lastPlacement.endSlotIndex {
                 var combined = lastPlacement
                 combined.startSlotIndex = min(lastPlacement.startSlotIndex, placement.startSlotIndex)
                 combined.endSlotIndex = max(lastPlacement.endSlotIndex, placement.endSlotIndex)

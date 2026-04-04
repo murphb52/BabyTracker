@@ -138,7 +138,7 @@ struct BuildTimelineDayGridDatasetUseCaseTests {
     }
 
     @Test
-    func sameColumnAdjacentPlacementsMergeWhenTouching() throws {
+    func sameColumnAdjacentPlacementsRemainSeparateWhenOnlyTouching() throws {
         let day = calendar.startOfDay(for: Date(timeIntervalSince1970: 1_700_000_000))
         let first = try makeSleep(
             startedAt: date(day: day, hour: 4, minute: 0),
@@ -158,10 +158,13 @@ struct BuildTimelineDayGridDatasetUseCaseTests {
         )
 
         let placements = try #require(dataset.columns.first(where: { $0.kind == .sleep })?.placements)
-        #expect(placements.count == 1)
-        #expect(placements[0].eventIDs == [first.id, second.id])
+        #expect(placements.count == 2)
+        #expect(placements[0].eventIDs == [first.id])
         #expect(placements[0].startSlotIndex == 16)
-        #expect(placements[0].endSlotIndex == 20)
+        #expect(placements[0].endSlotIndex == 18)
+        #expect(placements[1].eventIDs == [second.id])
+        #expect(placements[1].startSlotIndex == 18)
+        #expect(placements[1].endSlotIndex == 20)
     }
 
     @Test
