@@ -11,10 +11,6 @@ public struct ChildHomeView: View {
     let quickLogSleep: () -> Void
     let quickLogNappy: () -> Void
 
-    private let gridColumns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12),
-    ]
 
     public init(
         model: AppModel,
@@ -38,20 +34,21 @@ public struct ChildHomeView: View {
 
     public var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 20) {
                 if let currentSleep = viewModel.currentSleep {
                     currentSleepSection(currentSleep)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
-                
                 statusSection
 
                 if viewModel.canLogEvents {
                     quickLogSection
                 }
-                
+
                 syncSection
             }
+            .animation(.easeInOut(duration: 0.35), value: viewModel.currentSleep)
             .padding(.horizontal, 16)
             .padding(.top, 12)
             .padding(.bottom, 24)
@@ -158,38 +155,44 @@ public struct ChildHomeView: View {
             Text("Quick Log")
                 .font(.headline)
 
-            LazyVGrid(columns: gridColumns, spacing: 12) {
-                quickLogButton(
-                    title: "Breast Feed",
-                    systemImage: BabyEventStyle.systemImage(for: .breastFeed),
-                    kind: .breastFeed,
-                    accessibilityIdentifier: "quick-log-breast-feed-button",
-                    action: quickLogBreastFeed
-                )
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    quickLogButton(
+                        title: "Breast Feed",
+                        systemImage: BabyEventStyle.systemImage(for: .breastFeed),
+                        kind: .breastFeed,
+                        accessibilityIdentifier: "quick-log-breast-feed-button",
+                        action: quickLogBreastFeed
+                    )
 
-                quickLogButton(
-                    title: "Bottle Feed",
-                    systemImage: BabyEventStyle.systemImage(for: .bottleFeed),
-                    kind: .bottleFeed,
-                    accessibilityIdentifier: "quick-log-bottle-feed-button",
-                    action: quickLogBottleFeed
-                )
+                    quickLogButton(
+                        title: "Bottle Feed",
+                        systemImage: BabyEventStyle.systemImage(for: .bottleFeed),
+                        kind: .bottleFeed,
+                        accessibilityIdentifier: "quick-log-bottle-feed-button",
+                        action: quickLogBottleFeed
+                    )
+                }
+                .geometryGroup()
 
-                quickLogButton(
-                    title: sleepQuickLogTitle,
-                    systemImage: BabyEventStyle.systemImage(for: .sleep),
-                    kind: .sleep,
-                    accessibilityIdentifier: "quick-log-sleep-button",
-                    action: quickLogSleep
-                )
+                HStack(spacing: 12) {
+                    quickLogButton(
+                        title: sleepQuickLogTitle,
+                        systemImage: BabyEventStyle.systemImage(for: .sleep),
+                        kind: .sleep,
+                        accessibilityIdentifier: "quick-log-sleep-button",
+                        action: quickLogSleep
+                    )
 
-                quickLogButton(
-                    title: "Nappy",
-                    systemImage: BabyEventStyle.systemImage(for: .nappy),
-                    kind: .nappy,
-                    accessibilityIdentifier: "quick-log-nappy-button",
-                    action: quickLogNappy
-                )
+                    quickLogButton(
+                        title: "Nappy",
+                        systemImage: BabyEventStyle.systemImage(for: .nappy),
+                        kind: .nappy,
+                        accessibilityIdentifier: "quick-log-nappy-button",
+                        action: quickLogNappy
+                    )
+                }
+                .geometryGroup()
             }
         }
     }

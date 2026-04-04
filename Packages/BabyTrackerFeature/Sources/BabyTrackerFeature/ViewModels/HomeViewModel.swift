@@ -21,9 +21,9 @@ public final class HomeViewModel {
 
     public var currentStatus: CurrentStatusCardViewState {
         guard let child = appModel.currentChild else {
-            return CurrentStatusCardViewState(timeSinceLastFeedAt: nil, feedsTodayCount: 0, timeSinceLastNappyAt: nil)
+            return CurrentStatusCardViewState(lastSleep: nil, timeSinceLastFeedAt: nil, feedsTodayCount: 0, timeSinceLastNappyAt: nil)
         }
-        return BuildCurrentStatusViewStateUseCase.execute(events: appModel.events, child: child)
+        return BuildCurrentStatusViewStateUseCase.execute(events: appModel.events, child: child, activeSleep: appModel.activeSleep)
     }
 
     public var recentEvents: [EventCardViewState] {
