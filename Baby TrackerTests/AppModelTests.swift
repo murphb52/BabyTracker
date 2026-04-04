@@ -284,7 +284,9 @@ struct AppModelTests {
         let seed = try harness.seedOwnerProfile()
         let calendar = Calendar.autoupdatingCurrent
         let today = calendar.startOfDay(for: .now)
-        let start = try #require(calendar.date(byAdding: .hour, value: 7, to: today))
+        // Use 1 AM so the sleep always started before .now regardless of when
+        // CI runs, avoiding a flaky failure when the test runs before 7 AM.
+        let start = try #require(calendar.date(byAdding: .hour, value: 1, to: today))
 
         let activeSleep = try harness.saveSleep(
             childID: seed.child.id,
@@ -302,7 +304,7 @@ struct AppModelTests {
             ).first(where: { $0.primaryEventID == activeSleep.id })
         )
 
-        #expect(item.startSlotIndex == 28)
+        #expect(item.startSlotIndex == 4)
         #expect(item.endSlotIndex > item.startSlotIndex)
         #expect(item.primaryActionPayload == .endSleep(startedAt: start))
     }
