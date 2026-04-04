@@ -1,6 +1,5 @@
 import BabyTrackerDomain
 import BabyTrackerFeature
-import BabyTrackerPersistence
 import BabyTrackerSync
 import Foundation
 import Testing
@@ -1556,14 +1555,11 @@ struct AppModelTests {
 extension AppModelTests {
     @MainActor
     private struct Harness {
-        let suiteName = "BabyTrackerAppModelTests.\(UUID().uuidString)"
-        let userDefaults: UserDefaults
-        let store: BabyTrackerModelStore
-        let childRepository: SwiftDataChildRepository
-        let userIdentityRepository: SwiftDataUserIdentityRepository
-        let membershipRepository: SwiftDataMembershipRepository
-        let childSelectionStore: UserDefaultsChildSelectionStore
-        let eventRepository: SwiftDataEventRepository
+        let childRepository: InMemoryChildRepository
+        let userIdentityRepository: InMemoryUserIdentityRepository
+        let membershipRepository: InMemoryMembershipRepository
+        let childSelectionStore: InMemoryChildSelectionStore
+        let eventRepository: InMemoryEventRepository
         let syncEngine: any CloudKitSyncControlling
         let model: AppModel
 
@@ -1573,16 +1569,12 @@ extension AppModelTests {
             liveActivityPreferenceStore: any LiveActivityPreferenceStore = InMemoryLiveActivityPreferenceStore(),
             hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
         ) throws {
-            let userDefaults = UserDefaults(suiteName: suiteName)!
-            userDefaults.removePersistentDomain(forName: suiteName)
-
-            self.userDefaults = userDefaults
-            self.store = try BabyTrackerModelStore(isStoredInMemoryOnly: true)
-            self.childRepository = SwiftDataChildRepository(store: store)
-            self.userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
-            self.membershipRepository = SwiftDataMembershipRepository(store: store)
-            self.childSelectionStore = UserDefaultsChildSelectionStore(userDefaults: userDefaults)
-            self.eventRepository = SwiftDataEventRepository(store: store)
+            let store = InMemoryStore()
+            self.childRepository = InMemoryChildRepository(store: store)
+            self.userIdentityRepository = InMemoryUserIdentityRepository(store: store)
+            self.membershipRepository = InMemoryMembershipRepository(store: store)
+            self.childSelectionStore = InMemoryChildSelectionStore(store: store)
+            self.eventRepository = InMemoryEventRepository(store: store)
             self.syncEngine = syncEngine
             self.model = AppModel(
                 childRepository: childRepository,
@@ -1597,9 +1589,7 @@ extension AppModelTests {
             )
         }
 
-        func cleanUp() {
-            userDefaults.removePersistentDomain(forName: suiteName)
-        }
+        func cleanUp() {}
 
         func seedOwnerProfile() throws -> OwnerSeed {
             let owner = try UserIdentity(displayName: "Alex Parent")
