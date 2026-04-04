@@ -71,7 +71,7 @@ struct FeedLiveActivityWidget: Widget {
         case .bottleFeed:
             "drop.circle"
         case .sleep:
-            metric.isActiveSleep ? "bed.double.fill" : "zzz"
+            metric.isActiveSleep ? "zzz" : "bed.double.fill"
         case .nappy:
             "checklist"
         }
