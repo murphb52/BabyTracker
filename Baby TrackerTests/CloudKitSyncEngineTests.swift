@@ -525,7 +525,7 @@ extension CloudKitSyncEngineTests {
     /// behaviour against real persistence) but isolates UserDefaults via a
     /// unique UUID-based suite name that is cleaned up after each test.
     @MainActor
-    struct SyncEngineHarness {
+    fileprivate struct SyncEngineHarness {
         let childRepository: SwiftDataChildRepository
         let userIdentityRepository: SwiftDataUserIdentityRepository
         let membershipRepository: SwiftDataMembershipRepository
