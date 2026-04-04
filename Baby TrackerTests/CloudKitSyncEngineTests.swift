@@ -571,7 +571,7 @@ extension CloudKitSyncEngineTests {
 
 // MARK: - CloudKitClientSpy
 
-private actor CloudKitClientSpy: CloudKitClient {
+fileprivate actor CloudKitClientSpy: CloudKitClient {
     nonisolated let container: CKContainer? = CKContainer(identifier: "iCloud.com.adappt.BabyTracker.tests")
 
     private(set) var existingZoneIDs: Set<CKRecordZone.ID> = []
