@@ -14,9 +14,9 @@ public struct EventDeleteCandidate: Identifiable {
         timestampText = event.timestampText
     }
 
-    public init(event: TimelineEventBlockViewState) {
-        id = event.id
-        kind = event.kind
+    public init(event: TimelineDayGridItemViewState) {
+        id = event.primaryEventID ?? UUID()
+        kind = event.eventKind
         title = event.title
         timestampText = event.timeText
     }

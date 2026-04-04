@@ -9,6 +9,22 @@ public struct EventCardViewState: Equatable, Identifiable, Sendable {
     public let timestampText: String
     public let actionPayload: EventActionPayload
 
+    public init(
+        id: UUID,
+        kind: BabyEventKind,
+        title: String,
+        detailText: String,
+        timestampText: String,
+        actionPayload: EventActionPayload
+    ) {
+        self.id = id
+        self.kind = kind
+        self.title = title
+        self.detailText = detailText
+        self.timestampText = timestampText
+        self.actionPayload = actionPayload
+    }
+
     public init?(
         event: BabyEvent,
         preferredFeedVolumeUnit: FeedVolumeUnit = .milliliters,

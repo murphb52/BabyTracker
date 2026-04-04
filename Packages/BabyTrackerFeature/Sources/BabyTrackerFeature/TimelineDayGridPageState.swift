@@ -1,11 +1,11 @@
 import Foundation
 
-public struct TimelineDayPageState: Equatable, Identifiable, Sendable {
+public struct TimelineDayGridPageState: Equatable, Identifiable, Sendable {
     public let date: Date
     public let dayTitle: String
     public let shortWeekdayTitle: String
     public let isToday: Bool
-    public let blocks: [TimelineEventBlockViewState]
+    public let grid: TimelineDayGridViewState?
     public let emptyStateTitle: String
     public let emptyStateMessage: String
 
@@ -18,7 +18,7 @@ public struct TimelineDayPageState: Equatable, Identifiable, Sendable {
         dayTitle: String,
         shortWeekdayTitle: String,
         isToday: Bool,
-        blocks: [TimelineEventBlockViewState],
+        grid: TimelineDayGridViewState?,
         emptyStateTitle: String,
         emptyStateMessage: String
     ) {
@@ -26,7 +26,7 @@ public struct TimelineDayPageState: Equatable, Identifiable, Sendable {
         self.dayTitle = dayTitle
         self.shortWeekdayTitle = shortWeekdayTitle
         self.isToday = isToday
-        self.blocks = blocks
+        self.grid = grid
         self.emptyStateTitle = emptyStateTitle
         self.emptyStateMessage = emptyStateMessage
     }

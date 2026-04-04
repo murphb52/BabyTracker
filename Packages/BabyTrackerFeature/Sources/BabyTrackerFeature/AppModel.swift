@@ -37,7 +37,7 @@ public final class AppModel {
     /// Currently running sleep session, if any.
     public private(set) var activeSleep: SleepEvent?
     /// Pre-built timeline day pages for the visible week.
-    public private(set) var timelinePages: [TimelineDayPageState] = []
+    public private(set) var timelinePages: [TimelineDayGridPageState] = []
     /// Pre-built strip columns for the weekly overview.
     public private(set) var timelineStripColumns: [TimelineStripDayColumnViewState] = []
     /// Latest CloudKit sync status.
@@ -69,6 +69,7 @@ public final class AppModel {
     private let localNotificationManager: any LocalNotificationManaging
     private let hapticFeedbackProvider: any HapticFeedbackProviding
     private let buildTimelineStripDatasetUseCase = BuildTimelineStripDatasetUseCase()
+    private let buildTimelineDayGridDatasetUseCase = BuildTimelineDayGridDatasetUseCase()
     private let buildRemoteNotificationUseCase = BuildRemoteCaregiverNotificationUseCase()
     private let calendar = Calendar.autoupdatingCurrent
     private var timelineChildID: UUID?
@@ -1030,7 +1031,7 @@ public final class AppModel {
         child: Child,
         for childID: UUID,
         days: [Date]
-    ) throws -> [TimelineDayPageState] {
+    ) throws -> [TimelineDayGridPageState] {
         try days.map { day in
             let dayStart = calendar.startOfDay(for: day)
             let events = try eventRepository.loadEvents(
@@ -1038,20 +1039,278 @@ public final class AppModel {
                 on: day,
                 calendar: calendar,
                 includingDeleted: false
-            ).sorted { left, right in
-                BuildTimelineBlocksUseCase.startDate(for: left) < BuildTimelineBlocksUseCase.startDate(for: right)
-            }
+            )
+            let gridDataset = buildTimelineDayGridDatasetUseCase.execute(
+                events: events,
+                day: dayStart,
+                calendar: calendar
+            )
+            let grid = buildTimelineDayGridViewState(
+                from: gridDataset,
+                events: events,
+                child: child,
+                day: dayStart
+            )
 
-            return TimelineDayPageState(
+            return TimelineDayGridPageState(
                 date: dayStart,
                 dayTitle: timelineDayTitle(for: dayStart),
                 shortWeekdayTitle: dayStart.formatted(.dateTime.weekday(.abbreviated)),
                 isToday: calendar.isDateInToday(dayStart),
-                blocks: BuildTimelineBlocksUseCase.execute(events: events, child: child, day: dayStart, calendar: calendar),
+                grid: grid,
                 emptyStateTitle: "No events for this day",
                 emptyStateMessage: "Try another day or use Quick Log to add the next event."
             )
         }
+    }
+
+    private func buildTimelineDayGridViewState(
+        from dataset: TimelineDayGridDataset,
+        events: [BabyEvent],
+        child: Child,
+        day: Date
+    ) -> TimelineDayGridViewState? {
+        let eventsByID = Dictionary(uniqueKeysWithValues: events.map { ($0.id, $0) })
+
+        let columns = dataset.columns.map { column in
+            TimelineDayGridColumnViewState(
+                kind: column.kind,
+                title: timelineColumnTitle(for: column.kind),
+                items: column.placements.compactMap { placement in
+                    let groupedEvents = placement.eventIDs.compactMap { eventsByID[$0] }
+                    guard !groupedEvents.isEmpty else {
+                        return nil
+                    }
+
+                    return makeTimelineDayGridItem(
+                        placement: placement,
+                        events: groupedEvents,
+                        child: child,
+                        day: day,
+                        slotMinutes: dataset.slotMinutes
+                    )
+                }
+            )
+        }
+
+        let hasItems = columns.contains { !$0.items.isEmpty }
+        guard hasItems else {
+            return nil
+        }
+
+        return TimelineDayGridViewState(
+            slotMinutes: dataset.slotMinutes,
+            columns: columns
+        )
+    }
+
+    private func makeTimelineDayGridItem(
+        placement: TimelineDayGridPlacement,
+        events: [BabyEvent],
+        child: Child,
+        day: Date,
+        slotMinutes: Int
+    ) -> TimelineDayGridItemViewState {
+        if let event = events.first, events.count == 1 {
+            let actionPayload = eventActionPayload(for: event)
+            let lines = timelineDayGridLines(for: event)
+            return TimelineDayGridItemViewState(
+                id: event.id.uuidString,
+                columnKind: placement.columnKind,
+                startSlotIndex: placement.startSlotIndex,
+                endSlotIndex: placement.endSlotIndex,
+                eventIDs: placement.eventIDs,
+                count: 1,
+                title: lines.title,
+                detailText: lines.detailText,
+                timeText: lines.timeText,
+                actionPayloads: [actionPayload]
+            )
+        }
+
+        let actionPayloads = events.map(eventActionPayload(for:))
+        return TimelineDayGridItemViewState(
+            id: placement.eventIDs.map(\.uuidString).joined(separator: "-"),
+            columnKind: placement.columnKind,
+            startSlotIndex: placement.startSlotIndex,
+            endSlotIndex: placement.endSlotIndex,
+            eventIDs: placement.eventIDs,
+            count: events.count,
+            title: "\(events.count) events",
+            detailText: groupedTimelineDetailText(for: events),
+            timeText: groupedTimelineTimeText(
+                day: day,
+                startSlotIndex: placement.startSlotIndex,
+                endSlotIndex: placement.endSlotIndex,
+                slotMinutes: slotMinutes
+            ),
+            actionPayloads: actionPayloads,
+            groupedEntries: events.compactMap {
+                EventCardViewState(
+                    event: $0,
+                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit,
+                    timestampText: timelineTimeText(for: $0)
+                )
+            }
+        )
+    }
+
+    private func groupedTimelineDetailText(for events: [BabyEvent]) -> String {
+        let uniqueTitles = Array(Set(events.map(BabyEventPresentation.title(for:)))).sorted()
+        if uniqueTitles.count > 1 {
+            return uniqueTitles.prefix(2).joined(separator: ", ")
+        }
+
+        return "Multiple events"
+    }
+
+    private func groupedTimelineTimeText(
+        day: Date,
+        startSlotIndex: Int,
+        endSlotIndex: Int,
+        slotMinutes: Int
+    ) -> String {
+        let start = calendar.date(
+            byAdding: .minute,
+            value: startSlotIndex * slotMinutes,
+            to: day
+        ) ?? day
+        let end = calendar.date(
+            byAdding: .minute,
+            value: endSlotIndex * slotMinutes,
+            to: day
+        ) ?? day
+        return "\(shortTimeText(for: start))-\(shortTimeText(for: end))"
+    }
+
+    private func timelineColumnTitle(for kind: TimelineDayGridColumnKind) -> String {
+        switch kind {
+        case .sleep:
+            return "Sleep"
+        case .nappy:
+            return "Nappy"
+        case .bottleFeed:
+            return "Bottle"
+        case .breastFeed:
+            return "Breast"
+        }
+    }
+
+    private func timelineTimeText(for event: BabyEvent) -> String {
+        switch event {
+        case let .breastFeed(feed):
+            return "\(shortTimeText(for: feed.startedAt))-\(shortTimeText(for: feed.endedAt))"
+        case let .bottleFeed(feed):
+            return shortTimeText(for: feed.metadata.occurredAt)
+        case let .sleep(sleep):
+            if let endedAt = sleep.endedAt {
+                return "\(shortTimeText(for: sleep.startedAt))-\(shortTimeText(for: endedAt))"
+            }
+            return "Started \(shortTimeText(for: sleep.startedAt))"
+        case let .nappy(nappy):
+            return shortTimeText(for: nappy.metadata.occurredAt)
+        }
+    }
+
+    private func timelineDayGridLines(for event: BabyEvent) -> (
+        title: String,
+        detailText: String,
+        timeText: String
+    ) {
+        switch event {
+        case let .sleep(sleep):
+            return (
+                title: sleepDurationText(for: sleep),
+                detailText: shortTimeText(for: sleep.startedAt),
+                timeText: sleep.endedAt.map(shortTimeText(for:)) ?? ""
+            )
+        case let .nappy(nappy):
+            return (
+                title: timelineNappyTypeText(for: nappy.type),
+                detailText: "",
+                timeText: ""
+            )
+        case let .bottleFeed(feed):
+            return (
+                title: "\(feed.amountMilliliters) ml",
+                detailText: "",
+                timeText: ""
+            )
+        case let .breastFeed(feed):
+            let durationMinutes = max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
+            return (
+                title: "\(durationMinutes) min",
+                detailText: "",
+                timeText: ""
+            )
+        }
+    }
+
+    private func sleepDurationText(for sleep: SleepEvent) -> String {
+        let end = sleep.endedAt ?? .now
+        let durationMinutes = max(1, Int(end.timeIntervalSince(sleep.startedAt) / 60))
+        let hours = durationMinutes / 60
+        let minutes = durationMinutes % 60
+
+        if hours > 0, minutes > 0 {
+            return "\(hours)h \(minutes)m"
+        }
+
+        if hours > 0 {
+            return "\(hours)h"
+        }
+
+        return "\(minutes)m"
+    }
+
+    private func timelineNappyTypeText(for type: NappyType) -> String {
+        switch type {
+        case .dry:
+            "Dry"
+        case .wee:
+            "Pee"
+        case .poo:
+            "Poo"
+        case .mixed:
+            "Mixed"
+        }
+    }
+
+    private func eventActionPayload(for event: BabyEvent) -> EventActionPayload {
+        switch event {
+        case let .breastFeed(feed):
+            let durationMinutes = max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
+            return .editBreastFeed(
+                durationMinutes: durationMinutes,
+                endTime: feed.endedAt,
+                side: feed.side,
+                leftDurationSeconds: feed.leftDurationSeconds,
+                rightDurationSeconds: feed.rightDurationSeconds
+            )
+        case let .bottleFeed(feed):
+            return .editBottleFeed(
+                amountMilliliters: feed.amountMilliliters,
+                occurredAt: feed.metadata.occurredAt,
+                milkType: feed.milkType
+            )
+        case let .sleep(sleep):
+            if let endedAt = sleep.endedAt {
+                return .editSleep(startedAt: sleep.startedAt, endedAt: endedAt)
+            }
+            return .endSleep(startedAt: sleep.startedAt)
+        case let .nappy(nappy):
+            return .editNappy(
+                type: nappy.type,
+                occurredAt: nappy.metadata.occurredAt,
+                peeVolume: nappy.peeVolume,
+                pooVolume: nappy.pooVolume,
+                pooColor: nappy.pooColor
+            )
+        }
+    }
+
+    private func shortTimeText(for date: Date) -> String {
+        date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits))
     }
 
     private func eventTitle(for event: BabyEvent) -> String {

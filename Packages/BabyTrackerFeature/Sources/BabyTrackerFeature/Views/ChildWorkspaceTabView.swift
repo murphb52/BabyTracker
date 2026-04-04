@@ -5,6 +5,7 @@ public struct ChildWorkspaceTabView: View {
     let model: AppModel
 
     @State private var activeEventSheet: ChildEventSheet?
+    @State private var activeGroupedTimelineSheet: TimelineDayGridItemViewState?
     @State private var deleteCandidate: EventDeleteCandidate?
     @State private var showingEditChildSheet = false
     @State private var showingEventFilter = false
@@ -123,6 +124,18 @@ public struct ChildWorkspaceTabView: View {
         }) { sheet in
             eventSheet(for: sheet)
         }
+        .sheet(item: $activeGroupedTimelineSheet, onDismiss: {
+            activeGroupedTimelineSheet = nil
+        }) { item in
+            TimelineDayGridGroupedEventsSheetView(
+                item: item,
+                canManageEvents: childProfileViewModel.canManageEvents,
+                openEvent: { entry in
+                    activeGroupedTimelineSheet = nil
+                    showEventSheet(for: entry)
+                }
+            )
+        }
         .sheet(isPresented: $showingEventFilter) {
             EventFilterView(currentFilter: eventHistoryViewModel.activeFilter) { newFilter in
                 eventHistoryViewModel.updateFilter(newFilter)
@@ -181,15 +194,30 @@ public struct ChildWorkspaceTabView: View {
         activeEventSheet = ChildEventSheet(id: event.id, actionPayload: event.actionPayload)
     }
 
-    private func showEventSheet(for event: TimelineEventBlockViewState) {
-        activeEventSheet = ChildEventSheet(id: event.id, actionPayload: event.actionPayload)
+    private func showEventSheet(for event: TimelineDayGridItemViewState) {
+        if event.opensGroupedSheet {
+            activeGroupedTimelineSheet = event
+            return
+        }
+
+        guard let eventID = event.primaryEventID,
+              let actionPayload = event.primaryActionPayload,
+              event.isInteractive else {
+            return
+        }
+
+        activeEventSheet = ChildEventSheet(id: eventID, actionPayload: actionPayload)
     }
 
     private func confirmDelete(for event: EventCardViewState) {
         deleteCandidate = EventDeleteCandidate(event: event)
     }
 
-    private func confirmDelete(for event: TimelineEventBlockViewState) {
+    private func confirmDelete(for event: TimelineDayGridItemViewState) {
+        guard event.isInteractive else {
+            return
+        }
+
         deleteCandidate = EventDeleteCandidate(event: event)
     }
 

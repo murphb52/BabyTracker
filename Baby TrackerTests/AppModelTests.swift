@@ -139,7 +139,7 @@ struct AppModelTests {
     }
 
     @Test
-    func timelineDerivesMixedDayBlocksOldestFirstWithSideBySideLayout() throws {
+    func timelineDerivesMixedDayGridItemsForEachEventType() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }
 
@@ -184,30 +184,49 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        let blocks = selectedTimelineBlocks(
+        let items = selectedTimelineItems(
             pages: harness.model.timelinePages,
             selectedDay: harness.model.timelineSelectedDay
+        )
+        let breastFeedItem = try #require(
+            items.first(where: { $0.primaryEventID == breastFeed.id })
+        )
+        let sleepItem = try #require(
+            items.first(where: { $0.primaryEventID == sleep.id })
+        )
+        let bottleFeedItem = try #require(
+            items.first(where: { $0.primaryEventID == bottleFeed.id })
+        )
+        let nappyItem = try #require(
+            items.first(where: { $0.primaryEventID == nappy.id })
         )
         let firstWeekday = Calendar.autoupdatingCurrent.component(
             .weekday,
             from: try #require(harness.model.timelinePages.first?.date)
         )
 
-        #expect(blocks.map(\.id) == [breastFeed.id, sleep.id, bottleFeed.id, nappy.id])
+        #expect(items.count == 4)
         #expect(harness.model.timelinePages.count == 7)
         #expect(firstWeekday == 2)
-        #expect(blocks[0].startMinute == 360)
-        #expect(blocks[0].endMinute == 380)
-        #expect(blocks[0].compactText == "20 min")
-        #expect(blocks[1].startMinute == 540)
-        #expect(blocks[1].endMinute == 660)
-        #expect(blocks[1].laneCount == 2)
-        #expect(blocks[1].compactText == "120 min")
-        #expect(blocks[2].laneIndex == 1)
-        #expect(blocks[2].laneCount == 2)
-        #expect(blocks[2].compactText == "150 mL")
-        #expect(blocks[3].compactText == "Mixed")
-        #expect(blocks[2].actionPayload == .editBottleFeed(
+        #expect(breastFeedItem.columnKind == .breastFeed)
+        #expect(breastFeedItem.startSlotIndex == 24)
+        #expect(breastFeedItem.endSlotIndex == 26)
+        #expect(breastFeedItem.title == "20 min")
+        #expect(sleepItem.columnKind == .sleep)
+        #expect(sleepItem.startSlotIndex == 36)
+        #expect(sleepItem.endSlotIndex == 44)
+        #expect(sleepItem.title == "2h")
+        #expect(sleepItem.detailText == "09:00")
+        #expect(sleepItem.timeText == "11:00")
+        #expect(bottleFeedItem.columnKind == .bottleFeed)
+        #expect(bottleFeedItem.startSlotIndex == 40)
+        #expect(bottleFeedItem.endSlotIndex == 41)
+        #expect(bottleFeedItem.title == "150 ml")
+        #expect(nappyItem.columnKind == .nappy)
+        #expect(nappyItem.startSlotIndex == 48)
+        #expect(nappyItem.endSlotIndex == 49)
+        #expect(nappyItem.title == "Mixed")
+        #expect(bottleFeedItem.primaryActionPayload == .editBottleFeed(
             amountMilliliters: 150,
             occurredAt: bottleTime,
             milkType: .formula
@@ -243,29 +262,31 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        #expect(selectedTimelineBlocks(pages: harness.model.timelinePages, selectedDay: harness.model.timelineSelectedDay).map(\.id) == [todayEvent.id])
+        #expect(selectedTimelineItems(pages: harness.model.timelinePages, selectedDay: harness.model.timelineSelectedDay).compactMap(\.primaryEventID) == [todayEvent.id])
         #expect(Calendar.autoupdatingCurrent.isDateInToday(harness.model.timelineSelectedDay))
         #expect(harness.model.timelinePages.count == 7)
 
         harness.model.showPreviousTimelineDay()
 
-        #expect(selectedTimelineBlocks(pages: harness.model.timelinePages, selectedDay: harness.model.timelineSelectedDay).map(\.id) == [yesterdayEvent.id])
+        #expect(selectedTimelineItems(pages: harness.model.timelinePages, selectedDay: harness.model.timelineSelectedDay).compactMap(\.primaryEventID) == [yesterdayEvent.id])
         #expect(!Calendar.autoupdatingCurrent.isDateInToday(harness.model.timelineSelectedDay))
 
         harness.model.showNextTimelineDay()
 
-        #expect(selectedTimelineBlocks(pages: harness.model.timelinePages, selectedDay: harness.model.timelineSelectedDay).map(\.id) == [todayEvent.id])
+        #expect(selectedTimelineItems(pages: harness.model.timelinePages, selectedDay: harness.model.timelineSelectedDay).compactMap(\.primaryEventID) == [todayEvent.id])
     }
 
     @Test
-    func activeSleepAppearsOnTimelineWithEndAction() throws {
+    func activeSleepAppearsOnTimelineDayGridWithEndAction() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }
 
         let seed = try harness.seedOwnerProfile()
         let calendar = Calendar.autoupdatingCurrent
         let today = calendar.startOfDay(for: .now)
-        let start = try #require(calendar.date(byAdding: .hour, value: 7, to: today))
+        // Use 1 AM so the sleep always started before .now regardless of when
+        // CI runs, avoiding a flaky failure when the test runs before 7 AM.
+        let start = try #require(calendar.date(byAdding: .hour, value: 1, to: today))
 
         let activeSleep = try harness.saveSleep(
             childID: seed.child.id,
@@ -276,16 +297,16 @@ struct AppModelTests {
 
         harness.model.load(performLaunchSync: false)
 
-        let block = try #require(
-            selectedTimelineBlocks(
+        let item = try #require(
+            selectedTimelineItems(
                 pages: harness.model.timelinePages,
                 selectedDay: harness.model.timelineSelectedDay
-            ).first(where: { $0.id == activeSleep.id })
+            ).first(where: { $0.primaryEventID == activeSleep.id })
         )
 
-        #expect(block.startMinute == 420)
-        #expect(block.endMinute > block.startMinute)
-        #expect(block.actionPayload == .endSleep(startedAt: start))
+        #expect(item.startSlotIndex == 4)
+        #expect(item.endSlotIndex > item.startSlotIndex)
+        #expect(item.primaryActionPayload == .endSleep(startedAt: start))
     }
 
     @Test
@@ -1541,14 +1562,15 @@ struct AppModelTests {
         #expect(harness.model.localUser == nil)
     }
 
-    private func selectedTimelineBlocks(
-        pages: [TimelineDayPageState],
+    private func selectedTimelineItems(
+        pages: [TimelineDayGridPageState],
         selectedDay: Date
-    ) -> [TimelineEventBlockViewState] {
+    ) -> [TimelineDayGridItemViewState] {
         let calendar = Calendar.autoupdatingCurrent
         let index = pages.firstIndex(where: { calendar.isDate($0.date, inSameDayAs: selectedDay) }) ?? 0
         guard !pages.isEmpty else { return [] }
-        return pages[index].blocks
+        guard let grid = pages[index].grid else { return [] }
+        return grid.columns.flatMap(\.items)
     }
 
 }
