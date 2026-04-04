@@ -34,5 +34,9 @@ final class InMemoryUserIdentityRepository: UserIdentityRepository {
     func resetAllData() throws {
         store.users = [:]
         store.localUserID = nil
+        store.children = [:]
+        store.memberships = [:]
+        store.events = [:]
+        store.selectedChildID = nil
     }
 }
