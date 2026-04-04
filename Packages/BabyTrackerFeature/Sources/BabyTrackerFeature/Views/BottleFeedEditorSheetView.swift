@@ -17,7 +17,7 @@ public struct BottleFeedEditorSheetView: View {
     @State private var showCustomAmount: Bool = false
     private let initialTimePreset: QuickTimeSelectorView.TimePreset
 
-    private let quickAmountOptionsMilliliters = [30, 60, 90, 120, 150, 180, 210, 240]
+    private let quickAmountOptionsMilliliters = [10, 20, 30, 40, 50, 60, 70, 80, 90, 110, 120]
 
     private let amountColumns = [
         GridItem(.flexible(), spacing: 8),

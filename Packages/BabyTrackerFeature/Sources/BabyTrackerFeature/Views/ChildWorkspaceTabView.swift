@@ -38,7 +38,7 @@ public struct ChildWorkspaceTabView: View {
                 quickLogBottleFeed: { activeEventSheet = .quickLogBottleFeed },
                 quickLogSleep: showSleepSheet,
                 quickLogNappy: {
-                    activeEventSheet = .quickLogNappy(.wee)
+                    activeEventSheet = .quickLogNappy(.mixed)
                 }
             )
             .tag(ChildWorkspaceTab.home)
@@ -266,7 +266,7 @@ public struct ChildWorkspaceTabView: View {
                 preferredVolumeUnit: childProfileViewModel.child?.preferredFeedVolumeUnit ?? .milliliters,
                 initialAmountMilliliters: 120,
                 initialOccurredAt: Date(),
-                initialMilkType: nil
+                initialMilkType: .formula
             ) { amountMilliliters, occurredAt, milkType in
                 let didSave = model.logBottleFeed(
                     amountMilliliters: amountMilliliters,
