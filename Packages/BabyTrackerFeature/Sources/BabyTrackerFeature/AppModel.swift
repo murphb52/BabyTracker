@@ -1310,7 +1310,7 @@ public final class AppModel {
     }
 
     private func shortTimeText(for date: Date) -> String {
-        date.formatted(.dateTime.hour(.twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)).minute(.twoDigits))
+        date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits))
     }
 
     private func eventTitle(for event: BabyEvent) -> String {
