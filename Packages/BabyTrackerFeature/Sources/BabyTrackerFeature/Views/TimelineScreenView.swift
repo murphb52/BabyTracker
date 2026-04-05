@@ -222,7 +222,7 @@ public struct TimelineScreenView: View {
                 }
             }
         }
-        .presentationDetents([.large])
+        .presentationSizing(.fitted)
     }
 
     private func syncBanner(message: String) -> some View {
