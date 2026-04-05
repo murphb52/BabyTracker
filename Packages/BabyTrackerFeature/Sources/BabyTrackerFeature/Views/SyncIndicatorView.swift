@@ -21,8 +21,9 @@ public struct SyncIndicatorView: View {
                     .strokeBorder(borderColor.opacity(0.28), lineWidth: 1)
             }
             .shadow(color: .black.opacity(0.14), radius: 10, y: 4)
-            .contentTransition(.symbolEffect(.replace))
-            .animation(.spring(response: 0.28, dampingFraction: 0.78), value: state)
+            .contentTransition(.symbolEffect(.replace.downUp.wholeSymbol))
+            .scaleEffect(1)
+            .animation(.spring(response: 0.28, dampingFraction: 0.65), value: state)
             .animation(
                 state == .syncing
                     ? .linear(duration: 0.85).repeatForever(autoreverses: false)
