@@ -327,7 +327,7 @@ struct EventRepositoryTests {
     }
 
     @Test
-    func loadEventsUsesOccurredAtDayForSleepThatSpansMidnight() throws {
+    func loadEventsIncludesSleepOnBothDaysWhenItSpansMidnight() throws {
         let harness = try RepositoryHarness()
         defer { harness.cleanUp() }
 
@@ -372,7 +372,7 @@ struct EventRepositoryTests {
             includingDeleted: false
         )
 
-        #expect(firstDayEvents.isEmpty)
+        #expect(firstDayEvents.map(\.id) == [sleep.id])
         #expect(secondDayEvents.map(\.id) == [sleep.id])
     }
 }

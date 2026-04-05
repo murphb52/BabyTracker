@@ -125,9 +125,27 @@ public final class SwiftDataEventRepository: EventRepository {
 
         return try loadTimeline(for: childID, includingDeleted: includingDeleted)
             .filter { event in
-                event.metadata.occurredAt >= startOfDay &&
-                event.metadata.occurredAt < endOfDay
+                eventOverlapsDay(event, startOfDay: startOfDay, endOfDay: endOfDay)
             }
+    }
+
+    private func eventOverlapsDay(
+        _ event: BabyEvent,
+        startOfDay: Date,
+        endOfDay: Date
+    ) -> Bool {
+        switch event {
+        case let .sleep(sleep):
+            // Active sleep (nil endedAt) is treated as still ongoing
+            let end = sleep.endedAt ?? Date.distantFuture
+            return sleep.startedAt < endOfDay && end > startOfDay
+        case let .breastFeed(feed):
+            return feed.startedAt < endOfDay && feed.endedAt > startOfDay
+        case let .bottleFeed(feed):
+            return feed.metadata.occurredAt >= startOfDay && feed.metadata.occurredAt < endOfDay
+        case let .nappy(nappy):
+            return nappy.metadata.occurredAt >= startOfDay && nappy.metadata.occurredAt < endOfDay
+        }
     }
 
     public func loadActiveSleepEvent(for childID: UUID) throws -> SleepEvent? {
