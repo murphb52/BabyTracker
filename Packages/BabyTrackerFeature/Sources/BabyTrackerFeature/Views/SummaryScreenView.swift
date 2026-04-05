@@ -92,42 +92,24 @@ public struct SummaryScreenView: View {
             ? "0 mL"
             : "\(data.bottleTotalMilliliters) mL"
 
-        let subtitle: String
-        if data.bottleCount == 0 {
-            subtitle = "No bottle feeds today"
-        } else if let mins = data.minutesSinceLastFeed {
-            subtitle = "\(data.bottleCount) feed\(data.bottleCount == 1 ? "" : "s") • last \(DurationText.short(minutes: mins)) ago"
-        } else {
-            subtitle = "\(data.bottleCount) feed\(data.bottleCount == 1 ? "" : "s")"
-        }
-
         return metricCard(
             title: "Bottle",
             value: volumeText,
-            subtitle: subtitle,
+            subtitle: bottleSubtitle(data: data),
             symbol: "bottle.fill",
             tint: .blue
         )
     }
 
     private func breastCard(data: TodaySummaryData) -> some View {
-        let durationText = data.breastFeedCount == 0
-            ? "0m"
-            : DurationText.short(minutes: data.breastFeedTotalMinutes)
-
-        let subtitle: String
-        if data.breastFeedCount == 0 {
-            subtitle = "No breast feeds today"
-        } else if let interval = data.averageFeedIntervalMinutes {
-            subtitle = "\(data.breastFeedCount) feed\(data.breastFeedCount == 1 ? "" : "s") • avg \(DurationText.short(minutes: interval))"
-        } else {
-            subtitle = "\(data.breastFeedCount) feed\(data.breastFeedCount == 1 ? "" : "s")"
-        }
+        let sessionText = data.breastFeedCount == 0
+            ? "0 sessions"
+            : "\(data.breastFeedCount) session\(data.breastFeedCount == 1 ? "" : "s")"
 
         return metricCard(
             title: "Breast",
-            value: durationText,
-            subtitle: subtitle,
+            value: sessionText,
+            subtitle: breastSubtitle(data: data),
             symbol: "heart.fill",
             tint: .pink
         )
@@ -165,23 +147,10 @@ public struct SummaryScreenView: View {
     }
 
     private func nappyCard(data: TodaySummaryData) -> some View {
-        let subtitle: String
-        if data.totalNappies == 0 {
-            subtitle = "No nappy changes today"
-        } else {
-            var parts: [String] = []
-            parts.append("Wet: \(data.wetInclusiveCount)")
-            parts.append("Dirty: \(data.dirtyInclusiveCount)")
-            if data.mixedNappyCount > 0 {
-                parts.append("Mixed: \(data.mixedNappyCount)")
-            }
-            subtitle = parts.joined(separator: " • ")
-        }
-
         return metricCard(
             title: "Nappies",
             value: "\(data.totalNappies)",
-            subtitle: subtitle,
+            subtitle: nappySubtitle(data: data),
             symbol: "checklist.checked",
             tint: .green
         )
@@ -550,6 +519,60 @@ public struct SummaryScreenView: View {
                     .stroke(Color.white.opacity(0.28), lineWidth: 1)
             )
             .shadow(color: Color.black.opacity(0.05), radius: 14, y: 8)
+    }
+
+    private func bottleSubtitle(data: TodaySummaryData) -> String {
+        guard data.bottleCount > 0 else {
+            return "No bottle feeds today"
+        }
+
+        var parts: [String] = []
+        if data.formulaMilliliters > 0 {
+            parts.append("Formula \(data.formulaMilliliters) mL")
+        }
+        if data.breastMilkMilliliters > 0 {
+            parts.append("Breast milk \(data.breastMilkMilliliters) mL")
+        }
+        if data.mixedMilkMilliliters > 0 {
+            parts.append("Mixed \(data.mixedMilkMilliliters) mL")
+        }
+        if parts.isEmpty {
+            parts.append("\(data.bottleCount) feed\(data.bottleCount == 1 ? "" : "s")")
+        }
+        if let minutesSinceLastFeed = data.minutesSinceLastFeed {
+            parts.append("Last \(DurationText.short(minutes: minutesSinceLastFeed)) ago")
+        }
+        return parts.joined(separator: " • ")
+    }
+
+    private func breastSubtitle(data: TodaySummaryData) -> String {
+        guard data.breastFeedCount > 0 else {
+            return "No breast feeds today"
+        }
+
+        var parts = ["\(DurationText.short(minutes: data.breastFeedTotalMinutes)) total"]
+        if let averageBreastFeedMinutes = data.averageBreastFeedMinutes {
+            parts.append("avg \(DurationText.short(minutes: averageBreastFeedMinutes))")
+        }
+        return parts.joined(separator: " • ")
+    }
+
+    private func nappySubtitle(data: TodaySummaryData) -> String {
+        guard data.totalNappies > 0 else {
+            return "No nappy changes today"
+        }
+
+        var parts: [String] = []
+        if data.mixedNappyCount > 0 {
+            parts.append("Mixed: \(data.mixedNappyCount)")
+        }
+        if data.wetNappyCount > 0 {
+            parts.append("Wet: \(data.wetNappyCount)")
+        }
+        if data.dirtyNappyCount > 0 {
+            parts.append("Dirty: \(data.dirtyNappyCount)")
+        }
+        return parts.isEmpty ? "No nappy changes today" : parts.joined(separator: " • ")
     }
 
 }

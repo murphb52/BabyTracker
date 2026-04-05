@@ -17,15 +17,26 @@ public enum TodaySummaryCalculator {
             return feed
         }
         let bottleTotalMilliliters = bottleFeeds.reduce(0) { $0 + $1.amountMilliliters }
+        let formulaMilliliters = bottleFeeds
+            .filter { $0.milkType == .formula }
+            .reduce(0) { $0 + $1.amountMilliliters }
+        let breastMilkMilliliters = bottleFeeds
+            .filter { $0.milkType == .breastMilk }
+            .reduce(0) { $0 + $1.amountMilliliters }
+        let mixedMilkMilliliters = bottleFeeds
+            .filter { $0.milkType == .mixed }
+            .reduce(0) { $0 + $1.amountMilliliters }
 
         // Breast feeds
         let breastFeeds = todayEvents.compactMap { event -> BreastFeedEvent? in
             guard case let .breastFeed(feed) = event else { return nil }
             return feed
         }
-        let breastFeedTotalMinutes = breastFeeds.reduce(0) { total, feed in
-            total + max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
+        let breastFeedDurations = breastFeeds.map { feed in
+            max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
         }
+        let breastFeedTotalMinutes = breastFeedDurations.reduce(0, +)
+        let averageBreastFeedMinutes = average(of: breastFeedDurations)
 
         // Average feed interval (all feeds combined, by occurredAt time)
         let allFeedEvents = todayEvents.filter {
@@ -74,8 +85,12 @@ public enum TodaySummaryCalculator {
         return TodaySummaryData(
             bottleTotalMilliliters: bottleTotalMilliliters,
             bottleCount: bottleFeeds.count,
+            formulaMilliliters: formulaMilliliters,
+            breastMilkMilliliters: breastMilkMilliliters,
+            mixedMilkMilliliters: mixedMilkMilliliters,
             breastFeedTotalMinutes: breastFeedTotalMinutes,
             breastFeedCount: breastFeeds.count,
+            averageBreastFeedMinutes: averageBreastFeedMinutes,
             averageFeedIntervalMinutes: averageFeedInterval,
             minutesSinceLastFeed: minutesSinceLastFeed,
             totalSleepMinutes: totalSleepMinutes,
