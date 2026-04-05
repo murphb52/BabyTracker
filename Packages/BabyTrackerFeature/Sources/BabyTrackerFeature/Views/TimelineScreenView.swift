@@ -1,6 +1,8 @@
 import SwiftUI
 
 public struct TimelineScreenView: View {
+    private let defaultDayPickerSheetHeight: CGFloat = 420
+
     let viewModel: TimelineViewModel
     let openEvent: (TimelineDayGridItemViewState) -> Void
     let deleteEvent: (TimelineDayGridItemViewState) -> Void
@@ -10,6 +12,7 @@ public struct TimelineScreenView: View {
 
     @State private var showingDayPicker = false
     @State private var dragStartPageIndex: Int = 0
+    @State private var dayPickerSheetHeight: CGFloat = 420
 
     public init(
         viewModel: TimelineViewModel,
@@ -190,39 +193,54 @@ public struct TimelineScreenView: View {
     }
 
     private var dayPickerSheet: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 16) {
-                DatePicker(
-                    "Day",
-                    selection: timelineDayBinding,
-                    in: ...Date(),
-                    displayedComponents: .date
-                )
-                .datePickerStyle(.graphical)
-                .labelsHidden()
-                .accessibilityIdentifier("timeline-day-picker")
-            }
-            .padding(20)
-            .navigationTitle("Choose Day")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Today") {
-                        viewModel.jumpToToday()
-                        showingDayPicker = false
-                    }
-                    .accessibilityIdentifier("timeline-day-picker-today-button")
-                }
+        VStack(alignment: .leading, spacing: 16) {
+            dayPickerSheetHeader
 
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        showingDayPicker = false
+            DatePicker(
+                "Day",
+                selection: timelineDayBinding,
+                in: ...Date(),
+                displayedComponents: .date
+            )
+            .datePickerStyle(.graphical)
+            .labelsHidden()
+            .accessibilityIdentifier("timeline-day-picker")
+        }
+        .padding(20)
+        .fixedSize(horizontal: false, vertical: true)
+        .background {
+            GeometryReader { geometry in
+                Color.clear
+                    .task(id: geometry.size.height) {
+                        dayPickerSheetHeight = max(defaultDayPickerSheetHeight, geometry.size.height)
                     }
-                    .accessibilityIdentifier("timeline-day-picker-done-button")
-                }
             }
         }
-        .presentationDetents([.large])
+        .presentationDetents([.height(dayPickerSheetHeight)])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var dayPickerSheetHeader: some View {
+        HStack {
+            Button("Today") {
+                viewModel.jumpToToday()
+                showingDayPicker = false
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("timeline-day-picker-today-button")
+
+            Spacer()
+
+            Button("Done") {
+                showingDayPicker = false
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("timeline-day-picker-done-button")
+        }
+        .overlay {
+            Text("Choose Day")
+                .font(.headline.weight(.semibold))
+        }
     }
 
     private func syncBanner(message: String) -> some View {
