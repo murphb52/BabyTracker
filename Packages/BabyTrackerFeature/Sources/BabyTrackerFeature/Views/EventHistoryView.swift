@@ -181,10 +181,27 @@ public struct EventHistoryView: View {
     }
 
     private func sectionHeader(for date: Date) -> some View {
-        Text(date.formatted(date: .abbreviated, time: .omitted))
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.secondary)
+        let calendar = Calendar.autoupdatingCurrent
+        let label: String
+        if calendar.isDateInToday(date) {
+            label = "Today"
+        } else if calendar.isDateInYesterday(date) {
+            label = "Yesterday"
+        } else {
+            label = date.formatted(date: .abbreviated, time: .omitted)
+        }
+
+        return Text(label)
+            .font(.footnote.weight(.bold))
+            .foregroundStyle(.primary)
             .textCase(.none)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(Color(.tertiarySystemFill))
+            )
+            .padding(.vertical, 4)
     }
 }
 
