@@ -60,8 +60,16 @@ struct AppRootView: View {
                     SyncIndicatorView(state: syncBannerState)
                         .padding(.top, 8)
                         .padding(.trailing, 16)
+                        .transition(
+                            .asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .bottom)),
+                                removal: .opacity.combined(with: .move(edge: .bottom))
+                            )
+                        )
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .topTrailing)
+            .animation(.spring(response: 0.38, dampingFraction: 0.82), value: model.syncBannerState != nil)
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
