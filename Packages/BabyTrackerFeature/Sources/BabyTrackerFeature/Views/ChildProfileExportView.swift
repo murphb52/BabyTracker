@@ -35,14 +35,48 @@ public struct ChildProfileExportView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Export your baby's data")
                         .font(.headline)
-                    Text("Download a complete record of all logged events as a Nest JSON file. Share it with healthcare providers, keep a backup, or import it into another device.")
+                    Text(modeDescription)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 4)
             }
 
+            Section("Export type") {
+                Picker("Export type", selection: $viewModel.exportMode) {
+                    Text("Full Backup").tag(ExportEventsUseCase.ExportMode.fullBackup)
+                    Text("Events Only").tag(ExportEventsUseCase.ExportMode.eventsOnly)
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+                .padding(.vertical, 4)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    switch viewModel.exportMode {
+                    case .fullBackup:
+                        Label("Child profile + all events", systemImage: "person.crop.circle.badge.plus")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("Use this to restore your data on a new device.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    case .eventsOnly:
+                        Label("All events, no child profile", systemImage: "list.bullet.clipboard")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("Use this to share events with a co-caregiver who already has this child's profile.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+
             Section("What gets exported") {
+                if viewModel.exportMode == .fullBackup {
+                    exportableRow(icon: "person.crop.circle", title: "Child name & birth date", color: .purple)
+                }
                 exportableRow(icon: "moon.zzz.fill", title: "Sleep sessions", color: .indigo)
                 exportableRow(icon: "waterbottle.fill", title: "Bottle feeds (amount & milk type)", color: .blue)
                 exportableRow(icon: "figure.seated.side.air.upper", title: "Breast feeds (side & duration)", color: .pink)
@@ -73,6 +107,15 @@ public struct ChildProfileExportView: View {
             }
         }
         .listStyle(.insetGrouped)
+    }
+
+    private var modeDescription: String {
+        switch viewModel.exportMode {
+        case .fullBackup:
+            return "Download a complete record of all logged events and the child profile as a Nest JSON file. Restore it on a new device or keep it as a backup."
+        case .eventsOnly:
+            return "Download all logged events (without the child profile) as a Nest JSON file. Import into an existing child profile on another device."
+        }
     }
 
     // MARK: - Exporting

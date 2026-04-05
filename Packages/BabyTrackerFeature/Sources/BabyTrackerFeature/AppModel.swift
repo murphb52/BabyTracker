@@ -1535,12 +1535,12 @@ public final class AppModel {
     }
 
     /// Executes the export and returns the temp-file URL. Used by ``ExportViewModel``.
-    public func performExport(child: Child, membership: Membership) throws -> URL {
+    public func performExport(child: Child, membership: Membership, mode: ExportEventsUseCase.ExportMode = .fullBackup) throws -> URL {
         let data = try ExportEventsUseCase(
             eventRepository: eventRepository,
             hapticFeedbackProvider: hapticFeedbackProvider
         )
-        .execute(.init(child: child, membership: membership))
+        .execute(.init(child: child, membership: membership, mode: mode))
 
         let childName = child.name
             .replacingOccurrences(of: " ", with: "-")
@@ -1580,6 +1580,41 @@ public final class AppModel {
         refresh(selecting: childSelectionStore.loadSelectedChildID())
         await runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
         return result
+    }
+
+    /// Creates a new child profile and imports all events from a full Nest backup file.
+    /// Both the child and every event receive fresh UUIDs.
+    /// Used by the Add Child screen for the "restore from backup" use case.
+    public func performImportChildFromNest(
+        data: Data,
+        onProgress: @escaping @MainActor (Int, Int) -> Void
+    ) async throws -> CSVImportResult {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let exportData = try decoder.decode(NestExportData.self, from: data)
+
+        guard exportData.child != nil else {
+            throw ImportChildError.missingChildData
+        }
+
+        guard let localUser else {
+            throw ChildProfileValidationError.insufficientPermissions
+        }
+
+        let output = try await ImportChildWithEventsUseCase(
+            childRepository: childRepository,
+            membershipRepository: membershipRepository,
+            childSelectionStore: childSelectionStore,
+            eventRepository: eventRepository,
+            hapticFeedbackProvider: hapticFeedbackProvider
+        ).execute(
+            .init(exportData: exportData, localUser: localUser),
+            onProgress: onProgress
+        )
+
+        refresh(selecting: output.child.id)
+        await runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
+        return output.importResult
     }
 
     // MARK: - Nest Import

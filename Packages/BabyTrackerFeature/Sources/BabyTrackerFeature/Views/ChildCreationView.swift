@@ -14,6 +14,9 @@ public struct ChildCreationView: View {
     @State private var birthDate = Date()
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedImageData: Data?
+    @State private var isImportPickerPresented = false
+    @State private var importInProgress = false
+    @State private var importError: String?
 
     public var body: some View {
         Form {
@@ -65,9 +68,46 @@ public struct ChildCreationView: View {
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier("create-child-button")
             }
+
+            Section {
+                if importInProgress {
+                    HStack(spacing: 12) {
+                        ProgressView()
+                        Text("Importing…")
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Button {
+                        isImportPickerPresented = true
+                    } label: {
+                        Label("Import from Nest Backup", systemImage: "square.and.arrow.down")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .accessibilityIdentifier("import-from-nest-backup-button")
+                }
+            } footer: {
+                Text("Restore a child profile and all events from a Nest JSON backup file.")
+                    .font(.caption)
+            }
         }
         .navigationTitle("Add a Child")
         .navigationBarTitleDisplayMode(.inline)
+        .fileImporter(
+            isPresented: $isImportPickerPresented,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            handleImportFileSelection(result)
+        }
+        .alert("Import Failed", isPresented: Binding(
+            get: { importError != nil },
+            set: { if !$0 { importError = nil } }
+        )) {
+            Button("OK", role: .cancel) { importError = nil }
+        } message: {
+            Text(importError ?? "")
+        }
         .onChange(of: selectedItem) { _, newItem in
             Task {
                 guard let data = try? await newItem?.loadTransferable(type: Data.self),
@@ -75,6 +115,37 @@ public struct ChildCreationView: View {
                       let compressed = ImageCompressor.compress(uiImage) else { return }
                 selectedImageData = compressed
             }
+        }
+    }
+
+    // MARK: - Import handling
+
+    private func handleImportFileSelection(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            let accessing = url.startAccessingSecurityScopedResource()
+            defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+            guard let data = try? Data(contentsOf: url) else {
+                importError = "Could not read the selected file."
+                return
+            }
+            importInProgress = true
+            Task { @MainActor in
+                defer { importInProgress = false }
+                do {
+                    _ = try await model.performImportChildFromNest(data: data, onProgress: { _, _ in })
+                } catch {
+                    if let localizedError = error as? LocalizedError,
+                       let description = localizedError.errorDescription {
+                        importError = description
+                    } else {
+                        importError = "Import failed. Please check the file and try again."
+                    }
+                }
+            }
+        case .failure(let error):
+            importError = error.localizedDescription
         }
     }
 

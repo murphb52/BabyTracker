@@ -9,6 +9,7 @@ import Observation
 @Observable
 public final class ExportViewModel {
     public private(set) var state: DataExportState = .idle
+    public var exportMode: ExportEventsUseCase.ExportMode = .fullBackup
 
     private let appModel: AppModel
 
@@ -27,7 +28,7 @@ public final class ExportViewModel {
 
         Task { @MainActor in
             do {
-                let url = try appModel.performExport(child: child, membership: membership)
+                let url = try appModel.performExport(child: child, membership: membership, mode: exportMode)
                 state = .ready(url)
             } catch {
                 state = .error(resolveMessage(for: error))
