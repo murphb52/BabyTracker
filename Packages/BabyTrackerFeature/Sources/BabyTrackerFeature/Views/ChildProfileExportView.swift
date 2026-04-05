@@ -1,3 +1,4 @@
+import BabyTrackerDomain
 import SwiftUI
 
 public struct ChildProfileExportView: View {
