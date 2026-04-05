@@ -241,10 +241,6 @@ public struct ChildHomeView: View {
     }
 
     private var syncStatusColor: Color {
-        if viewModel.syncStatus.isAccountUnavailable {
-            return .orange
-        }
-
         switch viewModel.syncStatus.state {
         case .upToDate:
             return .green
