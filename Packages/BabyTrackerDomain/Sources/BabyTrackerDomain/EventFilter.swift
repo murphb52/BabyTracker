@@ -7,6 +7,8 @@ public struct EventFilter: Equatable, Sendable {
     public var breastSides: Set<BreastSide>
     public var sleepMinDurationMinutes: Int?
     public var sleepMaxDurationMinutes: Int?
+    public var occurredOnOrAfter: Date?
+    public var occurredOnOrBefore: Date?
 
     public init(
         eventTypes: Set<BabyEventKind>,
@@ -14,7 +16,9 @@ public struct EventFilter: Equatable, Sendable {
         milkTypes: Set<MilkType>,
         breastSides: Set<BreastSide>,
         sleepMinDurationMinutes: Int?,
-        sleepMaxDurationMinutes: Int?
+        sleepMaxDurationMinutes: Int?,
+        occurredOnOrAfter: Date?,
+        occurredOnOrBefore: Date?
     ) {
         self.eventTypes = eventTypes
         self.nappyTypes = nappyTypes
@@ -22,6 +26,8 @@ public struct EventFilter: Equatable, Sendable {
         self.breastSides = breastSides
         self.sleepMinDurationMinutes = sleepMinDurationMinutes
         self.sleepMaxDurationMinutes = sleepMaxDurationMinutes
+        self.occurredOnOrAfter = occurredOnOrAfter
+        self.occurredOnOrBefore = occurredOnOrBefore
     }
 
     public static let empty = EventFilter(
@@ -30,7 +36,9 @@ public struct EventFilter: Equatable, Sendable {
         milkTypes: [],
         breastSides: [],
         sleepMinDurationMinutes: nil,
-        sleepMaxDurationMinutes: nil
+        sleepMaxDurationMinutes: nil,
+        occurredOnOrAfter: nil,
+        occurredOnOrBefore: nil
     )
 
     public var isEmpty: Bool {
@@ -39,10 +47,20 @@ public struct EventFilter: Equatable, Sendable {
         milkTypes.isEmpty &&
         breastSides.isEmpty &&
         sleepMinDurationMinutes == nil &&
-        sleepMaxDurationMinutes == nil
+        sleepMaxDurationMinutes == nil &&
+        occurredOnOrAfter == nil &&
+        occurredOnOrBefore == nil
     }
 
     public func matches(_ event: BabyEvent) -> Bool {
+        if let occurredOnOrAfter, event.metadata.occurredAt < occurredOnOrAfter {
+            return false
+        }
+
+        if let occurredOnOrBefore, event.metadata.occurredAt > occurredOnOrBefore {
+            return false
+        }
+
         if !eventTypes.isEmpty, !eventTypes.contains(event.kind) {
             return false
         }

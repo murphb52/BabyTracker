@@ -39,7 +39,9 @@ struct EventFilterTests {
             milkTypes: [],
             breastSides: [],
             sleepMinDurationMinutes: nil,
-            sleepMaxDurationMinutes: nil
+            sleepMaxDurationMinutes: nil,
+            occurredOnOrAfter: nil,
+            occurredOnOrBefore: nil
         )
         #expect(filter.matches(.sleep(sleep)))
     }
@@ -53,7 +55,9 @@ struct EventFilterTests {
             milkTypes: [],
             breastSides: [],
             sleepMinDurationMinutes: nil,
-            sleepMaxDurationMinutes: nil
+            sleepMaxDurationMinutes: nil,
+            occurredOnOrAfter: nil,
+            occurredOnOrBefore: nil
         )
         #expect(!filter.matches(.bottleFeed(bottle)))
     }
@@ -70,7 +74,9 @@ struct EventFilterTests {
             milkTypes: [],
             breastSides: [],
             sleepMinDurationMinutes: nil,
-            sleepMaxDurationMinutes: nil
+            sleepMaxDurationMinutes: nil,
+            occurredOnOrAfter: nil,
+            occurredOnOrBefore: nil
         )
         #expect(filter.matches(.nappy(poo)))
         #expect(!filter.matches(.nappy(wee)))
@@ -89,7 +95,9 @@ struct EventFilterTests {
             milkTypes: [.formula],
             breastSides: [],
             sleepMinDurationMinutes: nil,
-            sleepMaxDurationMinutes: nil
+            sleepMaxDurationMinutes: nil,
+            occurredOnOrAfter: nil,
+            occurredOnOrBefore: nil
         )
         #expect(filter.matches(.bottleFeed(formula)))
         #expect(!filter.matches(.bottleFeed(breastMilk)))
@@ -109,7 +117,9 @@ struct EventFilterTests {
             milkTypes: [],
             breastSides: [.left],
             sleepMinDurationMinutes: nil,
-            sleepMaxDurationMinutes: nil
+            sleepMaxDurationMinutes: nil,
+            occurredOnOrAfter: nil,
+            occurredOnOrBefore: nil
         )
         #expect(filter.matches(.breastFeed(left)))
         #expect(!filter.matches(.breastFeed(right)))
@@ -128,7 +138,9 @@ struct EventFilterTests {
             milkTypes: [],
             breastSides: [],
             sleepMinDurationMinutes: 30,
-            sleepMaxDurationMinutes: nil
+            sleepMaxDurationMinutes: nil,
+            occurredOnOrAfter: nil,
+            occurredOnOrBefore: nil
         )
         #expect(!filter.matches(.sleep(shortSleep)))
         #expect(filter.matches(.sleep(longSleep)))
@@ -144,7 +156,9 @@ struct EventFilterTests {
             milkTypes: [],
             breastSides: [],
             sleepMinDurationMinutes: nil,
-            sleepMaxDurationMinutes: 60
+            sleepMaxDurationMinutes: 60,
+            occurredOnOrAfter: nil,
+            occurredOnOrBefore: nil
         )
         #expect(filter.matches(.sleep(shortSleep)))
         #expect(!filter.matches(.sleep(longSleep)))
@@ -159,8 +173,74 @@ struct EventFilterTests {
             milkTypes: [],
             breastSides: [],
             sleepMinDurationMinutes: 60,
-            sleepMaxDurationMinutes: 60
+            sleepMaxDurationMinutes: 60,
+            occurredOnOrAfter: nil,
+            occurredOnOrBefore: nil
         )
         #expect(filter.matches(.sleep(ongoingSleep)))
+    }
+
+    // MARK: - Date range filter
+
+    @Test
+    func occurredOnOrAfterExcludesEarlierEvents() throws {
+        let earlyMetadata = EventMetadata(
+            childID: childID,
+            occurredAt: now.addingTimeInterval(-3_600),
+            createdBy: userID
+        )
+        let lateMetadata = EventMetadata(
+            childID: childID,
+            occurredAt: now.addingTimeInterval(3_600),
+            createdBy: userID
+        )
+
+        let earlyEvent = try BottleFeedEvent(metadata: earlyMetadata, amountMilliliters: 120)
+        let lateEvent = try BottleFeedEvent(metadata: lateMetadata, amountMilliliters: 120)
+
+        let filter = EventFilter(
+            eventTypes: [],
+            nappyTypes: [],
+            milkTypes: [],
+            breastSides: [],
+            sleepMinDurationMinutes: nil,
+            sleepMaxDurationMinutes: nil,
+            occurredOnOrAfter: now,
+            occurredOnOrBefore: nil
+        )
+
+        #expect(!filter.matches(.bottleFeed(earlyEvent)))
+        #expect(filter.matches(.bottleFeed(lateEvent)))
+    }
+
+    @Test
+    func occurredOnOrBeforeExcludesLaterEvents() throws {
+        let earlyMetadata = EventMetadata(
+            childID: childID,
+            occurredAt: now.addingTimeInterval(-3_600),
+            createdBy: userID
+        )
+        let lateMetadata = EventMetadata(
+            childID: childID,
+            occurredAt: now.addingTimeInterval(3_600),
+            createdBy: userID
+        )
+
+        let earlyEvent = try BottleFeedEvent(metadata: earlyMetadata, amountMilliliters: 120)
+        let lateEvent = try BottleFeedEvent(metadata: lateMetadata, amountMilliliters: 120)
+
+        let filter = EventFilter(
+            eventTypes: [],
+            nappyTypes: [],
+            milkTypes: [],
+            breastSides: [],
+            sleepMinDurationMinutes: nil,
+            sleepMaxDurationMinutes: nil,
+            occurredOnOrAfter: nil,
+            occurredOnOrBefore: now
+        )
+
+        #expect(filter.matches(.bottleFeed(earlyEvent)))
+        #expect(!filter.matches(.bottleFeed(lateEvent)))
     }
 }
