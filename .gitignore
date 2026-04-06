@@ -2,3 +2,4 @@
 Packages/**/.swiftpm/
 .build/
 TestFlight/WhatToTest*.txt
+.claude/
