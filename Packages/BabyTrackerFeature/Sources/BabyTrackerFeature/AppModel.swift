@@ -240,6 +240,10 @@ public final class AppModel {
         }
     }
 
+    public func showOnboarding() {
+        route = .identityOnboarding
+    }
+
     public func nukeAllData() {
         guard let localUser else { return }
         Task { @MainActor in

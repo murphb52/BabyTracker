@@ -61,6 +61,19 @@ public struct AppSettingsView: View {
                 }
             }
 
+            Section("Help") {
+                Button {
+                    model.showOnboarding()
+                } label: {
+                    settingsRow(
+                        title: "Start Onboarding",
+                        value: nil,
+                        accessibilityIdentifier: "app-settings-onboarding-row"
+                    )
+                }
+                .foregroundStyle(.primary)
+            }
+
             Section("Account Reset") {
                 NavigationLink {
                     NukeAllDataView(nukeAction: { model.nukeAllData() })
