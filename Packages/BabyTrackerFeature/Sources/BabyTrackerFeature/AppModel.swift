@@ -158,16 +158,6 @@ public final class AppModel {
         }
     }
 
-    public func updateLiveActivity() {
-        UpdateFeedLiveActivityUseCase.execute(
-            events: events,
-            child: currentChild,
-            activeSleep: activeSleep,
-            isLiveActivityEnabled: isLiveActivityEnabled,
-            liveActivityManager: liveActivityManager
-        )
-    }
-
     public func refreshAfterShareSheet() {
         Task { @MainActor in
             await runSyncRefresh { await self.syncEngine.refreshForeground() }

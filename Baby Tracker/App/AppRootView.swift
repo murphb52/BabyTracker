@@ -74,18 +74,6 @@ struct AppRootView: View {
         .task {
             model.requestNotificationAuthorizationIfNeeded()
         }
-        .task(id: scenePhase) {
-            guard scenePhase == .active else {
-                return
-            }
-
-            model.updateLiveActivity()
-
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(30))
-                model.updateLiveActivity()
-            }
-        }
         .onOpenURL { url in
             guard let childID = FeedLiveActivityDeepLink.endSleepChildID(from: url) else {
                 return
