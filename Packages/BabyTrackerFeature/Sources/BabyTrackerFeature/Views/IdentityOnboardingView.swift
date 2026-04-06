@@ -95,7 +95,13 @@ public struct IdentityOnboardingView: View {
 
             Spacer()
 
-            if !isShowingNameStep {
+            if isShowingNameStep && !model.activeChildren.isEmpty {
+                Button("Close") {
+                    model.dismissOnboarding()
+                }
+                .font(.subheadline.weight(.semibold))
+                .accessibilityIdentifier("identity-onboarding-close-button")
+            } else if !isShowingNameStep {
                 Button("Skip") {
                     moveToNameStep()
                 }

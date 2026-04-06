@@ -244,6 +244,10 @@ public final class AppModel {
         route = .identityOnboarding
     }
 
+    public func dismissOnboarding() {
+        refresh(selecting: currentChild?.id)
+    }
+
     public func nukeAllData() {
         guard let localUser else { return }
         Task { @MainActor in
