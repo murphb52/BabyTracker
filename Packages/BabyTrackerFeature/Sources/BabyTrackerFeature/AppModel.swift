@@ -960,17 +960,13 @@ public final class AppModel {
             pendingShareInvites = builtPendingInvites
 
             route = .childProfile
-            if isLiveActivityEnabled {
-                liveActivityManager.synchronize(
-                    with: BuildFeedLiveActivitySnapshotUseCase.execute(
-                        events: visibleEvents,
-                        child: currentSummary.child,
-                        activeSleep: currentActiveSleep
-                    )
-                )
-            } else {
-                liveActivityManager.synchronize(with: nil)
-            }
+            UpdateFeedLiveActivityUseCase.execute(
+                events: visibleEvents,
+                child: currentSummary.child,
+                activeSleep: currentActiveSleep,
+                isLiveActivityEnabled: isLiveActivityEnabled,
+                liveActivityManager: liveActivityManager
+            )
         } catch {
             AppLogger.shared.log(.error, category: "AppModel", "refresh failed: \(error)")
             setErrorMessage(resolveErrorMessage(for: error))
