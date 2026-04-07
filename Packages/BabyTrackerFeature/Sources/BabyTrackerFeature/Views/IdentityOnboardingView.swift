@@ -12,19 +12,46 @@ public struct IdentityOnboardingView: View {
 
     private static let introPages: [OnboardingIntroPage] = [
         OnboardingIntroPage(
-            title: "Track every feed, sleep, and nappy",
-            message: "Log the moments that matter without digging through a complicated setup.",
-            symbolName: "drop.circle.fill"
+            id: "pain-points",
+            title: "When every hour blurs together",
+            message: "Feeds, nappies, and short stretches of sleep are hard to keep in your head when you're already running on empty.",
+            symbolNames: [
+                "clock.badge.questionmark.fill",
+                "drop.fill",
+                "moon.zzz.fill",
+            ],
+            highlights: [
+                OnboardingIntroHighlight(title: "Last feed", symbolName: "drop.fill"),
+                OnboardingIntroHighlight(title: "Last sleep", symbolName: "moon.zzz.fill"),
+            ]
         ),
         OnboardingIntroPage(
-            title: "See patterns at a glance",
-            message: "Use the Summary tab to spot daily rhythms and understand how your baby is doing over time.",
-            symbolName: "chart.line.uptrend.xyaxis.circle.fill"
+            id: "app-help",
+            title: "Log it fast, find the pattern",
+            message: "Capture what happened in seconds, then use the timeline and summary views to see what your baby actually needs.",
+            symbolNames: [
+                "square.and.pencil.circle.fill",
+                "list.bullet.clipboard.fill",
+                "chart.line.uptrend.xyaxis.circle.fill",
+            ],
+            highlights: [
+                OnboardingIntroHighlight(title: "Quick logging", symbolName: "checkmark.circle.fill"),
+                OnboardingIntroHighlight(title: "Daily summaries", symbolName: "chart.bar.fill"),
+            ]
         ),
         OnboardingIntroPage(
-            title: "Share with another caregiver",
-            message: "Keep both parents in sync through iCloud so everyone is working from the same timeline.",
-            symbolName: "person.2.circle.fill"
+            id: "shared-care",
+            title: "Keep handoffs calm and clear",
+            message: "Share one up-to-date timeline across caregivers so nobody has to guess what happened last.",
+            symbolNames: [
+                "person.2.circle.fill",
+                "arrow.triangle.2.circlepath.circle.fill",
+                "checkmark.bubble.fill",
+            ],
+            highlights: [
+                OnboardingIntroHighlight(title: "Shared timeline", symbolName: "person.2.fill"),
+                OnboardingIntroHighlight(title: "iCloud sync", symbolName: "icloud.fill"),
+            ]
         ),
     ]
 
