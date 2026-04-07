@@ -3,6 +3,8 @@ import Foundation
 // MARK: - Top-level container
 
 /// The root object for a Nest JSON export file.
+///
+/// Nest exports always contain the child profile and all exportable events.
 public struct NestExportData: Codable, Sendable {
     public let version: Int
     public let exportedAt: Date

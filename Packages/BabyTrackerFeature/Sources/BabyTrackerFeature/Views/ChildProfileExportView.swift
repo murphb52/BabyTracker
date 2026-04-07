@@ -35,7 +35,7 @@ public struct ChildProfileExportView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Export your baby's data")
                         .font(.headline)
-                    Text("Download a complete record of all logged events as a Nest JSON file. Share it with healthcare providers, keep a backup, or import it into another device.")
+                    Text("Download a full Nest backup with the child profile and all logged events. You can restore it into a new child or import its events into an existing child later.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -43,6 +43,7 @@ public struct ChildProfileExportView: View {
             }
 
             Section("What gets exported") {
+                exportableRow(icon: "person.crop.circle", title: "Child name & birth date", color: .purple)
                 exportableRow(icon: "moon.zzz.fill", title: "Sleep sessions", color: .indigo)
                 exportableRow(icon: "waterbottle.fill", title: "Bottle feeds (amount & milk type)", color: .blue)
                 exportableRow(icon: "figure.seated.side.air.upper", title: "Breast feeds (side & duration)", color: .pink)
@@ -178,5 +179,12 @@ public struct ChildProfileExportView: View {
             Image(systemName: icon)
                 .foregroundStyle(color)
         }
+    }
+}
+
+#Preview {
+    NavigationStack {
+        let model = ChildProfilePreviewFactory.makeModel()
+        ChildProfileExportView(appModel: model)
     }
 }

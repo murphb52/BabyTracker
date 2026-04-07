@@ -29,13 +29,15 @@ public struct ExportEventsUseCase: UseCase {
 
         let exportEvents: [NestEventExport] = events.compactMap { nestEvent(from: $0) }
 
+        let childExport = NestChildExport(
+            id: input.child.id,
+            name: input.child.name,
+            birthDate: input.child.birthDate
+        )
         let exportData = NestExportData(
+            version: 1,
             exportedAt: Date(),
-            child: NestChildExport(
-                id: input.child.id,
-                name: input.child.name,
-                birthDate: input.child.birthDate
-            ),
+            child: childExport,
             events: exportEvents
         )
 
