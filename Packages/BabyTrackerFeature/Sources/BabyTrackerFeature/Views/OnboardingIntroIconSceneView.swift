@@ -8,7 +8,6 @@ struct OnboardingIntroIconSceneView: View {
 
     @State private var currentSymbolIndex = 0
     @State private var symbolAnimationTrigger = 0
-    @State private var isFloating = false
 
     var body: some View {
         ZStack {
@@ -31,22 +30,6 @@ struct OnboardingIntroIconSceneView: View {
                 .blur(radius: 18)
                 .offset(x: -48, y: -34)
 
-            OnboardingIntroAccentSymbolView(
-                symbolName: leadingAccentSymbolName,
-                baseOffset: CGSize(width: -68, height: 42),
-                floatingOffset: CGSize(width: -78, height: 28),
-                isFloating: isFloating,
-                isDrawing: reduceMotion == false
-            )
-
-            OnboardingIntroAccentSymbolView(
-                symbolName: trailingAccentSymbolName,
-                baseOffset: CGSize(width: 72, height: -48),
-                floatingOffset: CGSize(width: 82, height: -62),
-                isFloating: isFloating,
-                isDrawing: reduceMotion == false
-            )
-
             Image(systemName: currentSymbolName)
                 .font(.system(size: symbolSize, weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
@@ -63,17 +46,11 @@ struct OnboardingIntroIconSceneView: View {
             guard reduceMotion == false else {
                 currentSymbolIndex = 0
                 symbolAnimationTrigger = 0
-                isFloating = false
                 return
             }
 
             currentSymbolIndex = 0
             symbolAnimationTrigger = 1
-            isFloating = false
-
-            withAnimation(.easeInOut(duration: 2.1).repeatForever(autoreverses: true)) {
-                isFloating = true
-            }
 
             guard page.symbolNames.count > 1 else {
                 return
@@ -103,22 +80,6 @@ struct OnboardingIntroIconSceneView: View {
     private var currentSymbolName: String {
         page.symbolNames[currentSymbolIndex]
     }
-
-    private var leadingAccentSymbolName: String {
-        guard page.symbolNames.count > 1 else {
-            return currentSymbolName
-        }
-
-        return page.symbolNames[1]
-    }
-
-    private var trailingAccentSymbolName: String {
-        guard let trailingSymbolName = page.symbolNames.last else {
-            return currentSymbolName
-        }
-
-        return trailingSymbolName
-    }
 }
 
 #Preview {
@@ -128,6 +89,8 @@ struct OnboardingIntroIconSceneView: View {
             title: "When every hour blurs together",
             message: "Feeds, nappies, and short naps are hard to keep straight when you're already exhausted.",
             symbolNames: ["clock.badge.questionmark.fill", "drop.fill", "moon.zzz.fill"],
+            actionTitle: nil,
+            actionSymbolName: nil,
             highlights: [
                 OnboardingIntroHighlight(title: "Last feed", symbolName: "drop.fill"),
                 OnboardingIntroHighlight(title: "Last sleep", symbolName: "moon.zzz.fill"),

@@ -8,10 +8,11 @@ This first pass will keep the existing pager and name step, but replace the intr
 
 ## Scope
 
-1. Replace the existing onboarding intro content with three concrete pages:
+1. Replace the existing onboarding intro content with four concrete pages:
    - new-parent pain points
    - how Baby Tracker helps in the moment
-   - how shared visibility keeps caregivers aligned
+   - how sharing and notifications keep caregivers aligned
+   - how data stays private and invite-only
 2. Update the onboarding page model so each page can define supporting highlights and richer icon behavior.
 3. Introduce a dedicated onboarding icon view that uses modern SF Symbol transitions and symbol animations to make each page feel more alive.
 4. Keep the current onboarding layout and progression intact unless a small structural change materially improves the icon presentation.

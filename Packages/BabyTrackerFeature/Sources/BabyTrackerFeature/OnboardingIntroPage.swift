@@ -5,5 +5,7 @@ struct OnboardingIntroPage: Identifiable, Equatable, Sendable {
     let title: String
     let message: String
     let symbolNames: [String]
+    let actionTitle: String?
+    let actionSymbolName: String?
     let highlights: [OnboardingIntroHighlight]
 }

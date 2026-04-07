@@ -20,6 +20,8 @@ public struct IdentityOnboardingView: View {
                 "drop.fill",
                 "moon.zzz.fill",
             ],
+            actionTitle: nil,
+            actionSymbolName: nil,
             highlights: [
                 OnboardingIntroHighlight(title: "Last feed", symbolName: "drop.fill"),
                 OnboardingIntroHighlight(title: "Last sleep", symbolName: "moon.zzz.fill"),
@@ -34,23 +36,43 @@ public struct IdentityOnboardingView: View {
                 "list.bullet.clipboard.fill",
                 "chart.line.uptrend.xyaxis.circle.fill",
             ],
+            actionTitle: nil,
+            actionSymbolName: nil,
             highlights: [
                 OnboardingIntroHighlight(title: "Quick logging", symbolName: "checkmark.circle.fill"),
                 OnboardingIntroHighlight(title: "Daily summaries", symbolName: "chart.bar.fill"),
             ]
         ),
         OnboardingIntroPage(
-            id: "shared-care",
-            title: "Keep handoffs calm and clear",
-            message: "Share one up-to-date timeline across caregivers so nobody has to guess what happened last.",
+            id: "sharing",
+            title: "Share the load without extra texting",
+            message: "Invite another caregiver, keep one live timeline in sync, and get notifications so everyone knows what changed.",
             symbolNames: [
                 "person.2.circle.fill",
+                "bell.badge.fill",
                 "arrow.triangle.2.circlepath.circle.fill",
-                "checkmark.bubble.fill",
             ],
+            actionTitle: "Enable Push Notifications",
+            actionSymbolName: "bell.badge.fill",
             highlights: [
-                OnboardingIntroHighlight(title: "Shared timeline", symbolName: "person.2.fill"),
-                OnboardingIntroHighlight(title: "iCloud sync", symbolName: "icloud.fill"),
+                OnboardingIntroHighlight(title: "Easy sharing", symbolName: "person.badge.plus.fill"),
+                OnboardingIntroHighlight(title: "Helpful alerts", symbolName: "bell.badge.fill"),
+            ]
+        ),
+        OnboardingIntroPage(
+            id: "security",
+            title: "Private by default, shared only by you",
+            message: "Everything stays on your device and in iCloud, so only you and the caregivers you invite can see your baby's timeline.",
+            symbolNames: [
+                "lock.shield.fill",
+                "icloud.fill",
+                "checkmark.seal.fill",
+            ],
+            actionTitle: nil,
+            actionSymbolName: nil,
+            highlights: [
+                OnboardingIntroHighlight(title: "Private in iCloud", symbolName: "icloud.fill"),
+                OnboardingIntroHighlight(title: "Invite-only access", symbolName: "lock.fill"),
             ]
         ),
     ]
@@ -144,7 +166,10 @@ public struct IdentityOnboardingView: View {
         VStack(spacing: 24) {
             TabView(selection: $currentStepIndex) {
                 ForEach(Array(Self.introPages.enumerated()), id: \.offset) { index, page in
-                    OnboardingIntroStepView(page: page)
+                    OnboardingIntroStepView(
+                        page: page,
+                        action: page.id == "sharing" ? { enableNotifications() } : nil
+                    )
                         .tag(index)
                         .padding(.horizontal, 24)
                 }
@@ -219,6 +244,10 @@ public struct IdentityOnboardingView: View {
         }
 
         model.createLocalUser(displayName: trimmedName)
+    }
+
+    private func enableNotifications() {
+        model.requestNotificationAuthorizationIfNeeded()
     }
 }
 

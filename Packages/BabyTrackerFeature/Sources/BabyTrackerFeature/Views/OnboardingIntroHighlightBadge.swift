@@ -7,6 +7,8 @@ struct OnboardingIntroHighlightBadge: View {
         Label(highlight.title, systemImage: highlight.symbolName)
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
