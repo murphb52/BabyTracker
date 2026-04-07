@@ -1,6 +1,7 @@
 import BabyTrackerDomain
 import BabyTrackerFeature
 import Foundation
+import UIKit
 import UserNotifications
 
 @MainActor
@@ -15,11 +16,26 @@ final class SystemLocalNotificationManager: NSObject, LocalNotificationManaging 
 
     func requestAuthorizationIfNeeded() async {
         let settings = await notificationCenter.notificationSettings()
-        guard settings.authorizationStatus == .notDetermined else {
+        switch settings.authorizationStatus {
+        case .authorized, .provisional:
+            await MainActor.run {
+                UIApplication.shared.registerForRemoteNotifications()
+            }
+            return
+        case .notDetermined:
+            break
+        default:
             return
         }
 
-        _ = try? await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])
+        let isAuthorized = (try? await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])) == true
+        guard isAuthorized else {
+            return
+        }
+
+        await MainActor.run {
+            UIApplication.shared.registerForRemoteNotifications()
+        }
     }
 
     func scheduleRemoteSyncNotification(_ content: RemoteCaregiverNotificationContent) async {

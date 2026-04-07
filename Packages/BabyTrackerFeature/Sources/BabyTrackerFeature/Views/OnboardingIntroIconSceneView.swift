@@ -89,8 +89,6 @@ struct OnboardingIntroIconSceneView: View {
             title: "When every hour blurs together",
             message: "Feeds, nappies, and short naps are hard to keep straight when you're already exhausted.",
             symbolNames: ["clock.badge.questionmark.fill", "drop.fill", "moon.zzz.fill"],
-            actionTitle: nil,
-            actionSymbolName: nil,
             highlights: [
                 OnboardingIntroHighlight(title: "Last feed", symbolName: "drop.fill"),
                 OnboardingIntroHighlight(title: "Last sleep", symbolName: "moon.zzz.fill"),

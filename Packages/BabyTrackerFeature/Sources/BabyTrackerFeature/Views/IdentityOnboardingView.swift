@@ -2,6 +2,7 @@ import BabyTrackerDomain
 import BabyTrackerPersistence
 import BabyTrackerSync
 import SwiftUI
+import UserNotifications
 
 public struct IdentityOnboardingView: View {
     let model: AppModel
@@ -9,6 +10,10 @@ public struct IdentityOnboardingView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var currentStepIndex = 0
     @State private var displayName = ""
+    @State private var notificationAuthorizationStatus: UNAuthorizationStatus = .notDetermined
+    @State private var isShowingNotificationPermissionPrompt = false
+    @State private var isHandlingNotificationPermissionFlow = false
+    @State private var hasShownNotificationPermissionPrompt = false
 
     private static let introPages: [OnboardingIntroPage] = [
         OnboardingIntroPage(
@@ -20,8 +25,6 @@ public struct IdentityOnboardingView: View {
                 "drop.fill",
                 "moon.zzz.fill",
             ],
-            actionTitle: nil,
-            actionSymbolName: nil,
             highlights: [
                 OnboardingIntroHighlight(title: "Last feed", symbolName: "drop.fill"),
                 OnboardingIntroHighlight(title: "Last sleep", symbolName: "moon.zzz.fill"),
@@ -36,8 +39,6 @@ public struct IdentityOnboardingView: View {
                 "list.bullet.clipboard.fill",
                 "chart.line.uptrend.xyaxis.circle.fill",
             ],
-            actionTitle: nil,
-            actionSymbolName: nil,
             highlights: [
                 OnboardingIntroHighlight(title: "Quick logging", symbolName: "checkmark.circle.fill"),
                 OnboardingIntroHighlight(title: "Daily summaries", symbolName: "chart.bar.fill"),
@@ -46,14 +47,12 @@ public struct IdentityOnboardingView: View {
         OnboardingIntroPage(
             id: "sharing",
             title: "Share the load without extra texting",
-            message: "Invite another caregiver, keep one live timeline in sync, and get notifications so everyone knows what changed.",
+            message: "Invite another caregiver, keep one live timeline in sync, and get a notification when they log an event so you stay in the loop.",
             symbolNames: [
                 "person.2.circle.fill",
                 "bell.badge.fill",
                 "arrow.triangle.2.circlepath.circle.fill",
             ],
-            actionTitle: "Enable Push Notifications",
-            actionSymbolName: "bell.badge.fill",
             highlights: [
                 OnboardingIntroHighlight(title: "Easy sharing", symbolName: "person.badge.plus.fill"),
                 OnboardingIntroHighlight(title: "Helpful alerts", symbolName: "bell.badge.fill"),
@@ -68,8 +67,6 @@ public struct IdentityOnboardingView: View {
                 "icloud.fill",
                 "checkmark.seal.fill",
             ],
-            actionTitle: nil,
-            actionSymbolName: nil,
             highlights: [
                 OnboardingIntroHighlight(title: "Private in iCloud", symbolName: "icloud.fill"),
                 OnboardingIntroHighlight(title: "Invite-only access", symbolName: "lock.fill"),
@@ -133,7 +130,25 @@ public struct IdentityOnboardingView: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 24)
             }
+
+            if isShowingNotificationPermissionPrompt {
+                Color.black.opacity(0.22)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+
+                OnboardingNotificationPromptView(
+                    enableAction: requestNotificationAuthorization,
+                    skipAction: dismissNotificationPromptAndContinue
+                )
+                .padding(.horizontal, 24)
+                .transition(.scale(scale: 0.96).combined(with: .opacity))
+                .zIndex(1)
+            }
         }
+        .task {
+            await refreshNotificationAuthorizationStatus()
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isShowingNotificationPermissionPrompt)
     }
 
     private var topBar: some View {
@@ -166,10 +181,7 @@ public struct IdentityOnboardingView: View {
         VStack(spacing: 24) {
             TabView(selection: $currentStepIndex) {
                 ForEach(Array(Self.introPages.enumerated()), id: \.offset) { index, page in
-                    OnboardingIntroStepView(
-                        page: page,
-                        action: page.id == "sharing" ? { enableNotifications() } : nil
-                    )
+                    OnboardingIntroStepView(page: page)
                         .tag(index)
                         .padding(.horizontal, 24)
                 }
@@ -216,15 +228,39 @@ public struct IdentityOnboardingView: View {
     }
 
     private func advance() {
+        guard isHandlingNotificationPermissionFlow == false else {
+            return
+        }
+
+        if currentIntroPage?.id == "sharing",
+           hasShownNotificationPermissionPrompt == false,
+           notificationAuthorizationStatus == .notDetermined {
+            hasShownNotificationPermissionPrompt = true
+            isShowingNotificationPermissionPrompt = true
+            return
+        }
+
+        moveToNextIntroStep()
+    }
+
+    private var currentIntroPage: OnboardingIntroPage? {
+        guard Self.introPages.indices.contains(currentStepIndex) else {
+            return nil
+        }
+
+        return Self.introPages[currentStepIndex]
+    }
+
+    private func moveToNameStep() {
+        move(to: Self.introPages.count)
+    }
+
+    private func moveToNextIntroStep() {
         if currentStepIndex < Self.introPages.count - 1 {
             move(to: currentStepIndex + 1)
         } else {
             moveToNameStep()
         }
-    }
-
-    private func moveToNameStep() {
-        move(to: Self.introPages.count)
     }
 
     private func move(to stepIndex: Int) {
@@ -246,8 +282,27 @@ public struct IdentityOnboardingView: View {
         model.createLocalUser(displayName: trimmedName)
     }
 
-    private func enableNotifications() {
-        model.requestNotificationAuthorizationIfNeeded()
+    private func requestNotificationAuthorization() {
+        Task { @MainActor in
+            guard isHandlingNotificationPermissionFlow == false else {
+                return
+            }
+
+            isHandlingNotificationPermissionFlow = true
+            isShowingNotificationPermissionPrompt = false
+            model.requestNotificationAuthorizationIfNeeded()
+            isHandlingNotificationPermissionFlow = false
+        }
+    }
+
+    private func dismissNotificationPromptAndContinue() {
+        isShowingNotificationPermissionPrompt = false
+        moveToNextIntroStep()
+    }
+
+    private func refreshNotificationAuthorizationStatus() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        notificationAuthorizationStatus = settings.authorizationStatus
     }
 }
 

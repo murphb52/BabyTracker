@@ -24,9 +24,6 @@ final class CloudKitShareAppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        application.registerForRemoteNotifications()
-        logger.info("Registered for remote notifications at launch")
-        AppLogger.shared.log(.info, category: "CloudKitSync", "Registered for remote notifications at launch")
         _ = launchOptions
         return true
     }
