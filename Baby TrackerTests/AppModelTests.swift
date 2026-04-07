@@ -234,6 +234,38 @@ struct AppModelTests {
     }
 
     @Test
+    func timelineShowsHourAwareBreastFeedTitles() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: .now)
+        let breastStart = try #require(calendar.date(byAdding: .hour, value: 6, to: today))
+        let breastEnd = try #require(calendar.date(byAdding: .minute, value: 80, to: breastStart))
+
+        let breastFeed = try harness.saveBreastFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            start: breastStart,
+            end: breastEnd,
+            side: .left
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        let items = selectedTimelineItems(
+            pages: harness.model.timelinePages,
+            selectedDay: harness.model.timelineSelectedDay
+        )
+        let breastFeedItem = try #require(
+            items.first(where: { $0.primaryEventID == breastFeed.id })
+        )
+
+        #expect(breastFeedItem.title == "1h 20m")
+    }
+
+    @Test
     func timelineNavigationMovesBetweenDaysAndDisablesForwardNavigationOnToday() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }

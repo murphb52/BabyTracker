@@ -70,10 +70,10 @@ public enum BabyEventPresentation {
         )
 
         guard let side = feed.side else {
-            return "\(durationMinutes) min"
+            return DurationText.short(minutes: durationMinutes, minuteStyle: .word)
         }
 
-        return "\(durationMinutes) min • \(breastSideTitle(for: side))"
+        return "\(DurationText.short(minutes: durationMinutes, minuteStyle: .word)) • \(breastSideTitle(for: side))"
     }
 
     private static func bottleFeedDetailText(
@@ -103,7 +103,7 @@ public enum BabyEventPresentation {
             1,
             Int(endedAt.timeIntervalSince(event.startedAt) / 60)
         )
-        return "\(durationMinutes) min"
+        return DurationText.short(minutes: durationMinutes, minuteStyle: .word)
     }
 
     private static func nappyDetailText(

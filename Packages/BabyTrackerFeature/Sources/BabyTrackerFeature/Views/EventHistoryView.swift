@@ -282,7 +282,7 @@ struct ActiveFilterPill: Identifiable {
         if let min = filter.sleepMinDurationMinutes {
             pills.append(ActiveFilterPill(
                 id: "sleepMin_\(min)",
-                label: "≥ \(min) min",
+                label: "≥ \(DurationText.short(minutes: min, minuteStyle: .word))",
                 color: BabyEventStyle.accentColor(for: .sleep),
                 criterion: .sleepMin
             ))
@@ -291,7 +291,7 @@ struct ActiveFilterPill: Identifiable {
         if let max = filter.sleepMaxDurationMinutes {
             pills.append(ActiveFilterPill(
                 id: "sleepMax_\(max)",
-                label: "≤ \(max) min",
+                label: "≤ \(DurationText.short(minutes: max, minuteStyle: .word))",
                 color: BabyEventStyle.accentColor(for: .sleep),
                 criterion: .sleepMax
             ))

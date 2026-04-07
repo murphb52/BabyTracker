@@ -90,7 +90,7 @@ struct LastSleepSummaryCalculatorTests {
         let childID = UUID()
         let userID = UUID()
         let earlierEnd = Date(timeIntervalSince1970: 1_500)
-        let laterEnd = Date(timeIntervalSince1970: 2_500)
+        let laterEnd = Date(timeIntervalSince1970: 6_100)
         let activeStart = Date(timeIntervalSince1970: 3_500)
         let earlierSleep = try SleepEvent(
             metadata: EventMetadata(
@@ -109,7 +109,7 @@ struct LastSleepSummaryCalculatorTests {
                 createdAt: laterEnd,
                 createdBy: userID
             ),
-            startedAt: laterEnd.addingTimeInterval(-900),
+            startedAt: laterEnd.addingTimeInterval(-4_500),
             endedAt: laterEnd
         )
         let activeSleep = try SleepEvent(
@@ -130,7 +130,7 @@ struct LastSleepSummaryCalculatorTests {
 
         #expect(rows.count == 2)
         #expect(rows.map(\.id) == [laterSleep.id, earlierSleep.id])
-        #expect(rows.first?.detailText.contains("15 min") == true)
+        #expect(rows.first?.detailText.contains("1h 15m") == true)
         #expect(rows.first?.detailText.contains("-") == true)
     }
 }

@@ -1247,7 +1247,7 @@ public final class AppModel {
         case let .breastFeed(feed):
             let durationMinutes = max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
             return (
-                title: "\(durationMinutes) min",
+                title: DurationText.short(minutes: durationMinutes, minuteStyle: .word),
                 detailText: "",
                 timeText: ""
             )
@@ -1257,18 +1257,7 @@ public final class AppModel {
     private func sleepDurationText(for sleep: SleepEvent) -> String {
         let end = sleep.endedAt ?? .now
         let durationMinutes = max(1, Int(end.timeIntervalSince(sleep.startedAt) / 60))
-        let hours = durationMinutes / 60
-        let minutes = durationMinutes % 60
-
-        if hours > 0, minutes > 0 {
-            return "\(hours)h \(minutes)m"
-        }
-
-        if hours > 0 {
-            return "\(hours)h"
-        }
-
-        return "\(minutes)m"
+        return DurationText.short(minutes: durationMinutes)
     }
 
     private func timelineNappyTypeText(for type: NappyType) -> String {

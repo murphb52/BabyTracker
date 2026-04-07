@@ -1,3 +1,4 @@
+import BabyTrackerDomain
 import SwiftUI
 
 private enum SummaryTab: String, CaseIterable {
@@ -95,7 +96,7 @@ public struct SummaryScreenView: View {
         if data.bottleCount == 0 {
             subtitle = "No bottle feeds today"
         } else if let mins = data.minutesSinceLastFeed {
-            subtitle = "\(data.bottleCount) feed\(data.bottleCount == 1 ? "" : "s") • last \(formatInterval(mins)) ago"
+            subtitle = "\(data.bottleCount) feed\(data.bottleCount == 1 ? "" : "s") • last \(DurationText.short(minutes: mins)) ago"
         } else {
             subtitle = "\(data.bottleCount) feed\(data.bottleCount == 1 ? "" : "s")"
         }
@@ -112,13 +113,13 @@ public struct SummaryScreenView: View {
     private func breastCard(data: TodaySummaryData) -> some View {
         let durationText = data.breastFeedCount == 0
             ? "0m"
-            : formatMinutes(data.breastFeedTotalMinutes)
+            : DurationText.short(minutes: data.breastFeedTotalMinutes)
 
         let subtitle: String
         if data.breastFeedCount == 0 {
             subtitle = "No breast feeds today"
         } else if let interval = data.averageFeedIntervalMinutes {
-            subtitle = "\(data.breastFeedCount) feed\(data.breastFeedCount == 1 ? "" : "s") • avg \(formatInterval(interval))"
+            subtitle = "\(data.breastFeedCount) feed\(data.breastFeedCount == 1 ? "" : "s") • avg \(DurationText.short(minutes: interval))"
         } else {
             subtitle = "\(data.breastFeedCount) feed\(data.breastFeedCount == 1 ? "" : "s")"
         }
@@ -135,7 +136,7 @@ public struct SummaryScreenView: View {
     private func sleepCard(data: TodaySummaryData) -> some View {
         let totalText = data.totalSleepMinutes == 0
             ? "0m"
-            : formatMinutes(data.totalSleepMinutes)
+            : DurationText.short(minutes: data.totalSleepMinutes)
 
         let subtitle: String
         if data.totalSleepMinutes == 0 {
@@ -143,13 +144,13 @@ public struct SummaryScreenView: View {
         } else {
             var parts: [String] = []
             if data.daytimeSleepMinutes > 0 {
-                parts.append("Day \(formatMinutes(data.daytimeSleepMinutes))")
+                parts.append("Day \(DurationText.short(minutes: data.daytimeSleepMinutes))")
             }
             if data.nighttimeSleepMinutes > 0 {
-                parts.append("Night \(formatMinutes(data.nighttimeSleepMinutes))")
+                parts.append("Night \(DurationText.short(minutes: data.nighttimeSleepMinutes))")
             }
             if let longest = data.longestSleepBlockMinutes {
-                parts.append("Longest \(formatMinutes(longest))")
+                parts.append("Longest \(DurationText.short(minutes: longest))")
             }
             subtitle = parts.joined(separator: " • ")
         }
@@ -193,7 +194,7 @@ public struct SummaryScreenView: View {
                     symbol: "clock.fill",
                     tint: .orange,
                     label: "Last feed",
-                    value: "\(formatInterval(mins)) ago"
+                    value: "\(DurationText.short(minutes: mins)) ago"
                 )
                 Divider().padding(.leading, 44)
             }
@@ -203,7 +204,7 @@ public struct SummaryScreenView: View {
                     symbol: "arrow.trianglehead.clockwise",
                     tint: .orange,
                     label: "Avg feed interval",
-                    value: formatInterval(interval)
+                    value: DurationText.short(minutes: interval)
                 )
                 Divider().padding(.leading, 44)
             }
@@ -304,7 +305,7 @@ public struct SummaryScreenView: View {
 
     private func sleepChartCard(data: TrendsSummaryData) -> some View {
         let points = data.dailySleep.map { ($0.label, $0.totalMinutes) }
-        let avgText = data.avgDailySleepMinutes.map { "Avg \(formatMinutes($0))/day" }
+        let avgText = data.avgDailySleepMinutes.map { "Avg \(DurationText.short(minutes: $0))/day" }
 
         return chartCard(
             title: "Sleep",
@@ -312,7 +313,7 @@ public struct SummaryScreenView: View {
             tint: .indigo,
             subtitle: avgText ?? "No sleep logged in this period"
         ) {
-            miniBarChart(points: points, tint: .indigo, valueFormatter: { formatMinutes($0) })
+            miniBarChart(points: points, tint: .indigo, valueFormatter: { DurationText.short(minutes: $0) })
         }
     }
 
@@ -551,33 +552,6 @@ public struct SummaryScreenView: View {
             .shadow(color: Color.black.opacity(0.05), radius: 14, y: 8)
     }
 
-    // MARK: - Formatters
-
-    private func formatMinutes(_ minutes: Int) -> String {
-        let hours = minutes / 60
-        let remainder = minutes % 60
-
-        if hours == 0 {
-            return "\(remainder)m"
-        }
-
-        return "\(hours)h \(remainder)m"
-    }
-
-    private func formatInterval(_ minutes: Int) -> String {
-        let hours = minutes / 60
-        let remainder = minutes % 60
-
-        if hours == 0 {
-            return "\(remainder)m"
-        }
-
-        if remainder == 0 {
-            return "\(hours)h"
-        }
-
-        return "\(hours)h \(remainder)m"
-    }
 }
 
 // MARK: - TrendsTimeRange bridge

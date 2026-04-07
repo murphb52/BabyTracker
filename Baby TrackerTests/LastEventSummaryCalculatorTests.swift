@@ -56,8 +56,8 @@ struct LastEventSummaryCalculatorTests {
         let childID = UUID()
         let userID = UUID()
         let sleepStart = Date(timeIntervalSince1970: 3_000)
-        let sleepEnd = Date(timeIntervalSince1970: 4_200)
-        let feedEnd = Date(timeIntervalSince1970: 5_000)
+        let sleepEnd = Date(timeIntervalSince1970: 7_800)
+        let feedEnd = Date(timeIntervalSince1970: 9_000)
 
         let completedSleep = try #require(
             LastEventSummaryCalculator.makeSummary(
@@ -106,7 +106,7 @@ struct LastEventSummaryCalculatorTests {
                                 createdBy: userID
                             ),
                             side: .both,
-                            startedAt: feedEnd.addingTimeInterval(-900),
+                            startedAt: feedEnd.addingTimeInterval(-4_500),
                             endedAt: feedEnd
                         )
                     ),
@@ -114,8 +114,8 @@ struct LastEventSummaryCalculatorTests {
             )
         )
 
-        #expect(completedSleep.detailText == "20 min")
+        #expect(completedSleep.detailText == "1h 20m")
         #expect(activeSleep.detailText == "In progress")
-        #expect(breastFeed.detailText == "15 min • Both")
+        #expect(breastFeed.detailText == "1h 15m • Both")
     }
 }

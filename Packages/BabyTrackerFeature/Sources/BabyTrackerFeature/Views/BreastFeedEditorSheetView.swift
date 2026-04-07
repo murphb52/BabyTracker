@@ -292,7 +292,7 @@ public struct BreastFeedEditorSheetView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Left").font(.caption).foregroundStyle(.secondary)
-                    Text("\(leftMins) min").font(.subheadline.weight(.semibold)).monospacedDigit()
+                    Text(DurationText.short(minutes: leftMins, minuteStyle: .word)).font(.subheadline.weight(.semibold)).monospacedDigit()
                 }
                 Spacer()
                 if leftMins == rightMins {
@@ -301,7 +301,7 @@ public struct BreastFeedEditorSheetView: View {
                 }
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("Right").font(.caption).foregroundStyle(.secondary)
-                    Text("\(rightMins) min").font(.subheadline.weight(.semibold)).monospacedDigit()
+                    Text(DurationText.short(minutes: rightMins, minuteStyle: .word)).font(.subheadline.weight(.semibold)).monospacedDigit()
                 }
             }
 
@@ -375,7 +375,7 @@ public struct BreastFeedEditorSheetView: View {
             }
             let total = leftElapsed + rightElapsed
             let mins = Int(total / 60)
-            let durationStr = mins == 0 ? "less than a minute" : "\(mins) min"
+            let durationStr = mins == 0 ? "less than a minute" : DurationText.spoken(minutes: mins)
             let hasLeft = leftElapsed > 0
             let hasRight = rightElapsed > 0
             var s = summaryVariable(childName, color: Self.eventColor)
@@ -402,7 +402,7 @@ public struct BreastFeedEditorSheetView: View {
                 s += summaryVariable(timeStr, color: Self.eventColor)
                 return s
             }
-            let durationStr = total == 1 ? "1 minute" : "\(total) minutes"
+            let durationStr = DurationText.spoken(minutes: total)
             switch side {
             case .notSet:
                 s += AttributedString(" breast fed for ")
@@ -488,7 +488,7 @@ extension BreastFeedEditorSheetView {
         navigationTitle: "Log Feed",
         primaryActionTitle: "Save",
         childName: "Robyn",
-        initialDurationMinutes: 15,
+        initialDurationMinutes: 75,
         initialEndTime: Date(),
         initialSide: .both
     ) { _, _, _, _, _ in true }

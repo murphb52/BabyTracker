@@ -243,10 +243,10 @@ public struct EventFilterView: View {
                 .buttonStyle(.plain)
                 .disabled(value == nil)
 
-                Text(value.map { "\($0) min" } ?? "Any")
+                Text(value.map { DurationText.short(minutes: $0, minuteStyle: .word) } ?? "Any")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(value == nil ? .secondary : .primary)
-                    .frame(minWidth: 56)
+                    .frame(minWidth: 72)
                     .multilineTextAlignment(.center)
 
                 Button(action: onIncrement) {
@@ -414,5 +414,16 @@ extension BreastSide {
 }
 
 #Preview {
-    EventFilterView(currentFilter: .empty) { _ in }
+    EventFilterView(
+        currentFilter: EventFilter(
+            eventTypes: [],
+            nappyTypes: [],
+            milkTypes: [],
+            breastSides: [],
+            sleepMinDurationMinutes: 75,
+            sleepMaxDurationMinutes: 135,
+            occurredOnOrAfter: nil,
+            occurredOnOrBefore: nil
+        )
+    ) { _ in }
 }
