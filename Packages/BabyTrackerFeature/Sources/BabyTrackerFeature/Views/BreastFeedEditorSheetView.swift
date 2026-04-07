@@ -4,32 +4,30 @@ import SwiftUI
 public struct BreastFeedEditorSheetView: View {
     private static let eventColor = BabyEventStyle.accentColor(for: .breastFeed)
 
+    public enum Mode {
+        case start
+        case end
+        case manual
+    }
+
     let navigationTitle: String
     let primaryActionTitle: String
     let childName: String
-    let allowsTimerMode: Bool
-    let saveAction: (_ durationMinutes: Int, _ endTime: Date, _ side: BreastSide?, _ leftDurationSeconds: Int?, _ rightDurationSeconds: Int?) -> Bool
+    let mode: Mode
+    let startAction: (_ startedAt: Date, _ side: BreastSide?) -> Bool
+    let endAction: (_ endTime: Date, _ side: BreastSide?, _ leftDurationSeconds: Int?, _ rightDurationSeconds: Int?, _ durationMinutes: Int) -> Bool
+    let resumeAction: (() -> Void)?
     private let initialTimePreset: QuickTimeSelectorView.TimePreset
 
     @Environment(\.dismiss) private var dismiss
 
-    // Mode
-    @State private var mode: FeedMode = .timer
-
-    // Timer mode state
-    @State private var sessionStartedAt: Date = Date()
-    @State private var leftElapsed: TimeInterval = 0
-    @State private var rightElapsed: TimeInterval = 0
-    @State private var leftRunning: Bool = false
-    @State private var rightRunning: Bool = false
-    @State private var timerStarted: Bool = false
-
-    // Manual mode state
-    @State private var durationMinutes: String
+    @State private var startedAt: Date
     @State private var endTime: Date
     @State private var side: BreastSideChoice
+    @State private var leftElapsed: TimeInterval = 0
+    @State private var rightElapsed: TimeInterval = 0
+    @State private var durationMinutes: String
     @State private var showPerSideBreakdown: Bool = false
-    // leftFraction: 0.0 = all right, 0.5 = 50/50, 1.0 = all left
     @State private var leftFraction: Double = 0.5
     @State private var showCustomDuration: Bool = false
 
@@ -42,22 +40,30 @@ public struct BreastFeedEditorSheetView: View {
         initialDurationMinutes: Int,
         initialEndTime: Date,
         initialSide: BreastSide?,
-        allowsTimerMode: Bool = true,
+        mode: Mode,
+        initialStartedAt: Date = Date(),
         initialTimePreset: QuickTimeSelectorView.TimePreset = .now,
         initialLeftDurationSeconds: Int? = nil,
         initialRightDurationSeconds: Int? = nil,
-        saveAction: @escaping (_ durationMinutes: Int, _ endTime: Date, _ side: BreastSide?, _ leftDurationSeconds: Int?, _ rightDurationSeconds: Int?) -> Bool
+        startAction: @escaping (_ startedAt: Date, _ side: BreastSide?) -> Bool = { _, _ in false },
+        resumeAction: (() -> Void)? = nil,
+        endAction: @escaping (_ endTime: Date, _ side: BreastSide?, _ leftDurationSeconds: Int?, _ rightDurationSeconds: Int?, _ durationMinutes: Int) -> Bool
     ) {
         self.navigationTitle = navigationTitle
         self.primaryActionTitle = primaryActionTitle
         self.childName = childName
-        self.allowsTimerMode = allowsTimerMode
-        self.saveAction = saveAction
+        self.mode = mode
+        self.startAction = startAction
+        self.resumeAction = resumeAction
+        self.endAction = endAction
         self.initialTimePreset = initialTimePreset
-        _mode = State(initialValue: allowsTimerMode ? .timer : .manual)
-        _durationMinutes = State(initialValue: initialDurationMinutes > 0 ? "\(initialDurationMinutes)" : "")
+
+        _startedAt = State(initialValue: initialStartedAt)
         _endTime = State(initialValue: initialEndTime)
+        _durationMinutes = State(initialValue: initialDurationMinutes > 0 ? "\(initialDurationMinutes)" : "")
         _side = State(initialValue: BreastSideChoice(side: initialSide))
+        _leftElapsed = State(initialValue: TimeInterval(initialLeftDurationSeconds ?? 0))
+        _rightElapsed = State(initialValue: TimeInterval(initialRightDurationSeconds ?? 0))
 
         if let left = initialLeftDurationSeconds,
            let right = initialRightDurationSeconds,
@@ -74,22 +80,23 @@ public struct BreastFeedEditorSheetView: View {
             Form {
                 LoggingSummaryView(sentence: summarySentence)
 
-                if allowsTimerMode {
-                    Section {
-                        Picker("Mode", selection: $mode) {
-                            ForEach(FeedMode.allCases) { m in
-                                Text(m.label).tag(m)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .accessibilityIdentifier("breast-feed-mode-picker")
-                    }
+                switch mode {
+                case .start:
+                    startModeContent
+                case .end:
+                    endModeContent
+                case .manual:
+                    manualModeContent
                 }
 
-                if mode == .timer {
-                    timerModeContent
-                } else {
-                    manualModeContent
+                if mode == .manual, let resumeAction {
+                    Section {
+                        Button("Resume Breast Feed") {
+                            resumeAction()
+                            dismiss()
+                        }
+                        .foregroundStyle(.orange)
+                    }
                 }
             }
             .tint(Self.eventColor)
@@ -98,12 +105,6 @@ public struct BreastFeedEditorSheetView: View {
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .presentationDetents([.large])
-            .onReceive(
-                Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-            ) { _ in
-                if leftRunning { leftElapsed += 1 }
-                if rightRunning { rightElapsed += 1 }
-            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -119,84 +120,55 @@ public struct BreastFeedEditorSheetView: View {
         }
     }
 
-    // MARK: - Timer Mode
-
-    private var timerModeContent: some View {
+    private var startModeContent: some View {
         Group {
-            Section {
-                HStack(spacing: 16) {
-                    sideTimerButton(label: "Left", elapsed: leftElapsed, isRunning: leftRunning, identifier: "left") {
-                        toggleLeft()
-                    }
-                    sideTimerButton(label: "Right", elapsed: rightElapsed, isRunning: rightRunning, identifier: "right") {
-                        toggleRight()
-                    }
-                }
-                .padding(.vertical, 8)
+            Section("When did breast feeding start?") {
+                QuickTimeSelectorView(selection: $startedAt)
             }
 
-            if timerStarted {
+            Section("Side") {
+                Picker("Side", selection: $side) {
+                    ForEach(BreastSideChoice.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+        }
+    }
+
+    private var endModeContent: some View {
+        Group {
+            Section("When did breast feeding start?") {
+                DatePicker(
+                    "Started at",
+                    selection: $startedAt,
+                    in: ...Date(),
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+            }
+
+            Section("When did breast feeding end?") {
+                QuickTimeSelectorView(selection: $endTime, initialPreset: initialTimePreset)
+            }
+
+            Section("Side") {
+                Picker("Side", selection: $side) {
+                    ForEach(BreastSideChoice.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            if let duration = endDurationMinutes {
                 Section {
-                    HStack {
-                        Text("Total time logged").foregroundStyle(.secondary)
-                        Spacer()
-                        Text(formatDuration(leftElapsed + rightElapsed))
-                            .font(.largeTitle.monospacedDigit().weight(.semibold))
-                    }
+                    Text("Duration: \(DurationText.short(minutes: duration, minuteStyle: .word))")
+                        .foregroundStyle(.secondary)
                 }
             }
         }
     }
-
-    private func sideTimerButton(
-        label: String,
-        elapsed: TimeInterval,
-        isRunning: Bool,
-        identifier: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Text(label).font(.headline)
-                Text(formatDuration(elapsed))
-                    .font(.title2.monospacedDigit())
-                    .foregroundStyle(isRunning ? Self.eventColor : Color.primary)
-                Image(systemName: isRunning ? "pause.fill" : "play.fill")
-                    .font(.title3)
-                    .foregroundStyle(isRunning ? Self.eventColor : Color.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(isRunning ? Self.eventColor.opacity(0.16) : Color(.tertiarySystemGroupedBackground))
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("breast-feed-timer-\(identifier)")
-    }
-
-    private func toggleLeft() {
-        if !timerStarted { sessionStartedAt = Date(); timerStarted = true }
-        if leftRunning {
-            leftRunning = false
-        } else {
-            rightRunning = false
-            leftRunning = true
-        }
-    }
-
-    private func toggleRight() {
-        if !timerStarted { sessionStartedAt = Date(); timerStarted = true }
-        if rightRunning {
-            rightRunning = false
-        } else {
-            leftRunning = false
-            rightRunning = true
-        }
-    }
-
-    // MARK: - Manual Mode
 
     private var manualModeContent: some View {
         Group {
@@ -222,16 +194,8 @@ public struct BreastFeedEditorSheetView: View {
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("breast-feed-side-picker")
 
-                if side == .both {
-                    if let total = parsedDurationMinutes {
-                        perSideBreakdown(total: total)
-                    }
-                }
-            }
-
-            if let msg = manualValidationMessage {
-                Section {
-                    Text(msg).foregroundStyle(.red)
+                if side == .both, let total = parsedDurationMinutes {
+                    perSideBreakdown(total: total)
                 }
             }
         }
@@ -256,7 +220,6 @@ public struct BreastFeedEditorSheetView: View {
                             .foregroundStyle(!showCustomDuration && parsedDurationMinutes == duration ? Color.white : Color.primary)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("breast-feed-duration-preset-\(duration)")
                 }
 
                 Button {
@@ -274,7 +237,6 @@ public struct BreastFeedEditorSheetView: View {
                         .foregroundStyle(showCustomDuration ? Color.white : Color.primary)
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("breast-feed-duration-custom")
             }
             .padding(.vertical, 2)
         }
@@ -283,30 +245,18 @@ public struct BreastFeedEditorSheetView: View {
     @ViewBuilder
     private func perSideBreakdown(total: Int) -> some View {
         Toggle("Show per-side breakdown", isOn: $showPerSideBreakdown)
-            .accessibilityIdentifier("breast-feed-per-side-toggle")
 
         if showPerSideBreakdown {
             let leftMins = leftMinutes(total: total)
             let rightMins = total - leftMins
 
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Left").font(.caption).foregroundStyle(.secondary)
-                    Text(DurationText.short(minutes: leftMins, minuteStyle: .word)).font(.subheadline.weight(.semibold)).monospacedDigit()
-                }
+                Text("Left: \(DurationText.short(minutes: leftMins, minuteStyle: .word))")
                 Spacer()
-                if leftMins == rightMins {
-                    Text("50/50").font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                }
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("Right").font(.caption).foregroundStyle(.secondary)
-                    Text(DurationText.short(minutes: rightMins, minuteStyle: .word)).font(.subheadline.weight(.semibold)).monospacedDigit()
-                }
+                Text("Right: \(DurationText.short(minutes: rightMins, minuteStyle: .word))")
             }
 
             Slider(value: $leftFraction, in: 0...1, step: 1.0 / Double(max(total, 1)))
-                .accessibilityIdentifier("breast-feed-split-slider")
         }
     }
 
@@ -314,138 +264,76 @@ public struct BreastFeedEditorSheetView: View {
         min(total, max(0, Int(round(leftFraction * Double(total)))))
     }
 
-    // MARK: - Helpers
-
     private var parsedDurationMinutes: Int? {
         guard let v = Int(durationMinutes.trimmingCharacters(in: .whitespacesAndNewlines)), v > 0 else { return nil }
         return v
     }
 
-    private var manualValidationMessage: String? {
-        guard showCustomDuration, !durationMinutes.isEmpty, parsedDurationMinutes == nil else { return nil }
-        return "Enter a duration greater than 0 minutes."
+    private var endDurationMinutes: Int? {
+        guard endTime > startedAt else { return nil }
+        return max(1, Int(endTime.timeIntervalSince(startedAt) / 60))
     }
 
     private var canSave: Bool {
-        mode == .timer ? (timerStarted && (leftElapsed + rightElapsed) > 0) : parsedDurationMinutes != nil
+        switch mode {
+        case .start:
+            return true
+        case .end:
+            return endTime > startedAt
+        case .manual:
+            return parsedDurationMinutes != nil
+        }
     }
 
     private func handleSave() {
-        if mode == .timer {
-            leftRunning = false
-            rightRunning = false
-            let totalSeconds = Int(leftElapsed + rightElapsed)
-            let durationMins = max(1, totalSeconds / 60)
-            let derivedSide: BreastSide?
-            if leftElapsed > 0 && rightElapsed > 0 { derivedSide = .both }
-            else if leftElapsed > 0 { derivedSide = .left }
-            else if rightElapsed > 0 { derivedSide = .right }
-            else { derivedSide = nil }
-            let didSave = saveAction(
-                durationMins, Date(), derivedSide,
-                leftElapsed > 0 ? Int(leftElapsed) : nil,
-                rightElapsed > 0 ? Int(rightElapsed) : nil
-            )
+        switch mode {
+        case .start:
+            let didSave = startAction(startedAt, side.value)
             if didSave { dismiss() }
-        } else {
+        case .end:
+            let duration = endDurationMinutes ?? 1
+            let didSave = endAction(endTime, side.value, leftDurationSeconds(from: duration), rightDurationSeconds(from: duration), duration)
+            if didSave { dismiss() }
+        case .manual:
             guard let total = parsedDurationMinutes else { return }
-            var leftSecs: Int?
-            var rightSecs: Int?
-            if showPerSideBreakdown && side == .both {
-                let leftMins = leftMinutes(total: total)
-                leftSecs = leftMins * 60
-                rightSecs = (total - leftMins) * 60
-            }
-            let didSave = saveAction(total, endTime, side.value, leftSecs, rightSecs)
+            let didSave = endAction(endTime, side.value, leftDurationSeconds(from: total), rightDurationSeconds(from: total), total)
             if didSave { dismiss() }
         }
     }
 
-    private func formatDuration(_ seconds: TimeInterval) -> String {
-        let s = Int(seconds)
-        return String(format: "%d:%02d", s / 60, s % 60)
+    private func leftDurationSeconds(from totalMinutes: Int) -> Int? {
+        if side != .both { return nil }
+        if showPerSideBreakdown {
+            return leftMinutes(total: totalMinutes) * 60
+        }
+        return nil
+    }
+
+    private func rightDurationSeconds(from totalMinutes: Int) -> Int? {
+        if side != .both { return nil }
+        if showPerSideBreakdown {
+            return (totalMinutes - leftMinutes(total: totalMinutes)) * 60
+        }
+        return nil
     }
 
     private var summarySentence: AttributedString {
-        if mode == .timer {
-            guard timerStarted else {
-                var s = summaryVariable(childName, color: Self.eventColor)
-                s += AttributedString(" is about to breast feed")
-                return s
-            }
-            let total = leftElapsed + rightElapsed
-            let mins = Int(total / 60)
-            let durationStr = mins == 0 ? "less than a minute" : DurationText.spoken(minutes: mins)
-            let hasLeft = leftElapsed > 0
-            let hasRight = rightElapsed > 0
-            var s = summaryVariable(childName, color: Self.eventColor)
-            if hasLeft && hasRight {
-                s += AttributedString(" has fed on both sides for ")
-                s += summaryVariable(durationStr, color: Self.eventColor)
-            } else if hasLeft {
-                s += AttributedString(" has fed on the ")
-                s += summaryVariable("left", color: Self.eventColor)
-                s += AttributedString(" for ")
-                s += summaryVariable(durationStr, color: Self.eventColor)
-            } else {
-                s += AttributedString(" has fed on the ")
-                s += summaryVariable("right", color: Self.eventColor)
-                s += AttributedString(" for ")
-                s += summaryVariable(durationStr, color: Self.eventColor)
-            }
-            return s
-        } else {
-            let timeStr = endTime.formatted(date: .omitted, time: .shortened)
-            var s = summaryVariable(childName, color: Self.eventColor)
-            guard let total = parsedDurationMinutes else {
-                s += AttributedString(" breast fed at ")
-                s += summaryVariable(timeStr, color: Self.eventColor)
-                return s
-            }
-            let durationStr = DurationText.spoken(minutes: total)
-            switch side {
-            case .notSet:
-                s += AttributedString(" breast fed for ")
-                s += summaryVariable(durationStr, color: Self.eventColor)
-                s += AttributedString(" at ")
-                s += summaryVariable(timeStr, color: Self.eventColor)
-            case .left:
-                s += AttributedString(" fed on the ")
-                s += summaryVariable("left", color: Self.eventColor)
-                s += AttributedString(" for ")
-                s += summaryVariable(durationStr, color: Self.eventColor)
-                s += AttributedString(" at ")
-                s += summaryVariable(timeStr, color: Self.eventColor)
-            case .right:
-                s += AttributedString(" fed on the ")
-                s += summaryVariable("right", color: Self.eventColor)
-                s += AttributedString(" for ")
-                s += summaryVariable(durationStr, color: Self.eventColor)
-                s += AttributedString(" at ")
-                s += summaryVariable(timeStr, color: Self.eventColor)
-            case .both:
-                s += AttributedString(" fed on both sides for ")
-                s += summaryVariable(durationStr, color: Self.eventColor)
-                s += AttributedString(" at ")
-                s += summaryVariable(timeStr, color: Self.eventColor)
-            }
-            return s
+        var s = summaryVariable(childName, color: Self.eventColor)
+        switch mode {
+        case .start:
+            s += AttributedString(" is about to breast feed")
+        case .end:
+            s += AttributedString(" has breast fed since ")
+            s += summaryVariable(startedAt.formatted(date: .omitted, time: .shortened), color: Self.eventColor)
+        case .manual:
+            s += AttributedString(" breast fed at ")
+            s += summaryVariable(endTime.formatted(date: .omitted, time: .shortened), color: Self.eventColor)
         }
+        return s
     }
 }
 
 extension BreastFeedEditorSheetView {
-    enum FeedMode: String, CaseIterable, Identifiable {
-        case timer, manual
-        var id: String { rawValue }
-        var label: String {
-            switch self {
-            case .timer: "Timer"
-            case .manual: "Manual"
-            }
-        }
-    }
-
     enum BreastSideChoice: String, CaseIterable, Identifiable {
         case left
         case right
@@ -485,11 +373,13 @@ extension BreastFeedEditorSheetView {
 
 #Preview {
     BreastFeedEditorSheetView(
-        navigationTitle: "Log Feed",
+        navigationTitle: "Breast Feed",
         primaryActionTitle: "Save",
         childName: "Robyn",
-        initialDurationMinutes: 75,
+        initialDurationMinutes: 15,
         initialEndTime: Date(),
-        initialSide: .both
-    ) { _, _, _, _, _ in true }
+        initialSide: .both,
+        mode: .manual,
+        endAction: { _, _, _, _, _ in true }
+    )
 }

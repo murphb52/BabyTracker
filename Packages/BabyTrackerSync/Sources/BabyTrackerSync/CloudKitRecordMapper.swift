@@ -245,7 +245,7 @@ public enum CloudKitRecordMapper {
             metadata: metadata(from: record, prefix: "breastFeed."),
             side: (record["side"] as? String).flatMap(BreastSide.init(rawValue:)),
             startedAt: record["startedAt"] as? Date ?? .now,
-            endedAt: record["endedAt"] as? Date ?? .now,
+            endedAt: record["endedAt"] as? Date,
             leftDurationSeconds: record["leftDurationSeconds"] as? Int,
             rightDurationSeconds: record["rightDurationSeconds"] as? Int
         )

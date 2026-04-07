@@ -66,7 +66,7 @@ public enum BabyEventPresentation {
     ) -> String {
         let durationMinutes = max(
             1,
-            Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60)
+            Int((feed.endedAt ?? .now).timeIntervalSince(feed.startedAt) / 60)
         )
 
         guard let side = feed.side else {

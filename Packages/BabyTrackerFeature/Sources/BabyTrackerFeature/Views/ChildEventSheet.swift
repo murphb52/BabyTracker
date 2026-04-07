@@ -3,6 +3,8 @@ import Foundation
 
 public enum ChildEventSheet: Identifiable {
     case quickLogBreastFeed
+    case startBreastFeed
+    case endBreastFeed(id: UUID, startedAt: Date, side: BreastSide?)
     case quickLogBottleFeed
     case startSleep(suggestions: [(label: String, date: Date)])
     case endSleep(id: UUID, startedAt: Date)
@@ -46,6 +48,8 @@ public enum ChildEventSheet: Identifiable {
                 leftDurationSeconds: leftDurationSeconds,
                 rightDurationSeconds: rightDurationSeconds
             )
+        case let .endBreastFeed(startedAt, side):
+            self = .endBreastFeed(id: id, startedAt: startedAt, side: side)
         case let .editBottleFeed(amountMilliliters, occurredAt, milkType):
             self = .editBottleFeed(
                 id: id,
@@ -77,6 +81,10 @@ public enum ChildEventSheet: Identifiable {
         switch self {
         case .quickLogBreastFeed:
             "quick-log-breast-feed"
+        case .startBreastFeed:
+            "start-breast-feed"
+        case let .endBreastFeed(id, _, _):
+            "end-breast-feed-\(id.uuidString)"
         case .quickLogBottleFeed:
             "quick-log-bottle-feed"
         case .startSleep:

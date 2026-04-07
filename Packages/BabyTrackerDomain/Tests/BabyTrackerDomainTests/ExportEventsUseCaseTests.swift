@@ -38,6 +38,7 @@ private final class StubEventRepository: EventRepository {
     func loadEvent(id: UUID) throws -> BabyEvent? { nil }
     func loadTimeline(for childID: UUID, includingDeleted: Bool) throws -> [BabyEvent] { [] }
     func loadEvents(for childID: UUID, on day: Date, calendar: Calendar, includingDeleted: Bool) throws -> [BabyEvent] { [] }
+    func loadActiveBreastFeedEvent(for childID: UUID) throws -> BreastFeedEvent? { nil }
     func loadActiveSleepEvent(for childID: UUID) throws -> SleepEvent? { nil }
     func softDeleteEvent(id: UUID, deletedAt: Date, deletedBy: UUID) throws {}
 }

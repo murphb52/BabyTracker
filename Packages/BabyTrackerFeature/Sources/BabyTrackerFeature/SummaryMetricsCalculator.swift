@@ -174,7 +174,7 @@ public enum SummaryMetricsCalculator {
         let breastMilkMl = bottleEvents.filter { $0.milkType == .breastMilk }.reduce(0) { $0 + $1.amountMilliliters }
         let mixedMilkMl = bottleEvents.filter { $0.milkType == .mixed }.reduce(0) { $0 + $1.amountMilliliters }
         let breastFeedTotalMins = breastEvents.reduce(0) { total, feed in
-            total + max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
+            total + max(1, Int((feed.endedAt ?? .now).timeIntervalSince(feed.startedAt) / 60))
         }
 
         let dailyCounts = makeDailyCounts(events: rangeEvents, now: now, calendar: calendar)
@@ -249,7 +249,7 @@ public enum SummaryMetricsCalculator {
     private static func feedDurationMinutes(for event: BabyEvent) -> Int? {
         switch event {
         case let .breastFeed(feed):
-            return max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
+            return max(1, Int((feed.endedAt ?? .now).timeIntervalSince(feed.startedAt) / 60))
         case .bottleFeed:
             return nil
         case .sleep, .nappy:

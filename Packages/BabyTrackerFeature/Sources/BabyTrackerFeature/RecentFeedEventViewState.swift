@@ -18,7 +18,7 @@ public struct RecentFeedEventViewState: Equatable, Identifiable, Sendable {
             detailText = BabyEventPresentation.detailText(for: event) ?? ""
             let durationMinutes = max(
                 1,
-                Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60)
+                Int((feed.endedAt ?? .now).timeIntervalSince(feed.startedAt) / 60)
             )
 
             timestampText = feed.metadata.occurredAt.formatted(
@@ -27,7 +27,7 @@ public struct RecentFeedEventViewState: Equatable, Identifiable, Sendable {
             )
             editPayload = .breastFeed(
                 durationMinutes: durationMinutes,
-                endTime: feed.endedAt,
+                endTime: feed.endedAt ?? .now,
                 side: feed.side
             )
         case let .bottleFeed(feed):

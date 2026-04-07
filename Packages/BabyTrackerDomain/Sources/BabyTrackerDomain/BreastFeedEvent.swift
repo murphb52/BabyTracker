@@ -4,7 +4,7 @@ public struct BreastFeedEvent: Equatable, Identifiable, Sendable {
     public var metadata: EventMetadata
     public var side: BreastSide?
     public var startedAt: Date
-    public var endedAt: Date
+    public var endedAt: Date?
     public var leftDurationSeconds: Int?
     public var rightDurationSeconds: Int?
 
@@ -16,11 +16,11 @@ public struct BreastFeedEvent: Equatable, Identifiable, Sendable {
         metadata: EventMetadata,
         side: BreastSide?,
         startedAt: Date,
-        endedAt: Date,
+        endedAt: Date?,
         leftDurationSeconds: Int? = nil,
         rightDurationSeconds: Int? = nil
     ) throws {
-        guard endedAt > startedAt else {
+        if let endedAt, endedAt <= startedAt {
             throw BabyEventError.invalidDateRange
         }
 

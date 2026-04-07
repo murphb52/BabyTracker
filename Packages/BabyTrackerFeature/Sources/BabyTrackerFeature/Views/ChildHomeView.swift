@@ -5,6 +5,7 @@ public struct ChildHomeView: View {
     let model: AppModel
     let viewModel: HomeViewModel
     let childProfileViewModel: ChildProfileViewModel
+    let endBreastFeed: () -> Void
     let stopSleep: () -> Void
     let quickLogBreastFeed: () -> Void
     let quickLogBottleFeed: () -> Void
@@ -16,6 +17,7 @@ public struct ChildHomeView: View {
         model: AppModel,
         viewModel: HomeViewModel,
         childProfileViewModel: ChildProfileViewModel,
+        endBreastFeed: @escaping () -> Void,
         stopSleep: @escaping () -> Void,
         quickLogBreastFeed: @escaping () -> Void,
         quickLogBottleFeed: @escaping () -> Void,
@@ -25,6 +27,7 @@ public struct ChildHomeView: View {
         self.model = model
         self.viewModel = viewModel
         self.childProfileViewModel = childProfileViewModel
+        self.endBreastFeed = endBreastFeed
         self.stopSleep = stopSleep
         self.quickLogBreastFeed = quickLogBreastFeed
         self.quickLogBottleFeed = quickLogBottleFeed
@@ -35,6 +38,14 @@ public struct ChildHomeView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                if let activeBreastFeed = viewModel.activeBreastFeedSession {
+                    CurrentBreastFeedCardView(
+                        session: activeBreastFeed,
+                        endBreastFeed: endBreastFeed
+                    )
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+
                 if let currentSleep = viewModel.currentSleep {
                     currentSleepSection(currentSleep)
                         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -49,6 +60,7 @@ public struct ChildHomeView: View {
                 syncSection
             }
             .animation(.easeInOut(duration: 0.35), value: viewModel.currentSleep)
+            .animation(.easeInOut(duration: 0.35), value: viewModel.activeBreastFeedSession)
             .padding(.horizontal, 16)
             .padding(.top, 12)
             .padding(.bottom, 24)
@@ -158,7 +170,7 @@ public struct ChildHomeView: View {
             VStack(spacing: 12) {
                 HStack(spacing: 12) {
                     quickLogButton(
-                        title: "Breast Feed",
+                        title: breastFeedQuickLogTitle,
                         systemImage: BabyEventStyle.systemImage(for: .breastFeed),
                         kind: .breastFeed,
                         accessibilityIdentifier: "quick-log-breast-feed-button",
@@ -223,6 +235,10 @@ public struct ChildHomeView: View {
         viewModel.activeSleepSession == nil ? "Start Sleep" : "End Sleep"
     }
 
+    private var breastFeedQuickLogTitle: String {
+        viewModel.activeBreastFeedSession == nil ? "Start Breast Feed" : "End Breast Feed"
+    }
+
     private var syncStatusSymbolName: String {
         if viewModel.syncStatus.isAccountUnavailable {
             return "icloud.slash"
@@ -269,6 +285,7 @@ public struct ChildHomeView: View {
             model: model,
             viewModel: HomeViewModel(appModel: model),
             childProfileViewModel: ChildProfileViewModel(appModel: model),
+            endBreastFeed: {},
             stopSleep: {},
             quickLogBreastFeed: {},
             quickLogBottleFeed: {},

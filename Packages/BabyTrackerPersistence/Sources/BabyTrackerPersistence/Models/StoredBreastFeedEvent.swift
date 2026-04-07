@@ -15,7 +15,7 @@ final class StoredBreastFeedEvent {
     var deletedAt: Date?
     var sideRawValue: String = ""
     var startedAt: Date = Date()
-    var endedAt: Date = Date()
+    var endedAt: Date?
     var leftDurationSeconds: Int?
     var rightDurationSeconds: Int?
     var syncStateRawValue: String = ""
@@ -35,7 +35,7 @@ final class StoredBreastFeedEvent {
         deletedAt: Date?,
         sideRawValue: String,
         startedAt: Date,
-        endedAt: Date,
+        endedAt: Date?,
         leftDurationSeconds: Int?,
         rightDurationSeconds: Int?,
         syncStateRawValue: String,

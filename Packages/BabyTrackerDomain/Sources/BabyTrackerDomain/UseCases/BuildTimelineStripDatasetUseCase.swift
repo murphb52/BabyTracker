@@ -163,7 +163,7 @@ public struct BuildTimelineStripDatasetUseCase {
     ) -> Date {
         switch event {
         case let .breastFeed(feed):
-            return feed.endedAt
+            return feed.endedAt ?? now
         case let .bottleFeed(feed):
             return feed.metadata.occurredAt.addingTimeInterval(TimeInterval(slotMinutes * 60))
         case let .sleep(sleep):

@@ -14,6 +14,7 @@ public protocol EventRepository: AnyObject {
         calendar: Calendar,
         includingDeleted: Bool
     ) throws -> [BabyEvent]
+    func loadActiveBreastFeedEvent(for childID: UUID) throws -> BreastFeedEvent?
     func loadActiveSleepEvent(for childID: UUID) throws -> SleepEvent?
     func softDeleteEvent(
         id: UUID,

@@ -173,7 +173,7 @@ public struct EventHistoryView: View {
 
     private func primaryActionTitle(for event: EventCardViewState) -> String {
         switch event.actionPayload {
-        case .endSleep:
+        case .endSleep, .endBreastFeed:
             "End"
         case .editBreastFeed, .editBottleFeed, .editNappy, .editSleep:
             "Edit"

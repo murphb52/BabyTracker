@@ -206,7 +206,7 @@ public struct BuildTimelineDayGridDatasetUseCase {
     ) -> Date {
         switch event {
         case let .breastFeed(feed):
-            feed.endedAt
+            feed.endedAt ?? now
         case let .bottleFeed(feed):
             feed.metadata.occurredAt.addingTimeInterval(TimeInterval(slotMinutes * 60))
         case let .sleep(sleep):

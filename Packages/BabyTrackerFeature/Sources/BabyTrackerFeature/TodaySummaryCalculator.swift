@@ -33,7 +33,7 @@ public enum TodaySummaryCalculator {
             return feed
         }
         let breastFeedDurations = breastFeeds.map { feed in
-            max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
+            max(1, Int((feed.endedAt ?? .now).timeIntervalSince(feed.startedAt) / 60))
         }
         let breastFeedTotalMinutes = breastFeedDurations.reduce(0, +)
         let averageBreastFeedMinutes = average(of: breastFeedDurations)

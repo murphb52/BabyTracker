@@ -9,6 +9,7 @@ public enum EventActionPayload: Equatable, Sendable {
         leftDurationSeconds: Int?,
         rightDurationSeconds: Int?
     )
+    case endBreastFeed(startedAt: Date, side: BreastSide?)
     case editBottleFeed(
         amountMilliliters: Int,
         occurredAt: Date,

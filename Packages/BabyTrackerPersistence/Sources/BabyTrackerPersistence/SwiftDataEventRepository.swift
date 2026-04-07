@@ -140,12 +140,28 @@ public final class SwiftDataEventRepository: EventRepository {
             let end = sleep.endedAt ?? Date.distantFuture
             return sleep.startedAt < endOfDay && end > startOfDay
         case let .breastFeed(feed):
-            return feed.startedAt < endOfDay && feed.endedAt > startOfDay
+            let end = feed.endedAt ?? Date.distantFuture
+            return feed.startedAt < endOfDay && end > startOfDay
         case let .bottleFeed(feed):
             return feed.metadata.occurredAt >= startOfDay && feed.metadata.occurredAt < endOfDay
         case let .nappy(nappy):
             return nappy.metadata.occurredAt >= startOfDay && nappy.metadata.occurredAt < endOfDay
         }
+    }
+
+    public func loadActiveBreastFeedEvent(for childID: UUID) throws -> BreastFeedEvent? {
+        try modelContext.fetch(FetchDescriptor<StoredBreastFeedEvent>())
+            .filter { storedEvent in
+                storedEvent.childID == childID &&
+                !isSoftDeleted(
+                    isDeleted: storedEvent.isDeleted,
+                    deletedAt: storedEvent.deletedAt
+                ) &&
+                storedEvent.endedAt == nil
+            }
+            .map(mapBreastFeed)
+            .sorted { left, right in left.startedAt > right.startedAt }
+            .first
     }
 
     public func loadActiveSleepEvent(for childID: UUID) throws -> SleepEvent? {

@@ -19,6 +19,15 @@ public final class HomeViewModel {
         return CurrentSleepCardViewState(sleepEventID: activeSleep.id, startedAt: activeSleep.startedAt)
     }
 
+    public var activeBreastFeedSession: CurrentBreastFeedCardViewState? {
+        guard let activeBreastFeed = appModel.activeBreastFeed else { return nil }
+        return CurrentBreastFeedCardViewState(
+            id: activeBreastFeed.id,
+            startedAt: activeBreastFeed.startedAt,
+            side: activeBreastFeed.side
+        )
+    }
+
     public var currentStatus: CurrentStatusCardViewState {
         guard let child = appModel.currentChild else {
             return CurrentStatusCardViewState(lastSleep: nil, timeSinceLastFeedAt: nil, feedsTodayCount: 0, timeSinceLastNappyAt: nil)

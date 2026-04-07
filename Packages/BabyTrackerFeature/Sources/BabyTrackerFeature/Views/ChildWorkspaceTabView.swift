@@ -33,8 +33,9 @@ public struct ChildWorkspaceTabView: View {
                 model: model,
                 viewModel: homeViewModel,
                 childProfileViewModel: childProfileViewModel,
+                endBreastFeed: showBreastFeedSheet,
                 stopSleep: showSleepSheet,
-                quickLogBreastFeed: { activeEventSheet = .quickLogBreastFeed },
+                quickLogBreastFeed: showBreastFeedSheet,
                 quickLogBottleFeed: { activeEventSheet = .quickLogBottleFeed },
                 quickLogSleep: showSleepSheet,
                 quickLogNappy: {
@@ -190,6 +191,18 @@ public struct ChildWorkspaceTabView: View {
         }
     }
 
+    private func showBreastFeedSheet() {
+        if let activeBreastFeedSession = homeViewModel.activeBreastFeedSession {
+            activeEventSheet = .endBreastFeed(
+                id: activeBreastFeedSession.id,
+                startedAt: activeBreastFeedSession.startedAt,
+                side: activeBreastFeedSession.side
+            )
+        } else {
+            activeEventSheet = .startBreastFeed
+        }
+    }
+
     private func showEventSheet(for event: EventCardViewState) {
         activeEventSheet = ChildEventSheet(id: event.id, actionPayload: event.actionPayload)
     }
@@ -237,6 +250,50 @@ public struct ChildWorkspaceTabView: View {
     @ViewBuilder
     private func eventSheet(for sheet: ChildEventSheet) -> some View {
         switch sheet {
+        case .startBreastFeed:
+            BreastFeedEditorSheetView(
+                navigationTitle: "Breast Feed",
+                primaryActionTitle: "Start",
+                childName: childProfileViewModel.childName,
+                initialDurationMinutes: 0,
+                initialEndTime: Date(),
+                initialSide: nil,
+                mode: .start
+            ) { startedAt, side in
+                let didStart = model.startBreastFeed(startedAt: startedAt, side: side)
+                if didStart {
+                    activeEventSheet = nil
+                }
+                return didStart
+            } endAction: { _, _, _, _, _ in
+                false
+            }
+        case let .endBreastFeed(id, startedAt, side):
+            BreastFeedEditorSheetView(
+                navigationTitle: "End Breast Feed",
+                primaryActionTitle: "End",
+                childName: childProfileViewModel.childName,
+                initialDurationMinutes: 0,
+                initialEndTime: Date(),
+                initialSide: side,
+                mode: .end,
+                initialStartedAt: startedAt
+            ) { _, _ in
+                false
+            } endAction: { endedAt, updatedSide, leftDurationSeconds, rightDurationSeconds, _ in
+                let didEnd = model.endBreastFeed(
+                    id: id,
+                    startedAt: startedAt,
+                    endedAt: endedAt,
+                    side: updatedSide,
+                    leftDurationSeconds: leftDurationSeconds,
+                    rightDurationSeconds: rightDurationSeconds
+                )
+                if didEnd {
+                    activeEventSheet = nil
+                }
+                return didEnd
+            }
         case .quickLogBreastFeed:
             BreastFeedEditorSheetView(
                 navigationTitle: "Breast Feed",
@@ -244,8 +301,11 @@ public struct ChildWorkspaceTabView: View {
                 childName: childProfileViewModel.childName,
                 initialDurationMinutes: 15,
                 initialEndTime: Date(),
-                initialSide: nil
-            ) { durationMinutes, endTime, side, leftDurationSeconds, rightDurationSeconds in
+                initialSide: nil,
+                mode: .manual
+            ) { _, _ in
+                false
+            } endAction: { endTime, side, leftDurationSeconds, rightDurationSeconds, durationMinutes in
                 let didSave = model.logBreastFeed(
                     durationMinutes: durationMinutes,
                     endTime: endTime,
@@ -355,11 +415,20 @@ public struct ChildWorkspaceTabView: View {
                 initialDurationMinutes: durationMinutes,
                 initialEndTime: endTime,
                 initialSide: side,
-                allowsTimerMode: false,
+                mode: .manual,
                 initialTimePreset: .custom,
                 initialLeftDurationSeconds: leftDurationSeconds,
-                initialRightDurationSeconds: rightDurationSeconds
-            ) { updatedDuration, updatedEndTime, updatedSide, updatedLeft, updatedRight in
+                initialRightDurationSeconds: rightDurationSeconds,
+                resumeAction: {
+                    let resumedStart = endTime.addingTimeInterval(TimeInterval(durationMinutes * -60))
+                    let didResume = model.resumeBreastFeed(id: id, startedAt: resumedStart)
+                    if didResume {
+                        activeEventSheet = nil
+                    }
+                }
+            ) { _, _ in
+                false
+            } endAction: { updatedEndTime, updatedSide, updatedLeft, updatedRight, updatedDuration in
                 let didSave = model.updateBreastFeed(
                     id: id,
                     durationMinutes: updatedDuration,

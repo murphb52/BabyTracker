@@ -41,7 +41,7 @@ public enum TrendsSummaryCalculator {
                 return feed
             }
             let totalMinutes = feeds.reduce(0) { total, feed in
-                total + max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
+                total + max(1, Int((feed.endedAt ?? .now).timeIntervalSince(feed.startedAt) / 60))
             }
             return DailyBreastFeedData(
                 date: date,

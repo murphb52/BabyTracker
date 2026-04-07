@@ -34,7 +34,7 @@ public struct EventCardViewState: Equatable, Identifiable, Sendable {
         case let .breastFeed(feed):
             let durationMinutes = max(
                 1,
-                Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60)
+                Int((feed.endedAt ?? .now).timeIntervalSince(feed.startedAt) / 60)
             )
 
             id = feed.id
@@ -48,13 +48,17 @@ public struct EventCardViewState: Equatable, Identifiable, Sendable {
                 date: .abbreviated,
                 time: .shortened
             )
-            actionPayload = .editBreastFeed(
-                durationMinutes: durationMinutes,
-                endTime: feed.endedAt,
-                side: feed.side,
-                leftDurationSeconds: feed.leftDurationSeconds,
-                rightDurationSeconds: feed.rightDurationSeconds
-            )
+            if feed.endedAt == nil {
+                actionPayload = .endBreastFeed(startedAt: feed.startedAt, side: feed.side)
+            } else {
+                actionPayload = .editBreastFeed(
+                    durationMinutes: durationMinutes,
+                    endTime: feed.endedAt ?? .now,
+                    side: feed.side,
+                    leftDurationSeconds: feed.leftDurationSeconds,
+                    rightDurationSeconds: feed.rightDurationSeconds
+                )
+            }
         case let .bottleFeed(feed):
             id = feed.id
             kind = .bottleFeed

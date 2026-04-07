@@ -34,6 +34,8 @@ public final class AppModel {
     public private(set) var currentChild: Child?
     /// The local user's active membership for the current child.
     public private(set) var currentMembership: Membership?
+    /// Currently running breast feed session, if any.
+    public private(set) var activeBreastFeed: BreastFeedEvent?
     /// Currently running sleep session, if any.
     public private(set) var activeSleep: SleepEvent?
     /// Pre-built timeline day pages for the visible week.
@@ -545,6 +547,78 @@ public final class AppModel {
     }
 
     @discardableResult
+    public func startBreastFeed(
+        startedAt: Date,
+        side: BreastSide?
+    ) -> Bool {
+        perform {
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            _ = try StartBreastFeedUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
+            .execute(.init(
+                childID: currentChild.id,
+                localUserID: localUser.id,
+                startedAt: startedAt,
+                side: side,
+                membership: currentMembership
+            ))
+        }
+    }
+
+    @discardableResult
+    public func endBreastFeed(
+        id: UUID,
+        startedAt: Date,
+        endedAt: Date,
+        side: BreastSide?,
+        leftDurationSeconds: Int? = nil,
+        rightDurationSeconds: Int? = nil
+    ) -> Bool {
+        perform {
+            guard currentChild != nil, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            _ = try EndBreastFeedUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
+            .execute(.init(
+                eventID: id,
+                localUserID: localUser.id,
+                startedAt: startedAt,
+                endedAt: endedAt,
+                side: side,
+                leftDurationSeconds: leftDurationSeconds,
+                rightDurationSeconds: rightDurationSeconds,
+                membership: currentMembership
+            ))
+        }
+    }
+
+    @discardableResult
+    public func resumeBreastFeed(
+        id: UUID,
+        startedAt: Date
+    ) -> Bool {
+        perform {
+            guard currentChild != nil, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            _ = try ResumeBreastFeedUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
+            .execute(.init(
+                eventID: id,
+                localUserID: localUser.id,
+                startedAt: startedAt,
+                membership: currentMembership
+            ))
+        }
+    }
+
+    @discardableResult
     public func logBottleFeed(
         amountMilliliters: Int,
         occurredAt: Date,
@@ -910,6 +984,7 @@ public final class AppModel {
                 for: currentSummary.child.id,
                 days: timelineVisibleDays(for: timelineSelectedDay)
             )
+            let currentActiveBreastFeed = try eventRepository.loadActiveBreastFeedEvent(for: currentSummary.child.id)
             let currentActiveSleep = try eventRepository.loadActiveSleepEvent(for: currentSummary.child.id)
             let childMemberships = try membershipRepository.loadMemberships(for: currentSummary.child.id)
             print("[Caregiver] Loaded \(childMemberships.count) memberships from store")
@@ -952,6 +1027,7 @@ public final class AppModel {
             events = visibleEvents
             currentChild = currentSummary.child
             currentMembership = resolvedMembership
+            activeBreastFeed = currentActiveBreastFeed
             activeSleep = currentActiveSleep
             timelinePages = builtTimelinePages
             timelineStripColumns = buildTimelineStripColumns(from: stripDataset)
@@ -986,6 +1062,7 @@ public final class AppModel {
         events = []
         currentChild = nil
         currentMembership = nil
+        activeBreastFeed = nil
         activeSleep = nil
         timelinePages = []
         timelineStripColumns = []
@@ -1205,7 +1282,7 @@ public final class AppModel {
     private func timelineTimeText(for event: BabyEvent) -> String {
         switch event {
         case let .breastFeed(feed):
-            return "\(shortTimeText(for: feed.startedAt))-\(shortTimeText(for: feed.endedAt))"
+            return "\(shortTimeText(for: feed.startedAt))-\(shortTimeText(for: feed.endedAt ?? .now))"
         case let .bottleFeed(feed):
             return shortTimeText(for: feed.metadata.occurredAt)
         case let .sleep(sleep):
@@ -1243,7 +1320,7 @@ public final class AppModel {
                 timeText: ""
             )
         case let .breastFeed(feed):
-            let durationMinutes = max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
+            let durationMinutes = max(1, Int((feed.endedAt ?? .now).timeIntervalSince(feed.startedAt) / 60))
             return (
                 title: DurationText.short(minutes: durationMinutes, minuteStyle: .word),
                 detailText: "",
@@ -1274,10 +1351,13 @@ public final class AppModel {
     private func eventActionPayload(for event: BabyEvent) -> EventActionPayload {
         switch event {
         case let .breastFeed(feed):
-            let durationMinutes = max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
+            if feed.endedAt == nil {
+                return .endBreastFeed(startedAt: feed.startedAt, side: feed.side)
+            }
+            let durationMinutes = max(1, Int((feed.endedAt ?? .now).timeIntervalSince(feed.startedAt) / 60))
             return .editBreastFeed(
                 durationMinutes: durationMinutes,
-                endTime: feed.endedAt,
+                endTime: feed.endedAt ?? .now,
                 side: feed.side,
                 leftDurationSeconds: feed.leftDurationSeconds,
                 rightDurationSeconds: feed.rightDurationSeconds
