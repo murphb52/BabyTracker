@@ -7,8 +7,7 @@ import Foundation
 /// never reused. This makes the use case safe to run on a device that may already have
 /// data from the same original child (e.g. a second restore or a shared family device).
 ///
-/// The export file must have been produced with ``ExportEventsUseCase/ExportMode/fullBackup``
-/// (i.e. `NestExportData.child` must be non-nil). Use ``ImportEventsUseCase`` when you
+/// The export file must contain child profile data. Use ``ImportEventsUseCase`` when you
 /// only need to import events into an *existing* child profile.
 @MainActor
 public struct ImportChildWithEventsUseCase {
@@ -52,18 +51,14 @@ public struct ImportChildWithEventsUseCase {
         _ input: Input,
         onProgress: ((Int, Int) -> Void)? = nil
     ) async throws -> Output {
-        guard let childExport = input.exportData.child else {
-            throw ImportChildError.missingChildData
-        }
-
         // Step 1: Create a brand-new child — fresh UUID, name and birthDate carried over.
         let child = try CreateChildUseCase(
             childRepository: childRepository,
             membershipRepository: membershipRepository,
             childSelectionStore: childSelectionStore
         ).execute(.init(
-            name: childExport.name,
-            birthDate: childExport.birthDate,
+            name: input.exportData.child.name,
+            birthDate: input.exportData.child.birthDate,
             localUser: input.localUser
         ))
 
@@ -134,19 +129,6 @@ public struct ImportChildWithEventsUseCase {
                 pooVolume: e.pooVolume,
                 pooColor: e.pooColor
             ))
-        }
-    }
-}
-
-// MARK: - Error
-
-public enum ImportChildError: LocalizedError, Sendable {
-    case missingChildData
-
-    public var errorDescription: String? {
-        switch self {
-        case .missingChildData:
-            return "This file does not contain a child profile. To import events into an existing child, open that child's profile and use Import from Settings."
         }
     }
 }

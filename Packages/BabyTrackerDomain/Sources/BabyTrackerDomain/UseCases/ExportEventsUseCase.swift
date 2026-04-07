@@ -3,24 +3,13 @@ import Foundation
 /// Loads all non-deleted events for a child and serialises them into a Nest JSON export file.
 @MainActor
 public struct ExportEventsUseCase: UseCase {
-    /// Controls whether the child profile is included in the export file.
-    public enum ExportMode: Sendable {
-        /// Version 1 — includes the child profile. Use for full backups and device migration.
-        case fullBackup
-        /// Version 2 — events only, no child profile. Use for sharing events with a
-        /// co-caregiver who already has the child profile on their device.
-        case eventsOnly
-    }
-
     public struct Input {
         public let child: Child
         public let membership: Membership
-        public let mode: ExportMode
 
-        public init(child: Child, membership: Membership, mode: ExportMode = .fullBackup) {
+        public init(child: Child, membership: Membership) {
             self.child = child
             self.membership = membership
-            self.mode = mode
         }
     }
 
@@ -40,12 +29,13 @@ public struct ExportEventsUseCase: UseCase {
 
         let exportEvents: [NestEventExport] = events.compactMap { nestEvent(from: $0) }
 
-        let childExport: NestChildExport? = input.mode == .fullBackup
-            ? NestChildExport(id: input.child.id, name: input.child.name, birthDate: input.child.birthDate)
-            : nil
-        let exportVersion = input.mode == .fullBackup ? 1 : 2
+        let childExport = NestChildExport(
+            id: input.child.id,
+            name: input.child.name,
+            birthDate: input.child.birthDate
+        )
         let exportData = NestExportData(
-            version: exportVersion,
+            version: 1,
             exportedAt: Date(),
             child: childExport,
             events: exportEvents

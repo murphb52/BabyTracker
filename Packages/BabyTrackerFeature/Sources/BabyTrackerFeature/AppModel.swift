@@ -1535,12 +1535,12 @@ public final class AppModel {
     }
 
     /// Executes the export and returns the temp-file URL. Used by ``ExportViewModel``.
-    public func performExport(child: Child, membership: Membership, mode: ExportEventsUseCase.ExportMode = .fullBackup) throws -> URL {
+    public func performExport(child: Child, membership: Membership) throws -> URL {
         let data = try ExportEventsUseCase(
             eventRepository: eventRepository,
             hapticFeedbackProvider: hapticFeedbackProvider
         )
-        .execute(.init(child: child, membership: membership, mode: mode))
+        .execute(.init(child: child, membership: membership))
 
         let childName = child.name
             .replacingOccurrences(of: " ", with: "-")
@@ -1588,14 +1588,10 @@ public final class AppModel {
     public func performImportChildFromNest(
         data: Data,
         onProgress: @escaping @MainActor (Int, Int) -> Void
-    ) async throws -> CSVImportResult {
+    ) async throws -> ImportChildWithEventsUseCase.Output {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let exportData = try decoder.decode(NestExportData.self, from: data)
-
-        guard exportData.child != nil else {
-            throw ImportChildError.missingChildData
-        }
 
         guard let localUser else {
             throw ChildProfileValidationError.insufficientPermissions
@@ -1614,7 +1610,7 @@ public final class AppModel {
 
         refresh(selecting: output.child.id)
         await runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
-        return output.importResult
+        return output
     }
 
     // MARK: - Nest Import

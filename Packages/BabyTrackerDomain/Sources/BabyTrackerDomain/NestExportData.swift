@@ -4,17 +4,14 @@ import Foundation
 
 /// The root object for a Nest JSON export file.
 ///
-/// - Version 1: Full backup — `child` is present. Legacy files and new full-backup exports.
-/// - Version 2: Events-only — `child` is `nil`. Use when sharing events with a co-caregiver
-///   who already has the child profile.
+/// Nest exports always contain the child profile and all exportable events.
 public struct NestExportData: Codable, Sendable {
     public let version: Int
     public let exportedAt: Date
-    /// The exported child profile. `nil` for events-only exports (version 2).
-    public let child: NestChildExport?
+    public let child: NestChildExport
     public let events: [NestEventExport]
 
-    public init(version: Int = 1, exportedAt: Date, child: NestChildExport?, events: [NestEventExport]) {
+    public init(version: Int = 1, exportedAt: Date, child: NestChildExport, events: [NestEventExport]) {
         self.version = version
         self.exportedAt = exportedAt
         self.child = child
