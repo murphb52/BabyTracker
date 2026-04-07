@@ -4,10 +4,14 @@ public struct TodaySummaryData: Equatable, Sendable {
     // Bottle feeds
     public let bottleTotalMilliliters: Int
     public let bottleCount: Int
+    public let formulaMilliliters: Int
+    public let breastMilkMilliliters: Int
+    public let mixedMilkMilliliters: Int
 
     // Breast feeds
     public let breastFeedTotalMinutes: Int
     public let breastFeedCount: Int
+    public let averageBreastFeedMinutes: Int?
     public let averageFeedIntervalMinutes: Int?
 
     // Combined
@@ -33,8 +37,12 @@ public struct TodaySummaryData: Equatable, Sendable {
     public init(
         bottleTotalMilliliters: Int,
         bottleCount: Int,
+        formulaMilliliters: Int,
+        breastMilkMilliliters: Int,
+        mixedMilkMilliliters: Int,
         breastFeedTotalMinutes: Int,
         breastFeedCount: Int,
+        averageBreastFeedMinutes: Int?,
         averageFeedIntervalMinutes: Int?,
         minutesSinceLastFeed: Int?,
         totalSleepMinutes: Int,
@@ -51,8 +59,12 @@ public struct TodaySummaryData: Equatable, Sendable {
     ) {
         self.bottleTotalMilliliters = bottleTotalMilliliters
         self.bottleCount = bottleCount
+        self.formulaMilliliters = formulaMilliliters
+        self.breastMilkMilliliters = breastMilkMilliliters
+        self.mixedMilkMilliliters = mixedMilkMilliliters
         self.breastFeedTotalMinutes = breastFeedTotalMinutes
         self.breastFeedCount = breastFeedCount
+        self.averageBreastFeedMinutes = averageBreastFeedMinutes
         self.averageFeedIntervalMinutes = averageFeedIntervalMinutes
         self.minutesSinceLastFeed = minutesSinceLastFeed
         self.totalSleepMinutes = totalSleepMinutes

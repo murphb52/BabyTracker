@@ -50,6 +50,13 @@ public struct SummaryHourCount: Equatable, Sendable {
 public struct SummarySnapshot: Equatable, Sendable {
     public let eventCount: Int
     public let totalFeeds: Int
+    public let bottleFeedCount: Int
+    public let breastFeedCount: Int
+    public let bottleTotalMilliliters: Int
+    public let formulaMilliliters: Int
+    public let breastMilkMilliliters: Int
+    public let mixedMilkMilliliters: Int
+    public let breastFeedTotalMinutes: Int
     public let totalNappies: Int
     public let totalSleepMinutes: Int
     public let averageFeedDurationMinutes: Int?
@@ -68,6 +75,13 @@ public struct SummarySnapshot: Equatable, Sendable {
     public init(
         eventCount: Int,
         totalFeeds: Int,
+        bottleFeedCount: Int,
+        breastFeedCount: Int,
+        bottleTotalMilliliters: Int,
+        formulaMilliliters: Int,
+        breastMilkMilliliters: Int,
+        mixedMilkMilliliters: Int,
+        breastFeedTotalMinutes: Int,
         totalNappies: Int,
         totalSleepMinutes: Int,
         averageFeedDurationMinutes: Int?,
@@ -85,6 +99,13 @@ public struct SummarySnapshot: Equatable, Sendable {
     ) {
         self.eventCount = eventCount
         self.totalFeeds = totalFeeds
+        self.bottleFeedCount = bottleFeedCount
+        self.breastFeedCount = breastFeedCount
+        self.bottleTotalMilliliters = bottleTotalMilliliters
+        self.formulaMilliliters = formulaMilliliters
+        self.breastMilkMilliliters = breastMilkMilliliters
+        self.mixedMilkMilliliters = mixedMilkMilliliters
+        self.breastFeedTotalMinutes = breastFeedTotalMinutes
         self.totalNappies = totalNappies
         self.totalSleepMinutes = totalSleepMinutes
         self.averageFeedDurationMinutes = averageFeedDurationMinutes
@@ -112,6 +133,16 @@ public enum SummaryMetricsCalculator {
         let sortedEvents = events.sorted { $0.metadata.occurredAt < $1.metadata.occurredAt }
         let rangeEvents = filter(events: sortedEvents, range: range, now: now, calendar: calendar)
 
+        let bottleEvents = rangeEvents.compactMap { event -> BottleFeedEvent? in
+            guard case let .bottleFeed(bottle) = event else { return nil }
+            return bottle
+        }
+
+        let breastEvents = rangeEvents.compactMap { event -> BreastFeedEvent? in
+            guard case let .breastFeed(breast) = event else { return nil }
+            return breast
+        }
+
         let feedEvents = rangeEvents.compactMap { event -> BabyEvent? in
             switch event {
             case .breastFeed, .bottleFeed:
@@ -138,12 +169,27 @@ public enum SummaryMetricsCalculator {
         let shortestSleep = sleepDurations.min()
         let longestSleep = sleepDurations.max()
 
+        let bottleTotalMl = bottleEvents.reduce(0) { $0 + $1.amountMilliliters }
+        let formulaMl = bottleEvents.filter { $0.milkType == .formula }.reduce(0) { $0 + $1.amountMilliliters }
+        let breastMilkMl = bottleEvents.filter { $0.milkType == .breastMilk }.reduce(0) { $0 + $1.amountMilliliters }
+        let mixedMilkMl = bottleEvents.filter { $0.milkType == .mixed }.reduce(0) { $0 + $1.amountMilliliters }
+        let breastFeedTotalMins = breastEvents.reduce(0) { total, feed in
+            total + max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
+        }
+
         let dailyCounts = makeDailyCounts(events: rangeEvents, now: now, calendar: calendar)
         let hourlyFeedCounts = makeHourlyFeedCounts(events: feedEvents, now: now, calendar: calendar)
 
         return SummarySnapshot(
             eventCount: rangeEvents.count,
             totalFeeds: feedEvents.count,
+            bottleFeedCount: bottleEvents.count,
+            breastFeedCount: breastEvents.count,
+            bottleTotalMilliliters: bottleTotalMl,
+            formulaMilliliters: formulaMl,
+            breastMilkMilliliters: breastMilkMl,
+            mixedMilkMilliliters: mixedMilkMl,
+            breastFeedTotalMinutes: breastFeedTotalMins,
             totalNappies: nappyEvents.count,
             totalSleepMinutes: sleepDurations.reduce(0, +),
             averageFeedDurationMinutes: averageFeedDuration,
