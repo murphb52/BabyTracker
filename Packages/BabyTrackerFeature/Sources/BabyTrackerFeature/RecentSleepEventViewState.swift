@@ -23,7 +23,7 @@ public struct RecentSleepEventViewState: Equatable, Identifiable, Sendable {
         )
         let startTimeText = sleepEvent.startedAt.formatted(date: .omitted, time: .shortened)
         let endTimeText = endedAt.formatted(date: .omitted, time: .shortened)
-        detailText = "\(durationMinutes) min • \(startTimeText)-\(endTimeText)"
+        detailText = "\(DurationText.short(minutes: durationMinutes, minuteStyle: .word)) • \(startTimeText)-\(endTimeText)"
         timestampText = endedAt.formatted(
             date: .abbreviated,
             time: .shortened

@@ -38,19 +38,14 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
             }
             return parts.joined(separator: " ")
         case .breastFeed(let e):
-            let mins = e.durationMinutes
+            let durationText = DurationText.short(minutes: e.durationMinutes)
             if let side = e.side {
-                return "\(side.displayName) · \(mins)m"
+                return "\(side.displayName) · \(durationText)"
             }
-            return "\(mins)m"
+            return durationText
         case .sleep(let e):
-            let duration = e.endedAt.timeIntervalSince(e.startedAt)
-            let hours = Int(duration) / 3600
-            let minutes = (Int(duration) % 3600) / 60
-            if hours > 0 {
-                return "\(hours)h \(minutes)m"
-            }
-            return "\(minutes)m"
+            let durationMinutes = max(0, Int(e.endedAt.timeIntervalSince(e.startedAt) / 60))
+            return DurationText.short(minutes: durationMinutes)
         case .nappy(let e):
             return e.type.displayName
         }

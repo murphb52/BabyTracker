@@ -270,15 +270,7 @@ public struct SleepEditorSheetView: View {
 
     private var sleepDurationString: String {
         let mins = max(0, Int(endedAt.timeIntervalSince(startedAt) / 60))
-        let hours = mins / 60
-        let remaining = mins % 60
-        if hours > 0 {
-            return remaining > 0 ? "\(hours)h \(remaining)m" : "\(hours)h"
-        } else if mins > 0 {
-            return "\(mins) min"
-        } else {
-            return "less than a minute"
-        }
+        return mins > 0 ? DurationText.short(minutes: mins, minuteStyle: .word) : "less than a minute"
     }
 
     // MARK: - Validation
@@ -336,7 +328,7 @@ extension SleepEditorSheetView {
     SleepEditorSheetView(
         mode: .edit,
         childName: "Isla",
-        initialStartedAt: Date(timeIntervalSinceNow: -3_600),
+        initialStartedAt: Date(timeIntervalSinceNow: -7_200),
         initialEndedAt: Date(timeIntervalSinceNow: -1_800),
         endTimeInitialPreset: .custom,
         saveAction: { _, _ in true },

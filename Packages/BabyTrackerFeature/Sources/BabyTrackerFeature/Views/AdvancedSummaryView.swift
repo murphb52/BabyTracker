@@ -1,3 +1,4 @@
+import BabyTrackerDomain
 import SwiftUI
 
 public struct AdvancedSummaryView: View {
@@ -102,14 +103,14 @@ public struct AdvancedSummaryView: View {
     private func sleepSection(viewState: AdvancedSummaryViewState) -> some View {
         sectionCard(title: "Sleep", tint: .indigo, symbol: "moon.zzz.fill") {
             metricRow(title: "Completed sleeps", value: "\(viewState.completedSleepCount)")
-            metricRow(title: "Total sleep", value: formatMinutes(viewState.totalSleepMinutes))
+            metricRow(title: "Total sleep", value: DurationText.short(minutes: viewState.totalSleepMinutes))
             metricRow(
                 title: "Average sleep block",
-                value: viewState.averageSleepBlockMinutes.map { formatMinutes($0) } ?? "No completed sleeps"
+                value: viewState.averageSleepBlockMinutes.map { DurationText.short(minutes: $0) } ?? "No completed sleeps"
             )
             metricRow(
                 title: "Longest sleep block",
-                value: viewState.longestSleepBlockMinutes.map { formatMinutes($0) } ?? "No completed sleeps"
+                value: viewState.longestSleepBlockMinutes.map { DurationText.short(minutes: $0) } ?? "No completed sleeps"
             )
         }
     }
@@ -233,16 +234,6 @@ public struct AdvancedSummaryView: View {
             .shadow(color: Color.black.opacity(0.05), radius: 14, y: 8)
     }
 
-    private func formatMinutes(_ minutes: Int) -> String {
-        let hours = minutes / 60
-        let remainingMinutes = minutes % 60
-
-        if hours == 0 {
-            return "\(remainingMinutes)m"
-        }
-
-        return "\(hours)h \(remainingMinutes)m"
-    }
 }
 
 #Preview {
