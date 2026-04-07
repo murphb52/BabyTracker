@@ -168,6 +168,11 @@ public enum TodaySummaryCalculator {
         return Int((Double(intervals.reduce(0, +)) / Double(intervals.count)).rounded())
     }
 
+    private static func average(of values: [Int]) -> Int? {
+        guard !values.isEmpty else { return nil }
+        return Int((Double(values.reduce(0, +)) / Double(values.count)).rounded())
+    }
+
     private static func loggingStreakDays(
         from events: [BabyEvent],
         now: Date,

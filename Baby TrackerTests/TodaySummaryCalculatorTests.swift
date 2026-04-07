@@ -94,7 +94,7 @@ struct TodaySummaryCalculatorTests {
                         createdBy: userID
                     ),
                     type: .wee,
-                    peeVolume: .small
+                    peeVolume: .light
                 )
             ),
             .nappy(
