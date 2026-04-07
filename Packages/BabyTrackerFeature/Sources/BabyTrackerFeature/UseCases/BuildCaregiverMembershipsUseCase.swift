@@ -19,7 +19,7 @@ public enum BuildCaregiverMembershipsUseCase {
     ) -> Output {
         print("[Caregiver] BuildCaregiverMemberships: \(memberships.count) memberships, \(usersByID.count) users, \(pendingInvites.count) pending invites")
         for m in memberships {
-            let userName = usersByID[m.userID]?.name ?? "(no user record)"
+            let userName = usersByID[m.userID]?.displayName ?? "(no user record)"
             print("[Caregiver]   Membership: userID=\(m.userID) role=\(m.role) status=\(m.status) user='\(userName)'")
         }
 
@@ -44,7 +44,7 @@ public enum BuildCaregiverMembershipsUseCase {
             pendingShareInvites: pendingInvites,
             removedCaregivers: removedCaregivers
         )
-        print("[Caregiver] Result: owner=\(output.owner?.user.name ?? "none") active=\(output.activeCaregivers.count) pending=\(output.pendingShareInvites.count) removed=\(output.removedCaregivers.count)")
+        print("[Caregiver] Result: owner=\(output.owner?.user.displayName ?? "none") active=\(output.activeCaregivers.count) pending=\(output.pendingShareInvites.count) removed=\(output.removedCaregivers.count)")
         return output
     }
 }
