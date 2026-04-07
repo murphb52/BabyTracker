@@ -44,6 +44,10 @@ public struct TimelineDayGridView: View {
                 ZStack(alignment: .topLeading) {
                     slotGrid(columnWidth: columnWidth)
 
+                    if isToday {
+                        currentTimeIndicator(columnWidth: columnWidth)
+                    }
+
                     ForEach(Array(grid.columns.enumerated()), id: \.element.kind) { index, column in
                         ForEach(column.items) { item in
                             TimelineDayGridItemView(
@@ -59,8 +63,8 @@ public struct TimelineDayGridView: View {
                             y: CGFloat(item.startSlotIndex) * slotHeight + itemVerticalInset
                         )
                     }
+                    }
                 }
-            }
             }
             .frame(height: CGFloat(slotCount) * slotHeight)
         }
@@ -143,6 +147,19 @@ public struct TimelineDayGridView: View {
         }
     }
 
+    private func currentTimeIndicator(columnWidth: CGFloat) -> some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            Rectangle()
+                .fill(Color.red)
+                .frame(width: indicatorWidth(for: columnWidth), height: 1)
+                .offset(
+                    x: timeColumnWidth + columnSpacing,
+                    y: yOffsetForCurrentTime(at: context.date)
+                )
+                .accessibilityHidden(true)
+        }
+    }
+
     private var slotCount: Int {
         (24 * 60) / grid.slotMinutes
     }
@@ -153,6 +170,19 @@ public struct TimelineDayGridView: View {
 
     private func xOffset(for columnIndex: Int, columnWidth: CGFloat) -> CGFloat {
         timeColumnWidth + columnSpacing + CGFloat(columnIndex) * (columnWidth + columnSpacing)
+    }
+
+    private func indicatorWidth(for columnWidth: CGFloat) -> CGFloat {
+        (columnWidth * CGFloat(grid.columns.count)) + (columnSpacing * CGFloat(max(0, grid.columns.count - 1)))
+    }
+
+    private func yOffsetForCurrentTime(at date: Date) -> CGFloat {
+        let calendar = Calendar.autoupdatingCurrent
+        let components = calendar.dateComponents([.hour, .minute], from: date)
+        let currentMinutes = max(0, (components.hour ?? 0) * 60 + (components.minute ?? 0))
+        let clampedMinutes = min(24 * 60, currentMinutes)
+        let slotsFromStart = CGFloat(clampedMinutes) / CGFloat(grid.slotMinutes)
+        return min(CGFloat(slotCount) * slotHeight, slotsFromStart * slotHeight)
     }
 
     private func itemHeight(for item: TimelineDayGridItemViewState) -> CGFloat {
@@ -169,6 +199,10 @@ public struct TimelineDayGridView: View {
 
     private func hourAnchorID(for hour: Int) -> String {
         "timeline-day-grid-hour-\(hour)"
+    }
+
+    private var isToday: Bool {
+        Calendar.autoupdatingCurrent.isDateInToday(day)
     }
 
     private func eventKind(for columnKind: TimelineDayGridColumnKind) -> BabyEventKind {
@@ -227,8 +261,23 @@ public struct TimelineDayGridView: View {
     .background(Color(.systemGroupedBackground))
 }
 
+#Preview("Past Day (No Current Time Line)") {
+    ScrollView {
+        TimelineDayGridView(
+            day: TimelineDayGridPreviewFactory.previousDay,
+            grid: TimelineDayGridPreviewFactory.mixedGrid,
+            canManageEvents: true,
+            openItem: { _ in },
+            deleteItem: { _ in }
+        )
+        .padding()
+    }
+    .background(Color(.systemGroupedBackground))
+}
+
 private enum TimelineDayGridPreviewFactory {
     static let day = Calendar.autoupdatingCurrent.startOfDay(for: .now)
+    static let previousDay = Calendar.autoupdatingCurrent.date(byAdding: .day, value: -1, to: day) ?? day
 
     static let emptyGrid = TimelineDayGridViewState(
         slotMinutes: 15,
