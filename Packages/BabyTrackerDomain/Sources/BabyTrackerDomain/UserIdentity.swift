@@ -6,6 +6,11 @@ public struct UserIdentity: Equatable, Identifiable, Sendable {
     public let createdAt: Date
     public var cloudKitUserRecordName: String?
 
+    @available(*, deprecated, message: "Use displayName instead.")
+    public var name: String {
+        displayName
+    }
+
     public init(
         id: UUID = UUID(),
         displayName: String,
