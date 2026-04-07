@@ -71,9 +71,6 @@ struct AppRootView: View {
                 Task { await model.refreshSyncStatus() }
             }
         }
-        .task {
-            model.requestNotificationAuthorizationIfNeeded()
-        }
         .onOpenURL { url in
             guard let childID = FeedLiveActivityDeepLink.endSleepChildID(from: url) else {
                 return

@@ -2,32 +2,27 @@ import SwiftUI
 
 struct OnboardingIntroStepView: View {
     let page: OnboardingIntroPage
+    @ScaledMetric(relativeTo: .title3) private var copySectionHeight = 176
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             Spacer(minLength: 24)
 
-            ZStack {
-                RoundedRectangle(cornerRadius: 32, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.14))
-                    .frame(width: 112, height: 112)
-
-                Image(systemName: page.symbolName)
-                    .font(.system(size: 44, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
-            }
-            .accessibilityHidden(true)
+            OnboardingIntroIconSceneView(page: page)
 
             VStack(alignment: .leading, spacing: 12) {
                 Text(page.title)
                     .font(.largeTitle.weight(.bold))
                     .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(page.message)
                     .font(.title3)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, minHeight: copySectionHeight, alignment: .topLeading)
 
             Spacer(minLength: 24)
 
@@ -35,8 +30,9 @@ struct OnboardingIntroStepView: View {
                 .fill(.thinMaterial)
                 .overlay {
                     HStack(spacing: 16) {
-                        featureBadge(title: "Fast logging", symbolName: "checkmark.circle.fill")
-                        featureBadge(title: "Shared timeline", symbolName: "person.2.fill")
+                        ForEach(page.highlights) { highlight in
+                            OnboardingIntroHighlightBadge(highlight: highlight)
+                        }
                     }
                     .padding(.horizontal, 20)
                 }
@@ -44,21 +40,19 @@ struct OnboardingIntroStepView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
-
-    private func featureBadge(title: String, symbolName: String) -> some View {
-        Label(title, systemImage: symbolName)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
 }
 
 #Preview {
     OnboardingIntroStepView(
         page: OnboardingIntroPage(
-            title: "Track every feed, sleep, and nappy",
-            message: "Log the moments that matter without digging through a complicated setup.",
-            symbolName: "drop.circle.fill"
+            id: "preview",
+            title: "Log it fast, find the pattern",
+            message: "Capture what happened in seconds, then use the timeline and summary views to see what your baby actually needs.",
+            symbolNames: ["square.and.pencil.circle.fill", "list.bullet.clipboard.fill", "chart.line.uptrend.xyaxis.circle.fill"],
+            highlights: [
+                OnboardingIntroHighlight(title: "Quick logging", symbolName: "checkmark.circle.fill"),
+                OnboardingIntroHighlight(title: "Daily summaries", symbolName: "chart.bar.fill"),
+            ]
         )
     )
 }
