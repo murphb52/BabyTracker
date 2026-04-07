@@ -912,8 +912,10 @@ public final class AppModel {
             )
             let currentActiveSleep = try eventRepository.loadActiveSleepEvent(for: currentSummary.child.id)
             let childMemberships = try membershipRepository.loadMemberships(for: currentSummary.child.id)
+            print("[Caregiver] Loaded \(childMemberships.count) memberships from store")
             let userIDs = childMemberships.map(\.userID)
             let users = try userIdentityRepository.loadUsers(for: userIDs)
+            print("[Caregiver] Loaded \(users.count) user identities from store")
 
             guard let resolvedMembership = childMemberships.first(where: { m in
                 m.userID == localUser.id && m.status == .active
