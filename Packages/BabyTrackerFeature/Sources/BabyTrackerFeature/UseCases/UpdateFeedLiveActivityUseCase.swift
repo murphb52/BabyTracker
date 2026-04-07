@@ -2,6 +2,7 @@ import BabyTrackerDomain
 
 /// Synchronizes the lock-screen live activity from the current in-memory profile state.
 public enum UpdateFeedLiveActivityUseCase {
+    @MainActor
     public static func execute(
         events: [BabyEvent],
         child: Child?,

@@ -3,6 +3,7 @@ import BabyTrackerFeature
 import Foundation
 import Testing
 
+@MainActor
 struct UpdateFeedLiveActivityUseCaseTests {
     @Test
     func endsLiveActivityWhenPreferenceIsDisabled() throws {
@@ -87,6 +88,7 @@ struct UpdateFeedLiveActivityUseCaseTests {
     }
 }
 
+@MainActor
 private final class LiveActivityManagerSpy: FeedLiveActivityManaging {
     private(set) var snapshots: [FeedLiveActivitySnapshot?] = []
 
