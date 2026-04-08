@@ -14,10 +14,13 @@ struct CumulativeLineChartView: View {
     var body: some View {
         Chart {
             // 7-day average — dashed, secondary
+            // series: groups all 24 marks into one continuous line so the
+            // dash pattern is applied across the whole series, not per segment.
             ForEach(averagePoints) { point in
                 LineMark(
                     x: .value("Hour", point.hour),
-                    y: .value("7-Day Avg", point.value)
+                    y: .value("7-Day Avg", point.value),
+                    series: .value("Series", "average")
                 )
                 .interpolationMethod(.monotone)
                 .foregroundStyle(Color.secondary.opacity(0.6))
@@ -27,7 +30,8 @@ struct CumulativeLineChartView: View {
             ForEach(todayPoints) { point in
                 LineMark(
                     x: .value("Hour", point.hour),
-                    y: .value("Today", point.value)
+                    y: .value("Today", point.value),
+                    series: .value("Series", "today")
                 )
                 .interpolationMethod(.monotone)
                 .foregroundStyle(tint)
