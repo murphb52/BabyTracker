@@ -1,4 +1,5 @@
 import BabyTrackerDomain
+import Charts
 import SwiftUI
 
 private enum SummaryTab: String, CaseIterable {
@@ -347,168 +348,98 @@ public struct SummaryScreenView: View {
             subtitle: avgText ?? "No nappy changes in this period"
         ) {
             stackedNappyChart(data: data.dailyNappy)
-            nappyLegend
         }
     }
 
     // MARK: - Chart Components
 
+    /// Bar chart for a single metric series (bottle mL, breast sessions, sleep minutes).
+    /// Shows value annotations above each bar for sparse ranges; relies on Swift Charts'
+    /// automatic axis thinning for dense 30-day ranges.
+    @ViewBuilder
     private func miniBarChart(
         points: [(String, Int)],
         tint: Color,
         valueFormatter: ((Int) -> String)? = nil
     ) -> some View {
-        let maxValue = max(1, points.map(\.1).max() ?? 0)
-        // For dense ranges, detach labels from bars so they have room to breathe.
         let isDense = points.count > 14
+        let chartPoints = points.map { TrendsBarPoint(id: $0.0, label: $0.0, value: $0.1) }
 
-        return VStack(spacing: 2) {
-            HStack(alignment: .bottom, spacing: 4) {
-                ForEach(Array(points.enumerated()), id: \.offset) { _, point in
-                    VStack(spacing: 4) {
-                        // Hide per-bar value labels when bars are too narrow to read them.
-                        if !isDense && point.1 > 0 {
-                            Text(valueFormatter?(point.1) ?? "\(point.1)")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.6)
-                        }
-
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(tint.gradient)
-                            .frame(height: max(4, (CGFloat(point.1) / CGFloat(maxValue)) * 80))
-
-                        if !isDense {
-                            Text(point.0)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.5)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .frame(maxWidth: .infinity, minHeight: isDense ? 80 : 110, alignment: .bottom)
-
-            if isDense {
-                sparseAxisLabels(for: points.map(\.0))
-            }
-        }
-    }
-
-    private func stackedNappyChart(data: [DailyNappyData]) -> some View {
-        let maxTotal = max(1, data.map(\.totalCount).max() ?? 0)
-        let barHeight: CGFloat = 80
-        let isDense = data.count > 14
-
-        return VStack(spacing: 2) {
-            HStack(alignment: .bottom, spacing: 4) {
-            ForEach(Array(data.enumerated()), id: \.offset) { _, day in
-                VStack(spacing: 4) {
-                    if !isDense && day.totalCount > 0 {
-                        Text("\(day.totalCount)")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    // Stacked bar: wet (bottom, blue) / dirty (middle, brown) / mixed (top, yellow)
-                    if day.totalCount == 0 {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(Color.gray.opacity(0.15))
-                            .frame(height: 4)
-                    } else {
-                        VStack(spacing: 1) {
-                            // Mixed (top)
-                            if day.mixedCount > 0 {
-                                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                    .fill(Color.yellow.opacity(0.85))
-                                    .frame(height: max(3, CGFloat(day.mixedCount) / CGFloat(maxTotal) * barHeight))
-                            }
-
-                            // Dirty (middle)
-                            if day.dirtyCount > 0 {
-                                Rectangle()
-                                    .fill(Color.brown.opacity(0.75))
-                                    .frame(height: max(3, CGFloat(day.dirtyCount) / CGFloat(maxTotal) * barHeight))
-                            }
-
-                            // Wet (bottom)
-                            if day.wetCount > 0 {
-                                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                    .fill(Color.blue.opacity(0.6))
-                                    .frame(height: max(3, CGFloat(day.wetCount) / CGFloat(maxTotal) * barHeight))
-                            }
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    }
-
-                    if !isDense {
-                        Text(day.label)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.5)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-            }
-            }
-            .frame(maxWidth: .infinity, minHeight: isDense ? 80 : 110, alignment: .bottom)
-
-            if isDense {
-                sparseAxisLabels(for: data.map(\.label))
-            }
-        }
-    }
-
-    /// Renders a small, evenly-spaced set of date labels below a dense bar chart.
-    /// Labels are positioned at the first, last, and ~3 interior points so they
-    /// have plenty of horizontal room and never truncate.
-    private func sparseAxisLabels(for labels: [String]) -> some View {
-        let count = labels.count
-        guard count >= 2 else { return AnyView(EmptyView()) }
-
-        // Pick ~5 indices spread evenly from first to last.
-        let step = max(1, (count - 1) / 4)
-        var indices = stride(from: 0, to: count, by: step).map { $0 }
-        if indices.last != count - 1 { indices.append(count - 1) }
-        let selected = indices.map { labels[$0] }
-
-        return AnyView(
-            HStack(spacing: 0) {
-                ForEach(Array(selected.enumerated()), id: \.offset) { i, label in
-                    if i > 0 { Spacer(minLength: 4) }
-                    Text(label)
+        Chart(chartPoints) { point in
+            BarMark(
+                x: .value("Date", point.label),
+                y: .value("Value", point.value)
+            )
+            .foregroundStyle(tint.gradient)
+            .annotation(position: .top, spacing: 2) {
+                if !isDense && point.value > 0 {
+                    Text(valueFormatter?(point.value) ?? "\(point.value)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                        .fixedSize()
                 }
             }
-        )
+        }
+        .chartXAxis {
+            // desiredCount drives automatic label thinning — no manual sparseAxisLabels needed.
+            AxisMarks(values: .automatic(desiredCount: isDense ? 5 : points.count)) { _ in
+                AxisValueLabel(collisionResolution: .greedy(minimumSpacing: 4))
+            }
+        }
+        .chartYAxis(.hidden)
+        .chartLegend(.hidden)
+        .frame(height: isDense ? 100 : 120)
     }
 
-    private var nappyLegend: some View {
-        HStack(spacing: 12) {
-            legendItem(color: .blue.opacity(0.6), label: "Wet")
-            legendItem(color: .brown.opacity(0.75), label: "Dirty")
-            legendItem(color: .yellow.opacity(0.85), label: "Mixed")
-            Spacer()
+    /// Stacked bar chart for nappy types (wet / dirty / mixed) per day.
+    /// The chart generates its own legend, replacing the former manual legend view.
+    @ViewBuilder
+    private func stackedNappyChart(data: [DailyNappyData]) -> some View {
+        let isDense = data.count > 14
+        // Include all three types for every day (even when count is 0) so Swift Charts
+        // establishes a consistent wet → dirty → mixed stacking order across all bars.
+        let segments: [NappySegment] = data.flatMap { day in
+            [
+                NappySegment(id: "\(day.label)-wet",   label: day.label, type: "Wet",   count: day.wetCount),
+                NappySegment(id: "\(day.label)-dirty", label: day.label, type: "Dirty", count: day.dirtyCount),
+                NappySegment(id: "\(day.label)-mixed", label: day.label, type: "Mixed", count: day.mixedCount),
+            ]
         }
-        .padding(.top, 4)
+
+        Chart(segments) { segment in
+            BarMark(
+                x: .value("Date", segment.label),
+                y: .value("Count", segment.count)
+            )
+            .foregroundStyle(by: .value("Type", segment.type))
+        }
+        .chartForegroundStyleScale([
+            "Wet":   Color.blue.opacity(0.6),
+            "Dirty": Color.brown.opacity(0.75),
+            "Mixed": Color.yellow.opacity(0.85),
+        ])
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: isDense ? 5 : data.count)) { _ in
+                AxisValueLabel(collisionResolution: .greedy(minimumSpacing: 4))
+            }
+        }
+        .chartYAxis(.hidden)
+        .chartLegend(position: .bottom, alignment: .leading)
+        .frame(height: isDense ? 120 : 140)
     }
 
-    private func legendItem(color: Color, label: String) -> some View {
-        HStack(spacing: 4) {
-            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .fill(color)
-                .frame(width: 10, height: 10)
+    // MARK: - Chart Data Models
 
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
+    private struct TrendsBarPoint: Identifiable {
+        let id: String    // date label — unique within a chart dataset
+        let label: String
+        let value: Int
+    }
+
+    private struct NappySegment: Identifiable {
+        let id: String    // "\(label)-\(type)" — unique within the flattened dataset
+        let label: String
+        let type: String  // "Wet", "Dirty", or "Mixed"
+        let count: Int
     }
 
     // MARK: - Shared Components
