@@ -3,17 +3,18 @@ import SwiftUI
 
 /// A two-line overlay chart for the Today tab.
 ///
-/// Renders a solid colored line for today's cumulative total by hour and a dashed
-/// secondary line for the 7-day average cumulative total. The x-axis spans all
-/// 24 hours; the y-axis auto-scales to the maximum of both series and is hidden
-/// because the chart is used as visual context, not for precise value reading.
+/// Renders a solid colored line for today's cumulative total by hour (stopping
+/// at the current hour with a "Now" callout) and a dashed secondary line for the
+/// 7-day average cumulative total. The x-axis spans all 24 hours; the y-axis
+/// auto-scales to the maximum of both series and is hidden because the chart is
+/// used as visual context, not for precise value reading.
 struct CumulativeLineChartView: View {
     let series: HourlyCumulativeSeries
     let tint: Color
 
     var body: some View {
         Chart {
-            // 7-day average — dashed, secondary
+            // 7-day average — dashed, secondary, full 24 hours
             // series: groups all 24 marks into one continuous line so the
             // dash pattern is applied across the whole series, not per segment.
             ForEach(averagePoints) { point in
@@ -26,7 +27,8 @@ struct CumulativeLineChartView: View {
                 .foregroundStyle(Color.secondary.opacity(0.6))
                 .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
             }
-            // Today — solid, tinted
+
+            // Today — solid, tinted, stops at the current hour
             ForEach(todayPoints) { point in
                 LineMark(
                     x: .value("Hour", point.hour),
@@ -37,6 +39,20 @@ struct CumulativeLineChartView: View {
                 .foregroundStyle(tint)
                 .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
             }
+
+            // "Now" indicator — vertical rule at the current hour with a callout
+            RuleMark(x: .value("Now", currentHour))
+                .foregroundStyle(tint.opacity(0.25))
+                .lineStyle(StrokeStyle(lineWidth: 1))
+                .annotation(position: .top, alignment: .center, spacing: 4) {
+                    Text("Now")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(tint)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(tint.opacity(0.12), in: Capsule())
+                }
         }
         .chartXScale(domain: 0...23)
         .chartYScale(domain: 0...maxValue)
@@ -56,14 +72,21 @@ struct CumulativeLineChartView: View {
         }
         .chartYAxis(.hidden)
         .chartLegend(.hidden)
-        .frame(height: 90)
+        .frame(height: 100)
         .accessibilityLabel("Cumulative chart showing today's total versus the 7-day average by hour")
     }
 
     // MARK: - Private
 
+    private var currentHour: Int {
+        Calendar.current.component(.hour, from: Date())
+    }
+
     private var todayPoints: [HourPoint] {
-        series.todayCumulative.enumerated().map { HourPoint(id: $0, hour: $0, value: $1) }
+        series.todayCumulative
+            .enumerated()
+            .prefix(currentHour + 1)
+            .map { HourPoint(id: $0, hour: $0, value: $1) }
     }
 
     private var averagePoints: [HourPoint] {
