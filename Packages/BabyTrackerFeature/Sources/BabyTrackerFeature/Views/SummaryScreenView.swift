@@ -359,52 +359,55 @@ public struct SummaryScreenView: View {
         valueFormatter: ((Int) -> String)? = nil
     ) -> some View {
         let maxValue = max(1, points.map(\.1).max() ?? 0)
-        // For dense ranges, only show one label every N bars so the x-axis stays readable.
-        let labelStride = points.count > 14 ? max(1, points.count / 6) : 1
+        // For dense ranges, detach labels from bars so they have room to breathe.
+        let isDense = points.count > 14
 
-        return HStack(alignment: .bottom, spacing: 4) {
-            ForEach(Array(points.enumerated()), id: \.offset) { index, point in
-                VStack(spacing: 4) {
-                    if point.1 > 0 {
-                        Text(valueFormatter?(point.1) ?? "\(point.1)")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.6)
+        return VStack(spacing: 2) {
+            HStack(alignment: .bottom, spacing: 4) {
+                ForEach(Array(points.enumerated()), id: \.offset) { _, point in
+                    VStack(spacing: 4) {
+                        // Hide per-bar value labels when bars are too narrow to read them.
+                        if !isDense && point.1 > 0 {
+                            Text(valueFormatter?(point.1) ?? "\(point.1)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                        }
+
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .fill(tint.gradient)
+                            .frame(height: max(4, (CGFloat(point.1) / CGFloat(maxValue)) * 80))
+
+                        if !isDense {
+                            Text(point.0)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
+                        }
                     }
-
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(tint.gradient)
-                        .frame(height: max(4, (CGFloat(point.1) / CGFloat(maxValue)) * 80))
-
-                    if index % labelStride == 0 {
-                        Text(point.0)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.5)
-                    } else {
-                        // Invisible placeholder so all bars stay the same height
-                        Text(point.0)
-                            .font(.caption2)
-                            .hidden()
-                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+            }
+            .frame(maxWidth: .infinity, minHeight: isDense ? 80 : 110, alignment: .bottom)
+
+            if isDense {
+                sparseAxisLabels(for: points.map(\.0))
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 110, alignment: .bottom)
     }
 
     private func stackedNappyChart(data: [DailyNappyData]) -> some View {
         let maxTotal = max(1, data.map(\.totalCount).max() ?? 0)
         let barHeight: CGFloat = 80
-        let labelStride = data.count > 14 ? max(1, data.count / 6) : 1
+        let isDense = data.count > 14
 
-        return HStack(alignment: .bottom, spacing: 4) {
-            ForEach(Array(data.enumerated()), id: \.offset) { index, day in
+        return VStack(spacing: 2) {
+            HStack(alignment: .bottom, spacing: 4) {
+            ForEach(Array(data.enumerated()), id: \.offset) { _, day in
                 VStack(spacing: 4) {
-                    if day.totalCount > 0 {
+                    if !isDense && day.totalCount > 0 {
                         Text("\(day.totalCount)")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -441,22 +444,49 @@ public struct SummaryScreenView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                     }
 
-                    if index % labelStride == 0 {
+                    if !isDense {
                         Text(day.label)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.5)
-                    } else {
-                        Text(day.label)
-                            .font(.caption2)
-                            .hidden()
                     }
                 }
                 .frame(maxWidth: .infinity)
             }
+            }
+            .frame(maxWidth: .infinity, minHeight: isDense ? 80 : 110, alignment: .bottom)
+
+            if isDense {
+                sparseAxisLabels(for: data.map(\.label))
+            }
         }
-        .frame(maxWidth: .infinity, minHeight: 110, alignment: .bottom)
+    }
+
+    /// Renders a small, evenly-spaced set of date labels below a dense bar chart.
+    /// Labels are positioned at the first, last, and ~3 interior points so they
+    /// have plenty of horizontal room and never truncate.
+    private func sparseAxisLabels(for labels: [String]) -> some View {
+        let count = labels.count
+        guard count >= 2 else { return AnyView(EmptyView()) }
+
+        // Pick ~5 indices spread evenly from first to last.
+        let step = max(1, (count - 1) / 4)
+        var indices = stride(from: 0, to: count, by: step).map { $0 }
+        if indices.last != count - 1 { indices.append(count - 1) }
+        let selected = indices.map { labels[$0] }
+
+        return AnyView(
+            HStack(spacing: 0) {
+                ForEach(Array(selected.enumerated()), id: \.offset) { i, label in
+                    if i > 0 { Spacer(minLength: 4) }
+                    Text(label)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
+                }
+            }
+        )
     }
 
     private var nappyLegend: some View {
