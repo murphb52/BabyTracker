@@ -35,12 +35,12 @@ Each chart shows: solid line = today's cumulative total by hour, dotted line = 7
 ## Implementation Steps
 
 - [x] 1. Create branch `feature/reimagined-summary-tab`
-- [ ] 2. Data types + calculator — `HourlyCumulativeSeries`, `TodayChartData`, additions to `TodaySummaryData` + `TodaySummaryCalculator`; new tests in `TodaySummaryCalculatorTests`
-- [ ] 3. `CumulativeLineChartView` component
-- [ ] 4. Today tab: Bottle + Breast section cards
-- [ ] 5. Today tab: Sleep + Nappies section cards + footer
-- [ ] 6. Trends: x-axis thinning + bottle icon fix
-- [ ] 7. Preview factory enrichment
+- [x] 2. Data types + calculator — `HourlyCumulativeSeries`, `TodayChartData`, additions to `TodaySummaryData` + `TodaySummaryCalculator`; new tests in `TodaySummaryCalculatorTests`
+- [x] 3. `CumulativeLineChartView` component
+- [x] 4. Today tab: Bottle + Breast section cards
+- [x] 5. Today tab: Sleep + Nappies section cards + footer
+- [x] 6. Trends: x-axis thinning + bottle icon fix
+- [x] 7. Preview factory enrichment
 
 ---
 
