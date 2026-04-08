@@ -1,75 +1,83 @@
+import Charts
 import SwiftUI
 
 /// A two-line overlay chart for the Today tab.
 ///
-/// Draws a solid colored line for today's cumulative total by hour and a dotted
+/// Renders a solid colored line for today's cumulative total by hour and a dashed
 /// secondary line for the 7-day average cumulative total. The x-axis spans all
-/// 24 hours; the y-axis auto-scales to the maximum of both series.
+/// 24 hours; the y-axis auto-scales to the maximum of both series and is hidden
+/// because the chart is used as visual context, not for precise value reading.
 struct CumulativeLineChartView: View {
     let series: HourlyCumulativeSeries
     let tint: Color
 
     var body: some View {
-        VStack(spacing: 4) {
-            Canvas { context, size in
-                guard size.width > 0, size.height > 0 else { return }
-
-                let maxValue = max(
-                    1,
-                    series.todayCumulative.max() ?? 0,
-                    series.averageCumulative.max() ?? 0
+        Chart {
+            // 7-day average — dashed, secondary
+            ForEach(averagePoints) { point in
+                LineMark(
+                    x: .value("Hour", point.hour),
+                    y: .value("7-Day Avg", point.value)
                 )
-
-                func point(hour: Int, value: Int, in size: CGSize) -> CGPoint {
-                    let x = (CGFloat(hour) / 23.0) * size.width
-                    let y = size.height - (CGFloat(value) / CGFloat(maxValue)) * size.height
-                    return CGPoint(x: x, y: y)
-                }
-
-                // Average line (dotted)
-                var avgPath = Path()
-                for h in 0..<24 {
-                    let pt = point(hour: h, value: series.averageCumulative[h], in: size)
-                    if h == 0 { avgPath.move(to: pt) } else { avgPath.addLine(to: pt) }
-                }
-                context.stroke(
-                    avgPath,
-                    with: .color(.secondary.opacity(0.6)),
-                    style: StrokeStyle(lineWidth: 1.5, dash: [5, 3])
-                )
-
-                // Today line (solid)
-                var todayPath = Path()
-                for h in 0..<24 {
-                    let pt = point(hour: h, value: series.todayCumulative[h], in: size)
-                    if h == 0 { todayPath.move(to: pt) } else { todayPath.addLine(to: pt) }
-                }
-                context.stroke(
-                    todayPath,
-                    with: .color(tint),
-                    style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
-                )
+                .interpolationMethod(.monotone)
+                .foregroundStyle(Color.secondary.opacity(0.6))
+                .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
             }
-            .frame(height: 70)
-
-            xAxisLabels
+            // Today — solid, tinted
+            ForEach(todayPoints) { point in
+                LineMark(
+                    x: .value("Hour", point.hour),
+                    y: .value("Today", point.value)
+                )
+                .interpolationMethod(.monotone)
+                .foregroundStyle(tint)
+                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            }
         }
+        .chartXScale(domain: 0...23)
+        .chartYScale(domain: 0...maxValue)
+        .chartXAxis {
+            AxisMarks(values: [0, 6, 12, 18]) { value in
+                AxisGridLine()
+                AxisValueLabel {
+                    switch value.as(Int.self) {
+                    case 0:  Text("12a")
+                    case 6:  Text("6a")
+                    case 12: Text("12p")
+                    case 18: Text("6p")
+                    default: EmptyView()
+                    }
+                }
+            }
+        }
+        .chartYAxis(.hidden)
+        .chartLegend(.hidden)
+        .frame(height: 90)
+        .accessibilityLabel("Cumulative chart showing today's total versus the 7-day average by hour")
     }
 
-    private var xAxisLabels: some View {
-        // Show labels at midnight (0), 6am (6), noon (12), 6pm (18)
-        HStack {
-            Text("12a")
-            Spacer()
-            Text("6a")
-            Spacer()
-            Text("12p")
-            Spacer()
-            Text("6p")
-        }
-        .font(.caption2)
-        .foregroundStyle(.secondary)
+    // MARK: - Private
+
+    private var todayPoints: [HourPoint] {
+        series.todayCumulative.enumerated().map { HourPoint(id: $0, hour: $0, value: $1) }
     }
+
+    private var averagePoints: [HourPoint] {
+        series.averageCumulative.enumerated().map { HourPoint(id: $0, hour: $0, value: $1) }
+    }
+
+    private var maxValue: Int {
+        max(1, (series.todayCumulative + series.averageCumulative).max() ?? 1)
+    }
+}
+
+// MARK: - Supporting types
+
+private struct HourPoint: Identifiable {
+    // hour (0–23) is unique within each ForEach block
+    let id: Int
+    let hour: Int
+    let value: Int
 }
 
 // MARK: - Preview
