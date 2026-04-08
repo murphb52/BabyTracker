@@ -1,4 +1,5 @@
 import BabyTrackerDomain
+import BabyTrackerPersistence
 import Foundation
 
 /// In-memory test double for EventRepository.
@@ -13,6 +14,14 @@ final class InMemoryEventRepository: EventRepository {
 
     func saveEvent(_ event: BabyEvent) throws {
         store.events[event.id] = event
+        store.syncStates[event.id] = SyncStateEntry(
+            reference: SyncRecordReference(
+                recordType: syncRecordType(for: event),
+                recordID: event.id,
+                childID: event.metadata.childID
+            ),
+            state: .pendingSync
+        )
     }
 
     func loadEvent(id: UUID) throws -> BabyEvent? {
@@ -67,6 +76,16 @@ final class InMemoryEventRepository: EventRepository {
         case var .nappy(e):
             e.metadata.markDeleted(at: deletedAt, by: deletedBy)
             store.events[id] = .nappy(e)
+        }
+        store.syncStates[id]?.state = .pendingSync
+    }
+
+    private func syncRecordType(for event: BabyEvent) -> SyncRecordType {
+        switch event {
+        case .breastFeed: return .breastFeedEvent
+        case .bottleFeed: return .bottleFeedEvent
+        case .sleep: return .sleepEvent
+        case .nappy: return .nappyEvent
         }
     }
 }
