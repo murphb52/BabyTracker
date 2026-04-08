@@ -1644,7 +1644,9 @@ extension AppModelTests {
             )
         }
 
-        func cleanUp() {}
+        func cleanUp() {
+            model.cancelPendingTasks()
+        }
 
         func seedOwnerProfile() throws -> OwnerSeed {
             let owner = try UserIdentity(displayName: "Alex Parent")

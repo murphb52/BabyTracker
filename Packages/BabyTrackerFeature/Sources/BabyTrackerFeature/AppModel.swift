@@ -1312,6 +1312,17 @@ public final class AppModel {
         BabyEventPresentation.title(for: event)
     }
 
+    /// Cancels all in-flight background timer tasks (undo delete, sync indicator, transient message).
+    /// Call this in test teardown to prevent leaked tasks from blocking the main actor between tests.
+    public func cancelPendingTasks() {
+        undoDeleteTask?.cancel()
+        undoDeleteTask = nil
+        syncIndicatorDismissTask?.cancel()
+        syncIndicatorDismissTask = nil
+        transientMessageDismissTask?.cancel()
+        transientMessageDismissTask = nil
+    }
+
     private func startUndoDeleteExpiryTask() {
         undoDeleteTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(10))

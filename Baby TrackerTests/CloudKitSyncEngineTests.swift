@@ -9,7 +9,7 @@ import Testing
 struct CloudKitSyncEngineTests {
     @Test
     func prepareForLaunchCreatesMissingPrivateZoneBeforeLoadingRecords() async throws {
-        let harness = try SyncEngineHarness()
+        let harness = SyncEngineHarness()
         defer { harness.cleanUp() }
         let childRepository = harness.childRepository
         let userIdentityRepository = harness.userIdentityRepository
@@ -46,7 +46,7 @@ struct CloudKitSyncEngineTests {
 
     @Test
     func remoteNotificationRefreshDoesNotCreateDuplicateSubscriptions() async throws {
-        let harness = try SyncEngineHarness()
+        let harness = SyncEngineHarness()
         defer { harness.cleanUp() }
         let userIdentityRepository = harness.userIdentityRepository
         let client = harness.client
@@ -68,7 +68,7 @@ struct CloudKitSyncEngineTests {
 
     @Test
     func pullDoesNotOverwriteNewerLocalBottleFeedEvent() async throws {
-        let harness = try SyncEngineHarness()
+        let harness = SyncEngineHarness()
         defer { harness.cleanUp() }
         let childRepository = harness.childRepository
         let userIdentityRepository = harness.userIdentityRepository
@@ -197,7 +197,7 @@ struct CloudKitSyncEngineTests {
 
     @Test
     func forcePullAcceptedSharePerformsFullSharedZoneFetchAndSavesRecordsLocally() async throws {
-        let harness = try SyncEngineHarness()
+        let harness = SyncEngineHarness()
         defer { harness.cleanUp() }
         let childRepository = harness.childRepository
         let userIdentityRepository = harness.userIdentityRepository
@@ -281,7 +281,7 @@ struct CloudKitSyncEngineTests {
         // private zone. No anchor is stored in this test so the zone pull is a full
         // initial fetch (tokenWasNil). In practice subsequent syncs use the stored token
         // for incremental pulls.
-        let harness = try SyncEngineHarness()
+        let harness = SyncEngineHarness()
         defer { harness.cleanUp() }
         let childRepository = harness.childRepository
         let userIdentityRepository = harness.userIdentityRepository
@@ -417,7 +417,7 @@ struct CloudKitSyncEngineTests {
 
     @Test
     func prepareShareUploadsOnlyChildRecordBeforeCreatingZoneShareWhenChildIsMissingRemotely() async throws {
-        let harness = try SyncEngineHarness()
+        let harness = SyncEngineHarness()
         defer { harness.cleanUp() }
         let childRepository = harness.childRepository
         let userIdentityRepository = harness.userIdentityRepository
@@ -464,7 +464,7 @@ struct CloudKitSyncEngineTests {
 
     @Test
     func prepareShareCreatesOnlyZoneShareWhenChildRecordAlreadyExistsRemotely() async throws {
-        let harness = try SyncEngineHarness()
+        let harness = SyncEngineHarness()
         defer { harness.cleanUp() }
         let childRepository = harness.childRepository
         let userIdentityRepository = harness.userIdentityRepository
@@ -520,37 +520,28 @@ struct CloudKitSyncEngineTests {
 // MARK: - Test Harness
 
 extension CloudKitSyncEngineTests {
-    /// Encapsulates the full sync-engine stack needed by integration tests.
-    /// Uses a real in-memory SwiftData store (these tests verify the sync engine's
-    /// behaviour against real persistence) but isolates UserDefaults via a
-    /// unique UUID-based suite name that is cleaned up after each test.
+    /// Encapsulates the full sync-engine stack needed by these tests.
+    /// Uses protocol-based in-memory test doubles so that the sync engine's
+    /// orchestration logic is tested in isolation without a SwiftData stack.
     @MainActor
     fileprivate struct SyncEngineHarness {
-        let childRepository: SwiftDataChildRepository
-        let userIdentityRepository: SwiftDataUserIdentityRepository
-        let membershipRepository: SwiftDataMembershipRepository
-        let eventRepository: SwiftDataEventRepository
-        let syncStateRepository: SwiftDataSyncStateRepository
-        let recordMetadataRepository: SwiftDataCloudKitRecordMetadataRepository
+        let childRepository: InMemoryChildRepository
+        let userIdentityRepository: InMemoryUserIdentityRepository
+        let membershipRepository: InMemoryMembershipRepository
+        let eventRepository: InMemoryEventRepository
+        let syncStateRepository: InMemorySyncStateRepository
+        let recordMetadataRepository: InMemoryCloudKitRecordMetadataRepository
         let client: CloudKitClientSpy
         let syncEngine: CloudKitSyncEngine
-        private let userDefaults: UserDefaults
-        private let userDefaultsSuiteName: String
 
-        init() throws {
-            let store = try BabyTrackerModelStore(isStoredInMemoryOnly: true)
-            let suiteName = "CloudKitSyncEngineTests.\(UUID().uuidString)"
-            let userDefaults = UserDefaults(suiteName: suiteName)!
-            userDefaults.removePersistentDomain(forName: suiteName)
-
-            self.userDefaultsSuiteName = suiteName
-            self.userDefaults = userDefaults
-            self.childRepository = SwiftDataChildRepository(store: store)
-            self.userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
-            self.membershipRepository = SwiftDataMembershipRepository(store: store)
-            self.eventRepository = SwiftDataEventRepository(store: store)
-            self.syncStateRepository = SwiftDataSyncStateRepository(store: store)
-            self.recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
+        init() {
+            let store = InMemoryStore()
+            self.childRepository = InMemoryChildRepository(store: store)
+            self.userIdentityRepository = InMemoryUserIdentityRepository(store: store)
+            self.membershipRepository = InMemoryMembershipRepository(store: store)
+            self.eventRepository = InMemoryEventRepository(store: store)
+            self.syncStateRepository = InMemorySyncStateRepository(store: store)
+            self.recordMetadataRepository = InMemoryCloudKitRecordMetadataRepository()
             self.client = CloudKitClientSpy()
             self.syncEngine = CloudKitSyncEngine(
                 childRepository: childRepository,
@@ -563,9 +554,7 @@ extension CloudKitSyncEngineTests {
             )
         }
 
-        func cleanUp() {
-            userDefaults.removePersistentDomain(forName: userDefaultsSuiteName)
-        }
+        func cleanUp() {}
     }
 }
 
