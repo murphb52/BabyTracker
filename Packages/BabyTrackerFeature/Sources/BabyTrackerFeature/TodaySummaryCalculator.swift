@@ -61,6 +61,14 @@ public enum TodaySummaryCalculator {
         let sleepDurations = completedSleeps.compactMap { sleepDurationMinutes(for: $0) }
         let totalSleepMinutes = sleepDurations.reduce(0, +)
         let longestSleepBlock = sleepDurations.max()
+        let shortestSleepBlock = sleepDurations.min()
+        let averageSleepBlock = average(of: sleepDurations)
+
+        // Time since last sleep
+        let lastSleepEndDate = completedSleeps.compactMap(\.endedAt).max()
+        let minutesSinceLastSleep = lastSleepEndDate.map {
+            max(0, Int(now.timeIntervalSince($0) / 60))
+        }
 
         var daytimeSleepMinutes = 0
         var nighttimeSleepMinutes = 0
@@ -78,9 +86,13 @@ public enum TodaySummaryCalculator {
         let wetCount = nappies.filter { $0.type == .wee }.count
         let dirtyCount = nappies.filter { $0.type == .poo }.count
         let mixedCount = nappies.filter { $0.type == .mixed }.count
+        let dryCount = nappies.filter { $0.type == .dry }.count
 
         // Logging streak (uses all events, not just today)
         let streak = loggingStreakDays(from: allEvents, now: now, calendar: calendar)
+
+        // Hourly cumulative chart data
+        let chartData = makeChartData(from: allEvents, now: now, calendar: calendar)
 
         return TodaySummaryData(
             bottleTotalMilliliters: bottleTotalMilliliters,
@@ -97,14 +109,135 @@ public enum TodaySummaryCalculator {
             daytimeSleepMinutes: daytimeSleepMinutes,
             nighttimeSleepMinutes: nighttimeSleepMinutes,
             longestSleepBlockMinutes: longestSleepBlock,
+            shortestSleepBlockMinutes: shortestSleepBlock,
+            averageSleepBlockMinutes: averageSleepBlock,
+            minutesSinceLastSleep: minutesSinceLastSleep,
             totalNappies: nappies.count,
             wetNappyCount: wetCount,
             dirtyNappyCount: dirtyCount,
             mixedNappyCount: mixedCount,
+            dryNappyCount: dryCount,
             wetInclusiveCount: wetCount + mixedCount,
             dirtyInclusiveCount: dirtyCount + mixedCount,
-            loggingStreakDays: streak
+            loggingStreakDays: streak,
+            chartData: chartData
         )
+    }
+
+    // MARK: - Chart data
+
+    private static func makeChartData(
+        from allEvents: [BabyEvent],
+        now: Date,
+        calendar: Calendar
+    ) -> TodayChartData {
+        let today = calendar.startOfDay(for: now)
+        let todayEvents = allEvents.filter { calendar.isDate($0.metadata.occurredAt, inSameDayAs: today) }
+
+        // Collect the 7 complete days before today
+        let historicalDays: [[BabyEvent]] = (1...7).compactMap { offset -> [BabyEvent]? in
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { return nil }
+            return allEvents.filter { calendar.isDate($0.metadata.occurredAt, inSameDayAs: day) }
+        }
+
+        return TodayChartData(
+            bottle: buildCumulativeSeries(
+                todayAmounts: bottleHourlyAmounts(events: todayEvents, calendar: calendar),
+                historicalAmounts: historicalDays.map { bottleHourlyAmounts(events: $0, calendar: calendar) }
+            ),
+            breast: buildCumulativeSeries(
+                todayAmounts: breastHourlyAmounts(events: todayEvents, calendar: calendar),
+                historicalAmounts: historicalDays.map { breastHourlyAmounts(events: $0, calendar: calendar) }
+            ),
+            sleep: buildCumulativeSeries(
+                todayAmounts: sleepHourlyAmounts(events: todayEvents, calendar: calendar),
+                historicalAmounts: historicalDays.map { sleepHourlyAmounts(events: $0, calendar: calendar) }
+            ),
+            nappy: buildCumulativeSeries(
+                todayAmounts: nappyHourlyAmounts(events: todayEvents, calendar: calendar),
+                historicalAmounts: historicalDays.map { nappyHourlyAmounts(events: $0, calendar: calendar) }
+            )
+        )
+    }
+
+    /// Builds a `HourlyCumulativeSeries` from per-hour amounts.
+    /// - Parameters:
+    ///   - todayAmounts: 24 per-hour amounts for today.
+    ///   - historicalAmounts: Up to 7 arrays of per-hour amounts for prior days.
+    ///                        Always divides by 7 so zero-activity days reduce the average naturally.
+    private static func buildCumulativeSeries(
+        todayAmounts: [Int],
+        historicalAmounts: [[Int]]
+    ) -> HourlyCumulativeSeries {
+        let todayCumulative = cumulativeSum(of: todayAmounts)
+
+        var avgCumulative = [Int](repeating: 0, count: 24)
+        for h in 0..<24 {
+            let historicalCumulativeAtH = historicalAmounts.map { amounts -> Int in
+                cumulativeSum(of: amounts)[h]
+            }
+            let sum = historicalCumulativeAtH.reduce(0, +)
+            avgCumulative[h] = sum / 7
+        }
+
+        return HourlyCumulativeSeries(todayCumulative: todayCumulative, averageCumulative: avgCumulative)
+    }
+
+    private static func cumulativeSum(of amounts: [Int]) -> [Int] {
+        var result = [Int](repeating: 0, count: 24)
+        var running = 0
+        for h in 0..<min(amounts.count, 24) {
+            running += amounts[h]
+            result[h] = running
+        }
+        return result
+    }
+
+    // MARK: - Per-hour amounts
+
+    /// Returns a 24-element array where index h = total bottle mL from feeds whose occurredAt is in hour h.
+    private static func bottleHourlyAmounts(events: [BabyEvent], calendar: Calendar) -> [Int] {
+        var amounts = [Int](repeating: 0, count: 24)
+        for event in events {
+            guard case let .bottleFeed(feed) = event else { continue }
+            let h = calendar.component(.hour, from: feed.metadata.occurredAt)
+            amounts[h] += feed.amountMilliliters
+        }
+        return amounts
+    }
+
+    /// Returns a 24-element array where index h = number of breast feed sessions whose endedAt is in hour h.
+    private static func breastHourlyAmounts(events: [BabyEvent], calendar: Calendar) -> [Int] {
+        var amounts = [Int](repeating: 0, count: 24)
+        for event in events {
+            guard case let .breastFeed(feed) = event else { continue }
+            let h = calendar.component(.hour, from: feed.endedAt)
+            amounts[h] += 1
+        }
+        return amounts
+    }
+
+    /// Returns a 24-element array where index h = minutes of completed sleep attributed to hour h (by endedAt).
+    private static func sleepHourlyAmounts(events: [BabyEvent], calendar: Calendar) -> [Int] {
+        var amounts = [Int](repeating: 0, count: 24)
+        for event in events {
+            guard case let .sleep(sleep) = event, let endedAt = sleep.endedAt else { continue }
+            let h = calendar.component(.hour, from: endedAt)
+            let minutes = max(1, Int(endedAt.timeIntervalSince(sleep.startedAt) / 60))
+            amounts[h] += minutes
+        }
+        return amounts
+    }
+
+    /// Returns a 24-element array where index h = number of nappy changes in hour h (by occurredAt).
+    private static func nappyHourlyAmounts(events: [BabyEvent], calendar: Calendar) -> [Int] {
+        var amounts = [Int](repeating: 0, count: 24)
+        for event in events {
+            guard case .nappy = event else { continue }
+            let h = calendar.component(.hour, from: event.metadata.occurredAt)
+            amounts[h] += 1
+        }
+        return amounts
     }
 
     // MARK: - Private helpers

@@ -28,11 +28,20 @@ public struct TodaySummaryData: Equatable, Sendable {
     public let wetNappyCount: Int       // wee only
     public let dirtyNappyCount: Int     // poo only
     public let mixedNappyCount: Int
+    public let dryNappyCount: Int
     public let wetInclusiveCount: Int   // wee + mixed
     public let dirtyInclusiveCount: Int // poo + mixed
 
+    // Sleep extras
+    public let shortestSleepBlockMinutes: Int?
+    public let averageSleepBlockMinutes: Int?
+    public let minutesSinceLastSleep: Int?
+
     // Streak (across all events)
     public let loggingStreakDays: Int
+
+    // Hourly cumulative chart data
+    public let chartData: TodayChartData
 
     public init(
         bottleTotalMilliliters: Int,
@@ -49,13 +58,18 @@ public struct TodaySummaryData: Equatable, Sendable {
         daytimeSleepMinutes: Int,
         nighttimeSleepMinutes: Int,
         longestSleepBlockMinutes: Int?,
+        shortestSleepBlockMinutes: Int?,
+        averageSleepBlockMinutes: Int?,
+        minutesSinceLastSleep: Int?,
         totalNappies: Int,
         wetNappyCount: Int,
         dirtyNappyCount: Int,
         mixedNappyCount: Int,
+        dryNappyCount: Int,
         wetInclusiveCount: Int,
         dirtyInclusiveCount: Int,
-        loggingStreakDays: Int
+        loggingStreakDays: Int,
+        chartData: TodayChartData
     ) {
         self.bottleTotalMilliliters = bottleTotalMilliliters
         self.bottleCount = bottleCount
@@ -71,12 +85,17 @@ public struct TodaySummaryData: Equatable, Sendable {
         self.daytimeSleepMinutes = daytimeSleepMinutes
         self.nighttimeSleepMinutes = nighttimeSleepMinutes
         self.longestSleepBlockMinutes = longestSleepBlockMinutes
+        self.shortestSleepBlockMinutes = shortestSleepBlockMinutes
+        self.averageSleepBlockMinutes = averageSleepBlockMinutes
+        self.minutesSinceLastSleep = minutesSinceLastSleep
         self.totalNappies = totalNappies
         self.wetNappyCount = wetNappyCount
         self.dirtyNappyCount = dirtyNappyCount
         self.mixedNappyCount = mixedNappyCount
+        self.dryNappyCount = dryNappyCount
         self.wetInclusiveCount = wetInclusiveCount
         self.dirtyInclusiveCount = dirtyInclusiveCount
         self.loggingStreakDays = loggingStreakDays
+        self.chartData = chartData
     }
 }
