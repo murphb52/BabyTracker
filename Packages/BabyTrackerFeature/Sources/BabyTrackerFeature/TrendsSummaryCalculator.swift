@@ -26,10 +26,22 @@ public enum TrendsSummaryCalculator {
                 guard case let .bottleFeed(feed) = event else { return nil }
                 return feed
             }
+            let formulaMilliliters = bottles
+                .filter { $0.milkType == .formula }
+                .reduce(0) { $0 + $1.amountMilliliters }
+            let breastMilkMilliliters = bottles
+                .filter { $0.milkType == .breastMilk }
+                .reduce(0) { $0 + $1.amountMilliliters }
+            let mixedMilliliters = bottles
+                .filter { $0.milkType == .mixed }
+                .reduce(0) { $0 + $1.amountMilliliters }
             return DailyBottleData(
                 date: date,
                 label: formatter(date),
                 totalMilliliters: bottles.reduce(0) { $0 + $1.amountMilliliters },
+                formulaMilliliters: formulaMilliliters,
+                breastMilkMilliliters: breastMilkMilliliters,
+                mixedMilliliters: mixedMilliliters,
                 count: bottles.count
             )
         }

@@ -7,11 +7,199 @@ private enum SummaryTab: String, CaseIterable {
     case trends = "Trends"
 }
 
+private protocol TodayChartFilter: CaseIterable, Identifiable, Hashable {
+    var label: String { get }
+}
+
+private enum TodayNappyChartFilter: String, TodayChartFilter {
+    case all
+    case pee
+    case poo
+    case mixed
+    case peeIncludingMixed
+    case pooIncludingMixed
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .all: "All"
+        case .pee: "Pee"
+        case .poo: "Poo"
+        case .mixed: "Mixed"
+        case .peeIncludingMixed: "Pee incl. mixed"
+        case .pooIncludingMixed: "Poo incl. mixed"
+        }
+    }
+
+    func series(from data: TodayChartData) -> HourlyCumulativeSeries {
+        switch self {
+        case .all: data.nappy
+        case .pee: data.nappyPee
+        case .poo: data.nappyPoo
+        case .mixed: data.nappyMixed
+        case .peeIncludingMixed: data.nappyPeeIncludingMixed
+        case .pooIncludingMixed: data.nappyPooIncludingMixed
+        }
+    }
+}
+
+private enum TodayBottleChartFilter: String, TodayChartFilter {
+    case all
+    case formula
+    case breastMilk
+    case mixed
+    case formulaIncludingMixed
+    case breastMilkIncludingMixed
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .all: "All"
+        case .formula: "Formula"
+        case .breastMilk: "Breast milk"
+        case .mixed: "Mixed milk"
+        case .formulaIncludingMixed: "Formula incl. mixed"
+        case .breastMilkIncludingMixed: "Breast milk incl. mixed"
+        }
+    }
+
+    func series(from data: TodayChartData) -> HourlyCumulativeSeries {
+        switch self {
+        case .all: data.bottle
+        case .formula: data.bottleFormula
+        case .breastMilk: data.bottleBreastMilk
+        case .mixed: data.bottleMixed
+        case .formulaIncludingMixed: data.bottleFormulaIncludingMixed
+        case .breastMilkIncludingMixed: data.bottleBreastMilkIncludingMixed
+        }
+    }
+}
+
+private enum TrendsNappyChartFilter: String, TodayChartFilter {
+    case all
+    case wet
+    case dirty
+    case mixed
+    case dry
+    case wetIncludingMixed
+    case dirtyIncludingMixed
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .all: "All"
+        case .wet: "Wet"
+        case .dirty: "Dirty"
+        case .mixed: "Mixed"
+        case .dry: "Dry"
+        case .wetIncludingMixed: "Wet incl. mixed"
+        case .dirtyIncludingMixed: "Dirty incl. mixed"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .all, .dry: .green
+        case .wet, .wetIncludingMixed: .blue
+        case .dirty, .dirtyIncludingMixed: .brown
+        case .mixed: .yellow
+        }
+    }
+
+    func points(from data: [DailyNappyData]) -> [(String, Int)] {
+        data.map { day in
+            (day.label, count(for: day))
+        }
+    }
+
+    func averageText(from data: [DailyNappyData]) -> String? {
+        let values = data.map(count(for:))
+        let nonZeroValues = values.filter { $0 > 0 }
+        guard !nonZeroValues.isEmpty else { return nil }
+        let average = Int((Double(nonZeroValues.reduce(0, +)) / Double(nonZeroValues.count)).rounded())
+        return "Avg \(average)/day"
+    }
+
+    private func count(for day: DailyNappyData) -> Int {
+        switch self {
+        case .all: day.totalCount
+        case .wet: day.wetCount
+        case .dirty: day.dirtyCount
+        case .mixed: day.mixedCount
+        case .dry: day.dryCount
+        case .wetIncludingMixed: day.wetCount + day.mixedCount
+        case .dirtyIncludingMixed: day.dirtyCount + day.mixedCount
+        }
+    }
+}
+
+private enum TrendsBottleChartFilter: String, TodayChartFilter {
+    case all
+    case formula
+    case breastMilk
+    case mixed
+    case formulaIncludingMixed
+    case breastMilkIncludingMixed
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .all: "All"
+        case .formula: "Formula"
+        case .breastMilk: "Breast milk"
+        case .mixed: "Mixed milk"
+        case .formulaIncludingMixed: "Formula incl. mixed"
+        case .breastMilkIncludingMixed: "Breast milk incl. mixed"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .all, .formula, .formulaIncludingMixed: .blue
+        case .breastMilk, .breastMilkIncludingMixed: .cyan
+        case .mixed: .mint
+        }
+    }
+
+    func points(from data: [DailyBottleData]) -> [(String, Int)] {
+        data.map { day in
+            (day.label, value(for: day))
+        }
+    }
+
+    func averageText(from data: [DailyBottleData], unit: FeedVolumeUnit) -> String? {
+        let values = data.map(value(for:))
+        let nonZeroValues = values.filter { $0 > 0 }
+        guard !nonZeroValues.isEmpty else { return nil }
+        let average = Int((Double(nonZeroValues.reduce(0, +)) / Double(nonZeroValues.count)).rounded())
+        return "Avg \(FeedVolumePresentation.perDayText(for: average, unit: unit))"
+    }
+
+    private func value(for day: DailyBottleData) -> Int {
+        switch self {
+        case .all: day.totalMilliliters
+        case .formula: day.formulaMilliliters
+        case .breastMilk: day.breastMilkMilliliters
+        case .mixed: day.mixedMilliliters
+        case .formulaIncludingMixed: day.formulaMilliliters + day.mixedMilliliters
+        case .breastMilkIncludingMixed: day.breastMilkMilliliters + day.mixedMilliliters
+        }
+    }
+}
+
 public struct SummaryScreenView: View {
     let viewModel: SummaryViewModel
 
     @State private var selectedTab: SummaryTab = .today
     @State private var selectedTrendsRange: TrendsTimeRange = .sevenDays
+    @State private var selectedNappyFilter: TodayNappyChartFilter = .all
+    @State private var selectedBottleFilter: TodayBottleChartFilter = .all
+    @State private var selectedTrendsNappyFilter: TrendsNappyChartFilter = .all
+    @State private var selectedTrendsBottleFilter: TrendsBottleChartFilter = .all
 
     public init(viewModel: SummaryViewModel) {
         self.viewModel = viewModel
@@ -80,7 +268,20 @@ public struct SummaryScreenView: View {
     private func bottleSectionCard(data: TodaySummaryData) -> some View {
         let preferredUnit = viewModel.preferredFeedVolumeUnit
 
-        return sectionCard(title: "Bottle", symbol: "drop.fill", tint: .blue) {
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 12) {
+                Label("Bottle", systemImage: "drop.fill")
+                    .font(.headline)
+                    .foregroundStyle(.blue)
+
+                Spacer(minLength: 0)
+
+                todayFilterPicker(
+                    title: "Bottle chart filter",
+                    selection: $selectedBottleFilter
+                )
+            }
+
             Text(FeedVolumePresentation.amountText(for: data.bottleTotalMilliliters, unit: preferredUnit))
                 .font(.title3.weight(.bold))
 
@@ -92,7 +293,7 @@ public struct SummaryScreenView: View {
             bottleFeedTimingRow(data: data)
 
             CumulativeLineChartView(
-                series: data.chartData.bottle,
+                series: selectedBottleFilter.series(from: data.chartData),
                 tint: .blue,
                 valueFormatter: { value in
                     FeedVolumePresentation.amountText(for: value, unit: preferredUnit)
@@ -100,6 +301,9 @@ public struct SummaryScreenView: View {
             )
                 .padding(.top, 4)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(cardBackground)
     }
 
     private func bottleBreakdownRow(data: TodaySummaryData) -> some View {
@@ -203,7 +407,20 @@ public struct SummaryScreenView: View {
     }
 
     private func nappySectionCard(data: TodaySummaryData) -> some View {
-        sectionCard(title: "Nappies", symbol: "checklist.checked", tint: .green) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 12) {
+                Label("Nappies", systemImage: "checklist.checked")
+                    .font(.headline)
+                    .foregroundStyle(.green)
+
+                Spacer(minLength: 0)
+
+                todayFilterPicker(
+                    title: "Nappy chart filter",
+                    selection: $selectedNappyFilter
+                )
+            }
+
             Text("\(data.totalNappies)")
                 .font(.title3.weight(.bold))
 
@@ -215,9 +432,12 @@ public struct SummaryScreenView: View {
                     .foregroundStyle(.secondary)
             }
 
-            CumulativeLineChartView(series: data.chartData.nappy, tint: .green)
+            CumulativeLineChartView(series: selectedNappyFilter.series(from: data.chartData), tint: .green)
                 .padding(.top, 4)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(cardBackground)
     }
 
     private func nappyBreakdownRow(data: TodaySummaryData) -> some View {
@@ -311,20 +531,24 @@ public struct SummaryScreenView: View {
 
     private func bottleChartCard(data: TrendsSummaryData) -> some View {
         let preferredUnit = viewModel.preferredFeedVolumeUnit
-        let points = data.dailyBottle.map { ($0.label, $0.totalMilliliters) }
-        let avgText = data.avgDailyBottleMilliliters.map {
-            "Avg \(FeedVolumePresentation.perDayText(for: $0, unit: preferredUnit))"
-        }
+        let points = selectedTrendsBottleFilter.points(from: data.dailyBottle)
+        let avgText = selectedTrendsBottleFilter.averageText(from: data.dailyBottle, unit: preferredUnit)
 
         return chartCard(
             title: "Bottle Feeds",
             symbol: "drop.fill",
             tint: .blue,
-            subtitle: avgText ?? "No bottle feeds in this period"
+            subtitle: avgText ?? "No bottle feeds in this period",
+            trailingControl: {
+                todayFilterPicker(
+                    title: "Trends bottle chart filter",
+                    selection: $selectedTrendsBottleFilter
+                )
+            }
         ) {
             TrendsBarChartView(
                 points: points,
-                tint: .blue,
+                tint: selectedTrendsBottleFilter.tint,
                 valueFormatter: { value in
                     FeedVolumePresentation.amountText(for: value, unit: preferredUnit)
                 }
@@ -361,15 +585,28 @@ public struct SummaryScreenView: View {
     }
 
     private func nappyChartCard(data: TrendsSummaryData) -> some View {
-        let avgText = data.avgDailyNappies.map { "Avg \($0)/day" }
+        let avgText = selectedTrendsNappyFilter.averageText(from: data.dailyNappy)
 
         return chartCard(
             title: "Nappies",
             symbol: "checklist.checked",
             tint: .green,
-            subtitle: avgText ?? "No nappy changes in this period"
+            subtitle: avgText ?? "No nappy changes in this period",
+            trailingControl: {
+                todayFilterPicker(
+                    title: "Trends nappy chart filter",
+                    selection: $selectedTrendsNappyFilter
+                )
+            }
         ) {
-            TrendsNappyChartView(data: data.dailyNappy)
+            if selectedTrendsNappyFilter == .all {
+                TrendsNappyChartView(data: data.dailyNappy)
+            } else {
+                TrendsBarChartView(
+                    points: selectedTrendsNappyFilter.points(from: data.dailyNappy),
+                    tint: selectedTrendsNappyFilter.tint
+                )
+            }
         }
     }
 
@@ -410,10 +647,34 @@ public struct SummaryScreenView: View {
         subtitle: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
+        chartCard(
+            title: title,
+            symbol: symbol,
+            tint: tint,
+            subtitle: subtitle,
+            trailingControl: { EmptyView() },
+            content: content
+        )
+    }
+
+    private func chartCard<Content: View, TrailingControl: View>(
+        title: String,
+        symbol: String,
+        tint: Color,
+        subtitle: String,
+        @ViewBuilder trailingControl: () -> TrailingControl,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(title, systemImage: symbol)
-                .font(.headline)
-                .foregroundStyle(tint)
+            HStack(alignment: .top, spacing: 12) {
+                Label(title, systemImage: symbol)
+                    .font(.headline)
+                    .foregroundStyle(tint)
+
+                Spacer(minLength: 0)
+
+                trailingControl()
+            }
 
             Text(subtitle)
                 .font(.caption)
@@ -471,6 +732,19 @@ public struct SummaryScreenView: View {
         .buttonStyle(.plain)
     }
 
+    private func todayFilterPicker<Filter: TodayChartFilter>(
+        title: String,
+        selection: Binding<Filter>
+    ) -> some View {
+        Picker(title, selection: selection) {
+            ForEach(Array(Filter.allCases)) { filter in
+                Text(filter.label).tag(filter)
+            }
+        }
+        .pickerStyle(.menu)
+        .font(.caption)
+    }
+
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 18, style: .continuous)
             .fill(.thinMaterial)
@@ -510,6 +784,12 @@ private extension TrendsTimeRange {
 }
 
 #Preview("Trends 30 Days") {
+    NavigationStack {
+        SummaryScreenView(viewModel: SummaryScreenPreviewFactory.summaryViewModel)
+    }
+}
+
+#Preview("Today Filters") {
     NavigationStack {
         SummaryScreenView(viewModel: SummaryScreenPreviewFactory.summaryViewModel)
     }
