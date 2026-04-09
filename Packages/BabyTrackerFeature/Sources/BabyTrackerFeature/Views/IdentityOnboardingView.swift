@@ -14,7 +14,7 @@ public struct IdentityOnboardingView: View {
     @State private var isShowingNotificationPermissionPrompt = false
     @State private var isHandlingNotificationPermissionFlow = false
     @State private var hasShownNotificationPermissionPrompt = false
-    @State private var isContentVisible = false
+    @State private var viewOpacity = 0.0
     @State private var isExiting = false
 
     private static let introPages: [OnboardingIntroPage] = [
@@ -114,8 +114,6 @@ public struct IdentityOnboardingView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-            .opacity(isContentVisible ? 1 : 0)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: isContentVisible)
 
             VStack(spacing: 0) {
                 topBar
@@ -138,9 +136,6 @@ public struct IdentityOnboardingView: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 24)
             }
-            .opacity(contentOpacity)
-            .scaleEffect(contentScale)
-            .offset(y: contentOffsetY)
             .allowsHitTesting(isExiting == false)
 
             if isShowingNotificationPermissionPrompt {
@@ -162,39 +157,16 @@ public struct IdentityOnboardingView: View {
         }
         .onAppear {
             guard reduceMotion == false else {
-                isContentVisible = true
+                viewOpacity = 1
                 return
             }
 
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
-                isContentVisible = true
+            withAnimation(.easeIn(duration: 0.2)) {
+                viewOpacity = 1
             }
         }
+        .opacity(viewOpacity)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isShowingNotificationPermissionPrompt)
-    }
-
-    private var contentOpacity: Double {
-        isContentVisible && isExiting == false ? 1 : 0
-    }
-
-    private var contentScale: CGFloat {
-        guard reduceMotion == false else {
-            return 1
-        }
-
-        return isExiting ? 0.96 : 1
-    }
-
-    private var contentOffsetY: CGFloat {
-        guard reduceMotion == false else {
-            return 0
-        }
-
-        if isContentVisible == false {
-            return 24
-        }
-
-        return isExiting ? -18 : 0
     }
 
     private var topBar: some View {
@@ -383,12 +355,12 @@ public struct IdentityOnboardingView: View {
         }
 
         isExiting = true
-        withAnimation(.easeInOut(duration: 0.28)) {
-            isContentVisible = false
+        withAnimation(.easeOut(duration: 0.18)) {
+            viewOpacity = 0
         }
 
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(220))
+            try? await Task.sleep(for: .milliseconds(180))
             guard !Task.isCancelled else {
                 return
             }
