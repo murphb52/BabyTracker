@@ -68,11 +68,11 @@ struct AppContainer {
         )
         let shareAcceptanceHandler = ShareAcceptanceHandler(
             syncEngine: syncEngine,
-            onStartAcceptingShare: {
-                appModel.beginAcceptingSharedChild()
+            onStartAcceptingShare: { childName in
+                appModel.beginAcceptingSharedChild(childName: childName)
             },
-            onAcceptedShare: {
-                appModel.completeAcceptingSharedChild()
+            onAcceptedShare: { childName in
+                appModel.completeAcceptingSharedChild(childName: childName)
             },
             onFailedToAcceptShare: { error in
                 appModel.failAcceptingSharedChild(error)
@@ -136,11 +136,11 @@ struct AppContainer {
         )
         let shareAcceptanceHandler = ShareAcceptanceHandler(
             syncEngine: syncEngine,
-            onStartAcceptingShare: {
-                appModel.beginAcceptingSharedChild()
+            onStartAcceptingShare: { childName in
+                appModel.beginAcceptingSharedChild(childName: childName)
             },
-            onAcceptedShare: {
-                appModel.completeAcceptingSharedChild()
+            onAcceptedShare: { childName in
+                appModel.completeAcceptingSharedChild(childName: childName)
             },
             onFailedToAcceptShare: { error in
                 appModel.failAcceptingSharedChild(error)
