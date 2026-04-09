@@ -370,7 +370,7 @@ public struct SummaryScreenView: View {
                 x: .value("Date", point.label),
                 y: .value("Value", point.value)
             )
-            .foregroundStyle(tint.gradient)
+            .foregroundStyle(tint)
             .annotation(position: .top, spacing: 2) {
                 if !isDense && point.value > 0 {
                     Text(valueFormatter?(point.value) ?? "\(point.value)")
