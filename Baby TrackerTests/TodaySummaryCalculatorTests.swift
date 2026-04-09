@@ -153,6 +153,86 @@ struct TodaySummaryCalculatorTests {
     }
 
     @Test
+    func bottleChartFilterSeriesTrackMilkTypeAndMixedInclusiveModes() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let childID = UUID()
+        let userID = UUID()
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 14)))
+        let nineAm = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 9)))
+        let tenAm = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 10)))
+        let elevenAm = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 11)))
+
+        let events: [BabyEvent] = [
+            .bottleFeed(try BottleFeedEvent(
+                metadata: EventMetadata(childID: childID, occurredAt: nineAm, createdAt: nineAm, createdBy: userID),
+                amountMilliliters: 100,
+                milkType: .formula
+            )),
+            .bottleFeed(try BottleFeedEvent(
+                metadata: EventMetadata(childID: childID, occurredAt: tenAm, createdAt: tenAm, createdBy: userID),
+                amountMilliliters: 80,
+                milkType: .mixed
+            )),
+            .bottleFeed(try BottleFeedEvent(
+                metadata: EventMetadata(childID: childID, occurredAt: elevenAm, createdAt: elevenAm, createdBy: userID),
+                amountMilliliters: 90,
+                milkType: .breastMilk
+            )),
+        ]
+
+        let data = TodaySummaryCalculator.makeData(from: events, now: now, calendar: calendar)
+
+        #expect(data.chartData.bottleFormula.todayCumulative[11] == 100)
+        #expect(data.chartData.bottleMixed.todayCumulative[11] == 80)
+        #expect(data.chartData.bottleBreastMilk.todayCumulative[11] == 90)
+        #expect(data.chartData.bottleFormulaIncludingMixed.todayCumulative[11] == 180)
+        #expect(data.chartData.bottleBreastMilkIncludingMixed.todayCumulative[11] == 170)
+    }
+
+    @Test
+    func nappyChartFilterSeriesTrackPeePooAndMixedInclusiveModes() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let childID = UUID()
+        let userID = UUID()
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 14)))
+        let nineAm = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 9)))
+        let tenAm = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 10)))
+        let elevenAm = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 11)))
+
+        let events: [BabyEvent] = [
+            .nappy(try NappyEvent(
+                metadata: EventMetadata(childID: childID, occurredAt: nineAm, createdAt: nineAm, createdBy: userID),
+                type: .wee
+            )),
+            .nappy(try NappyEvent(
+                metadata: EventMetadata(childID: childID, occurredAt: tenAm, createdAt: tenAm, createdBy: userID),
+                type: .mixed,
+                peeVolume: .medium,
+                pooVolume: .light,
+                pooColor: .yellow
+            )),
+            .nappy(try NappyEvent(
+                metadata: EventMetadata(childID: childID, occurredAt: elevenAm, createdAt: elevenAm, createdBy: userID),
+                type: .poo,
+                pooVolume: .large,
+                pooColor: .brown
+            )),
+        ]
+
+        let data = TodaySummaryCalculator.makeData(from: events, now: now, calendar: calendar)
+
+        #expect(data.chartData.nappyPee.todayCumulative[11] == 1)
+        #expect(data.chartData.nappyMixed.todayCumulative[11] == 1)
+        #expect(data.chartData.nappyPoo.todayCumulative[11] == 1)
+        #expect(data.chartData.nappyPeeIncludingMixed.todayCumulative[11] == 2)
+        #expect(data.chartData.nappyPooIncludingMixed.todayCumulative[11] == 2)
+    }
+
+    @Test
     func dryNappyCountIsIncludedSeparately() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!

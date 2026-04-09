@@ -145,6 +145,52 @@ public enum TodaySummaryCalculator {
                 todayAmounts: bottleHourlyAmounts(events: todayEvents, calendar: calendar),
                 historicalAmounts: historicalDays.map { bottleHourlyAmounts(events: $0, calendar: calendar) }
             ),
+            bottleFormula: buildCumulativeSeries(
+                todayAmounts: bottleHourlyAmounts(events: todayEvents, calendar: calendar, includes: { $0.milkType == .formula }),
+                historicalAmounts: historicalDays.map {
+                    bottleHourlyAmounts(events: $0, calendar: calendar, includes: { $0.milkType == .formula })
+                }
+            ),
+            bottleBreastMilk: buildCumulativeSeries(
+                todayAmounts: bottleHourlyAmounts(events: todayEvents, calendar: calendar, includes: { $0.milkType == .breastMilk }),
+                historicalAmounts: historicalDays.map {
+                    bottleHourlyAmounts(events: $0, calendar: calendar, includes: { $0.milkType == .breastMilk })
+                }
+            ),
+            bottleMixed: buildCumulativeSeries(
+                todayAmounts: bottleHourlyAmounts(events: todayEvents, calendar: calendar, includes: { $0.milkType == .mixed }),
+                historicalAmounts: historicalDays.map {
+                    bottleHourlyAmounts(events: $0, calendar: calendar, includes: { $0.milkType == .mixed })
+                }
+            ),
+            bottleFormulaIncludingMixed: buildCumulativeSeries(
+                todayAmounts: bottleHourlyAmounts(
+                    events: todayEvents,
+                    calendar: calendar,
+                    includes: { $0.milkType == .formula || $0.milkType == .mixed }
+                ),
+                historicalAmounts: historicalDays.map {
+                    bottleHourlyAmounts(
+                        events: $0,
+                        calendar: calendar,
+                        includes: { $0.milkType == .formula || $0.milkType == .mixed }
+                    )
+                }
+            ),
+            bottleBreastMilkIncludingMixed: buildCumulativeSeries(
+                todayAmounts: bottleHourlyAmounts(
+                    events: todayEvents,
+                    calendar: calendar,
+                    includes: { $0.milkType == .breastMilk || $0.milkType == .mixed }
+                ),
+                historicalAmounts: historicalDays.map {
+                    bottleHourlyAmounts(
+                        events: $0,
+                        calendar: calendar,
+                        includes: { $0.milkType == .breastMilk || $0.milkType == .mixed }
+                    )
+                }
+            ),
             breast: buildCumulativeSeries(
                 todayAmounts: breastHourlyAmounts(events: todayEvents, calendar: calendar),
                 historicalAmounts: historicalDays.map { breastHourlyAmounts(events: $0, calendar: calendar) }
@@ -156,6 +202,52 @@ public enum TodaySummaryCalculator {
             nappy: buildCumulativeSeries(
                 todayAmounts: nappyHourlyAmounts(events: todayEvents, calendar: calendar),
                 historicalAmounts: historicalDays.map { nappyHourlyAmounts(events: $0, calendar: calendar) }
+            ),
+            nappyPee: buildCumulativeSeries(
+                todayAmounts: nappyHourlyAmounts(events: todayEvents, calendar: calendar, includes: { $0.type == .wee }),
+                historicalAmounts: historicalDays.map {
+                    nappyHourlyAmounts(events: $0, calendar: calendar, includes: { $0.type == .wee })
+                }
+            ),
+            nappyPoo: buildCumulativeSeries(
+                todayAmounts: nappyHourlyAmounts(events: todayEvents, calendar: calendar, includes: { $0.type == .poo }),
+                historicalAmounts: historicalDays.map {
+                    nappyHourlyAmounts(events: $0, calendar: calendar, includes: { $0.type == .poo })
+                }
+            ),
+            nappyMixed: buildCumulativeSeries(
+                todayAmounts: nappyHourlyAmounts(events: todayEvents, calendar: calendar, includes: { $0.type == .mixed }),
+                historicalAmounts: historicalDays.map {
+                    nappyHourlyAmounts(events: $0, calendar: calendar, includes: { $0.type == .mixed })
+                }
+            ),
+            nappyPeeIncludingMixed: buildCumulativeSeries(
+                todayAmounts: nappyHourlyAmounts(
+                    events: todayEvents,
+                    calendar: calendar,
+                    includes: { $0.type == .wee || $0.type == .mixed }
+                ),
+                historicalAmounts: historicalDays.map {
+                    nappyHourlyAmounts(
+                        events: $0,
+                        calendar: calendar,
+                        includes: { $0.type == .wee || $0.type == .mixed }
+                    )
+                }
+            ),
+            nappyPooIncludingMixed: buildCumulativeSeries(
+                todayAmounts: nappyHourlyAmounts(
+                    events: todayEvents,
+                    calendar: calendar,
+                    includes: { $0.type == .poo || $0.type == .mixed }
+                ),
+                historicalAmounts: historicalDays.map {
+                    nappyHourlyAmounts(
+                        events: $0,
+                        calendar: calendar,
+                        includes: { $0.type == .poo || $0.type == .mixed }
+                    )
+                }
             )
         )
     }
@@ -196,10 +288,15 @@ public enum TodaySummaryCalculator {
     // MARK: - Per-hour amounts
 
     /// Returns a 24-element array where index h = total bottle mL from feeds whose occurredAt is in hour h.
-    private static func bottleHourlyAmounts(events: [BabyEvent], calendar: Calendar) -> [Int] {
+    private static func bottleHourlyAmounts(
+        events: [BabyEvent],
+        calendar: Calendar,
+        includes: (BottleFeedEvent) -> Bool = { _ in true }
+    ) -> [Int] {
         var amounts = [Int](repeating: 0, count: 24)
         for event in events {
             guard case let .bottleFeed(feed) = event else { continue }
+            guard includes(feed) else { continue }
             let h = calendar.component(.hour, from: feed.metadata.occurredAt)
             amounts[h] += feed.amountMilliliters
         }
@@ -230,11 +327,16 @@ public enum TodaySummaryCalculator {
     }
 
     /// Returns a 24-element array where index h = number of nappy changes in hour h (by occurredAt).
-    private static func nappyHourlyAmounts(events: [BabyEvent], calendar: Calendar) -> [Int] {
+    private static func nappyHourlyAmounts(
+        events: [BabyEvent],
+        calendar: Calendar,
+        includes: (NappyEvent) -> Bool = { _ in true }
+    ) -> [Int] {
         var amounts = [Int](repeating: 0, count: 24)
         for event in events {
-            guard case .nappy = event else { continue }
-            let h = calendar.component(.hour, from: event.metadata.occurredAt)
+            guard case let .nappy(nappy) = event else { continue }
+            guard includes(nappy) else { continue }
+            let h = calendar.component(.hour, from: nappy.metadata.occurredAt)
             amounts[h] += 1
         }
         return amounts

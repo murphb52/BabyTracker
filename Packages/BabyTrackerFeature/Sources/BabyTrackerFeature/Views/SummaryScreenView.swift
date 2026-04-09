@@ -7,11 +7,83 @@ private enum SummaryTab: String, CaseIterable {
     case trends = "Trends"
 }
 
+private protocol TodayChartFilter: CaseIterable, Identifiable, Hashable {
+    var label: String { get }
+}
+
+private enum TodayNappyChartFilter: String, TodayChartFilter {
+    case all
+    case pee
+    case poo
+    case mixed
+    case peeIncludingMixed
+    case pooIncludingMixed
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .all: "All"
+        case .pee: "Pee"
+        case .poo: "Poo"
+        case .mixed: "Mixed"
+        case .peeIncludingMixed: "Pee incl. mixed"
+        case .pooIncludingMixed: "Poo incl. mixed"
+        }
+    }
+
+    func series(from data: TodayChartData) -> HourlyCumulativeSeries {
+        switch self {
+        case .all: data.nappy
+        case .pee: data.nappyPee
+        case .poo: data.nappyPoo
+        case .mixed: data.nappyMixed
+        case .peeIncludingMixed: data.nappyPeeIncludingMixed
+        case .pooIncludingMixed: data.nappyPooIncludingMixed
+        }
+    }
+}
+
+private enum TodayBottleChartFilter: String, TodayChartFilter {
+    case all
+    case formula
+    case breastMilk
+    case mixed
+    case formulaIncludingMixed
+    case breastMilkIncludingMixed
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .all: "All bottle feeds"
+        case .formula: "Formula"
+        case .breastMilk: "Breast milk"
+        case .mixed: "Mixed milk"
+        case .formulaIncludingMixed: "Formula incl. mixed"
+        case .breastMilkIncludingMixed: "Breast milk incl. mixed"
+        }
+    }
+
+    func series(from data: TodayChartData) -> HourlyCumulativeSeries {
+        switch self {
+        case .all: data.bottle
+        case .formula: data.bottleFormula
+        case .breastMilk: data.bottleBreastMilk
+        case .mixed: data.bottleMixed
+        case .formulaIncludingMixed: data.bottleFormulaIncludingMixed
+        case .breastMilkIncludingMixed: data.bottleBreastMilkIncludingMixed
+        }
+    }
+}
+
 public struct SummaryScreenView: View {
     let viewModel: SummaryViewModel
 
     @State private var selectedTab: SummaryTab = .today
     @State private var selectedTrendsRange: TrendsTimeRange = .sevenDays
+    @State private var selectedNappyFilter: TodayNappyChartFilter = .all
+    @State private var selectedBottleFilter: TodayBottleChartFilter = .all
 
     public init(viewModel: SummaryViewModel) {
         self.viewModel = viewModel
@@ -90,9 +162,13 @@ public struct SummaryScreenView: View {
 
             // Feed timing
             bottleFeedTimingRow(data: data)
+            todayFilterPicker(
+                title: "Bottle chart filter",
+                selection: $selectedBottleFilter
+            )
 
             CumulativeLineChartView(
-                series: data.chartData.bottle,
+                series: selectedBottleFilter.series(from: data.chartData),
                 tint: .blue,
                 valueFormatter: { value in
                     FeedVolumePresentation.amountText(for: value, unit: preferredUnit)
@@ -214,8 +290,12 @@ public struct SummaryScreenView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            todayFilterPicker(
+                title: "Nappy chart filter",
+                selection: $selectedNappyFilter
+            )
 
-            CumulativeLineChartView(series: data.chartData.nappy, tint: .green)
+            CumulativeLineChartView(series: selectedNappyFilter.series(from: data.chartData), tint: .green)
                 .padding(.top, 4)
         }
     }
@@ -471,6 +551,19 @@ public struct SummaryScreenView: View {
         .buttonStyle(.plain)
     }
 
+    private func todayFilterPicker<Filter: TodayChartFilter>(
+        title: String,
+        selection: Binding<Filter>
+    ) -> some View {
+        Picker(title, selection: selection) {
+            ForEach(Array(Filter.allCases)) { filter in
+                Text(filter.label).tag(filter)
+            }
+        }
+        .pickerStyle(.menu)
+        .font(.caption)
+    }
+
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 18, style: .continuous)
             .fill(.thinMaterial)
@@ -510,6 +603,12 @@ private extension TrendsTimeRange {
 }
 
 #Preview("Trends 30 Days") {
+    NavigationStack {
+        SummaryScreenView(viewModel: SummaryScreenPreviewFactory.summaryViewModel)
+    }
+}
+
+#Preview("Today Filters") {
     NavigationStack {
         SummaryScreenView(viewModel: SummaryScreenPreviewFactory.summaryViewModel)
     }
