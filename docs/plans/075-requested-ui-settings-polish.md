@@ -16,4 +16,4 @@ Implement the requested UI and settings refinements across live activity handlin
 6. Add a profile/settings flow that lets the active caregiver update their display name after onboarding.
 7. Verify the affected behavior with focused tests and a project build, then mark the plan complete.
 
-- [ ] Complete
+- [x] Complete

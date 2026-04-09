@@ -315,6 +315,17 @@ public final class AppModel {
         }
     }
 
+    @discardableResult
+    public func updateLocalUserName(displayName: String) -> Bool {
+        perform {
+            _ = try UpdateLocalUserUseCase(
+                userIdentityRepository: userIdentityRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
+            .execute(.init(displayName: displayName))
+        }
+    }
+
     public func createChild(name: String, birthDate: Date?, imageData: Data? = nil) {
         let succeeded = perform {
             guard let localUser else { return }
