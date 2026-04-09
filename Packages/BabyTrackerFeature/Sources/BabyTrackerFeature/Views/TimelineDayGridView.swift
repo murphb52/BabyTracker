@@ -341,7 +341,7 @@ private enum TimelineDayGridPreviewFactory {
                         kind: TimelineDayGridColumnKind.bottleFeed,
                         startSlotIndex: 36,
                         endSlotIndex: 37,
-                        title: "120 ml",
+                        title: "120 mL",
                         detailText: "",
                         timeText: "",
                         payloads: [

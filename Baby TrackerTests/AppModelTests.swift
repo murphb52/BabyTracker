@@ -221,7 +221,7 @@ struct AppModelTests {
         #expect(bottleFeedItem.columnKind == .bottleFeed)
         #expect(bottleFeedItem.startSlotIndex == 40)
         #expect(bottleFeedItem.endSlotIndex == 41)
-        #expect(bottleFeedItem.title == "150 ml")
+        #expect(bottleFeedItem.title == "150 mL")
         #expect(nappyItem.columnKind == .nappy)
         #expect(nappyItem.startSlotIndex == 48)
         #expect(nappyItem.endSlotIndex == 49)
@@ -1393,6 +1393,43 @@ struct AppModelTests {
         #expect(updatedChild.name == "Poppy Updated")
         #expect(updatedChild.imageData == Data([0x01, 0x02]))
         #expect(updatedChild.updatedAt >= originalChild.updatedAt)
+    }
+
+    @Test
+    func timelineBottleFeedTitlesRespectPreferredOunceUnit() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: .now)
+        let bottleTime = try #require(calendar.date(byAdding: .hour, value: 10, to: today))
+
+        let bottleFeed = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 150,
+            occurredAt: bottleTime,
+            milkType: .formula
+        )
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.updateCurrentChild(
+            name: seed.child.name,
+            birthDate: seed.child.birthDate,
+            imageData: seed.child.imageData,
+            preferredFeedVolumeUnit: .ounces
+        )
+
+        let items = selectedTimelineItems(
+            pages: harness.model.timelinePages,
+            selectedDay: harness.model.timelineSelectedDay
+        )
+        let bottleFeedItem = try #require(
+            items.first(where: { $0.primaryEventID == bottleFeed.id })
+        )
+
+        #expect(bottleFeedItem.title == "5.1 oz")
     }
 
     // MARK: - Archive

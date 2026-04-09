@@ -78,12 +78,12 @@ public struct SummaryScreenView: View {
     // MARK: - Today Section Cards
 
     private func bottleSectionCard(data: TodaySummaryData) -> some View {
-        sectionCard(title: "Bottle", symbol: "drop.fill", tint: .blue) {
-            // Primary metric
-            Text(data.bottleCount == 0 ? "0 mL" : "\(data.bottleTotalMilliliters) mL")
+        let preferredUnit = viewModel.preferredFeedVolumeUnit
+
+        return sectionCard(title: "Bottle", symbol: "drop.fill", tint: .blue) {
+            Text(FeedVolumePresentation.amountText(for: data.bottleTotalMilliliters, unit: preferredUnit))
                 .font(.title3.weight(.bold))
 
-            // Breakdown by milk type
             if data.bottleCount > 0 {
                 bottleBreakdownRow(data: data)
             }
@@ -91,16 +91,29 @@ public struct SummaryScreenView: View {
             // Feed timing
             bottleFeedTimingRow(data: data)
 
-            CumulativeLineChartView(series: data.chartData.bottle, tint: .blue)
+            CumulativeLineChartView(
+                series: data.chartData.bottle,
+                tint: .blue,
+                valueFormatter: { value in
+                    FeedVolumePresentation.amountText(for: value, unit: preferredUnit)
+                }
+            )
                 .padding(.top, 4)
         }
     }
 
     private func bottleBreakdownRow(data: TodaySummaryData) -> some View {
+        let preferredUnit = viewModel.preferredFeedVolumeUnit
         let parts: [String] = [
-            data.formulaMilliliters > 0 ? "Formula \(data.formulaMilliliters) mL" : nil,
-            data.breastMilkMilliliters > 0 ? "Breast milk \(data.breastMilkMilliliters) mL" : nil,
-            data.mixedMilkMilliliters > 0 ? "Mixed \(data.mixedMilkMilliliters) mL" : nil,
+            data.formulaMilliliters > 0
+                ? "Formula \(FeedVolumePresentation.amountText(for: data.formulaMilliliters, unit: preferredUnit))"
+                : nil,
+            data.breastMilkMilliliters > 0
+                ? "Breast milk \(FeedVolumePresentation.amountText(for: data.breastMilkMilliliters, unit: preferredUnit))"
+                : nil,
+            data.mixedMilkMilliliters > 0
+                ? "Mixed \(FeedVolumePresentation.amountText(for: data.mixedMilkMilliliters, unit: preferredUnit))"
+                : nil,
         ].compactMap { $0 }
 
         return Text(parts.isEmpty ? "\(data.bottleCount) feed\(data.bottleCount == 1 ? "" : "s")" : parts.joined(separator: " • "))
@@ -297,8 +310,11 @@ public struct SummaryScreenView: View {
     }
 
     private func bottleChartCard(data: TrendsSummaryData) -> some View {
+        let preferredUnit = viewModel.preferredFeedVolumeUnit
         let points = data.dailyBottle.map { ($0.label, $0.totalMilliliters) }
-        let avgText = data.avgDailyBottleMilliliters.map { "Avg \($0) mL/day" }
+        let avgText = data.avgDailyBottleMilliliters.map {
+            "Avg \(FeedVolumePresentation.perDayText(for: $0, unit: preferredUnit))"
+        }
 
         return chartCard(
             title: "Bottle Feeds",
@@ -306,7 +322,13 @@ public struct SummaryScreenView: View {
             tint: .blue,
             subtitle: avgText ?? "No bottle feeds in this period"
         ) {
-            TrendsBarChartView(points: points, tint: .blue)
+            TrendsBarChartView(
+                points: points,
+                tint: .blue,
+                valueFormatter: { value in
+                    FeedVolumePresentation.amountText(for: value, unit: preferredUnit)
+                }
+            )
         }
     }
 
