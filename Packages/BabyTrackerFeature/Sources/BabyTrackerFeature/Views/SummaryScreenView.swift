@@ -385,7 +385,12 @@ public struct SummaryScreenView: View {
                 AxisValueLabel(collisionResolution: .greedy(minimumSpacing: 4))
             }
         }
-        .chartYAxis(.hidden)
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { _ in
+                AxisGridLine()
+                AxisValueLabel()
+            }
+        }
         .chartLegend(.hidden)
         .frame(height: isDense ? 100 : 120)
     }
@@ -422,7 +427,12 @@ public struct SummaryScreenView: View {
                 AxisValueLabel(collisionResolution: .greedy(minimumSpacing: 4))
             }
         }
-        .chartYAxis(.hidden)
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { _ in
+                AxisGridLine()
+                AxisValueLabel()
+            }
+        }
         .chartLegend(position: .bottom, alignment: .leading)
         .frame(height: isDense ? 120 : 140)
     }
