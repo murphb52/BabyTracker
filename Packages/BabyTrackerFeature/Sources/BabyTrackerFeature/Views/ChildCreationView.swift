@@ -57,7 +57,9 @@ public struct ChildCreationView: View {
     }
 
     private var creationForm: some View {
-        Form {
+        let currentSelectedImageData = selectedImageData
+
+        return Form {
             Section {
                 Text("Create a child profile. You can add a birth date now or leave it for later.")
                     .foregroundStyle(.secondary)
@@ -67,14 +69,7 @@ public struct ChildCreationView: View {
                 HStack {
                     Spacer()
                     PhotosPicker(selection: $selectedItem, matching: .images) {
-                        profileImageView
-                            .overlay(alignment: .bottomTrailing) {
-                                Image(systemName: "pencil.circle.fill")
-                                    .font(.title3)
-                                    .symbolRenderingMode(.palette)
-                                    .foregroundStyle(.white, Color.accentColor)
-                                    .offset(x: 4, y: 4)
-                            }
+                        ChildProfileImagePickerLabel(imageData: currentSelectedImageData)
                     }
                     .buttonStyle(.plain)
                     Spacer()
@@ -225,9 +220,30 @@ public struct ChildCreationView: View {
         .listStyle(.insetGrouped)
     }
 
+}
+
+private struct RestoreImportSuccess {
+    let childName: String
+    let result: CSVImportResult
+}
+
+private struct ChildProfileImagePickerLabel: View {
+    let imageData: Data?
+
+    var body: some View {
+        profileImageView
+            .overlay(alignment: .bottomTrailing) {
+                Image(systemName: "pencil.circle.fill")
+                    .font(.title3)
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, Color.accentColor)
+                    .offset(x: 4, y: 4)
+            }
+    }
+
     @ViewBuilder
     private var profileImageView: some View {
-        if let imageData = selectedImageData, let uiImage = UIImage(data: imageData) {
+        if let imageData, let uiImage = UIImage(data: imageData) {
             Image(uiImage: uiImage)
                 .resizable()
                 .scaledToFill()
@@ -244,11 +260,6 @@ public struct ChildCreationView: View {
             }
         }
     }
-}
-
-private struct RestoreImportSuccess {
-    let childName: String
-    let result: CSVImportResult
 }
 
 #Preview {

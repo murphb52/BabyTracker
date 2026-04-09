@@ -335,7 +335,7 @@ This prevents the app from treating share acceptance as complete before the shar
 
 Relevant plan:
 
-- [`019-force-full-shared-zone-pull-on-share-accept.md`](/Users/brianmurphy/Documents/Development/iOS/Baby%20Tracker/docs/plans/019-force-full-shared-zone-pull-on-share-accept.md)
+- [`020-force-full-shared-zone-pull-on-share-accept.md`](/Users/brianmurphy/Documents/Development/iOS/Baby%20Tracker/docs/plans/020-force-full-shared-zone-pull-on-share-accept.md)
 
 ### Fix 2. Make the Child Share Include the Full Record Hierarchy
 
@@ -345,7 +345,7 @@ This makes the full child graph part of the CloudKit share instead of sharing on
 
 Relevant plan:
 
-- [`020-share-full-child-hierarchy.md`](/Users/brianmurphy/Documents/Development/iOS/Baby%20Tracker/docs/plans/020-share-full-child-hierarchy.md)
+- [`022-share-full-child-hierarchy.md`](/Users/brianmurphy/Documents/Development/iOS/Baby%20Tracker/docs/plans/022-share-full-child-hierarchy.md)
 
 ### Fix 3. Reconcile Owner Shared Private Zones Before Reading or Pushing
 
@@ -358,7 +358,7 @@ This prevents the owner from continuing with a stale local snapshot when CloudKi
 
 Relevant plan:
 
-- [`022-reconcile-owner-shared-private-zones.md`](/Users/brianmurphy/Documents/Development/iOS/Baby%20Tracker/docs/plans/022-reconcile-owner-shared-private-zones.md)
+- [`023-reconcile-owner-shared-private-zones.md`](/Users/brianmurphy/Documents/Development/iOS/Baby%20Tracker/docs/plans/023-reconcile-owner-shared-private-zones.md)
 
 ### Fix 4. Trim Diagnostic Noise and Keep the Why in Comments
 
@@ -368,7 +368,7 @@ Those logs were useful temporarily, but they were intentionally removed once the
 
 Relevant plan:
 
-- [`023-trim-cloudkit-diagnostics-and-document-why.md`](/Users/brianmurphy/Documents/Development/iOS/Baby%20Tracker/docs/plans/023-trim-cloudkit-diagnostics-and-document-why.md)
+- [`024-trim-cloudkit-diagnostics-and-document-why.md`](/Users/brianmurphy/Documents/Development/iOS/Baby%20Tracker/docs/plans/024-trim-cloudkit-diagnostics-and-document-why.md)
 
 ---
 

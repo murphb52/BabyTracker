@@ -27,20 +27,15 @@ public struct ChildEditSheetView: View {
     }
 
     public var body: some View {
-        NavigationStack {
+        let currentSelectedImageData = selectedImageData
+
+        return NavigationStack {
             Form {
                 Section {
                     HStack {
                         Spacer()
                         PhotosPicker(selection: $selectedItem, matching: .images) {
-                            profileImageView
-                                .overlay(alignment: .bottomTrailing) {
-                                    Image(systemName: "pencil.circle.fill")
-                                        .font(.title3)
-                                        .symbolRenderingMode(.palette)
-                                        .foregroundStyle(.white, Color.accentColor)
-                                        .offset(x: 4, y: 4)
-                                }
+                            ChildEditImagePickerLabel(imageData: currentSelectedImageData)
                         }
                         .buttonStyle(.plain)
                         Spacer()
@@ -95,10 +90,25 @@ public struct ChildEditSheetView: View {
             }
         }
     }
+}
+
+private struct ChildEditImagePickerLabel: View {
+    let imageData: Data?
+
+    var body: some View {
+        profileImageView
+            .overlay(alignment: .bottomTrailing) {
+                Image(systemName: "pencil.circle.fill")
+                    .font(.title3)
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, Color.accentColor)
+                    .offset(x: 4, y: 4)
+            }
+    }
 
     @ViewBuilder
     private var profileImageView: some View {
-        if let imageData = selectedImageData, let uiImage = UIImage(data: imageData) {
+        if let imageData, let uiImage = UIImage(data: imageData) {
             Image(uiImage: uiImage)
                 .resizable()
                 .scaledToFill()

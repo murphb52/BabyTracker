@@ -11,7 +11,6 @@ final class CloudKitShareAcceptanceBridge {
     var handler: ShareAcceptanceHandler? {
         didSet {
             guard let handler, let queued = queuedMetadata else { return }
-            print("[BabyTracker][2/5] Handler set — flushing queued share metadata")
             logger.info("[2/5] Handler set — flushing queued share metadata")
             AppLogger.shared.log(.info, category: "ShareAcceptance", "[2/5] Handler set — flushing queued share metadata")
             queuedMetadata = nil
@@ -26,7 +25,6 @@ final class CloudKitShareAcceptanceBridge {
 
     func handle(metadata: CKShare.Metadata) {
         let handlerState = handler == nil ? "nil (queuing)" : "ready"
-        print("[BabyTracker][2/5] Bridge.handle called — handler is \(handlerState)")
         logger.info("[2/5] Bridge.handle called — handler is \(self.handler == nil ? "nil (queuing)" : "ready", privacy: .public)")
         AppLogger.shared.log(.info, category: "ShareAcceptance", "[2/5] Bridge.handle called — handler is \(handlerState)")
         guard let handler else {

@@ -14,7 +14,7 @@ public struct InviteCaregiverSheetView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("This Stage 1 flow creates a local placeholder caregiver. Real CloudKit sharing arrives in Stage 2.")
+                    Text("Invite another caregiver to view and update this child profile through iCloud sharing.")
                         .foregroundStyle(.secondary)
                 }
 

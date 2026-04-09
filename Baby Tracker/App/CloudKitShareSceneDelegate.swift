@@ -35,7 +35,6 @@ final class CloudKitShareSceneDelegate: NSObject, UIWindowSceneDelegate {
     ) {
         let title = cloudKitShareMetadata.share[CKShare.SystemFieldKey.title] as? String ?? "unknown"
         let zone = cloudKitShareMetadata.share.recordID.zoneID.zoneName
-        print("[BabyTracker][1/5] SceneDelegate fired — title: \(title), zone: \(zone)")
         logger.info("[1/5] SceneDelegate fired — share title: '\(title, privacy: .private)', zone: \(zone, privacy: .public)")
         Task { @MainActor in
             AppLogger.shared.log(.info, category: "ShareAcceptance", "[1/5] SceneDelegate fired — zone: \(zone)")

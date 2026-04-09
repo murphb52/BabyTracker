@@ -269,7 +269,6 @@ public final class CloudKitSyncEngine {
     public func accept(metadata: CKShare.Metadata) async throws {
         let shareTitle = metadata.share[CKShare.SystemFieldKey.title] as? String ?? "unknown"
         let zoneName = metadata.share.recordID.zoneID.zoneName
-        print("[BabyTracker][4/5] CloudKitSyncEngine.accept — title: \(shareTitle), zone: \(zoneName)")
         logger.info("[4/5] Sync engine accept — title: '\(shareTitle, privacy: .private)', zone: \(zoneName, privacy: .public)")
         AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] Sync engine accept — title: '\(shareTitle)', zone: \(zoneName)")
         logger.info("[4/5] Calling client.accept (registers share with CloudKit)")
@@ -347,7 +346,6 @@ public final class CloudKitSyncEngine {
             return statusSummary
         } catch {
             logger.error("Refresh(\(reason.logDescription, privacy: .public)) failed: \(error.localizedDescription, privacy: .public) [\(String(describing: error), privacy: .public)]")
-            print("[BabyTracker] Refresh(\(reason.logDescription)) FAILED: \(error)")
             AppLogger.shared.log(.error, category: "CloudKitSync", "Refresh(\(reason.logDescription)) failed: \(error.localizedDescription)")
             let localSummary = (try? syncStateRepository.loadStatusSummary()) ?? SyncStatusSummary()
             statusSummary = SyncStatusSummary(
@@ -999,7 +997,6 @@ public final class CloudKitSyncEngine {
                 try membershipRepository.saveMembership(membership)
             } catch {
                 logger.error("Failed to save membership (role: \(membership.role.rawValue, privacy: .public), status: \(membership.status.rawValue, privacy: .public)): \(error.localizedDescription, privacy: .public)")
-                print("[BabyTracker] saveMembership FAILED role=\(membership.role.rawValue) status=\(membership.status.rawValue): \(error)")
                 AppLogger.shared.log(.error, category: "CloudKitSync", "Failed to save membership (role: \(membership.role.rawValue), status: \(membership.status.rawValue)): \(error.localizedDescription)")
                 throw error
             }
@@ -1151,7 +1148,6 @@ public final class CloudKitSyncEngine {
 
         let existingRoles = existingMemberships.map { "\($0.role.rawValue)/\($0.status.rawValue)" }.joined(separator: ", ")
         logger.info("[4/5] ensureMembership — existing memberships for child: [\(existingRoles.isEmpty ? "none" : existingRoles, privacy: .public)]")
-        print("[BabyTracker][4/5] ensureMembership — existing memberships: [\(existingRoles.isEmpty ? "none" : existingRoles)]")
         AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] ensureMembership — existing memberships: [\(existingRoles.isEmpty ? "none" : existingRoles)]")
         // The share recipient may not receive their membership record in the
         // first pull, so create the local caregiver membership explicitly.

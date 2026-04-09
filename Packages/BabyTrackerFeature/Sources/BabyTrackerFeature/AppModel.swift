@@ -653,7 +653,7 @@ public final class AppModel {
         endedAt: Date
     ) -> Bool {
         perform {
-            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try EndSleepUseCase(
                 eventRepository: eventRepository,
@@ -679,7 +679,7 @@ public final class AppModel {
         rightDurationSeconds: Int? = nil
     ) -> Bool {
         perform {
-            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             try UpdateBreastFeedUseCase(
                 eventRepository: eventRepository,
@@ -706,7 +706,7 @@ public final class AppModel {
         milkType: MilkType?
     ) -> Bool {
         perform {
-            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             try UpdateBottleFeedUseCase(
                 eventRepository: eventRepository,
@@ -733,7 +733,7 @@ public final class AppModel {
         pooColor: PooColor? = nil
     ) -> Bool {
         perform {
-            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             try UpdateNappyUseCase(
                 eventRepository: eventRepository,
@@ -781,7 +781,7 @@ public final class AppModel {
         endedAt: Date
     ) -> Bool {
         perform {
-            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             try UpdateSleepUseCase(
                 eventRepository: eventRepository,
@@ -800,7 +800,7 @@ public final class AppModel {
     @discardableResult
     public func resumeSleep(id: UUID, startedAt: Date) -> Bool {
         perform {
-            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try ResumeSleepUseCase(
                 eventRepository: eventRepository,
@@ -818,7 +818,7 @@ public final class AppModel {
     @discardableResult
     public func deleteEvent(id: UUID) -> Bool {
         perform {
-            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             clearUndoDeleteState()
             if let event = try DeleteEventUseCase(
@@ -940,10 +940,8 @@ public final class AppModel {
             )
             let currentActiveSleep = try eventRepository.loadActiveSleepEvent(for: currentSummary.child.id)
             let childMemberships = try membershipRepository.loadMemberships(for: currentSummary.child.id)
-            print("[Caregiver] Loaded \(childMemberships.count) memberships from store")
             let userIDs = childMemberships.map(\.userID)
             let users = try userIdentityRepository.loadUsers(for: userIDs)
-            print("[Caregiver] Loaded \(users.count) user identities from store")
 
             guard let resolvedMembership = childMemberships.first(where: { m in
                 m.userID == localUser.id && m.status == .active
