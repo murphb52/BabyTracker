@@ -218,7 +218,7 @@ struct TodaySummaryCalculatorTests {
             .nappy(try NappyEvent(
                 metadata: EventMetadata(childID: childID, occurredAt: elevenAm, createdAt: elevenAm, createdBy: userID),
                 type: .poo,
-                pooVolume: .large,
+                pooVolume: .heavy,
                 pooColor: .brown
             )),
         ]
