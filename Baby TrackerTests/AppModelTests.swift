@@ -1523,11 +1523,16 @@ struct AppModelTests {
 
         harness.model.beginAcceptingSharedChild()
 
-        #expect(harness.model.shareAcceptanceLoadingState == .acceptingSharedChild)
+        #expect(
+            harness.model.shareAcceptanceLoadingState == ShareAcceptanceLoadingState(
+                childName: "your child profile",
+                phase: .syncing
+            )
+        )
     }
 
     @Test
-    func completingSharedChildAcceptanceRefreshesProfileAndClearsLoadingState() throws {
+    func completingSharedChildAcceptanceRefreshesProfileAndShowsContinueState() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }
 
@@ -1536,9 +1541,26 @@ struct AppModelTests {
 
         harness.model.completeAcceptingSharedChild()
 
-        #expect(harness.model.shareAcceptanceLoadingState == nil)
+        #expect(
+            harness.model.shareAcceptanceLoadingState == ShareAcceptanceLoadingState(
+                childName: "Poppy",
+                phase: .readyToContinue
+            )
+        )
         #expect(harness.model.route == .childProfile)
         #expect(harness.model.currentChild?.name == "Poppy")
+    }
+
+
+    @Test
+    func dismissingShareAcceptanceLoadingScreenClearsLoadingState() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        harness.model.beginAcceptingSharedChild()
+        harness.model.dismissShareAcceptanceLoadingScreen()
+
+        #expect(harness.model.shareAcceptanceLoadingState == nil)
     }
 
     @Test

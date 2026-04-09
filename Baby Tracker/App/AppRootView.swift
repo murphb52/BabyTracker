@@ -14,8 +14,11 @@ struct AppRootView: View {
         NavigationStack {
             Group {
                 if let shareAcceptanceLoadingState = model.shareAcceptanceLoadingState {
-                    ShareAcceptanceLoadingView(state: shareAcceptanceLoadingState)
-                        .toolbar(.hidden, for: .navigationBar)
+                    ShareAcceptanceLoadingView(
+                        state: shareAcceptanceLoadingState,
+                        continueAction: model.dismissShareAcceptanceLoadingScreen
+                    )
+                    .toolbar(.hidden, for: .navigationBar)
                 } else {
                     switch model.route {
                     case .loading:

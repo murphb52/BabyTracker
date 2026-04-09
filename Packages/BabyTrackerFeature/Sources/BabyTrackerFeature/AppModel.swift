@@ -130,6 +130,14 @@ public final class AppModel {
 
     public func completeAcceptingSharedChild() {
         load(performLaunchSync: false)
+        let childName = currentChild?.name ?? "your child profile"
+        shareAcceptanceLoadingState = ShareAcceptanceLoadingState(
+            childName: childName,
+            phase: .readyToContinue
+        )
+    }
+
+    public func dismissShareAcceptanceLoadingScreen() {
         shareAcceptanceLoadingState = nil
     }
 

@@ -1,16 +1,21 @@
 import Foundation
 
 public struct ShareAcceptanceLoadingState: Equatable, Sendable {
-    public let title: String
-    public let message: String
+    public enum Phase: Equatable, Sendable {
+        case syncing
+        case readyToContinue
+    }
 
-    public init(title: String, message: String) {
-        self.title = title
-        self.message = message
+    public let childName: String
+    public let phase: Phase
+
+    public init(childName: String, phase: Phase) {
+        self.childName = childName
+        self.phase = phase
     }
 
     public static let acceptingSharedChild = ShareAcceptanceLoadingState(
-        title: "Accepting Shared Child...",
-        message: "We're accepting the iCloud share and downloading the child's data now."
+        childName: "your child profile",
+        phase: .syncing
     )
 }
