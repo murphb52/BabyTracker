@@ -1119,7 +1119,10 @@ public final class AppModel {
     ) -> TimelineDayGridItemViewState {
         if let event = events.first, events.count == 1 {
             let actionPayload = eventActionPayload(for: event)
-            let lines = timelineDayGridLines(for: event)
+            let lines = timelineDayGridLines(
+                for: event,
+                preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
+            )
             return TimelineDayGridItemViewState(
                 id: event.id.uuidString,
                 columnKind: placement.columnKind,
@@ -1218,7 +1221,10 @@ public final class AppModel {
         }
     }
 
-    private func timelineDayGridLines(for event: BabyEvent) -> (
+    private func timelineDayGridLines(
+        for event: BabyEvent,
+        preferredFeedVolumeUnit: FeedVolumeUnit
+    ) -> (
         title: String,
         detailText: String,
         timeText: String
@@ -1238,7 +1244,10 @@ public final class AppModel {
             )
         case let .bottleFeed(feed):
             return (
-                title: "\(feed.amountMilliliters) ml",
+                title: FeedVolumePresentation.amountText(
+                    for: feed.amountMilliliters,
+                    unit: preferredFeedVolumeUnit
+                ),
                 detailText: "",
                 timeText: ""
             )

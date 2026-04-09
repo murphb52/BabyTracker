@@ -11,8 +11,19 @@ import SwiftUI
 struct CumulativeLineChartView: View {
     let series: HourlyCumulativeSeries
     let tint: Color
+    let valueFormatter: (Int) -> String
 
     @State private var selectedHour: Int?
+
+    init(
+        series: HourlyCumulativeSeries,
+        tint: Color,
+        valueFormatter: @escaping (Int) -> String = { "\($0)" }
+    ) {
+        self.series = series
+        self.tint = tint
+        self.valueFormatter = valueFormatter
+    }
 
     var body: some View {
         Chart {
@@ -83,9 +94,13 @@ struct CumulativeLineChartView: View {
             }
         }
         .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
                 AxisGridLine()
-                AxisValueLabel()
+                AxisValueLabel {
+                    if let axisValue = value.as(Int.self) {
+                        Text(valueFormatter(axisValue))
+                    }
+                }
             }
         }
         .chartLegend(.hidden)
@@ -123,9 +138,9 @@ struct CumulativeLineChartView: View {
         let avgVal = series.averageCumulative[hour]
         return VStack(alignment: .leading, spacing: 2) {
             if hour <= currentHour {
-                Text("Today: \(todayVal)").foregroundStyle(tint)
+                Text("Today: \(valueFormatter(todayVal))").foregroundStyle(tint)
             }
-            Text("Avg: \(avgVal)").foregroundStyle(.secondary)
+            Text("Avg: \(valueFormatter(avgVal))").foregroundStyle(.secondary)
         }
         .font(.caption2.weight(.medium))
         .padding(.horizontal, 8)
@@ -151,12 +166,13 @@ private struct HourPoint: Identifiable {
     let avg = [0, 0, 0, 0, 0, 0, 0, 80, 80, 160, 160, 240, 300, 300, 420, 420, 480, 540, 540, 540, 540, 540, 540, 540]
     CumulativeLineChartView(
         series: HourlyCumulativeSeries(todayCumulative: rising, averageCumulative: avg),
-        tint: .blue
+        tint: .blue,
+        valueFormatter: { "\($0)" }
     )
     .padding()
 }
 
 #Preview("Zero state") {
-    CumulativeLineChartView(series: .zero, tint: .pink)
+    CumulativeLineChartView(series: .zero, tint: .pink, valueFormatter: { "\($0)" })
         .padding()
 }

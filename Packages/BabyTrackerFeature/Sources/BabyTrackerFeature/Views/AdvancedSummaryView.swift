@@ -89,13 +89,17 @@ public struct AdvancedSummaryView: View {
     }
 
     private func feedSection(viewState: AdvancedSummaryViewState) -> some View {
-        sectionCard(title: "Feeds", tint: .blue, symbol: "drop.fill") {
+        let preferredUnit = viewModel.preferredFeedVolumeUnit
+
+        return sectionCard(title: "Feeds", tint: .blue, symbol: "drop.fill") {
             metricRow(title: "Total feeds", value: "\(viewState.totalFeeds)")
             metricRow(title: "Breast feeds", value: "\(viewState.breastFeedCount)")
             metricRow(title: "Bottle feeds", value: "\(viewState.bottleFeedCount)")
             metricRow(
                 title: "Average bottle volume",
-                value: viewState.averageBottleVolumeMilliliters.map { "\($0) mL" } ?? "No bottle feeds"
+                value: viewState.averageBottleVolumeMilliliters.map {
+                    FeedVolumePresentation.amountText(for: $0, unit: preferredUnit)
+                } ?? "No bottle feeds"
             )
         }
     }

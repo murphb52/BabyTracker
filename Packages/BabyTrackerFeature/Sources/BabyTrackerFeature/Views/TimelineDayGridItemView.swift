@@ -222,7 +222,7 @@ private enum TimelineDayGridItemPreviewFactory {
         id: UUID(),
         kind: .bottleFeed,
         title: "Bottle Feed",
-        detailText: "120 ml • Formula",
+        detailText: "120 mL • Formula",
         timestampText: "09:00",
         actionPayload: .editBottleFeed(
             amountMilliliters: 120,

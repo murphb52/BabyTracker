@@ -57,9 +57,13 @@ struct TrendsBarChartView: View {
             }
         }
         .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
                 AxisGridLine()
-                AxisValueLabel()
+                AxisValueLabel {
+                    if let axisValue = value.as(Int.self) {
+                        Text(valueFormatter?(axisValue) ?? "\(axisValue)")
+                    }
+                }
             }
         }
         .chartLegend(.hidden)
