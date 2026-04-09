@@ -1,38 +1,31 @@
-import BabyTrackerDomain
 import Foundation
 
-public struct TodaySummaryData: Equatable, Sendable {
-    // Bottle feeds
+public struct TodaySummary: Equatable, Sendable {
     public let bottleTotalMilliliters: Int
     public let bottleCount: Int
     public let formulaMilliliters: Int
     public let breastMilkMilliliters: Int
     public let mixedMilkMilliliters: Int
 
-    // Breast feeds
     public let breastFeedTotalMinutes: Int
     public let breastFeedCount: Int
     public let averageBreastFeedMinutes: Int?
     public let averageFeedIntervalMinutes: Int?
 
-    // Combined
     public let minutesSinceLastFeed: Int?
 
-    // Sleep
     public let totalSleepMinutes: Int
     public let daytimeSleepMinutes: Int
     public let nighttimeSleepMinutes: Int
     public let longestSleepBlockMinutes: Int?
 
-    // Nappies
     public let totalNappies: Int
-    public let wetNappyCount: Int       // wee only
-    public let dirtyNappyCount: Int     // poo only
+    public let wetNappyCount: Int
+    public let dirtyNappyCount: Int
     public let mixedNappyCount: Int
-    public let wetInclusiveCount: Int   // wee + mixed
-    public let dirtyInclusiveCount: Int // poo + mixed
+    public let wetInclusiveCount: Int
+    public let dirtyInclusiveCount: Int
 
-    // Streak (across all events)
     public let loggingStreakDays: Int
 
     public init(
@@ -79,34 +72,5 @@ public struct TodaySummaryData: Equatable, Sendable {
         self.wetInclusiveCount = wetInclusiveCount
         self.dirtyInclusiveCount = dirtyInclusiveCount
         self.loggingStreakDays = loggingStreakDays
-    }
-}
-
-
-public extension TodaySummaryData {
-    init(summary: TodaySummary) {
-        self.init(
-            bottleTotalMilliliters: summary.bottleTotalMilliliters,
-            bottleCount: summary.bottleCount,
-            formulaMilliliters: summary.formulaMilliliters,
-            breastMilkMilliliters: summary.breastMilkMilliliters,
-            mixedMilkMilliliters: summary.mixedMilkMilliliters,
-            breastFeedTotalMinutes: summary.breastFeedTotalMinutes,
-            breastFeedCount: summary.breastFeedCount,
-            averageBreastFeedMinutes: summary.averageBreastFeedMinutes,
-            averageFeedIntervalMinutes: summary.averageFeedIntervalMinutes,
-            minutesSinceLastFeed: summary.minutesSinceLastFeed,
-            totalSleepMinutes: summary.totalSleepMinutes,
-            daytimeSleepMinutes: summary.daytimeSleepMinutes,
-            nighttimeSleepMinutes: summary.nighttimeSleepMinutes,
-            longestSleepBlockMinutes: summary.longestSleepBlockMinutes,
-            totalNappies: summary.totalNappies,
-            wetNappyCount: summary.wetNappyCount,
-            dirtyNappyCount: summary.dirtyNappyCount,
-            mixedNappyCount: summary.mixedNappyCount,
-            wetInclusiveCount: summary.wetInclusiveCount,
-            dirtyInclusiveCount: summary.dirtyInclusiveCount,
-            loggingStreakDays: summary.loggingStreakDays
-        )
     }
 }
