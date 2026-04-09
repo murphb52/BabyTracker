@@ -80,7 +80,6 @@ struct AppRootView: View {
             }
 
             model.selectChild(id: childID)
-            model.requestSleepSheetPresentation()
         }
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 8) {
