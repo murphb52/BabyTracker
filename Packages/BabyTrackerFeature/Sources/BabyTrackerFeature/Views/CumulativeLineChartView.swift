@@ -12,6 +12,8 @@ struct CumulativeLineChartView: View {
     let series: HourlyCumulativeSeries
     let tint: Color
 
+    @State private var selectedHour: Int?
+
     var body: some View {
         Chart {
             // 7-day average — dashed, secondary, full 24 hours
@@ -38,6 +40,16 @@ struct CumulativeLineChartView: View {
                 .interpolationMethod(.monotone)
                 .foregroundStyle(tint)
                 .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            }
+
+            // Selection indicator — shown while the user is touching the chart
+            if let hour = selectedHour, hour >= 0, hour < 24 {
+                RuleMark(x: .value("Selected", hour))
+                    .foregroundStyle(.secondary.opacity(0.35))
+                    .lineStyle(StrokeStyle(lineWidth: 1))
+                    .annotation(position: .top, spacing: 4) {
+                        selectionCallout(for: hour)
+                    }
             }
 
             // "Now" indicator — vertical rule at the current hour with a callout
@@ -77,6 +89,7 @@ struct CumulativeLineChartView: View {
             }
         }
         .chartLegend(.hidden)
+        .chartXSelection(value: $selectedHour)
         .frame(height: 100)
         // Space above the chart so the "Now" annotation can float without
         // overlapping the card content above it.
@@ -103,6 +116,21 @@ struct CumulativeLineChartView: View {
 
     private var maxValue: Int {
         max(1, (series.todayCumulative + series.averageCumulative).max() ?? 1)
+    }
+
+    private func selectionCallout(for hour: Int) -> some View {
+        let todayVal = series.todayCumulative[hour]
+        let avgVal = series.averageCumulative[hour]
+        return VStack(alignment: .leading, spacing: 2) {
+            if hour <= currentHour {
+                Text("Today: \(todayVal)").foregroundStyle(tint)
+            }
+            Text("Avg: \(avgVal)").foregroundStyle(.secondary)
+        }
+        .font(.caption2.weight(.medium))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
     }
 }
 
