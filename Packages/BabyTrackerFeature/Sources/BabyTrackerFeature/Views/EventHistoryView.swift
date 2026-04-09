@@ -195,13 +195,36 @@ public struct EventHistoryView: View {
             .font(.footnote.weight(.bold))
             .foregroundStyle(.primary)
             .textCase(.none)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
             .background(
-                Capsule()
-                    .fill(Color(.tertiarySystemFill))
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
             )
-            .padding(.vertical, 4)
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color(.separator).opacity(0.28), lineWidth: 1)
+            }
+            .padding(.top, 8)
+            .padding(.bottom, 2)
+    }
+}
+
+#Preview {
+    NavigationStack {
+        let model = ChildProfilePreviewFactory.makeModel()
+
+        EventHistoryView(
+            viewModel: EventHistoryViewModel(appModel: model),
+            canManageEvents: true,
+            openEvent: { _ in },
+            deleteEvent: { _ in },
+            pendingDeleteEvent: nil,
+            confirmDelete: {},
+            cancelDelete: {},
+            onRefresh: {}
+        )
     }
 }
 

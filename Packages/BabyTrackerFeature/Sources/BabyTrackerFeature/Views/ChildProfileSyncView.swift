@@ -42,8 +42,10 @@ public struct ChildProfileSyncView: View {
                 }
 
                 if let lastSyncAt = viewModel.cloudKitStatus.lastSyncAt {
-                    LabeledContent("Last Sync") {
-                        Text(lastSyncAt, format: .dateTime.month(.abbreviated).day().hour().minute())
+                    TimelineView(.everyMinute) { context in
+                        LabeledContent("Last Synced") {
+                            Text(RelativeSyncTextFormatter.lastSyncedText(for: lastSyncAt, relativeTo: context.date))
+                        }
                     }
                 }
 

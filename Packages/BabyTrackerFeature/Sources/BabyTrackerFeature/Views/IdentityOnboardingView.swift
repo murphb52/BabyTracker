@@ -14,6 +14,8 @@ public struct IdentityOnboardingView: View {
     @State private var isShowingNotificationPermissionPrompt = false
     @State private var isHandlingNotificationPermissionFlow = false
     @State private var hasShownNotificationPermissionPrompt = false
+    @State private var viewOpacity = 0.0
+    @State private var isExiting = false
 
     private static let introPages: [OnboardingIntroPage] = [
         OnboardingIntroPage(
@@ -134,6 +136,7 @@ public struct IdentityOnboardingView: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 24)
             }
+            .allowsHitTesting(isExiting == false)
 
             if isShowingNotificationPermissionPrompt {
                 Color.black.opacity(0.22)
@@ -152,6 +155,17 @@ public struct IdentityOnboardingView: View {
         .task {
             await refreshNotificationAuthorizationStatus()
         }
+        .onAppear {
+            guard reduceMotion == false else {
+                viewOpacity = 1
+                return
+            }
+
+            withAnimation(.easeIn(duration: 0.2)) {
+                viewOpacity = 1
+            }
+        }
+        .opacity(viewOpacity)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isShowingNotificationPermissionPrompt)
     }
 
@@ -273,7 +287,9 @@ public struct IdentityOnboardingView: View {
             return
         }
 
-        model.dismissOnboarding()
+        performExit {
+            model.dismissOnboarding()
+        }
     }
 
     private func moveToNextIntroStep() {
@@ -300,7 +316,9 @@ public struct IdentityOnboardingView: View {
             return
         }
 
-        model.createLocalUser(displayName: trimmedName)
+        performExit {
+            model.createLocalUser(displayName: trimmedName)
+        }
     }
 
     private func requestNotificationAuthorization() {
@@ -324,6 +342,31 @@ public struct IdentityOnboardingView: View {
     private func refreshNotificationAuthorizationStatus() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         notificationAuthorizationStatus = settings.authorizationStatus
+    }
+
+    private func performExit(_ action: @escaping () -> Void) {
+        guard isExiting == false else {
+            return
+        }
+
+        guard reduceMotion == false else {
+            action()
+            return
+        }
+
+        isExiting = true
+        withAnimation(.easeOut(duration: 0.18)) {
+            viewOpacity = 0
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(180))
+            guard !Task.isCancelled else {
+                return
+            }
+
+            action()
+        }
     }
 }
 

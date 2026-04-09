@@ -3,12 +3,12 @@ import Foundation
 public enum HelpFAQContent {
     public static let sections: [HelpFAQSection] = [
         HelpFAQSection(
-            title: "Summary and Ranges",
+            title: "Summary, Today, and Trends",
             items: [
                 HelpFAQItem(
                     id: "summary-range-picker",
-                    title: "What does the Summary range picker change?",
-                    answer: "The range picker filters the events used in the Summary tab. Today shows only today's logs, 7 Days and 30 Days show recent history, and All Time includes everything saved for the selected child."
+                    title: "How do Today and Trends work in Summary?",
+                    answer: "The Summary tab has two views. Today focuses on the current day, while Trends groups recent history into 7 Days, 30 Days, or All Time for the selected child."
                 ),
                 HelpFAQItem(
                     id: "summary-more-information",
@@ -18,7 +18,7 @@ public enum HelpFAQContent {
                 HelpFAQItem(
                     id: "summary-streaks-averages",
                     title: "How are streaks and averages calculated?",
-                    answer: "The logging streak counts consecutive days with at least one saved event. Averages use the events in the current selection only, so they will change when you pick a different range or a specific day."
+                    answer: "The logging streak counts consecutive days with at least one saved event. Trends averages use only the events inside the current range, so they change when you pick 7 Days, 30 Days, All Time, or a specific day in More Information."
                 ),
             ]
         ),
@@ -33,7 +33,7 @@ public enum HelpFAQContent {
                 HelpFAQItem(
                     id: "sleep",
                     title: "How should I read the sleep metrics?",
-                    answer: "Sleep totals, averages, and longest-block values come from completed sleep sessions in the selected period. Active sleep sessions are shown in the app, but they do not affect finished-summary averages until they end."
+                    answer: "Sleep totals, averages, and longest-block values come from completed sleep sessions in the selected period. Active sleep sessions still appear around the app, but they do not affect finished summary totals until they end."
                 ),
                 HelpFAQItem(
                     id: "nappies",
@@ -48,7 +48,7 @@ public enum HelpFAQContent {
                 HelpFAQItem(
                     id: "sharing",
                     title: "How does caregiver sharing work?",
-                    answer: "Sharing uses iCloud so another caregiver can work from the same child timeline. If sharing is unavailable, local data still stays on the device and you can review sync details from Profile > Sharing or iCloud Sync."
+                    answer: "Sharing uses iCloud so another caregiver can work from the same child timeline. If sharing is unavailable, local data still stays on the device and you can review sync details from Profile > Sharing & Caregivers or Profile > App Settings > Sync Status."
                 ),
                 HelpFAQItem(
                     id: "switching-children",
@@ -63,7 +63,7 @@ public enum HelpFAQContent {
                 HelpFAQItem(
                     id: "export-data",
                     title: "How do I export data?",
-                    answer: "Open Profile > Settings > Export Data to prepare a file you can share. Export gives you the recorded information for the selected child so you can keep a copy or bring it into another workflow."
+                    answer: "Open Profile > App Settings > Export Data to prepare a file you can share. Export gives you the recorded information for the selected child so you can keep a copy or bring it into another workflow."
                 ),
                 HelpFAQItem(
                     id: "clinician",

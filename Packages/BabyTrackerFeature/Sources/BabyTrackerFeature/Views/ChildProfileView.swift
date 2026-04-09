@@ -91,11 +91,19 @@ public struct ChildProfileView: View {
                     )
                 }
 
-                LabeledContent("Signed In As") {
-                    Text(viewModel.localUser?.displayName ?? "")
-                        .foregroundStyle(.secondary)
+                if let localUser = viewModel.localUser {
+                    NavigationLink {
+                        LocalUserNameEditView(initialDisplayName: localUser.displayName) { updatedName in
+                            model.updateLocalUserName(displayName: updatedName)
+                        }
+                    } label: {
+                        settingsRow(
+                            title: "Your Name",
+                            value: localUser.displayName,
+                            accessibilityIdentifier: "profile-local-user-name-row"
+                        )
+                    }
                 }
-                .accessibilityIdentifier("profile-signed-in-as-row")
             }
 
             if canSelectFromMultipleChildren || canCreateLocalChild || hasArchivedChildren {
