@@ -72,7 +72,12 @@ struct CumulativeLineChartView: View {
         }
         .chartYAxis(.hidden)
         .chartLegend(.hidden)
-        .frame(height: 100)
+        // Extra top inset reserves space for the "Now" annotation inside the chart frame
+        // so it doesn't overflow into the card content above.
+        .chartPlotStyle { plotArea in
+            plotArea.padding(.top, 28)
+        }
+        .frame(height: 110)
         .accessibilityLabel("Cumulative chart showing today's total versus the 7-day average by hour")
     }
 
