@@ -279,7 +279,20 @@ public struct SummaryScreenView: View {
     }
 
     private func nappySectionCard(data: TodaySummaryData) -> some View {
-        sectionCard(title: "Nappies", symbol: "checklist.checked", tint: .green) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 12) {
+                Label("Nappies", systemImage: "checklist.checked")
+                    .font(.headline)
+                    .foregroundStyle(.green)
+
+                Spacer(minLength: 0)
+
+                todayFilterPicker(
+                    title: "Nappy chart filter",
+                    selection: $selectedNappyFilter
+                )
+            }
+
             Text("\(data.totalNappies)")
                 .font(.title3.weight(.bold))
 
@@ -290,14 +303,13 @@ public struct SummaryScreenView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            todayFilterPicker(
-                title: "Nappy chart filter",
-                selection: $selectedNappyFilter
-            )
 
             CumulativeLineChartView(series: selectedNappyFilter.series(from: data.chartData), tint: .green)
                 .padding(.top, 4)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(cardBackground)
     }
 
     private func nappyBreakdownRow(data: TodaySummaryData) -> some View {
