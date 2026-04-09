@@ -257,8 +257,7 @@ public struct ChildHomeView: View {
         for date: Date,
         relativeTo referenceDate: Date
     ) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        return "Last synced \(formatter.localizedString(for: date, relativeTo: referenceDate))"
+        RelativeSyncTextFormatter.lastSyncedText(for: date, relativeTo: referenceDate)
     }
 }
 
