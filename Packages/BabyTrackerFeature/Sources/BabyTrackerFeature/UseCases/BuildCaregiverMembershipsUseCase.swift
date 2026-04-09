@@ -17,12 +17,6 @@ public enum BuildCaregiverMembershipsUseCase {
         usersByID: [UUID: UserIdentity],
         pendingInvites: [PendingShareInviteViewState]
     ) -> Output {
-        print("[Caregiver] BuildCaregiverMemberships: \(memberships.count) memberships, \(usersByID.count) users, \(pendingInvites.count) pending invites")
-        for m in memberships {
-            let userName = usersByID[m.userID]?.displayName ?? "(no user record)"
-            print("[Caregiver]   Membership: userID=\(m.userID) role=\(m.role) status=\(m.status) user='\(userName)'")
-        }
-
         let pairs = memberships.compactMap { membership -> CaregiverMembershipViewState? in
             guard let user = usersByID[membership.userID] else { return nil }
             return CaregiverMembershipViewState(user: user, membership: membership)
@@ -38,13 +32,11 @@ public enum BuildCaregiverMembershipsUseCase {
             $0.membership.status == .removed
         }
 
-        let output = Output(
+        return Output(
             owner: owner,
             activeCaregivers: activeCaregivers,
             pendingShareInvites: pendingInvites,
             removedCaregivers: removedCaregivers
         )
-        print("[Caregiver] Result: owner=\(output.owner?.user.displayName ?? "none") active=\(output.activeCaregivers.count) pending=\(output.pendingShareInvites.count) removed=\(output.removedCaregivers.count)")
-        return output
     }
 }

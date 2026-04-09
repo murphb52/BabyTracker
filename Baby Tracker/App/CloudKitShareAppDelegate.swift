@@ -76,7 +76,6 @@ final class CloudKitShareAppDelegate: NSObject, UIApplicationDelegate {
     ) {
         let title = cloudKitShareMetadata.share[CKShare.SystemFieldKey.title] as? String ?? "unknown"
         let zone = cloudKitShareMetadata.share.recordID.zoneID.zoneName
-        print("[BabyTracker][1/5] UIApplicationDelegate fired (non-scene path) — title: \(title), zone: \(zone)")
         logger.info("[1/5] UIApplicationDelegate fired (non-scene path) — title: '\(title, privacy: .private)', zone: \(zone, privacy: .public)")
         AppLogger.shared.log(.info, category: "ShareAcceptance", "[1/5] UIApplicationDelegate fired (non-scene path) — zone: \(zone)")
         CloudKitShareAcceptanceBridge.shared.handle(metadata: cloudKitShareMetadata)

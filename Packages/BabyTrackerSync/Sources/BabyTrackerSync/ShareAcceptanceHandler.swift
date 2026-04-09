@@ -24,23 +24,19 @@ public final class ShareAcceptanceHandler {
     }
 
     public func accept(metadata: CKShare.Metadata) {
-        print("[BabyTracker][3/5] ShareAcceptanceHandler.accept called")
         logger.info("[3/5] ShareAcceptanceHandler queuing accept task")
         AppLogger.shared.log(.info, category: "ShareAcceptance", "[3/5] ShareAcceptanceHandler queuing accept task")
         Task { @MainActor in
             let childName = metadata.share[CKShare.SystemFieldKey.title] as? String
             onStartAcceptingShare(childName)
-            print("[BabyTracker][3/5] ShareAcceptanceHandler task running — calling sync engine")
             logger.info("[3/5] ShareAcceptanceHandler task started — calling sync engine")
             AppLogger.shared.log(.info, category: "ShareAcceptance", "[3/5] ShareAcceptanceHandler task started — calling sync engine")
             do {
                 try await syncEngine.accept(metadata: metadata)
-                print("[BabyTracker][3/5] Sync engine accept returned — calling onAcceptedShare callback")
                 logger.info("[3/5] Sync engine accept returned — calling onAcceptedShare callback")
                 AppLogger.shared.log(.info, category: "ShareAcceptance", "[3/5] Sync engine accept returned — calling onAcceptedShare callback")
                 onAcceptedShare(childName)
             } catch {
-                print("[BabyTracker][3/5] Sync engine accept FAILED: \(error)")
                 logger.error("[3/5] Sync engine accept failed: \(error.localizedDescription, privacy: .public)")
                 AppLogger.shared.log(.error, category: "ShareAcceptance", "[3/5] Sync engine accept failed: \(error.localizedDescription)")
                 onFailedToAcceptShare(error)

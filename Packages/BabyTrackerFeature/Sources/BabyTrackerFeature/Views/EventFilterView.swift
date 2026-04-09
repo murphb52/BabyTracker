@@ -275,7 +275,7 @@ public struct EventFilterView: View {
                     .font(.subheadline)
                 Spacer()
 
-                if let date {
+                if date != nil {
                     Button("Clear", role: .destructive, action: clearDate)
                         .font(.caption.weight(.semibold))
                         .buttonStyle(.borderless)

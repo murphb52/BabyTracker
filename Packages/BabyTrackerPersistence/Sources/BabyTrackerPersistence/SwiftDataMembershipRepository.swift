@@ -11,12 +11,10 @@ public final class SwiftDataMembershipRepository: CloudKitMembershipRepository {
     }
 
     public func loadMemberships(for childID: UUID) throws -> [Membership] {
-        let results = try modelContext.fetch(FetchDescriptor<StoredMembership>())
+        try modelContext.fetch(FetchDescriptor<StoredMembership>())
             .filter { $0.childID == childID }
             .map(mapMembership)
             .sorted(by: sortMemberships)
-        print("[Caregiver] SwiftDataMembershipRepository.fetchAll: found \(results.count) stored memberships")
-        return results
     }
 
     public func saveMembership(_ membership: Membership) throws {
