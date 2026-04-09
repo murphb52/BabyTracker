@@ -110,7 +110,7 @@ public struct ChildCreationView: View {
                 .accessibilityIdentifier("create-child-button")
             }
 
-            Section("Restore from Backup") {
+            Section {
                 if importInProgress {
                     HStack(spacing: 12) {
                         ProgressView()
@@ -127,6 +127,8 @@ public struct ChildCreationView: View {
                     }
                     .accessibilityIdentifier("import-from-nest-backup-button")
                 }
+            } header: {
+                Text("Restore from Backup")
             } footer: {
                 Text("Restore a child profile and all events from a Nest JSON backup file.")
                     .font(.caption)
