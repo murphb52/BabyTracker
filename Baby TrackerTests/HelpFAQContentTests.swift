@@ -3,23 +3,25 @@ import Testing
 
 struct HelpFAQContentTests {
     @Test
-    func faqContentCoversSummarySharingAndExportTopics() {
+    func faqContentCoversCurrentSummarySharingAndExportTopics() {
         let titles = HelpFAQContent.sections.map(\.title)
 
-        #expect(titles.contains("Summary and Ranges"))
+        #expect(titles.contains("Summary, Today, and Trends"))
         #expect(titles.contains("Sharing and Caregiver Access"))
         #expect(titles.contains("Exporting and Talking to a Clinician"))
     }
 
     @Test
-    func faqItemsUseCurrentSummaryTerminology() {
+    func faqItemsUseCurrentNavigationAndSummaryTerminology() {
         let answers = HelpFAQContent.sections
             .flatMap(\.items)
             .map(\.answer)
             .joined(separator: " ")
 
+        #expect(answers.contains("Today"))
+        #expect(answers.contains("Trends"))
         #expect(answers.contains("More Information"))
-        #expect(answers.contains("specific day"))
-        #expect(answers.contains("Export Data"))
+        #expect(answers.contains("Sharing & Caregivers"))
+        #expect(answers.contains("App Settings > Export Data"))
     }
 }

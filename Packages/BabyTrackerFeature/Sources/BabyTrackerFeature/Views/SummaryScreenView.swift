@@ -64,9 +64,9 @@ public struct SummaryScreenView: View {
                 )
             } else {
                 VStack(alignment: .leading, spacing: 12) {
+                    sleepSectionCard(data: data)
                     bottleSectionCard(data: data)
                     breastSectionCard(data: data)
-                    sleepSectionCard(data: data)
                     nappySectionCard(data: data)
                     advancedSummaryLink
                     loggingStreakRow(data: data)
@@ -292,9 +292,9 @@ public struct SummaryScreenView: View {
                     message: "Try a broader range to see feeding, sleep, and nappy trends."
                 )
             } else {
+                sleepChartCard(data: data)
                 bottleChartCard(data: data)
                 breastChartCard(data: data)
-                sleepChartCard(data: data)
                 nappyChartCard(data: data)
             }
         }
