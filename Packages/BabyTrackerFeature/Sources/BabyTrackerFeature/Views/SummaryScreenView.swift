@@ -386,7 +386,7 @@ public struct SummaryScreenView: View {
             }
         }
         .chartYAxis {
-            AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { _ in
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
                 AxisGridLine()
                 AxisValueLabel()
             }
@@ -428,7 +428,7 @@ public struct SummaryScreenView: View {
             }
         }
         .chartYAxis {
-            AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { _ in
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
                 AxisGridLine()
                 AxisValueLabel()
             }

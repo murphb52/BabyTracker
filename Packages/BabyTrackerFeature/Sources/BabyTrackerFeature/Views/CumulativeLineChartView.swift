@@ -70,7 +70,12 @@ struct CumulativeLineChartView: View {
                 }
             }
         }
-        .chartYAxis(.hidden)
+        .chartYAxis {
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
+                AxisGridLine()
+                AxisValueLabel()
+            }
+        }
         .chartLegend(.hidden)
         .frame(height: 100)
         // Space above the chart so the "Now" annotation can float without
