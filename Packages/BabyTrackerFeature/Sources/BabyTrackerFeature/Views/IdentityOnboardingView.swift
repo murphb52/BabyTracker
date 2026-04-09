@@ -82,6 +82,10 @@ public struct IdentityOnboardingView: View {
         currentStepIndex >= Self.introPages.count
     }
 
+    private var shouldSkipProfileSetupStep: Bool {
+        model.localUser != nil
+    }
+
     public init(model: AppModel) {
         self.model = model
     }
@@ -166,8 +170,8 @@ public struct IdentityOnboardingView: View {
                 .font(.subheadline.weight(.semibold))
                 .accessibilityIdentifier("identity-onboarding-close-button")
             } else if !isShowingNameStep {
-                Button("Skip") {
-                    moveToNameStep()
+                Button(shouldSkipProfileSetupStep ? "Close" : "Skip") {
+                    finishIntro()
                 }
                 .font(.subheadline.weight(.semibold))
                 .accessibilityIdentifier("identity-onboarding-skip-button")
@@ -216,7 +220,7 @@ public struct IdentityOnboardingView: View {
                 Button {
                     advance()
                 } label: {
-                    Text(currentStepIndex == Self.introPages.count - 1 ? "Get Started" : "Continue")
+                    Text(primaryActionTitle)
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
@@ -243,6 +247,14 @@ public struct IdentityOnboardingView: View {
         moveToNextIntroStep()
     }
 
+    private var primaryActionTitle: String {
+        guard currentStepIndex == Self.introPages.count - 1 else {
+            return "Continue"
+        }
+
+        return shouldSkipProfileSetupStep ? "Done" : "Get Started"
+    }
+
     private var currentIntroPage: OnboardingIntroPage? {
         guard Self.introPages.indices.contains(currentStepIndex) else {
             return nil
@@ -255,11 +267,20 @@ public struct IdentityOnboardingView: View {
         move(to: Self.introPages.count)
     }
 
+    private func finishIntro() {
+        guard shouldSkipProfileSetupStep else {
+            moveToNameStep()
+            return
+        }
+
+        model.dismissOnboarding()
+    }
+
     private func moveToNextIntroStep() {
         if currentStepIndex < Self.introPages.count - 1 {
             move(to: currentStepIndex + 1)
         } else {
-            moveToNameStep()
+            finishIntro()
         }
     }
 
@@ -321,9 +342,16 @@ public struct IdentityOnboardingView: View {
     )
 }
 
+#Preview("Replay Intro") {
+    IdentityOnboardingView(
+        model: IdentityOnboardingPreviewFactory.makeModel(withLocalUser: true),
+        previewStepIndex: 0
+    )
+}
+
 private enum IdentityOnboardingPreviewFactory {
     @MainActor
-    static func makeModel() -> AppModel {
+    static func makeModel(withLocalUser: Bool = false) -> AppModel {
         let suiteName = "IdentityOnboardingPreview"
         let userDefaults = UserDefaults(suiteName: suiteName) ?? .standard
         userDefaults.removePersistentDomain(forName: suiteName)
@@ -358,6 +386,9 @@ private enum IdentityOnboardingPreviewFactory {
             hapticFeedbackProvider: NoOpHapticFeedbackProvider()
         )
 
+        if withLocalUser {
+            model.createLocalUser(displayName: "Alex Parent")
+        }
         model.load(performLaunchSync: false)
         return model
     }

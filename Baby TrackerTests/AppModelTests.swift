@@ -31,6 +31,22 @@ struct AppModelTests {
     }
 
     @Test
+    func dismissingReplayedOnboardingReturnsExistingUserToNoChildren() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        harness.model.createLocalUser(displayName: "Alex Parent")
+        harness.model.showOnboarding()
+
+        #expect(harness.model.route == .identityOnboarding)
+
+        harness.model.dismissOnboarding()
+
+        #expect(harness.model.route == .noChildren)
+        #expect(harness.model.localUser?.displayName == "Alex Parent")
+    }
+
+    @Test
     func profileDerivesHomeRecentEventsInNewestFirstOrder() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }
