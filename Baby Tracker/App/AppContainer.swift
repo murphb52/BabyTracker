@@ -11,40 +11,56 @@ struct AppContainer {
 
     init(processInfo: ProcessInfo = .processInfo) {
         let launchConfiguration = LaunchConfiguration(processInfo: processInfo)
-        let userDefaults = launchConfiguration.makeUserDefaults()
-        let store = try! BabyTrackerModelStore(
-            isStoredInMemoryOnly: launchConfiguration.usesInMemoryStore
+        self = Self.makeContainer(launchConfiguration: launchConfiguration)
+    }
+
+    static let live = AppContainer()
+
+    static let preview: AppContainer = {
+        let previewLaunchConfiguration = LaunchConfiguration(
+            usesInMemoryStore: true,
+            userDefaultsSuiteName: "BabyTrackerPreview",
+            scenario: .mixedEventsPreview
         )
-        let childRepository = SwiftDataChildRepository(store: store)
-        let userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
-        let membershipRepository = SwiftDataMembershipRepository(store: store)
-        let childSelectionStore = UserDefaultsChildSelectionStore(userDefaults: userDefaults)
-        let eventRepository = SwiftDataEventRepository(store: store)
-        let syncStateRepository = SwiftDataSyncStateRepository(store: store)
-        let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
-        let liveActivityPreferenceStore = UserDefaultsLiveActivityPreferenceStore(userDefaults: userDefaults)
+        return Self.makeContainer(
+            launchConfiguration: previewLaunchConfiguration,
+            configureDependencies: { dependencies in
+                dependencies.register(.cloudKitClient, value: UnavailableCloudKitClient())
+                dependencies.register(.liveActivityManager, value: NoOpFeedLiveActivityManager())
+                dependencies.register(.localNotificationManager, value: NoOpLocalNotificationManager())
+                dependencies.register(.hapticFeedbackProvider, value: NoOpHapticFeedbackProvider())
+            }
+        )
+    }()
 
-        if let scenario = launchConfiguration.scenario {
-            try? Self.seed(
-                scenario: scenario,
-                childRepository: childRepository,
-                userIdentityRepository: userIdentityRepository,
-                membershipRepository: membershipRepository,
-                childSelectionStore: childSelectionStore,
-                eventRepository: eventRepository
-            )
-        }
+    private init(
+        appModel: AppModel,
+        shareAcceptanceHandler: ShareAcceptanceHandler
+    ) {
+        self.appModel = appModel
+        self.shareAcceptanceHandler = shareAcceptanceHandler
+    }
 
-        let cloudKitClient: any CloudKitClient = launchConfiguration.usesUnavailableCloudKitClient ?
-            UnavailableCloudKitClient() :
-            LiveCloudKitClient()
-        let liveActivityManager: any FeedLiveActivityManaging = launchConfiguration.usesNoOpLiveActivities ?
-            NoOpFeedLiveActivityManager() :
-            FeedLiveActivityManager()
-        let localNotificationManager: any LocalNotificationManaging = launchConfiguration.usesUnavailableCloudKitClient ?
-            NoOpLocalNotificationManager() :
-            SystemLocalNotificationManager()
-        let hapticFeedbackProvider: any HapticFeedbackProviding = SystemHapticFeedbackProvider()
+    private static func makeContainer(
+        launchConfiguration: LaunchConfiguration,
+        configureDependencies: ((inout DependencyContainer) -> Void)? = nil
+    ) -> AppContainer {
+        var dependencies = makeDependencies(launchConfiguration: launchConfiguration)
+        configureDependencies?(&dependencies)
+
+        let childRepository: SwiftDataChildRepository = dependencies.resolve(.childRepository)
+        let userIdentityRepository: SwiftDataUserIdentityRepository = dependencies.resolve(.userIdentityRepository)
+        let membershipRepository: SwiftDataMembershipRepository = dependencies.resolve(.membershipRepository)
+        let childSelectionStore: UserDefaultsChildSelectionStore = dependencies.resolve(.childSelectionStore)
+        let eventRepository: SwiftDataEventRepository = dependencies.resolve(.eventRepository)
+        let syncStateRepository: SwiftDataSyncStateRepository = dependencies.resolve(.syncStateRepository)
+        let recordMetadataRepository: SwiftDataCloudKitRecordMetadataRepository = dependencies.resolve(.recordMetadataRepository)
+        let liveActivityPreferenceStore: UserDefaultsLiveActivityPreferenceStore = dependencies.resolve(.liveActivityPreferenceStore)
+        let cloudKitClient: any CloudKitClient = dependencies.resolve(.cloudKitClient)
+        let liveActivityManager: any FeedLiveActivityManaging = dependencies.resolve(.liveActivityManager)
+        let localNotificationManager: any LocalNotificationManaging = dependencies.resolve(.localNotificationManager)
+        let hapticFeedbackProvider: any HapticFeedbackProviding = dependencies.resolve(.hapticFeedbackProvider)
+
         let syncEngine = CloudKitSyncEngine(
             childRepository: childRepository,
             userIdentityRepository: userIdentityRepository,
@@ -80,21 +96,20 @@ struct AppContainer {
         )
         appModel.load(performLaunchSync: !launchConfiguration.skipsLaunchSync)
 
-        self.appModel = appModel
-        self.shareAcceptanceHandler = shareAcceptanceHandler
+        return AppContainer(
+            appModel: appModel,
+            shareAcceptanceHandler: shareAcceptanceHandler
+        )
     }
 
-    static let live = AppContainer()
-
-    static let preview: AppContainer = {
-        let processInfo = ProcessInfo.processInfo
-        let launchConfiguration = LaunchConfiguration(
-            usesInMemoryStore: true,
-            userDefaultsSuiteName: "BabyTrackerPreview",
-            scenario: .mixedEventsPreview
-        )
+    private static func makeDependencies(
+        launchConfiguration: LaunchConfiguration
+    ) -> DependencyContainer {
+        var dependencies = DependencyContainer()
         let userDefaults = launchConfiguration.makeUserDefaults()
-        let store = try! BabyTrackerModelStore(isStoredInMemoryOnly: true)
+        let store = try! BabyTrackerModelStore(
+            isStoredInMemoryOnly: launchConfiguration.usesInMemoryStore
+        )
         let childRepository = SwiftDataChildRepository(store: store)
         let userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
         let membershipRepository = SwiftDataMembershipRepository(store: store)
@@ -104,63 +119,46 @@ struct AppContainer {
         let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
         let liveActivityPreferenceStore = UserDefaultsLiveActivityPreferenceStore(userDefaults: userDefaults)
 
-        try? seed(
-            scenario: .mixedEventsPreview,
-            childRepository: childRepository,
-            userIdentityRepository: userIdentityRepository,
-            membershipRepository: membershipRepository,
-            childSelectionStore: childSelectionStore,
-            eventRepository: eventRepository
-        )
+        if let scenario = launchConfiguration.scenario {
+            try? seed(
+                scenario: scenario,
+                childRepository: childRepository,
+                userIdentityRepository: userIdentityRepository,
+                membershipRepository: membershipRepository,
+                childSelectionStore: childSelectionStore,
+                eventRepository: eventRepository
+            )
+        }
 
-        let syncEngine = CloudKitSyncEngine(
-            childRepository: childRepository,
-            userIdentityRepository: userIdentityRepository,
-            membershipRepository: membershipRepository,
-            eventRepository: eventRepository,
-            syncStateRepository: syncStateRepository,
-            recordMetadataRepository: recordMetadataRepository,
-            client: UnavailableCloudKitClient()
+        dependencies.register(.childRepository, value: childRepository)
+        dependencies.register(.userIdentityRepository, value: userIdentityRepository)
+        dependencies.register(.membershipRepository, value: membershipRepository)
+        dependencies.register(.childSelectionStore, value: childSelectionStore)
+        dependencies.register(.eventRepository, value: eventRepository)
+        dependencies.register(.syncStateRepository, value: syncStateRepository)
+        dependencies.register(.recordMetadataRepository, value: recordMetadataRepository)
+        dependencies.register(.liveActivityPreferenceStore, value: liveActivityPreferenceStore)
+        dependencies.register(
+            .cloudKitClient,
+            value: launchConfiguration.usesUnavailableCloudKitClient ?
+                UnavailableCloudKitClient() :
+                LiveCloudKitClient()
         )
-        let appModel = AppModel(
-            childRepository: childRepository,
-            userIdentityRepository: userIdentityRepository,
-            membershipRepository: membershipRepository,
-            childSelectionStore: childSelectionStore,
-            eventRepository: eventRepository,
-            syncEngine: syncEngine,
-            liveActivityManager: NoOpFeedLiveActivityManager(),
-            liveActivityPreferenceStore: liveActivityPreferenceStore,
-            localNotificationManager: NoOpLocalNotificationManager(),
-            hapticFeedbackProvider: NoOpHapticFeedbackProvider()
+        dependencies.register(
+            .liveActivityManager,
+            value: launchConfiguration.usesNoOpLiveActivities ?
+                NoOpFeedLiveActivityManager() :
+                FeedLiveActivityManager()
         )
-        let shareAcceptanceHandler = ShareAcceptanceHandler(
-            syncEngine: syncEngine,
-            onStartAcceptingShare: {
-                appModel.beginAcceptingSharedChild()
-            },
-            onAcceptedShare: {
-                appModel.completeAcceptingSharedChild()
-            },
-            onFailedToAcceptShare: { error in
-                appModel.failAcceptingSharedChild(error)
-            }
+        dependencies.register(
+            .localNotificationManager,
+            value: launchConfiguration.usesUnavailableCloudKitClient ?
+                NoOpLocalNotificationManager() :
+                SystemLocalNotificationManager()
         )
-        appModel.load()
+        dependencies.register(.hapticFeedbackProvider, value: SystemHapticFeedbackProvider())
 
-        _ = processInfo
-        return AppContainer(
-            appModel: appModel,
-            shareAcceptanceHandler: shareAcceptanceHandler
-        )
-    }()
-
-    private init(
-        appModel: AppModel,
-        shareAcceptanceHandler: ShareAcceptanceHandler
-    ) {
-        self.appModel = appModel
-        self.shareAcceptanceHandler = shareAcceptanceHandler
+        return dependencies
     }
 
     private static func seed(
