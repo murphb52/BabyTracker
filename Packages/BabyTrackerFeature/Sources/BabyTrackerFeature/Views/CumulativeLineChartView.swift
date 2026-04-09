@@ -42,21 +42,18 @@ struct CumulativeLineChartView: View {
                 .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
             }
 
-            // "Now" indicator — hide its annotation while the user is selecting
-            // so the selection callout isn't competing for the same space.
+            // "Now" indicator — always visible; selection callout renders on top due to mark order.
             RuleMark(x: .value("Now", currentHour))
                 .foregroundStyle(tint.opacity(0.25))
                 .lineStyle(StrokeStyle(lineWidth: 1))
                 .annotation(position: .top, alignment: .center, spacing: 4) {
-                    if selectedHour == nil {
-                        Text("Now")
-                            .font(.caption2)
-                            .fontWeight(.medium)
-                            .foregroundStyle(tint)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(tint.opacity(0.12), in: Capsule())
-                    }
+                    Text("Now")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(tint)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(tint.opacity(0.12), in: Capsule())
                 }
 
             // Selection indicator — rendered after "Now" so it draws on top.
