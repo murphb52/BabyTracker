@@ -68,6 +68,8 @@ public final class AppModel {
     private let liveActivityPreferenceStore: any LiveActivityPreferenceStore
     private let localNotificationManager: any LocalNotificationManaging
     private let hapticFeedbackProvider: any HapticFeedbackProviding
+    private let appReviewPromptStateStore: any AppReviewPromptStateStoring
+    private let appReviewRequester: any AppReviewRequesting
     private let buildTimelineStripDatasetUseCase = BuildTimelineStripDatasetUseCase()
     private let buildTimelineDayGridDatasetUseCase = BuildTimelineDayGridDatasetUseCase()
     private let buildRemoteNotificationUseCase = BuildRemoteCaregiverNotificationUseCase()
@@ -88,7 +90,9 @@ public final class AppModel {
         liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager(),
         liveActivityPreferenceStore: any LiveActivityPreferenceStore = InMemoryLiveActivityPreferenceStore(),
         localNotificationManager: any LocalNotificationManaging = NoOpLocalNotificationManager(),
-        hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
+        hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider(),
+        appReviewPromptStateStore: any AppReviewPromptStateStoring = NoOpAppReviewPromptStateStore(),
+        appReviewRequester: any AppReviewRequesting = NoOpAppReviewRequester()
     ) {
         self.childRepository = childRepository
         self.userIdentityRepository = userIdentityRepository
@@ -100,6 +104,8 @@ public final class AppModel {
         self.liveActivityPreferenceStore = liveActivityPreferenceStore
         self.localNotificationManager = localNotificationManager
         self.hapticFeedbackProvider = hapticFeedbackProvider
+        self.appReviewPromptStateStore = appReviewPromptStateStore
+        self.appReviewRequester = appReviewRequester
         self.isLiveActivityEnabled = liveActivityPreferenceStore.isLiveActivityEnabled
     }
 
@@ -531,7 +537,7 @@ public final class AppModel {
         leftDurationSeconds: Int? = nil,
         rightDurationSeconds: Int? = nil
     ) -> Bool {
-        perform {
+        perform(onSuccess: handleSuccessfulEventLog) {
             guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try LogBreastFeedUseCase(
@@ -557,7 +563,7 @@ public final class AppModel {
         occurredAt: Date,
         milkType: MilkType?
     ) -> Bool {
-        perform {
+        perform(onSuccess: handleSuccessfulEventLog) {
             guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try LogBottleFeedUseCase(
@@ -583,7 +589,7 @@ public final class AppModel {
         pooVolume: NappyVolume? = nil,
         pooColor: PooColor? = nil
     ) -> Bool {
-        perform {
+        perform(onSuccess: handleSuccessfulEventLog) {
             guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try LogNappyUseCase(
@@ -605,7 +611,7 @@ public final class AppModel {
 
     @discardableResult
     public func startSleep(startedAt: Date) -> Bool {
-        perform {
+        perform(onSuccess: handleSuccessfulEventLog) {
             guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try StartSleepUseCase(
@@ -623,7 +629,7 @@ public final class AppModel {
 
     @discardableResult
     public func logSleep(startedAt: Date, endedAt: Date) -> Bool {
-        perform {
+        perform(onSuccess: handleSuccessfulEventLog) {
             guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try LogSleepUseCase(
@@ -847,10 +853,12 @@ public final class AppModel {
     @discardableResult
     private func perform(
         failureHaptic: HapticEvent = .actionFailed,
+        onSuccess: (() -> Void)? = nil,
         _ operation: () throws -> Void
     ) -> Bool {
         do {
             try operation()
+            onSuccess?()
             refresh(selecting: childSelectionStore.loadSelectedChildID())
             Task { @MainActor in
                 await runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
@@ -862,6 +870,19 @@ public final class AppModel {
             refresh(selecting: childSelectionStore.loadSelectedChildID())
             return false
         }
+    }
+
+    private func handleSuccessfulEventLog() {
+        let shouldRequestReview = HandleLoggedEventForAppReviewUseCase(
+            stateStore: appReviewPromptStateStore
+        )
+        .execute(.init(minimumLoggedEventsBeforePrompt: 20))
+
+        guard shouldRequestReview else {
+            return
+        }
+
+        appReviewRequester.requestReview()
     }
 
     private func refresh(selecting selectedChildID: UUID?) {

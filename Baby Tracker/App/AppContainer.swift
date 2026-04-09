@@ -23,6 +23,7 @@ struct AppContainer {
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
         let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
         let liveActivityPreferenceStore = UserDefaultsLiveActivityPreferenceStore(userDefaults: userDefaults)
+        let appReviewPromptStateStore = UserDefaultsAppReviewPromptStateStore(userDefaults: userDefaults)
 
         if let scenario = launchConfiguration.scenario {
             try? Self.seed(
@@ -45,6 +46,7 @@ struct AppContainer {
             NoOpLocalNotificationManager() :
             SystemLocalNotificationManager()
         let hapticFeedbackProvider: any HapticFeedbackProviding = SystemHapticFeedbackProvider()
+        let appReviewRequester: any AppReviewRequesting = SystemAppReviewRequester()
         let syncEngine = CloudKitSyncEngine(
             childRepository: childRepository,
             userIdentityRepository: userIdentityRepository,
@@ -64,7 +66,9 @@ struct AppContainer {
             liveActivityManager: liveActivityManager,
             liveActivityPreferenceStore: liveActivityPreferenceStore,
             localNotificationManager: localNotificationManager,
-            hapticFeedbackProvider: hapticFeedbackProvider
+            hapticFeedbackProvider: hapticFeedbackProvider,
+            appReviewPromptStateStore: appReviewPromptStateStore,
+            appReviewRequester: appReviewRequester
         )
         let shareAcceptanceHandler = ShareAcceptanceHandler(
             syncEngine: syncEngine,
