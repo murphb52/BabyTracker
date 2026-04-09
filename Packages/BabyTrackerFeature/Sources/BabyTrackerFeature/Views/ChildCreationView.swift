@@ -57,73 +57,171 @@ public struct ChildCreationView: View {
     }
 
     private var creationForm: some View {
-        let currentSelectedImageData = selectedImageData
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                headerCard
 
-        return Form {
-            Section {
-                Text("Create a child profile. You can add a birth date now or leave it for later.")
-                    .foregroundStyle(.secondary)
+                profileImagePickerCard
+
+                childDetailsCard
+
+                createChildButton
+
+                actionSeparator
+
+                importCard
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 20)
+        }
+        .background(Color(.systemGroupedBackground))
+    }
 
-            Section {
-                HStack {
-                    Spacer()
-                    PhotosPicker(selection: $selectedItem, matching: .images) {
-                        ChildProfileImagePickerLabel(imageData: currentSelectedImageData)
-                    }
-                    .buttonStyle(.plain)
-                    Spacer()
+    private var headerCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Welcome", systemImage: "sparkles")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Text("Create your child profile")
+                .font(.title2.weight(.bold))
+
+            Text("Add a name, optional birth date, and a photo so your timeline starts with the right context.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.accentColor.opacity(0.18),
+                            Color.accentColor.opacity(0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+    }
+
+    private var profileImagePickerCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Profile photo")
+                .font(.headline)
+
+            HStack(spacing: 16) {
+                let currentSelectedImageData = selectedImageData
+
+                PhotosPicker(selection: $selectedItem, matching: .images) {
+                    ChildProfileImagePickerLabel(imageData: currentSelectedImageData)
                 }
-                .listRowBackground(Color.clear)
-            }
+                .buttonStyle(.plain)
 
-            Section("Child") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Choose a photo")
+                        .font(.subheadline.weight(.semibold))
+
+                    Text("This makes it easier to spot the right profile later.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+        }
+        .cardStyle()
+    }
+
+    private var childDetailsCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Child details")
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Name")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+
                 TextField("Child name", text: $childName)
                     .textInputAutocapitalization(.words)
                     .accessibilityIdentifier("child-name-field")
-
-                Toggle("Add birth date", isOn: $includesBirthDate)
-
-                if includesBirthDate {
-                    DatePicker("Birth date", selection: $birthDate, displayedComponents: .date)
-                        .accessibilityIdentifier("child-birth-date-picker")
-                }
-            }
-
-            Section {
-                Button("Create Child Profile") {
-                    model.createChild(
-                        name: childName,
-                        birthDate: includesBirthDate ? birthDate : nil,
-                        imageData: selectedImageData
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color(.secondarySystemGroupedBackground))
                     )
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("create-child-button")
             }
 
-            Section {
-                if importInProgress {
-                    HStack(spacing: 12) {
-                        ProgressView()
-                        Text("Importing…")
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                } else {
-                    Button {
-                        isImportPickerPresented = true
-                    } label: {
-                        Label("Import from Nest Backup", systemImage: "square.and.arrow.down")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .accessibilityIdentifier("import-from-nest-backup-button")
-                }
-            } footer: {
-                Text("Restore a child profile and all events from a Nest JSON backup file.")
-                    .font(.caption)
+            Toggle("Add birth date", isOn: $includesBirthDate)
+
+            if includesBirthDate {
+                DatePicker("Birth date", selection: $birthDate, displayedComponents: .date)
+                    .accessibilityIdentifier("child-birth-date-picker")
             }
         }
+        .cardStyle()
+    }
+
+    private var createChildButton: some View {
+        Button {
+            model.createChild(
+                name: childName,
+                birthDate: includesBirthDate ? birthDate : nil,
+                imageData: selectedImageData
+            )
+        } label: {
+            Text("Create Child Profile")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("create-child-button")
+    }
+
+    private var actionSeparator: some View {
+        VStack(spacing: 10) {
+            Divider()
+
+            Text("OR")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var importCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Restore from backup", systemImage: "square.and.arrow.down")
+                .font(.headline)
+
+            Text("Import a child profile and events from a Nest JSON backup file.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if importInProgress {
+                HStack(spacing: 12) {
+                    ProgressView()
+                    Text("Importing…")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Button {
+                    isImportPickerPresented = true
+                } label: {
+                    Label("Import from Nest Backup", systemImage: "arrow.down.circle.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("import-from-nest-backup-button")
+            }
+        }
+        .cardStyle()
     }
 
     // MARK: - Import handling
@@ -219,7 +317,6 @@ public struct ChildCreationView: View {
         }
         .listStyle(.insetGrouped)
     }
-
 }
 
 private struct RestoreImportSuccess {
@@ -262,6 +359,21 @@ private struct ChildProfileImagePickerLabel: View {
     }
 }
 
+private extension View {
+    func cardStyle() -> some View {
+        self
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(.systemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+            )
+    }
+}
 #Preview {
     NavigationStack {
         let model = ChildProfilePreviewFactory.makeModel()
