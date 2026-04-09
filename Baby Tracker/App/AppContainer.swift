@@ -11,148 +11,52 @@ struct AppContainer {
 
     init(processInfo: ProcessInfo = .processInfo) {
         let launchConfiguration = LaunchConfiguration(processInfo: processInfo)
-        let userDefaults = launchConfiguration.makeUserDefaults()
-        let store = try! BabyTrackerModelStore(
-            isStoredInMemoryOnly: launchConfiguration.usesInMemoryStore
+        var dependencies = DependencyContainer()
+        Self.registerDefaultDependencies(
+            in: &dependencies,
+            launchConfiguration: launchConfiguration
         )
-        let childRepository = SwiftDataChildRepository(store: store)
-        let userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
-        let membershipRepository = SwiftDataMembershipRepository(store: store)
-        let childSelectionStore = UserDefaultsChildSelectionStore(userDefaults: userDefaults)
-        let eventRepository = SwiftDataEventRepository(store: store)
-        let syncStateRepository = SwiftDataSyncStateRepository(store: store)
-        let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
-        let liveActivityPreferenceStore = UserDefaultsLiveActivityPreferenceStore(userDefaults: userDefaults)
 
         if let scenario = launchConfiguration.scenario {
             try? Self.seed(
                 scenario: scenario,
-                childRepository: childRepository,
-                userIdentityRepository: userIdentityRepository,
-                membershipRepository: membershipRepository,
-                childSelectionStore: childSelectionStore,
-                eventRepository: eventRepository
+                childRepository: dependencies.resolve(SwiftDataChildRepository.self),
+                userIdentityRepository: dependencies.resolve(SwiftDataUserIdentityRepository.self),
+                membershipRepository: dependencies.resolve(SwiftDataMembershipRepository.self),
+                childSelectionStore: dependencies.resolve(UserDefaultsChildSelectionStore.self),
+                eventRepository: dependencies.resolve(SwiftDataEventRepository.self)
             )
         }
 
-        let cloudKitClient: any CloudKitClient = launchConfiguration.usesUnavailableCloudKitClient ?
-            UnavailableCloudKitClient() :
-            LiveCloudKitClient()
-        let liveActivityManager: any FeedLiveActivityManaging = launchConfiguration.usesNoOpLiveActivities ?
-            NoOpFeedLiveActivityManager() :
-            FeedLiveActivityManager()
-        let localNotificationManager: any LocalNotificationManaging = launchConfiguration.usesUnavailableCloudKitClient ?
-            NoOpLocalNotificationManager() :
-            SystemLocalNotificationManager()
-        let hapticFeedbackProvider: any HapticFeedbackProviding = SystemHapticFeedbackProvider()
-        let syncEngine = CloudKitSyncEngine(
-            childRepository: childRepository,
-            userIdentityRepository: userIdentityRepository,
-            membershipRepository: membershipRepository,
-            eventRepository: eventRepository,
-            syncStateRepository: syncStateRepository,
-            recordMetadataRepository: recordMetadataRepository,
-            client: cloudKitClient
-        )
-        let appModel = AppModel(
-            childRepository: childRepository,
-            userIdentityRepository: userIdentityRepository,
-            membershipRepository: membershipRepository,
-            childSelectionStore: childSelectionStore,
-            eventRepository: eventRepository,
-            syncEngine: syncEngine,
-            liveActivityManager: liveActivityManager,
-            liveActivityPreferenceStore: liveActivityPreferenceStore,
-            localNotificationManager: localNotificationManager,
-            hapticFeedbackProvider: hapticFeedbackProvider
-        )
-        let shareAcceptanceHandler = ShareAcceptanceHandler(
-            syncEngine: syncEngine,
-            onStartAcceptingShare: {
-                appModel.beginAcceptingSharedChild()
-            },
-            onAcceptedShare: {
-                appModel.completeAcceptingSharedChild()
-            },
-            onFailedToAcceptShare: { error in
-                appModel.failAcceptingSharedChild(error)
-            }
-        )
-        appModel.load(performLaunchSync: !launchConfiguration.skipsLaunchSync)
-
-        self.appModel = appModel
-        self.shareAcceptanceHandler = shareAcceptanceHandler
+        self = Self.build(from: dependencies, performLaunchSync: !launchConfiguration.skipsLaunchSync)
     }
 
     static let live = AppContainer()
 
     static let preview: AppContainer = {
-        let processInfo = ProcessInfo.processInfo
         let launchConfiguration = LaunchConfiguration(
             usesInMemoryStore: true,
             userDefaultsSuiteName: "BabyTrackerPreview",
             scenario: .mixedEventsPreview
         )
-        let userDefaults = launchConfiguration.makeUserDefaults()
-        let store = try! BabyTrackerModelStore(isStoredInMemoryOnly: true)
-        let childRepository = SwiftDataChildRepository(store: store)
-        let userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
-        let membershipRepository = SwiftDataMembershipRepository(store: store)
-        let childSelectionStore = UserDefaultsChildSelectionStore(userDefaults: userDefaults)
-        let eventRepository = SwiftDataEventRepository(store: store)
-        let syncStateRepository = SwiftDataSyncStateRepository(store: store)
-        let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
-        let liveActivityPreferenceStore = UserDefaultsLiveActivityPreferenceStore(userDefaults: userDefaults)
+        var dependencies = DependencyContainer()
+        registerDefaultDependencies(in: &dependencies, launchConfiguration: launchConfiguration)
 
         try? seed(
             scenario: .mixedEventsPreview,
-            childRepository: childRepository,
-            userIdentityRepository: userIdentityRepository,
-            membershipRepository: membershipRepository,
-            childSelectionStore: childSelectionStore,
-            eventRepository: eventRepository
+            childRepository: dependencies.resolve(SwiftDataChildRepository.self),
+            userIdentityRepository: dependencies.resolve(SwiftDataUserIdentityRepository.self),
+            membershipRepository: dependencies.resolve(SwiftDataMembershipRepository.self),
+            childSelectionStore: dependencies.resolve(UserDefaultsChildSelectionStore.self),
+            eventRepository: dependencies.resolve(SwiftDataEventRepository.self)
         )
 
-        let syncEngine = CloudKitSyncEngine(
-            childRepository: childRepository,
-            userIdentityRepository: userIdentityRepository,
-            membershipRepository: membershipRepository,
-            eventRepository: eventRepository,
-            syncStateRepository: syncStateRepository,
-            recordMetadataRepository: recordMetadataRepository,
-            client: UnavailableCloudKitClient()
-        )
-        let appModel = AppModel(
-            childRepository: childRepository,
-            userIdentityRepository: userIdentityRepository,
-            membershipRepository: membershipRepository,
-            childSelectionStore: childSelectionStore,
-            eventRepository: eventRepository,
-            syncEngine: syncEngine,
-            liveActivityManager: NoOpFeedLiveActivityManager(),
-            liveActivityPreferenceStore: liveActivityPreferenceStore,
-            localNotificationManager: NoOpLocalNotificationManager(),
-            hapticFeedbackProvider: NoOpHapticFeedbackProvider()
-        )
-        let shareAcceptanceHandler = ShareAcceptanceHandler(
-            syncEngine: syncEngine,
-            onStartAcceptingShare: {
-                appModel.beginAcceptingSharedChild()
-            },
-            onAcceptedShare: {
-                appModel.completeAcceptingSharedChild()
-            },
-            onFailedToAcceptShare: { error in
-                appModel.failAcceptingSharedChild(error)
-            }
-        )
-        appModel.load()
+        dependencies.register((any CloudKitClient).self, instance: UnavailableCloudKitClient())
+        dependencies.register((any FeedLiveActivityManaging).self, instance: NoOpFeedLiveActivityManager())
+        dependencies.register((any LocalNotificationManaging).self, instance: NoOpLocalNotificationManager())
+        dependencies.register((any HapticFeedbackProviding).self, instance: NoOpHapticFeedbackProvider())
 
-        _ = processInfo
-        return AppContainer(
-            appModel: appModel,
-            shareAcceptanceHandler: shareAcceptanceHandler
-        )
+        return build(from: dependencies, performLaunchSync: true)
     }()
 
     private init(
@@ -161,6 +65,131 @@ struct AppContainer {
     ) {
         self.appModel = appModel
         self.shareAcceptanceHandler = shareAcceptanceHandler
+    }
+
+    private static func build(from dependencies: DependencyContainer, performLaunchSync: Bool) -> AppContainer {
+        let appModel = dependencies.resolve(AppModel.self)
+        let shareAcceptanceHandler = dependencies.resolve(ShareAcceptanceHandler.self)
+
+        appModel.load(performLaunchSync: performLaunchSync)
+
+        return AppContainer(
+            appModel: appModel,
+            shareAcceptanceHandler: shareAcceptanceHandler
+        )
+    }
+
+    private static func registerDefaultDependencies(
+        in dependencies: inout DependencyContainer,
+        launchConfiguration: LaunchConfiguration
+    ) {
+        let userDefaults = launchConfiguration.makeUserDefaults()
+        let store = try! BabyTrackerModelStore(
+            isStoredInMemoryOnly: launchConfiguration.usesInMemoryStore
+        )
+
+        dependencies.register(UserDefaults.self, instance: userDefaults)
+        dependencies.register(BabyTrackerModelStore.self, instance: store)
+
+        dependencies.register(SwiftDataChildRepository.self) { _ in
+            SwiftDataChildRepository(store: store)
+        }
+        dependencies.register(SwiftDataUserIdentityRepository.self) { container in
+            SwiftDataUserIdentityRepository(
+                store: store,
+                userDefaults: container.resolve(UserDefaults.self)
+            )
+        }
+        dependencies.register(SwiftDataMembershipRepository.self) { _ in
+            SwiftDataMembershipRepository(store: store)
+        }
+        dependencies.register(UserDefaultsChildSelectionStore.self) { container in
+            UserDefaultsChildSelectionStore(userDefaults: container.resolve(UserDefaults.self))
+        }
+        dependencies.register(SwiftDataEventRepository.self) { _ in
+            SwiftDataEventRepository(store: store)
+        }
+        dependencies.register(SwiftDataSyncStateRepository.self) { _ in
+            SwiftDataSyncStateRepository(store: store)
+        }
+        dependencies.register(SwiftDataCloudKitRecordMetadataRepository.self) { _ in
+            SwiftDataCloudKitRecordMetadataRepository(store: store)
+        }
+        dependencies.register(UserDefaultsLiveActivityPreferenceStore.self) { container in
+            UserDefaultsLiveActivityPreferenceStore(userDefaults: container.resolve(UserDefaults.self))
+        }
+
+        dependencies.register((any CloudKitClient).self) { _ in
+            let client: any CloudKitClient
+            if launchConfiguration.usesUnavailableCloudKitClient {
+                client = UnavailableCloudKitClient()
+            } else {
+                client = LiveCloudKitClient()
+            }
+            return client
+        }
+        dependencies.register((any FeedLiveActivityManaging).self) { _ in
+            let liveActivityManager: any FeedLiveActivityManaging
+            if launchConfiguration.usesNoOpLiveActivities {
+                liveActivityManager = NoOpFeedLiveActivityManager()
+            } else {
+                liveActivityManager = FeedLiveActivityManager()
+            }
+            return liveActivityManager
+        }
+        dependencies.register((any LocalNotificationManaging).self) { _ in
+            let localNotificationManager: any LocalNotificationManaging
+            if launchConfiguration.usesUnavailableCloudKitClient {
+                localNotificationManager = NoOpLocalNotificationManager()
+            } else {
+                localNotificationManager = SystemLocalNotificationManager()
+            }
+            return localNotificationManager
+        }
+        dependencies.register((any HapticFeedbackProviding).self, instance: SystemHapticFeedbackProvider())
+
+        dependencies.register(CloudKitSyncEngine.self) { container in
+            CloudKitSyncEngine(
+                childRepository: container.resolve(SwiftDataChildRepository.self),
+                userIdentityRepository: container.resolve(SwiftDataUserIdentityRepository.self),
+                membershipRepository: container.resolve(SwiftDataMembershipRepository.self),
+                eventRepository: container.resolve(SwiftDataEventRepository.self),
+                syncStateRepository: container.resolve(SwiftDataSyncStateRepository.self),
+                recordMetadataRepository: container.resolve(SwiftDataCloudKitRecordMetadataRepository.self),
+                client: container.resolve((any CloudKitClient).self)
+            )
+        }
+
+        dependencies.register(AppModel.self) { container in
+            AppModel(
+                childRepository: container.resolve(SwiftDataChildRepository.self),
+                userIdentityRepository: container.resolve(SwiftDataUserIdentityRepository.self),
+                membershipRepository: container.resolve(SwiftDataMembershipRepository.self),
+                childSelectionStore: container.resolve(UserDefaultsChildSelectionStore.self),
+                eventRepository: container.resolve(SwiftDataEventRepository.self),
+                syncEngine: container.resolve(CloudKitSyncEngine.self),
+                liveActivityManager: container.resolve((any FeedLiveActivityManaging).self),
+                liveActivityPreferenceStore: container.resolve(UserDefaultsLiveActivityPreferenceStore.self),
+                localNotificationManager: container.resolve((any LocalNotificationManaging).self),
+                hapticFeedbackProvider: container.resolve((any HapticFeedbackProviding).self)
+            )
+        }
+
+        dependencies.register(ShareAcceptanceHandler.self) { container in
+            let model = container.resolve(AppModel.self)
+            return ShareAcceptanceHandler(
+                syncEngine: container.resolve(CloudKitSyncEngine.self),
+                onStartAcceptingShare: {
+                    model.beginAcceptingSharedChild()
+                },
+                onAcceptedShare: {
+                    model.completeAcceptingSharedChild()
+                },
+                onFailedToAcceptShare: { error in
+                    model.failAcceptingSharedChild(error)
+                }
+            )
+        }
     }
 
     private static func seed(
@@ -360,5 +389,44 @@ extension AppContainer {
         case futureActiveSleepPreview
         case mixedEventsPreview
         case ownerPreview
+    }
+
+    private final class DependencyContainer {
+        private typealias Factory = (DependencyContainer) -> Any
+
+        private var factories: [ObjectIdentifier: Factory] = [:]
+        private var instances: [ObjectIdentifier: Any] = [:]
+
+        func register<Dependency>(_ type: Dependency.Type, factory: @escaping (DependencyContainer) -> Dependency) {
+            let key = ObjectIdentifier(type)
+            factories[key] = { container in
+                factory(container)
+            }
+        }
+
+        func register<Dependency>(_ type: Dependency.Type, instance: Dependency) {
+            let key = ObjectIdentifier(type)
+            instances[key] = instance
+        }
+
+        func resolve<Dependency>(_ type: Dependency.Type) -> Dependency {
+            let key = ObjectIdentifier(type)
+
+            if let instance = instances[key] as? Dependency {
+                return instance
+            }
+
+            guard let factory = factories[key] else {
+                preconditionFailure("No dependency registered for \(type)")
+            }
+
+            let dependency = factory(self)
+            guard let resolved = dependency as? Dependency else {
+                preconditionFailure("Registered dependency for \(type) has an unexpected type.")
+            }
+
+            instances[key] = resolved
+            return resolved
+        }
     }
 }
