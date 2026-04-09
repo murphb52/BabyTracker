@@ -8,7 +8,7 @@ import SwiftUI
 struct TrendsNappyChartView: View {
     let data: [DailyNappyData]
 
-    @State private var selectedLabel: String?
+    @State private var selectedKey: String?
 
     private var isDense: Bool { data.count > 14 }
 
@@ -18,19 +18,19 @@ struct TrendsNappyChartView: View {
             // establishes a consistent wet → dirty → mixed stacking order across all bars.
             ForEach(segments) { segment in
                 BarMark(
-                    x: .value("Date", segment.label),
+                    x: .value("Day", segment.dayKey),
                     y: .value("Count", segment.count)
                 )
                 .foregroundStyle(by: .value("Type", segment.type))
-                .opacity(selectedLabel == nil || selectedLabel == segment.label ? 1 : 0.3)
+                .opacity(selectedKey == nil || selectedKey == segment.dayKey ? 1 : 0.3)
             }
 
-            if let label = selectedLabel, let day = data.first(where: { $0.label == label }) {
-                RuleMark(x: .value("Selected", label))
+            if let selectedDay {
+                RuleMark(x: .value("Selected", selectedDay.domainKey))
                     .foregroundStyle(.secondary.opacity(0.35))
                     .lineStyle(StrokeStyle(lineWidth: 1))
                     .annotation(position: .top, spacing: 4) {
-                        selectionCallout(for: day)
+                        selectionCallout(for: selectedDay.day)
                     }
             }
         }
@@ -40,8 +40,12 @@ struct TrendsNappyChartView: View {
             "Mixed": Color.yellow.opacity(0.85),
         ])
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: isDense ? 5 : data.count)) { _ in
-                AxisValueLabel(collisionResolution: .greedy(minimumSpacing: 4))
+            AxisMarks(values: xAxisValues) { value in
+                AxisValueLabel(collisionResolution: .greedy(minimumSpacing: 4)) {
+                    if let key = value.as(String.self), let point = dayPoints.first(where: { $0.domainKey == key }) {
+                        Text(point.day.label)
+                    }
+                }
             }
         }
         .chartYAxis {
@@ -50,19 +54,36 @@ struct TrendsNappyChartView: View {
                 AxisValueLabel()
             }
         }
+        .chartYScale(domain: 0...yAxisUpperBound)
         .chartLegend(position: .bottom, alignment: .leading)
-        .chartXSelection(value: $selectedLabel)
+        .chartXSelection(value: $selectedKey)
         .frame(height: isDense ? 120 : 140)
     }
 
     private var segments: [NappySegment] {
-        data.flatMap { day in
+        dayPoints.flatMap { point in
             [
-                NappySegment(id: "\(day.label)-wet",   label: day.label, type: "Wet",   count: day.wetCount),
-                NappySegment(id: "\(day.label)-dirty", label: day.label, type: "Dirty", count: day.dirtyCount),
-                NappySegment(id: "\(day.label)-mixed", label: day.label, type: "Mixed", count: day.mixedCount),
+                NappySegment(id: "\(point.id)-wet", dayKey: point.domainKey, type: "Wet", count: point.day.wetCount),
+                NappySegment(id: "\(point.id)-dirty", dayKey: point.domainKey, type: "Dirty", count: point.day.dirtyCount),
+                NappySegment(id: "\(point.id)-mixed", dayKey: point.domainKey, type: "Mixed", count: point.day.mixedCount),
             ]
         }
+    }
+
+    private var dayPoints: [NappyDayPoint] {
+        data.enumerated().map { index, day in
+            NappyDayPoint(id: index, day: day)
+        }
+    }
+
+    private var selectedDay: NappyDayPoint? {
+        guard let selectedKey else { return nil }
+        return dayPoints.first(where: { $0.domainKey == selectedKey })
+    }
+
+    private var xAxisValues: [String] {
+        TrendsChartLayout.axisValues(count: dayPoints.count, desiredVisibleCount: isDense ? 5 : dayPoints.count)
+            .map { dayPoints[$0].domainKey }
     }
 
     private func selectionCallout(for day: DailyNappyData) -> some View {
@@ -78,11 +99,47 @@ struct TrendsNappyChartView: View {
         .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 6))
         .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
     }
+
+    private var yAxisUpperBound: Int {
+        TrendsChartLayout.yDomainUpperBound(for: data.map(\.totalCount))
+    }
+}
+
+private struct NappyDayPoint: Identifiable {
+    let id: Int
+    let day: DailyNappyData
+
+    var domainKey: String {
+        "day-\(id)"
+    }
 }
 
 private struct NappySegment: Identifiable {
     let id: String
-    let label: String
+    let dayKey: String
     let type: String
     let count: Int
+}
+
+#Preview("Standard") {
+    let today = Date()
+    TrendsNappyChartView(
+        data: [
+            DailyNappyData(date: today, label: "Mon", wetCount: 3, dirtyCount: 1, mixedCount: 1, dryCount: 0),
+            DailyNappyData(date: today, label: "Tue", wetCount: 2, dirtyCount: 2, mixedCount: 0, dryCount: 1),
+            DailyNappyData(date: today, label: "Wed", wetCount: 4, dirtyCount: 1, mixedCount: 2, dryCount: 0),
+        ]
+    )
+    .padding()
+}
+
+#Preview("Zero state") {
+    let today = Date()
+    TrendsNappyChartView(
+        data: [
+            DailyNappyData(date: today, label: "Mon", wetCount: 0, dirtyCount: 0, mixedCount: 0, dryCount: 0),
+            DailyNappyData(date: today, label: "Tue", wetCount: 0, dirtyCount: 0, mixedCount: 0, dryCount: 0),
+        ]
+    )
+    .padding()
 }

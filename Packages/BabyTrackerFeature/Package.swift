@@ -27,5 +27,9 @@ let package = Package(
                 .product(name: "BabyTrackerSync", package: "BabyTrackerSync"),
             ]
         ),
+        .testTarget(
+            name: "BabyTrackerFeatureTests",
+            dependencies: ["BabyTrackerFeature"]
+        ),
     ]
 )
