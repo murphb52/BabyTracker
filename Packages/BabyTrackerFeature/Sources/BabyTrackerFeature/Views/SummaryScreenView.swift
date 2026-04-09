@@ -1,4 +1,5 @@
 import BabyTrackerDomain
+import Charts
 import SwiftUI
 
 private enum SummaryTab: String, CaseIterable {
@@ -54,158 +55,210 @@ public struct SummaryScreenView: View {
 
     private var todayTabContent: some View {
         let data = TodaySummaryCalculator.makeData(from: viewModel.events)
-        let hasAnyTodayData = data.bottleCount > 0 || data.breastFeedCount > 0
-            || data.totalSleepMinutes > 0 || data.totalNappies > 0
 
         return Group {
-            if !hasAnyTodayData && viewModel.events.isEmpty {
+            if viewModel.events.isEmpty {
                 emptyStateCard(
                     title: viewModel.emptyStateTitle,
                     message: viewModel.emptyStateMessage
                 )
             } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    todayMetricGrid(data: data)
-                    todayExtrasRow(data: data)
+                    bottleSectionCard(data: data)
+                    breastSectionCard(data: data)
+                    sleepSectionCard(data: data)
+                    nappySectionCard(data: data)
+                    advancedSummaryLink
+                    loggingStreakRow(data: data)
                 }
             }
         }
     }
 
-    private func todayMetricGrid(data: TodaySummaryData) -> some View {
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: 12),
-                GridItem(.flexible(), spacing: 12),
-            ],
-            spacing: 12
-        ) {
-            bottleCard(data: data)
-            breastCard(data: data)
-            sleepCard(data: data)
-            nappyCard(data: data)
+    // MARK: - Today Section Cards
+
+    private func bottleSectionCard(data: TodaySummaryData) -> some View {
+        sectionCard(title: "Bottle", symbol: "drop.fill", tint: .blue) {
+            // Primary metric
+            Text(data.bottleCount == 0 ? "0 mL" : "\(data.bottleTotalMilliliters) mL")
+                .font(.title3.weight(.bold))
+
+            // Breakdown by milk type
+            if data.bottleCount > 0 {
+                bottleBreakdownRow(data: data)
+            }
+
+            // Feed timing
+            bottleFeedTimingRow(data: data)
+
+            CumulativeLineChartView(series: data.chartData.bottle, tint: .blue)
+                .padding(.top, 4)
         }
     }
 
-    private func bottleCard(data: TodaySummaryData) -> some View {
-        let volumeText = data.bottleCount == 0
-            ? "0 mL"
-            : "\(data.bottleTotalMilliliters) mL"
+    private func bottleBreakdownRow(data: TodaySummaryData) -> some View {
+        let parts: [String] = [
+            data.formulaMilliliters > 0 ? "Formula \(data.formulaMilliliters) mL" : nil,
+            data.breastMilkMilliliters > 0 ? "Breast milk \(data.breastMilkMilliliters) mL" : nil,
+            data.mixedMilkMilliliters > 0 ? "Mixed \(data.mixedMilkMilliliters) mL" : nil,
+        ].compactMap { $0 }
 
-        return metricCard(
-            title: "Bottle",
-            value: volumeText,
-            subtitle: bottleSubtitle(data: data),
-            symbol: "bottle.fill",
-            tint: .blue
-        )
+        return Text(parts.isEmpty ? "\(data.bottleCount) feed\(data.bottleCount == 1 ? "" : "s")" : parts.joined(separator: " • "))
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 
-    private func breastCard(data: TodaySummaryData) -> some View {
-        let sessionText = data.breastFeedCount == 0
-            ? "0 sessions"
-            : "\(data.breastFeedCount) session\(data.breastFeedCount == 1 ? "" : "s")"
+    private func bottleFeedTimingRow(data: TodaySummaryData) -> some View {
+        let parts: [String] = [
+            data.minutesSinceLastFeed.map { "Last \(DurationText.short(minutes: $0)) ago" },
+            data.averageFeedIntervalMinutes.map { "Avg interval \(DurationText.short(minutes: $0))" },
+        ].compactMap { $0 }
 
-        return metricCard(
-            title: "Breast",
-            value: sessionText,
-            subtitle: breastSubtitle(data: data),
-            symbol: "heart.fill",
-            tint: .pink
-        )
+        guard !parts.isEmpty else { return Text("No bottle feeds today").font(.caption).foregroundStyle(.secondary) }
+        return Text(parts.joined(separator: " • ")).font(.caption).foregroundStyle(.secondary)
     }
 
-    private func sleepCard(data: TodaySummaryData) -> some View {
-        let totalText = data.totalSleepMinutes == 0
-            ? "0m"
-            : DurationText.short(minutes: data.totalSleepMinutes)
+    private func breastSectionCard(data: TodaySummaryData) -> some View {
+        sectionCard(title: "Breast", symbol: "heart.fill", tint: .pink) {
+            Text(data.breastFeedCount == 0
+                ? "0 sessions"
+                : "\(data.breastFeedCount) session\(data.breastFeedCount == 1 ? "" : "s")")
+                .font(.title3.weight(.bold))
 
-        let subtitle: String
-        if data.totalSleepMinutes == 0 {
-            subtitle = "No sleep logged today"
-        } else {
-            var parts: [String] = []
-            if data.daytimeSleepMinutes > 0 {
-                parts.append("Day \(DurationText.short(minutes: data.daytimeSleepMinutes))")
+            if data.breastFeedCount > 0 {
+                breastMetricsRow(data: data)
+            } else {
+                Text("No breast feeds today")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            if data.nighttimeSleepMinutes > 0 {
-                parts.append("Night \(DurationText.short(minutes: data.nighttimeSleepMinutes))")
-            }
-            if let longest = data.longestSleepBlockMinutes {
-                parts.append("Longest \(DurationText.short(minutes: longest))")
-            }
-            subtitle = parts.joined(separator: " • ")
+
+            CumulativeLineChartView(series: data.chartData.breast, tint: .pink)
+                .padding(.top, 4)
         }
-
-        return metricCard(
-            title: "Sleep",
-            value: totalText,
-            subtitle: subtitle,
-            symbol: "moon.zzz.fill",
-            tint: .indigo
-        )
     }
 
-    private func nappyCard(data: TodaySummaryData) -> some View {
-        return metricCard(
-            title: "Nappies",
-            value: "\(data.totalNappies)",
-            subtitle: nappySubtitle(data: data),
-            symbol: "checklist.checked",
-            tint: .green
-        )
-    }
-
-    private func todayExtrasRow(data: TodaySummaryData) -> some View {
-        VStack(spacing: 0) {
-            if let mins = data.minutesSinceLastFeed {
-                extrasRow(
-                    symbol: "clock.fill",
-                    tint: .orange,
-                    label: "Last feed",
-                    value: "\(DurationText.short(minutes: mins)) ago"
-                )
-                Divider().padding(.leading, 44)
-            }
-
-            if let interval = data.averageFeedIntervalMinutes {
-                extrasRow(
-                    symbol: "arrow.trianglehead.clockwise",
-                    tint: .orange,
-                    label: "Avg feed interval",
-                    value: DurationText.short(minutes: interval)
-                )
-                Divider().padding(.leading, 44)
-            }
-
-            extrasRow(
-                symbol: "flame.fill",
-                tint: .orange,
-                label: "Logging streak",
-                value: "\(data.loggingStreakDays) day\(data.loggingStreakDays == 1 ? "" : "s")"
-            )
+    private func breastMetricsRow(data: TodaySummaryData) -> some View {
+        var parts = ["\(DurationText.short(minutes: data.breastFeedTotalMinutes)) total"]
+        if let avg = data.averageBreastFeedMinutes {
+            parts.append("avg \(DurationText.short(minutes: avg))")
         }
-        .background(cardBackground)
+        return Text(parts.joined(separator: " • "))
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 
-    private func extrasRow(symbol: String, tint: Color, label: String, value: String) -> some View {
+    private func sleepSectionCard(data: TodaySummaryData) -> some View {
+        sectionCard(title: "Sleep", symbol: "moon.zzz.fill", tint: .indigo) {
+            Text(data.totalSleepMinutes == 0 ? "0m" : DurationText.short(minutes: data.totalSleepMinutes))
+                .font(.title3.weight(.bold))
+
+            if data.totalSleepMinutes > 0 {
+                sleepSessionMetricsRow(data: data)
+                sleepTimingRow(data: data)
+            } else {
+                Text("No sleep logged today")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            CumulativeLineChartView(series: data.chartData.sleep, tint: .indigo)
+                .padding(.top, 4)
+        }
+    }
+
+    private func sleepSessionMetricsRow(data: TodaySummaryData) -> some View {
+        let parts: [String] = [
+            data.longestSleepBlockMinutes.map { "Longest \(DurationText.short(minutes: $0))" },
+            data.shortestSleepBlockMinutes.map { "Shortest \(DurationText.short(minutes: $0))" },
+            data.averageSleepBlockMinutes.map { "Avg \(DurationText.short(minutes: $0))" },
+        ].compactMap { $0 }
+
+        return Text(parts.joined(separator: " • "))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    private func sleepTimingRow(data: TodaySummaryData) -> some View {
+        Group {
+            if let mins = data.minutesSinceLastSleep {
+                Text("Last sleep \(DurationText.short(minutes: mins)) ago")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func nappySectionCard(data: TodaySummaryData) -> some View {
+        sectionCard(title: "Nappies", symbol: "checklist.checked", tint: .green) {
+            Text("\(data.totalNappies)")
+                .font(.title3.weight(.bold))
+
+            if data.totalNappies > 0 {
+                nappyBreakdownRow(data: data)
+            } else {
+                Text("No nappy changes today")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            CumulativeLineChartView(series: data.chartData.nappy, tint: .green)
+                .padding(.top, 4)
+        }
+    }
+
+    private func nappyBreakdownRow(data: TodaySummaryData) -> some View {
+        let parts: [String] = [
+            data.wetNappyCount > 0 ? "Wet: \(data.wetNappyCount)" : nil,
+            data.dirtyNappyCount > 0 ? "Dirty: \(data.dirtyNappyCount)" : nil,
+            data.mixedNappyCount > 0 ? "Mixed: \(data.mixedNappyCount)" : nil,
+            data.dryNappyCount > 0 ? "Dry: \(data.dryNappyCount)" : nil,
+        ].compactMap { $0 }
+
+        return Text(parts.joined(separator: " • "))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    private func loggingStreakRow(data: TodaySummaryData) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: symbol)
+            Image(systemName: "flame.fill")
                 .font(.subheadline)
-                .foregroundStyle(tint)
+                .foregroundStyle(.orange)
                 .frame(width: 24)
 
-            Text(label)
+            Text("Logging streak")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
             Spacer()
 
-            Text(value)
+            Text("\(data.loggingStreakDays) day\(data.loggingStreakDays == 1 ? "" : "s")")
                 .font(.subheadline.weight(.semibold))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+        .background(cardBackground)
+    }
+
+    // MARK: - Shared section card container
+
+    private func sectionCard<Content: View>(
+        title: String,
+        symbol: String,
+        tint: Color,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: symbol)
+                .font(.headline)
+                .foregroundStyle(tint)
+
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(cardBackground)
     }
 
     // MARK: - Trends Tab
@@ -230,7 +283,6 @@ public struct SummaryScreenView: View {
                 breastChartCard(data: data)
                 sleepChartCard(data: data)
                 nappyChartCard(data: data)
-                advancedSummaryLink
             }
         }
     }
@@ -250,11 +302,11 @@ public struct SummaryScreenView: View {
 
         return chartCard(
             title: "Bottle Feeds",
-            symbol: "bottle.fill",
+            symbol: "drop.fill",
             tint: .blue,
             subtitle: avgText ?? "No bottle feeds in this period"
         ) {
-            miniBarChart(points: points, tint: .blue)
+            TrendsBarChartView(points: points, tint: .blue)
         }
     }
 
@@ -268,7 +320,7 @@ public struct SummaryScreenView: View {
             tint: .pink,
             subtitle: avgText ?? "No breast feeds in this period"
         ) {
-            miniBarChart(points: points, tint: .pink)
+            TrendsBarChartView(points: points, tint: .pink)
         }
     }
 
@@ -282,7 +334,7 @@ public struct SummaryScreenView: View {
             tint: .indigo,
             subtitle: avgText ?? "No sleep logged in this period"
         ) {
-            miniBarChart(points: points, tint: .indigo, valueFormatter: { DurationText.short(minutes: $0) })
+            TrendsBarChartView(points: points, tint: .indigo, valueFormatter: { DurationText.short(minutes: $0) })
         }
     }
 
@@ -295,122 +347,7 @@ public struct SummaryScreenView: View {
             tint: .green,
             subtitle: avgText ?? "No nappy changes in this period"
         ) {
-            stackedNappyChart(data: data.dailyNappy)
-            nappyLegend
-        }
-    }
-
-    // MARK: - Chart Components
-
-    private func miniBarChart(
-        points: [(String, Int)],
-        tint: Color,
-        valueFormatter: ((Int) -> String)? = nil
-    ) -> some View {
-        let maxValue = max(1, points.map(\.1).max() ?? 0)
-
-        return HStack(alignment: .bottom, spacing: 4) {
-            ForEach(Array(points.enumerated()), id: \.offset) { _, point in
-                VStack(spacing: 4) {
-                    if point.1 > 0 {
-                        Text(valueFormatter?(point.1) ?? "\(point.1)")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.6)
-                    }
-
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(tint.gradient)
-                        .frame(height: max(4, (CGFloat(point.1) / CGFloat(maxValue)) * 80))
-
-                    Text(point.0)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-                }
-                .frame(maxWidth: .infinity)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: 110, alignment: .bottom)
-    }
-
-    private func stackedNappyChart(data: [DailyNappyData]) -> some View {
-        let maxTotal = max(1, data.map(\.totalCount).max() ?? 0)
-        let barHeight: CGFloat = 80
-
-        return HStack(alignment: .bottom, spacing: 4) {
-            ForEach(Array(data.enumerated()), id: \.offset) { _, day in
-                VStack(spacing: 4) {
-                    if day.totalCount > 0 {
-                        Text("\(day.totalCount)")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    // Stacked bar: wet (bottom, blue) / dirty (middle, brown) / mixed (top, yellow)
-                    if day.totalCount == 0 {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(Color.gray.opacity(0.15))
-                            .frame(height: 4)
-                    } else {
-                        VStack(spacing: 1) {
-                            // Mixed (top)
-                            if day.mixedCount > 0 {
-                                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                    .fill(Color.yellow.opacity(0.85))
-                                    .frame(height: max(3, CGFloat(day.mixedCount) / CGFloat(maxTotal) * barHeight))
-                            }
-
-                            // Dirty (middle)
-                            if day.dirtyCount > 0 {
-                                Rectangle()
-                                    .fill(Color.brown.opacity(0.75))
-                                    .frame(height: max(3, CGFloat(day.dirtyCount) / CGFloat(maxTotal) * barHeight))
-                            }
-
-                            // Wet (bottom)
-                            if day.wetCount > 0 {
-                                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                    .fill(Color.blue.opacity(0.6))
-                                    .frame(height: max(3, CGFloat(day.wetCount) / CGFloat(maxTotal) * barHeight))
-                            }
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    }
-
-                    Text(day.label)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-                }
-                .frame(maxWidth: .infinity)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: 110, alignment: .bottom)
-    }
-
-    private var nappyLegend: some View {
-        HStack(spacing: 12) {
-            legendItem(color: .blue.opacity(0.6), label: "Wet")
-            legendItem(color: .brown.opacity(0.75), label: "Dirty")
-            legendItem(color: .yellow.opacity(0.85), label: "Mixed")
-            Spacer()
-        }
-        .padding(.top, 4)
-    }
-
-    private func legendItem(color: Color, label: String) -> some View {
-        HStack(spacing: 4) {
-            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .fill(color)
-                .frame(width: 10, height: 10)
-
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            TrendsNappyChartView(data: data.dailyNappy)
         }
     }
 
@@ -459,6 +396,7 @@ public struct SummaryScreenView: View {
             Text(subtitle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .padding(.bottom, 6)
 
             content()
         }
@@ -521,60 +459,6 @@ public struct SummaryScreenView: View {
             .shadow(color: Color.black.opacity(0.05), radius: 14, y: 8)
     }
 
-    private func bottleSubtitle(data: TodaySummaryData) -> String {
-        guard data.bottleCount > 0 else {
-            return "No bottle feeds today"
-        }
-
-        var parts: [String] = []
-        if data.formulaMilliliters > 0 {
-            parts.append("Formula \(data.formulaMilliliters) mL")
-        }
-        if data.breastMilkMilliliters > 0 {
-            parts.append("Breast milk \(data.breastMilkMilliliters) mL")
-        }
-        if data.mixedMilkMilliliters > 0 {
-            parts.append("Mixed \(data.mixedMilkMilliliters) mL")
-        }
-        if parts.isEmpty {
-            parts.append("\(data.bottleCount) feed\(data.bottleCount == 1 ? "" : "s")")
-        }
-        if let minutesSinceLastFeed = data.minutesSinceLastFeed {
-            parts.append("Last \(DurationText.short(minutes: minutesSinceLastFeed)) ago")
-        }
-        return parts.joined(separator: " • ")
-    }
-
-    private func breastSubtitle(data: TodaySummaryData) -> String {
-        guard data.breastFeedCount > 0 else {
-            return "No breast feeds today"
-        }
-
-        var parts = ["\(DurationText.short(minutes: data.breastFeedTotalMinutes)) total"]
-        if let averageBreastFeedMinutes = data.averageBreastFeedMinutes {
-            parts.append("avg \(DurationText.short(minutes: averageBreastFeedMinutes))")
-        }
-        return parts.joined(separator: " • ")
-    }
-
-    private func nappySubtitle(data: TodaySummaryData) -> String {
-        guard data.totalNappies > 0 else {
-            return "No nappy changes today"
-        }
-
-        var parts: [String] = []
-        if data.mixedNappyCount > 0 {
-            parts.append("Mixed: \(data.mixedNappyCount)")
-        }
-        if data.wetNappyCount > 0 {
-            parts.append("Wet: \(data.wetNappyCount)")
-        }
-        if data.dirtyNappyCount > 0 {
-            parts.append("Dirty: \(data.dirtyNappyCount)")
-        }
-        return parts.isEmpty ? "No nappy changes today" : parts.joined(separator: " • ")
-    }
-
 }
 
 // MARK: - TrendsTimeRange bridge
@@ -600,5 +484,11 @@ private extension TrendsTimeRange {
 #Preview("Empty") {
     NavigationStack {
         SummaryScreenView(viewModel: SummaryViewModel(events: []))
+    }
+}
+
+#Preview("Trends 30 Days") {
+    NavigationStack {
+        SummaryScreenView(viewModel: SummaryScreenPreviewFactory.summaryViewModel)
     }
 }
