@@ -120,19 +120,31 @@ struct AppContainer {
         }
 
         dependencies.register((any CloudKitClient).self) { _ in
-            launchConfiguration.usesUnavailableCloudKitClient ?
-                UnavailableCloudKitClient() :
-                LiveCloudKitClient()
+            let client: any CloudKitClient
+            if launchConfiguration.usesUnavailableCloudKitClient {
+                client = UnavailableCloudKitClient()
+            } else {
+                client = LiveCloudKitClient()
+            }
+            return client
         }
         dependencies.register((any FeedLiveActivityManaging).self) { _ in
-            launchConfiguration.usesNoOpLiveActivities ?
-                NoOpFeedLiveActivityManager() :
-                FeedLiveActivityManager()
+            let liveActivityManager: any FeedLiveActivityManaging
+            if launchConfiguration.usesNoOpLiveActivities {
+                liveActivityManager = NoOpFeedLiveActivityManager()
+            } else {
+                liveActivityManager = FeedLiveActivityManager()
+            }
+            return liveActivityManager
         }
         dependencies.register((any LocalNotificationManaging).self) { _ in
-            launchConfiguration.usesUnavailableCloudKitClient ?
-                NoOpLocalNotificationManager() :
-                SystemLocalNotificationManager()
+            let localNotificationManager: any LocalNotificationManaging
+            if launchConfiguration.usesUnavailableCloudKitClient {
+                localNotificationManager = NoOpLocalNotificationManager()
+            } else {
+                localNotificationManager = SystemLocalNotificationManager()
+            }
+            return localNotificationManager
         }
         dependencies.register((any HapticFeedbackProviding).self, instance: SystemHapticFeedbackProvider())
 
