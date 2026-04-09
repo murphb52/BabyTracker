@@ -1521,24 +1521,29 @@ struct AppModelTests {
         let harness = try Harness()
         defer { harness.cleanUp() }
 
-        harness.model.beginAcceptingSharedChild()
+        harness.model.beginAcceptingSharedChild(childName: "Poppy")
 
-        #expect(harness.model.shareAcceptanceLoadingState == .acceptingSharedChild)
+        #expect(harness.model.shareAcceptanceLoadingState == .syncing(childName: "Poppy"))
     }
 
     @Test
-    func completingSharedChildAcceptanceRefreshesProfileAndClearsLoadingState() throws {
+    func completingSharedChildAcceptanceShowsCompletionStateWithContinueAction() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }
 
         _ = try harness.seedOwnerProfile()
-        harness.model.beginAcceptingSharedChild()
+        harness.model.beginAcceptingSharedChild(childName: "Poppy")
 
-        harness.model.completeAcceptingSharedChild()
+        harness.model.completeAcceptingSharedChild(childName: "Poppy")
+
+        #expect(harness.model.shareAcceptanceLoadingState == .completed(childName: "Poppy"))
+        #expect(harness.model.route == .childProfile)
+        #expect(harness.model.currentChild?.name == "Poppy")
+
+        harness.model.continueAfterAcceptingSharedChild()
 
         #expect(harness.model.shareAcceptanceLoadingState == nil)
         #expect(harness.model.route == .childProfile)
-        #expect(harness.model.currentChild?.name == "Poppy")
     }
 
     @Test
@@ -1546,7 +1551,7 @@ struct AppModelTests {
         let harness = try Harness()
         defer { harness.cleanUp() }
 
-        harness.model.beginAcceptingSharedChild()
+        harness.model.beginAcceptingSharedChild(childName: "Poppy")
         harness.model.failAcceptingSharedChild(TestSyncEngineError.unimplemented)
 
         #expect(harness.model.shareAcceptanceLoadingState == nil)

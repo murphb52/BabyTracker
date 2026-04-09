@@ -123,14 +123,21 @@ public final class AppModel {
         shareSheetState = nil
     }
 
-    public func beginAcceptingSharedChild() {
+    public func beginAcceptingSharedChild(childName: String?) {
         errorMessage = nil
-        shareAcceptanceLoadingState = .acceptingSharedChild
+        shareAcceptanceLoadingState = .syncing(childName: childName)
     }
 
-    public func completeAcceptingSharedChild() {
+    public func completeAcceptingSharedChild(childName: String?) {
         load(performLaunchSync: false)
+        let resolvedChildName = currentChild?.name ?? childName
+        shareAcceptanceLoadingState = .completed(childName: resolvedChildName)
+    }
+
+    public func continueAfterAcceptingSharedChild() {
         shareAcceptanceLoadingState = nil
+        refresh(selecting: currentChild?.id ?? childSelectionStore.loadSelectedChildID())
+        resetNavigationStack()
     }
 
     public func failAcceptingSharedChild(_ error: Error) {
