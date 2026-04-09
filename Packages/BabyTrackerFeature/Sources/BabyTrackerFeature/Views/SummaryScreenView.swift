@@ -56,7 +56,7 @@ private enum TodayBottleChartFilter: String, TodayChartFilter {
 
     var label: String {
         switch self {
-        case .all: "All bottle feeds"
+        case .all: "All"
         case .formula: "Formula"
         case .breastMilk: "Breast milk"
         case .mixed: "Mixed milk"
@@ -148,7 +148,7 @@ private enum TrendsBottleChartFilter: String, TodayChartFilter {
 
     var label: String {
         switch self {
-        case .all: "All bottle feeds"
+        case .all: "All"
         case .formula: "Formula"
         case .breastMilk: "Breast milk"
         case .mixed: "Mixed milk"
@@ -268,7 +268,20 @@ public struct SummaryScreenView: View {
     private func bottleSectionCard(data: TodaySummaryData) -> some View {
         let preferredUnit = viewModel.preferredFeedVolumeUnit
 
-        return sectionCard(title: "Bottle", symbol: "drop.fill", tint: .blue) {
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 12) {
+                Label("Bottle", systemImage: "drop.fill")
+                    .font(.headline)
+                    .foregroundStyle(.blue)
+
+                Spacer(minLength: 0)
+
+                todayFilterPicker(
+                    title: "Bottle chart filter",
+                    selection: $selectedBottleFilter
+                )
+            }
+
             Text(FeedVolumePresentation.amountText(for: data.bottleTotalMilliliters, unit: preferredUnit))
                 .font(.title3.weight(.bold))
 
@@ -278,10 +291,6 @@ public struct SummaryScreenView: View {
 
             // Feed timing
             bottleFeedTimingRow(data: data)
-            todayFilterPicker(
-                title: "Bottle chart filter",
-                selection: $selectedBottleFilter
-            )
 
             CumulativeLineChartView(
                 series: selectedBottleFilter.series(from: data.chartData),
@@ -292,6 +301,9 @@ public struct SummaryScreenView: View {
             )
                 .padding(.top, 4)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(cardBackground)
     }
 
     private func bottleBreakdownRow(data: TodaySummaryData) -> some View {
