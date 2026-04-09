@@ -42,7 +42,24 @@ struct CumulativeLineChartView: View {
                 .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
             }
 
-            // Selection indicator — shown while the user is touching the chart
+            // "Now" indicator — hide its annotation while the user is selecting
+            // so the selection callout isn't competing for the same space.
+            RuleMark(x: .value("Now", currentHour))
+                .foregroundStyle(tint.opacity(0.25))
+                .lineStyle(StrokeStyle(lineWidth: 1))
+                .annotation(position: .top, alignment: .center, spacing: 4) {
+                    if selectedHour == nil {
+                        Text("Now")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundStyle(tint)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(tint.opacity(0.12), in: Capsule())
+                    }
+                }
+
+            // Selection indicator — rendered after "Now" so it draws on top.
             if let hour = selectedHour, hour >= 0, hour < 24 {
                 RuleMark(x: .value("Selected", hour))
                     .foregroundStyle(.secondary.opacity(0.35))
@@ -51,20 +68,6 @@ struct CumulativeLineChartView: View {
                         selectionCallout(for: hour)
                     }
             }
-
-            // "Now" indicator — vertical rule at the current hour with a callout
-            RuleMark(x: .value("Now", currentHour))
-                .foregroundStyle(tint.opacity(0.25))
-                .lineStyle(StrokeStyle(lineWidth: 1))
-                .annotation(position: .top, alignment: .center, spacing: 4) {
-                    Text("Now")
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .foregroundStyle(tint)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(tint.opacity(0.12), in: Capsule())
-                }
         }
         .chartXScale(domain: 0...23)
         .chartYScale(domain: 0...maxValue)
@@ -130,7 +133,8 @@ struct CumulativeLineChartView: View {
         .font(.caption2.weight(.medium))
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 6))
+        .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
     }
 }
 

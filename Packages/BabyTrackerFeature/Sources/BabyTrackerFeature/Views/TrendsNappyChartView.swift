@@ -75,7 +75,8 @@ struct TrendsNappyChartView: View {
         .font(.caption2.weight(.medium))
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 6))
+        .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
     }
 }
 
