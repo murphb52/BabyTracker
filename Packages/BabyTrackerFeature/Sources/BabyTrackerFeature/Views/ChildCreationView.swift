@@ -59,8 +59,9 @@ public struct ChildCreationView: View {
     private var creationForm: some View {
         Form {
             Section {
-                Text("Create a child profile. You can add a birth date now or leave it for later.")
-                    .foregroundStyle(.secondary)
+                createChildHeaderCard
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
             }
 
             Section {
@@ -79,6 +80,7 @@ public struct ChildCreationView: View {
                     .buttonStyle(.plain)
                     Spacer()
                 }
+                .padding(.vertical, 4)
                 .listRowBackground(Color.clear)
             }
 
@@ -104,10 +106,11 @@ public struct ChildCreationView: View {
                     )
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .accessibilityIdentifier("create-child-button")
             }
 
-            Section {
+            Section("Restore from Backup") {
                 if importInProgress {
                     HStack(spacing: 12) {
                         ProgressView()
@@ -129,6 +132,34 @@ public struct ChildCreationView: View {
                     .font(.caption)
             }
         }
+    }
+
+    private var createChildHeaderCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Create a new profile", systemImage: "person.crop.circle.badge.plus")
+                .font(.headline)
+                .foregroundStyle(.white)
+
+            Text("Set up your child’s profile so feeding, sleep, and nappy logs stay organized in one place.")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.95))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("You can add a birth date now or skip it and update later.")
+                .font(.footnote)
+                .foregroundStyle(.white.opacity(0.9))
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [Color.accentColor, Color.accentColor.opacity(0.75)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Import handling
@@ -231,13 +262,13 @@ public struct ChildCreationView: View {
             Image(uiImage: uiImage)
                 .resizable()
                 .scaledToFill()
-                .frame(width: 88, height: 88)
+                .frame(width: 96, height: 96)
                 .clipShape(Circle())
         } else {
             ZStack {
                 Circle()
                     .fill(Color.accentColor.opacity(0.15))
-                    .frame(width: 88, height: 88)
+                    .frame(width: 96, height: 96)
                 Image(systemName: "camera.fill")
                     .font(.title2)
                     .foregroundStyle(Color.accentColor)
