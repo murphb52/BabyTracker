@@ -67,6 +67,8 @@ public struct ChildCreationView: View {
 
                 createChildButton
 
+                actionSeparator
+
                 importCard
             }
             .padding(.horizontal, 16)
@@ -165,17 +167,31 @@ public struct ChildCreationView: View {
     }
 
     private var createChildButton: some View {
-        Button("Create Child Profile") {
+        Button {
             model.createChild(
                 name: childName,
                 birthDate: includesBirthDate ? birthDate : nil,
                 imageData: selectedImageData
             )
+        } label: {
+            Text("Create Child Profile")
+                .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
         .frame(maxWidth: .infinity)
         .accessibilityIdentifier("create-child-button")
+    }
+
+    private var actionSeparator: some View {
+        VStack(spacing: 10) {
+            Divider()
+
+            Text("OR")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+        }
     }
 
     private var importCard: some View {
