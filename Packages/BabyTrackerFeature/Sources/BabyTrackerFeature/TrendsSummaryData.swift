@@ -12,12 +12,26 @@ public struct DailyBottleData: Equatable, Sendable {
     public let date: Date
     public let label: String
     public let totalMilliliters: Int
+    public let formulaMilliliters: Int
+    public let breastMilkMilliliters: Int
+    public let mixedMilliliters: Int
     public let count: Int
 
-    public init(date: Date, label: String, totalMilliliters: Int, count: Int) {
+    public init(
+        date: Date,
+        label: String,
+        totalMilliliters: Int,
+        formulaMilliliters: Int,
+        breastMilkMilliliters: Int,
+        mixedMilliliters: Int,
+        count: Int
+    ) {
         self.date = date
         self.label = label
         self.totalMilliliters = totalMilliliters
+        self.formulaMilliliters = formulaMilliliters
+        self.breastMilkMilliliters = breastMilkMilliliters
+        self.mixedMilliliters = mixedMilliliters
         self.count = count
     }
 }
