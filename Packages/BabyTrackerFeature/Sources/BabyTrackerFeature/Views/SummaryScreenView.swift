@@ -77,6 +77,65 @@ private enum TodayBottleChartFilter: String, TodayChartFilter {
     }
 }
 
+private enum TrendsNappyChartFilter: String, TodayChartFilter {
+    case all
+    case wet
+    case dirty
+    case mixed
+    case dry
+    case wetIncludingMixed
+    case dirtyIncludingMixed
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .all: "All"
+        case .wet: "Wet"
+        case .dirty: "Dirty"
+        case .mixed: "Mixed"
+        case .dry: "Dry"
+        case .wetIncludingMixed: "Wet incl. mixed"
+        case .dirtyIncludingMixed: "Dirty incl. mixed"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .all, .dry: .green
+        case .wet, .wetIncludingMixed: .blue
+        case .dirty, .dirtyIncludingMixed: .brown
+        case .mixed: .yellow
+        }
+    }
+
+    func points(from data: [DailyNappyData]) -> [(String, Int)] {
+        data.map { day in
+            (day.label, count(for: day))
+        }
+    }
+
+    func averageText(from data: [DailyNappyData]) -> String? {
+        let values = data.map(count(for:))
+        let nonZeroValues = values.filter { $0 > 0 }
+        guard !nonZeroValues.isEmpty else { return nil }
+        let average = Int((Double(nonZeroValues.reduce(0, +)) / Double(nonZeroValues.count)).rounded())
+        return "Avg \(average)/day"
+    }
+
+    private func count(for day: DailyNappyData) -> Int {
+        switch self {
+        case .all: day.totalCount
+        case .wet: day.wetCount
+        case .dirty: day.dirtyCount
+        case .mixed: day.mixedCount
+        case .dry: day.dryCount
+        case .wetIncludingMixed: day.wetCount + day.mixedCount
+        case .dirtyIncludingMixed: day.dirtyCount + day.mixedCount
+        }
+    }
+}
+
 public struct SummaryScreenView: View {
     let viewModel: SummaryViewModel
 
@@ -84,6 +143,7 @@ public struct SummaryScreenView: View {
     @State private var selectedTrendsRange: TrendsTimeRange = .sevenDays
     @State private var selectedNappyFilter: TodayNappyChartFilter = .all
     @State private var selectedBottleFilter: TodayBottleChartFilter = .all
+    @State private var selectedTrendsNappyFilter: TrendsNappyChartFilter = .all
 
     public init(viewModel: SummaryViewModel) {
         self.viewModel = viewModel
@@ -453,15 +513,28 @@ public struct SummaryScreenView: View {
     }
 
     private func nappyChartCard(data: TrendsSummaryData) -> some View {
-        let avgText = data.avgDailyNappies.map { "Avg \($0)/day" }
+        let avgText = selectedTrendsNappyFilter.averageText(from: data.dailyNappy)
 
         return chartCard(
             title: "Nappies",
             symbol: "checklist.checked",
             tint: .green,
-            subtitle: avgText ?? "No nappy changes in this period"
+            subtitle: avgText ?? "No nappy changes in this period",
+            trailingControl: {
+                todayFilterPicker(
+                    title: "Trends nappy chart filter",
+                    selection: $selectedTrendsNappyFilter
+                )
+            }
         ) {
-            TrendsNappyChartView(data: data.dailyNappy)
+            if selectedTrendsNappyFilter == .all {
+                TrendsNappyChartView(data: data.dailyNappy)
+            } else {
+                TrendsBarChartView(
+                    points: selectedTrendsNappyFilter.points(from: data.dailyNappy),
+                    tint: selectedTrendsNappyFilter.tint
+                )
+            }
         }
     }
 
@@ -502,10 +575,34 @@ public struct SummaryScreenView: View {
         subtitle: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
+        chartCard(
+            title: title,
+            symbol: symbol,
+            tint: tint,
+            subtitle: subtitle,
+            trailingControl: { EmptyView() },
+            content: content
+        )
+    }
+
+    private func chartCard<Content: View, TrailingControl: View>(
+        title: String,
+        symbol: String,
+        tint: Color,
+        subtitle: String,
+        @ViewBuilder trailingControl: () -> TrailingControl,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(title, systemImage: symbol)
-                .font(.headline)
-                .foregroundStyle(tint)
+            HStack(alignment: .top, spacing: 12) {
+                Label(title, systemImage: symbol)
+                    .font(.headline)
+                    .foregroundStyle(tint)
+
+                Spacer(minLength: 0)
+
+                trailingControl()
+            }
 
             Text(subtitle)
                 .font(.caption)
