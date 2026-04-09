@@ -50,6 +50,7 @@ struct TrendsNappyChartView: View {
                 AxisValueLabel()
             }
         }
+        .chartYScale(domain: 0...maxYValue)
         .chartLegend(position: .bottom, alignment: .leading)
         .chartXSelection(value: $selectedLabel)
         .frame(height: isDense ? 120 : 140)
@@ -78,6 +79,10 @@ struct TrendsNappyChartView: View {
         .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 6))
         .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
     }
+
+    private var maxYValue: Int {
+        max(1, data.map(\.totalCount).max() ?? 1)
+    }
 }
 
 private struct NappySegment: Identifiable {
@@ -85,4 +90,27 @@ private struct NappySegment: Identifiable {
     let label: String
     let type: String
     let count: Int
+}
+
+#Preview("Standard") {
+    let today = Date()
+    TrendsNappyChartView(
+        data: [
+            DailyNappyData(date: today, label: "Mon", wetCount: 3, dirtyCount: 1, mixedCount: 1, dryCount: 0),
+            DailyNappyData(date: today, label: "Tue", wetCount: 2, dirtyCount: 2, mixedCount: 0, dryCount: 1),
+            DailyNappyData(date: today, label: "Wed", wetCount: 4, dirtyCount: 1, mixedCount: 2, dryCount: 0),
+        ]
+    )
+    .padding()
+}
+
+#Preview("Zero state") {
+    let today = Date()
+    TrendsNappyChartView(
+        data: [
+            DailyNappyData(date: today, label: "Mon", wetCount: 0, dirtyCount: 0, mixedCount: 0, dryCount: 0),
+            DailyNappyData(date: today, label: "Tue", wetCount: 0, dirtyCount: 0, mixedCount: 0, dryCount: 0),
+        ]
+    )
+    .padding()
 }

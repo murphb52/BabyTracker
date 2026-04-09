@@ -66,6 +66,7 @@ struct TrendsBarChartView: View {
                 }
             }
         }
+        .chartYScale(domain: 0...maxYValue)
         .chartLegend(.hidden)
         .chartXSelection(value: $selectedLabel)
         .frame(height: isDense ? 100 : 120)
@@ -74,10 +75,27 @@ struct TrendsBarChartView: View {
     private var chartPoints: [BarPoint] {
         points.map { BarPoint(id: $0.0, label: $0.0, value: $0.1) }
     }
+
+    private var maxYValue: Int {
+        max(1, points.map(\.1).max() ?? 1)
+    }
 }
 
 private struct BarPoint: Identifiable {
     let id: String
     let label: String
     let value: Int
+}
+
+#Preview("Standard") {
+    TrendsBarChartView(
+        points: [("Mon", 140), ("Tue", 90), ("Wed", 170), ("Thu", 120), ("Fri", 80)],
+        tint: .blue
+    )
+    .padding()
+}
+
+#Preview("Zero state") {
+    TrendsBarChartView(points: [("Mon", 0), ("Tue", 0), ("Wed", 0)], tint: .pink)
+        .padding()
 }
