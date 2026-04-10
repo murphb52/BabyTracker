@@ -91,6 +91,7 @@ struct UpdateFeedLiveActivityUseCaseTests {
 @MainActor
 private final class LiveActivityManagerSpy: FeedLiveActivityManaging {
     private(set) var snapshots: [FeedLiveActivitySnapshot?] = []
+    private(set) var forceSyncSnapshots: [FeedLiveActivitySnapshot?] = []
 
     var latestSnapshot: FeedLiveActivitySnapshot? {
         snapshots.last ?? nil
@@ -98,5 +99,9 @@ private final class LiveActivityManagerSpy: FeedLiveActivityManaging {
 
     func synchronize(with snapshot: FeedLiveActivitySnapshot?) {
         snapshots.append(snapshot)
+    }
+
+    func forceSync(with snapshot: FeedLiveActivitySnapshot?) {
+        forceSyncSnapshots.append(snapshot)
     }
 }
