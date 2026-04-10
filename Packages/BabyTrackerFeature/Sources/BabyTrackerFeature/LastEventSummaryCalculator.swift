@@ -5,9 +5,7 @@ public enum LastEventSummaryCalculator {
     public static func makeSummary(
         from events: [BabyEvent]
     ) -> LastEventSummaryViewState? {
-        guard let lastEvent = events.max(by: { left, right in
-            left.metadata.occurredAt < right.metadata.occurredAt
-        }) else {
+        guard let lastEvent = FindLatestEventUseCases.latestEvent(from: events) else {
             return nil
         }
 
