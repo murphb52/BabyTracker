@@ -1,0 +1,13 @@
+{
+  "Simulator Target Bundle": "com.adappt.BabyTracker",
+  "aps": {
+    "alert": {
+      "title": "Baby Tracker",
+      "subtitle": "Evening Check-in",
+      "body": "Brian added a new sleep and updated Robin's timeline."
+    },
+    "sound": "default",
+    "badge": 1,
+    "thread-id": "caregiver-updates"
+  }
+}

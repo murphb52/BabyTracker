@@ -1,0 +1,13 @@
+{
+  "Simulator Target Bundle": "com.adappt.BabyTracker",
+  "aps": {
+    "alert": {
+      "title": "Baby Tracker",
+      "subtitle": "Shared Updates",
+      "body": "Brian made 3 updates."
+    },
+    "sound": "default",
+    "badge": 3,
+    "thread-id": "caregiver-updates"
+  }
+}

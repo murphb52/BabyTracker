@@ -1,0 +1,11 @@
+{
+  "Simulator Target Bundle": "com.adappt.BabyTracker",
+  "aps": {
+    "alert": {
+      "title": "Baby Tracker",
+      "body": "Brian started a sleep timer."
+    },
+    "sound": "default",
+    "badge": 1
+  }
+}
