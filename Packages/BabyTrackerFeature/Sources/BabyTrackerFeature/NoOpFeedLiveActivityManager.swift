@@ -7,4 +7,8 @@ public final class NoOpFeedLiveActivityManager: FeedLiveActivityManaging {
     public func synchronize(with snapshot: FeedLiveActivitySnapshot?) {
         _ = snapshot
     }
+
+    public func forceSync(with snapshot: FeedLiveActivitySnapshot?) {
+        _ = snapshot
+    }
 }
