@@ -887,7 +887,7 @@ public final class AppModel {
         let shouldRequestReview = HandleLoggedEventForAppReviewUseCase(
             stateStore: appReviewPromptStateStore
         )
-        .execute(.init(minimumLoggedEventsBeforePrompt: 20))
+        .execute(.init(minimumLoggedEventsBeforePrompt: 5))
 
         guard shouldRequestReview else {
             return
