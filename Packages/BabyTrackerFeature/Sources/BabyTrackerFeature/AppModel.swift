@@ -110,7 +110,7 @@ public final class AppModel {
     }
 
     public func load(performLaunchSync: Bool = true) {
-        refresh(selecting: nil, forceRecreate: true)
+        refresh(selecting: nil)
 
         guard performLaunchSync else {
             return
@@ -198,7 +198,7 @@ public final class AppModel {
     public func refreshAfterRemoteNotification() async -> SyncStatusSummary {
         let summary = await syncEngine.refreshAfterRemoteNotification()
         await scheduleRemoteSyncNotificationIfNeeded()
-        refresh(selecting: childSelectionStore.loadSelectedChildID(), forceRecreate: true)
+        refresh(selecting: childSelectionStore.loadSelectedChildID())
         return summary
     }
 
@@ -896,7 +896,7 @@ public final class AppModel {
         appReviewRequester.requestReview()
     }
 
-    private func refresh(selecting selectedChildID: UUID?, forceRecreate: Bool = false) {
+    private func refresh(selecting selectedChildID: UUID?) {
         do {
             localUser = try userIdentityRepository.loadLocalUser()
 
@@ -1004,8 +1004,7 @@ public final class AppModel {
                 child: currentSummary.child,
                 activeSleep: currentActiveSleep,
                 isLiveActivityEnabled: isLiveActivityEnabled,
-                liveActivityManager: liveActivityManager,
-                forceRecreate: forceRecreate
+                liveActivityManager: liveActivityManager
             )
         } catch {
             AppLogger.shared.log(.error, category: "AppModel", "refresh failed: \(error)")
@@ -1787,7 +1786,7 @@ public final class AppModel {
     ) async {
         setSyncIndicator(.syncing)
         let summary = await operation()
-        refresh(selecting: childSelectionStore.loadSelectedChildID(), forceRecreate: true)
+        refresh(selecting: childSelectionStore.loadSelectedChildID())
         updateSyncIndicator(using: summary)
     }
 

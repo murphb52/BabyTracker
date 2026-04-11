@@ -8,8 +8,7 @@ public enum UpdateFeedLiveActivityUseCase {
         child: Child?,
         activeSleep: SleepEvent?,
         isLiveActivityEnabled: Bool,
-        liveActivityManager: any FeedLiveActivityManaging,
-        forceRecreate: Bool = false
+        liveActivityManager: any FeedLiveActivityManaging
     ) {
         guard isLiveActivityEnabled, let child else {
             liveActivityManager.synchronize(with: nil)
@@ -21,10 +20,6 @@ public enum UpdateFeedLiveActivityUseCase {
             child: child,
             activeSleep: activeSleep
         )
-        if forceRecreate {
-            liveActivityManager.forceSync(with: snapshot)
-        } else {
-            liveActivityManager.synchronize(with: snapshot)
-        }
+        liveActivityManager.synchronize(with: snapshot)
     }
 }

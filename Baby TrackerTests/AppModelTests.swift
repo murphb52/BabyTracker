@@ -1879,7 +1879,6 @@ extension AppModelTests {
     @MainActor
     private final class LiveActivityManagerSpy: FeedLiveActivityManaging {
         private(set) var snapshots: [FeedLiveActivitySnapshot?] = []
-        private(set) var forceSyncSnapshots: [FeedLiveActivitySnapshot?] = []
         private var _currentSnapshot: FeedLiveActivitySnapshot?
 
         var latestSnapshot: FeedLiveActivitySnapshot? {
@@ -1888,11 +1887,6 @@ extension AppModelTests {
 
         func synchronize(with snapshot: FeedLiveActivitySnapshot?) {
             snapshots.append(snapshot)
-            _currentSnapshot = snapshot
-        }
-
-        func forceSync(with snapshot: FeedLiveActivitySnapshot?) {
-            forceSyncSnapshots.append(snapshot)
             _currentSnapshot = snapshot
         }
     }
