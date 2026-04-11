@@ -27,7 +27,7 @@ public struct BuildRemoteCaregiverNotificationUseCase: Sendable {
 
         if input.changes.count == 1, let change = input.changes.first {
             return .init(
-                title: "Baby Tracker",
+                title: "Nest",
                 body: message(for: change)
             )
         }
@@ -37,18 +37,18 @@ public struct BuildRemoteCaregiverNotificationUseCase: Sendable {
             let allDeleted = input.changes.allSatisfy(\.isDeleted)
             if allDeleted {
                 return .init(
-                    title: "Baby Tracker",
+                    title: "Nest",
                     body: "\(caregiver) deleted \(input.changes.count) events."
                 )
             }
             return .init(
-                title: "Baby Tracker",
+                title: "Nest",
                 body: "\(caregiver) made \(input.changes.count) updates."
             )
         }
 
         return .init(
-            title: "Baby Tracker",
+            title: "Nest",
             body: "Caregivers made \(input.changes.count) updates."
         )
     }

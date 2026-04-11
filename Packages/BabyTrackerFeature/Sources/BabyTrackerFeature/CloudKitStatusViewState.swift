@@ -63,7 +63,7 @@ public struct CloudKitStatusViewState: Equatable, Sendable {
             return nil
         }
 
-        return "Baby Tracker is still saving data on this device. Sign in to iCloud in Settings to resume backups and sharing."
+        return "Nest is still saving data on this device. Sign in to iCloud in Settings to resume backups and sharing."
     }
 
     private static func detailMessage(for summary: SyncStatusSummary) -> String? {

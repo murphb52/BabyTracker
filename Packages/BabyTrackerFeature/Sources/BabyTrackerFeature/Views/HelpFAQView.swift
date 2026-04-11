@@ -11,7 +11,7 @@ public struct HelpFAQView: View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Baby Tracker explains what was logged and how the app calculates its summaries. It does not provide medical advice or diagnosis.")
+                    Text("Nest explains what was logged and how the app calculates its summaries. It does not provide medical advice or diagnosis.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }

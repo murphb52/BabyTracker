@@ -15,7 +15,7 @@ public struct JoinChildShareInstructionsView: View {
                         .padding(.horizontal, 4)
 
                     stepRow(number: 1,
-                            title: "Open Baby Tracker",
+                            title: "Open Nest",
                             detail: "Ask your partner to open the app on their device.")
 
                     stepRow(number: 2,

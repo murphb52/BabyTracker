@@ -33,7 +33,7 @@ struct AppRootView: View {
                             .toolbar(.hidden, for: .navigationBar)
                     case .childPicker:
                         ChildPickerView(model: model)
-                            .navigationTitle("Baby Tracker")
+                            .navigationTitle("Nest")
                     case .childProfile:
                         ChildWorkspaceTabView(model: model)
                     }

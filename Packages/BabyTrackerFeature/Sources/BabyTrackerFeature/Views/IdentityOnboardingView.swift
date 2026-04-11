@@ -171,7 +171,7 @@ public struct IdentityOnboardingView: View {
 
     private var topBar: some View {
         HStack {
-            Text("Baby Tracker")
+            Text("Nest")
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
