@@ -15,26 +15,6 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         }
     }
 
-    func forceSync(with snapshot: FeedLiveActivitySnapshot?) {
-        synchronizationTask?.cancel()
-        synchronizationTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            await Self.endAllActivities()
-            self.activeActivityID = nil
-            guard let snapshot else { return }
-            do {
-                let activity = try Activity.request(
-                    attributes: FeedLiveActivityAttributes(childID: snapshot.childID),
-                    content: self.content(for: snapshot),
-                    pushType: nil
-                )
-                self.activeActivityID = activity.id
-            } catch {
-                self.activeActivityID = nil
-            }
-        }
-    }
-
     private func reconcile(_ snapshot: FeedLiveActivitySnapshot?) async {
         let activities = Activity<FeedLiveActivityAttributes>.activities
 
@@ -61,12 +41,16 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
                 content: content(for: snapshot)
             )
 
+            guard !Task.isCancelled else { return }
+
             if didUpdate {
                 return
             }
 
             self.activeActivityID = nil
         }
+
+        guard !Task.isCancelled else { return }
 
         do {
             let activity = try Activity.request(
