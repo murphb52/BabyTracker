@@ -11,11 +11,13 @@ public struct QuickTimeSelectorView: View {
         GridItem(.flexible(), spacing: 8),
         GridItem(.flexible(), spacing: 8),
     ]
+    private let buttonColor: Color
 
-    public init(selection: Binding<Date>, initialPreset: TimePreset = .now) {
+    public init(selection: Binding<Date>, initialPreset: TimePreset = .now, buttonColor: Color = .accentColor) {
         _selection = selection
         _selectedPreset = State(initialValue: initialPreset)
         _showCustomPicker = State(initialValue: initialPreset == .custom)
+        self.buttonColor = buttonColor
     }
 
     public var body: some View {
@@ -37,7 +39,7 @@ public struct QuickTimeSelectorView: View {
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(selectedPreset == preset ? Color.accentColor : Color(.tertiarySystemGroupedBackground))
+                                    .fill(selectedPreset == preset ? buttonColor : Color(.tertiarySystemGroupedBackground))
                             )
                             .foregroundStyle(selectedPreset == preset ? Color.white : Color.primary)
                     }
