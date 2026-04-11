@@ -20,6 +20,7 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         synchronizationTask = Task { @MainActor [weak self] in
             guard let self else { return }
             await Self.endAllActivities()
+            guard !Task.isCancelled else { return }
             self.activeActivityID = nil
             guard let snapshot else { return }
             do {
@@ -61,12 +62,16 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
                 content: content(for: snapshot)
             )
 
+            guard !Task.isCancelled else { return }
+
             if didUpdate {
                 return
             }
 
             self.activeActivityID = nil
         }
+
+        guard !Task.isCancelled else { return }
 
         do {
             let activity = try Activity.request(
