@@ -15,13 +15,13 @@ struct FeedLiveActivityContentView: View {
     }
 
     var body: some View {
-        VStack(alignment: .center, spacing: 4) {
+        VStack(alignment: .center, spacing: 12) {
             Text(state.childName)
                 .font(.headline)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
 
-            HStack(alignment: .center, spacing: 4) {
+            HStack(alignment: .center, spacing: 8) {
                 metricTile(
                     title: "Feed",
                     icon: symbolName(for: state.lastFeedKind),
@@ -68,7 +68,7 @@ struct FeedLiveActivityContentView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 4)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
@@ -86,7 +86,7 @@ struct FeedLiveActivityContentView: View {
         color: Color,
         @ViewBuilder value: () -> some View
     ) -> some View {
-        VStack(alignment: .center, spacing: 3) {
+        VStack(alignment: .center, spacing: 6) {
             HStack(alignment: .center, spacing: 4) {
                 Image(systemName: icon)
                     .frame(width: 14)
