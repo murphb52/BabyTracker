@@ -201,7 +201,7 @@ public struct BreastFeedEditorSheetView: View {
     private var manualModeContent: some View {
         Group {
             Section("When was the feed?") {
-                QuickTimeSelectorView(selection: $endTime, initialPreset: initialTimePreset)
+                QuickTimeSelectorView(selection: $endTime, initialPreset: initialTimePreset, buttonColor: Self.eventColor)
                     .accessibilityIdentifier("breast-feed-time-selector")
             }
 

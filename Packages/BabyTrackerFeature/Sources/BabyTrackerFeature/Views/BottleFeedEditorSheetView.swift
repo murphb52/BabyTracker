@@ -59,7 +59,7 @@ public struct BottleFeedEditorSheetView: View {
                 LoggingSummaryView(sentence: summarySentence)
 
                 Section("When was the feed?") {
-                    QuickTimeSelectorView(selection: $occurredAt, initialPreset: initialTimePreset)
+                    QuickTimeSelectorView(selection: $occurredAt, initialPreset: initialTimePreset, buttonColor: Self.eventColor)
                         .accessibilityIdentifier("bottle-feed-time-selector")
                 }
 

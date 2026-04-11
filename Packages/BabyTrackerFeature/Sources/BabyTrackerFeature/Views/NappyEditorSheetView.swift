@@ -47,7 +47,7 @@ public struct NappyEditorSheetView: View {
                 LoggingSummaryView(sentence: summarySentence)
 
                 Section("When was the Nappy?") {
-                    QuickTimeSelectorView(selection: $occurredAt, initialPreset: initialTimePreset)
+                    QuickTimeSelectorView(selection: $occurredAt, initialPreset: initialTimePreset, buttonColor: Self.eventColor)
                         .accessibilityIdentifier("nappy-time-selector")
                 }
 

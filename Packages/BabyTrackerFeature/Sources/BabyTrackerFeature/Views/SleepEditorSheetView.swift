@@ -115,7 +115,7 @@ public struct SleepEditorSheetView: View {
                 if !startSuggestions.isEmpty {
                     suggestionButtons
                 }
-                QuickTimeSelectorView(selection: $startedAt)
+                QuickTimeSelectorView(selection: $startedAt, buttonColor: Self.eventColor)
                     .accessibilityIdentifier("sleep-start-time-selector")
             }
 
@@ -129,7 +129,7 @@ public struct SleepEditorSheetView: View {
                     durationSeparatorRow
                 }
                 Section("When did sleep end?") {
-                    QuickTimeSelectorView(selection: $endedAt, initialPreset: endTimeInitialPreset)
+                    QuickTimeSelectorView(selection: $endedAt, initialPreset: endTimeInitialPreset, buttonColor: Self.eventColor)
                         .accessibilityIdentifier("sleep-end-time-selector")
                 }
             }
@@ -155,7 +155,7 @@ public struct SleepEditorSheetView: View {
             }
 
             Section("When did sleep end?") {
-                QuickTimeSelectorView(selection: $endedAt, initialPreset: endTimeInitialPreset)
+                QuickTimeSelectorView(selection: $endedAt, initialPreset: endTimeInitialPreset, buttonColor: Self.eventColor)
                     .accessibilityIdentifier("sleep-end-time-selector")
             }
         }
@@ -180,7 +180,7 @@ public struct SleepEditorSheetView: View {
             }
 
             Section("When did sleep end?") {
-                QuickTimeSelectorView(selection: $endedAt, initialPreset: endTimeInitialPreset)
+                QuickTimeSelectorView(selection: $endedAt, initialPreset: endTimeInitialPreset, buttonColor: Self.eventColor)
                     .accessibilityIdentifier("sleep-end-time-selector")
             }
         }
