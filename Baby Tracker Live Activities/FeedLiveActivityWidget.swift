@@ -7,7 +7,7 @@ import WidgetKit
 struct FeedLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: FeedLiveActivityAttributes.self) { context in
-            FeedLiveActivityContentView(state: context.state, showsStopSleepAction: false)
+            FeedLiveActivityContentView(state: context.state)
                 .activityBackgroundTint(Color(red: 0.12, green: 0.15, blue: 0.24))
                 .activitySystemActionForegroundColor(.white)
                 .widgetURL(FeedLiveActivityDeepLink.endSleepURL(childID: context.state.childID))
@@ -18,18 +18,6 @@ struct FeedLiveActivityWidget: Widget {
                         state: context.state,
                         showsStopSleepAction: false
                     )
-                }
-
-                DynamicIslandExpandedRegion(.bottom) {
-                    if let stopSleepURL = FeedLiveActivityDeepLink.endSleepURL(childID: context.state.childID),
-                       context.state.activeSleepStartedAt != nil {
-                        Link(destination: stopSleepURL) {
-                            Label("Stop Sleep", systemImage: "stop.fill")
-                                .font(.caption.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
                 }
             } compactLeading: {
                 compactLeadingView(for: context.state)
