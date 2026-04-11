@@ -7,7 +7,7 @@ import WidgetKit
 struct FeedLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: FeedLiveActivityAttributes.self) { context in
-            FeedLiveActivityContentView(state: context.state)
+            FeedLiveActivityContentView(state: context.state, showsStopSleepAction: false)
                 .activityBackgroundTint(Color(red: 0.12, green: 0.15, blue: 0.24))
                 .activitySystemActionForegroundColor(.white)
                 .widgetURL(FeedLiveActivityDeepLink.endSleepURL(childID: context.state.childID))
