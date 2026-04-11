@@ -343,6 +343,150 @@ struct TodaySummaryCalculatorTests {
         #expect(data.averageSleepBlockMinutes == 60)
     }
 
+    // MARK: - Active sleep tests
+
+    @Test
+    func activeSleepIsIncludedInTotalSleepMinutes() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let childID = UUID()
+        let userID = UUID()
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 10)))
+        // Baby fell asleep at 8am and is still sleeping (active session)
+        let sleepStart = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 8)))
+
+        let events: [BabyEvent] = [
+            .sleep(try SleepEvent(
+                metadata: EventMetadata(childID: childID, occurredAt: sleepStart, createdAt: sleepStart, createdBy: userID),
+                startedAt: sleepStart,
+                endedAt: nil
+            )),
+        ]
+
+        let data = TodaySummaryCalculator.makeData(from: events, now: now, calendar: calendar)
+
+        // 2 hours of active sleep should count
+        #expect(data.totalSleepMinutes == 120)
+        // While sleeping, minutesSinceLastSleep should be nil
+        #expect(data.minutesSinceLastSleep == nil)
+    }
+
+    @Test
+    func activeSleepThatStartedYesterdayIsIncludedInMetrics() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let childID = UUID()
+        let userID = UUID()
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 2)))
+        // Baby fell asleep at 10pm yesterday and is still sleeping
+        let sleepStart = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 6, hour: 22)))
+
+        let events: [BabyEvent] = [
+            .sleep(try SleepEvent(
+                metadata: EventMetadata(childID: childID, occurredAt: sleepStart, createdAt: sleepStart, createdBy: userID),
+                startedAt: sleepStart,
+                endedAt: nil
+            )),
+        ]
+
+        let data = TodaySummaryCalculator.makeData(from: events, now: now, calendar: calendar)
+
+        // 4 hours total (10pm→2am) should be in the total
+        #expect(data.totalSleepMinutes == 240)
+        #expect(data.minutesSinceLastSleep == nil)
+    }
+
+    @Test
+    func sleepChartDistributesMinutesAcrossHours() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let childID = UUID()
+        let userID = UUID()
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 15)))
+        // 90-minute nap: 9:00am–10:30am
+        let sleepStart = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 9)))
+        let sleepEnd = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 10, minute: 30)))
+
+        let events: [BabyEvent] = [
+            .sleep(try SleepEvent(
+                metadata: EventMetadata(childID: childID, occurredAt: sleepEnd, createdAt: sleepEnd, createdBy: userID),
+                startedAt: sleepStart,
+                endedAt: sleepEnd
+            )),
+        ]
+
+        let data = TodaySummaryCalculator.makeData(from: events, now: now, calendar: calendar)
+        let today = data.chartData.sleep.todayCumulative
+
+        // Hour 9 gets 60 minutes (9:00–10:00), hour 10 gets 30 minutes (10:00–10:30)
+        // Cumulative: hour 9 = 60, hour 10 = 90, hour 11+ = 90
+        #expect(today[8] == 0)
+        #expect(today[9] == 60)
+        #expect(today[10] == 90)
+        #expect(today[14] == 90)
+    }
+
+    @Test
+    func activeSleepIsIncludedInSleepChart() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let childID = UUID()
+        let userID = UUID()
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 10, minute: 30)))
+        // Baby fell asleep at 9am and is still sleeping
+        let sleepStart = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 9)))
+
+        let events: [BabyEvent] = [
+            .sleep(try SleepEvent(
+                metadata: EventMetadata(childID: childID, occurredAt: sleepStart, createdAt: sleepStart, createdBy: userID),
+                startedAt: sleepStart,
+                endedAt: nil
+            )),
+        ]
+
+        let data = TodaySummaryCalculator.makeData(from: events, now: now, calendar: calendar)
+        let today = data.chartData.sleep.todayCumulative
+
+        // Hour 9: 60 min (9:00–10:00), hour 10: 30 min (10:00–10:30)
+        // Cumulative: hour 9 = 60, hour 10 = 90
+        #expect(today[9] == 60)
+        #expect(today[10] == 90)
+    }
+
+    @Test
+    func overnightActiveSleepAppearsInTodayChart() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let childID = UUID()
+        let userID = UUID()
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 2)))
+        // Baby fell asleep at 11pm yesterday
+        let sleepStart = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 6, hour: 23)))
+
+        let events: [BabyEvent] = [
+            .sleep(try SleepEvent(
+                metadata: EventMetadata(childID: childID, occurredAt: sleepStart, createdAt: sleepStart, createdBy: userID),
+                startedAt: sleepStart,
+                endedAt: nil
+            )),
+        ]
+
+        let data = TodaySummaryCalculator.makeData(from: events, now: now, calendar: calendar)
+        let today = data.chartData.sleep.todayCumulative
+
+        // Today's chart: midnight to 2am = 2 hours = 120 minutes
+        // Hour 0 (midnight–1am): 60 min, hour 1 (1am–2am): 60 min
+        #expect(today[0] == 60)
+        #expect(today[1] == 120)
+        // Hour 2 onwards: still 120 (nothing beyond now)
+        #expect(today[2] == 120)
+    }
+
     // MARK: - Existing tests
 
     @Test
