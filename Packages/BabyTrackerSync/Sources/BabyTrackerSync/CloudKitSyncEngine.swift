@@ -1164,18 +1164,8 @@ public final class CloudKitSyncEngine {
 
         try userIdentityRepository.saveUser(localUser)
         try membershipRepository.saveCloudKitMembership(membership)
-        logger.info("[4/5] ensureMembership — saved local membership id=\(membership.id, privacy: .public), marking upToDate immediately (received from CloudKit, not a local write)")
-        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] ensureMembership — saved local membership id=\(membership.id), marking upToDate immediately")
-        try syncStateRepository.updateSyncState(
-            for: SyncRecordReference(
-                recordType: .membership,
-                recordID: membership.id,
-                childID: membership.childID
-            ),
-            state: .upToDate,
-            lastSyncedAt: .now,
-            lastSyncErrorCode: nil
-        )
+        logger.info("[4/5] ensureMembership — saved local membership id=\(membership.id, privacy: .public) as pendingSync so it is uploaded to CloudKit")
+        AppLogger.shared.log(.info, category: "CloudKitSync", "[4/5] ensureMembership — saved local membership id=\(membership.id) as pendingSync")
         let context = CloudKitChildContext(
             childID: childID,
             zoneID: zoneID,
