@@ -37,7 +37,7 @@ public struct TimelineScreenView: View {
             if let syncMessage = viewModel.syncMessage {
                 syncBanner(message: syncMessage)
                     .padding(.horizontal, 12)
-                    .padding(.top, 8)
+                    .padding(.vertical, 8)
             }
 
             if viewModel.displayMode == .day {

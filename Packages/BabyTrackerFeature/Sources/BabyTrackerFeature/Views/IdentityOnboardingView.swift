@@ -137,20 +137,6 @@ public struct IdentityOnboardingView: View {
                     .padding(.bottom, 24)
             }
             .allowsHitTesting(isExiting == false)
-
-            if isShowingNotificationPermissionPrompt {
-                Color.black.opacity(0.22)
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-
-                OnboardingNotificationPromptView(
-                    enableAction: requestNotificationAuthorization,
-                    skipAction: dismissNotificationPromptAndContinue
-                )
-                .padding(.horizontal, 24)
-                .transition(.scale(scale: 0.96).combined(with: .opacity))
-                .zIndex(1)
-            }
         }
         .task {
             await refreshNotificationAuthorizationStatus()
@@ -166,7 +152,12 @@ public struct IdentityOnboardingView: View {
             }
         }
         .opacity(viewOpacity)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isShowingNotificationPermissionPrompt)
+        .alert("Enable Notifications?", isPresented: $isShowingNotificationPermissionPrompt) {
+            Button("Enable Notifications", action: requestNotificationAuthorization)
+            Button("Not Now", role: .cancel, action: dismissNotificationPromptAndContinue)
+        } message: {
+            Text("Get a heads-up when another caregiver logs an event so you stay in the loop.")
+        }
     }
 
     private var topBar: some View {
