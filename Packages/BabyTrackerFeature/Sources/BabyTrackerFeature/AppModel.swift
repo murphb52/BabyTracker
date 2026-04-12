@@ -2083,3 +2083,48 @@ public final class AppModel {
         hapticFeedbackProvider.play(event)
     }
 }
+
+// MARK: - In-memory demo factory
+
+public extension AppModel {
+    /// Creates a throw-away, fully in-memory model for previewing the interactive
+    /// onboarding without touching the user's real stored data.
+    @MainActor
+    static func makeInMemoryDemoModel() -> AppModel {
+        let suiteName = "InMemoryDemoModel-\(UUID().uuidString)"
+        let userDefaults = UserDefaults(suiteName: suiteName) ?? .standard
+        let store = try! BabyTrackerModelStore(isStoredInMemoryOnly: true)
+        let childRepository = SwiftDataChildRepository(store: store)
+        let userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
+        let membershipRepository = SwiftDataMembershipRepository(store: store)
+        let childSelectionStore = UserDefaultsChildSelectionStore(userDefaults: userDefaults)
+        let eventRepository = SwiftDataEventRepository(store: store)
+        let syncStateRepository = SwiftDataSyncStateRepository(store: store)
+        let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
+        let syncEngine = CloudKitSyncEngine(
+            childRepository: childRepository,
+            userIdentityRepository: userIdentityRepository,
+            membershipRepository: membershipRepository,
+            eventRepository: eventRepository,
+            syncStateRepository: syncStateRepository,
+            recordMetadataRepository: recordMetadataRepository,
+            client: UnavailableCloudKitClient()
+        )
+        let model = AppModel(
+            childRepository: childRepository,
+            userIdentityRepository: userIdentityRepository,
+            membershipRepository: membershipRepository,
+            childSelectionStore: childSelectionStore,
+            eventRepository: eventRepository,
+            syncEngine: syncEngine,
+            liveActivityManager: NoOpFeedLiveActivityManager(),
+            liveActivityPreferenceStore: InMemoryLiveActivityPreferenceStore(),
+            localNotificationManager: NoOpLocalNotificationManager(),
+            hapticFeedbackProvider: NoOpHapticFeedbackProvider()
+        )
+        // load() triggers refresh() which finds no local user and sets
+        // isInteractiveOnboardingActive = true, starting the onboarding flow.
+        model.load(performLaunchSync: false)
+        return model
+    }
+}
