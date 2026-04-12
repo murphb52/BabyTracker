@@ -43,6 +43,15 @@ struct AppRootView: View {
         // Reset the stack when the app moves between top-level flows so stale
         // detail screens do not remain visible above a new root route.
         .id("\(String(describing: model.route))-\(model.navigationResetToken)")
+        // The interactive onboarding is presented as a full-screen cover so it
+        // persists across the route changes that occur when the user creates
+        // their profile and first child during setup.
+        .fullScreenCover(isPresented: Binding(
+            get: { model.isInteractiveOnboardingActive },
+            set: { model.isInteractiveOnboardingActive = $0 }
+        )) {
+            InteractiveOnboardingView(model: model)
+        }
         .overlay(alignment: .top) {
             ZStack(alignment: .topTrailing) {
                 if let errorMessage = model.errorMessage {
