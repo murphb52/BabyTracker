@@ -53,27 +53,46 @@ public enum TodaySummaryCalculator {
             max(0, Int(now.timeIntervalSince($0) / 60))
         }
 
-        // Sleep
+        // Sleep - find active (in-progress) session from all events; it may have started before today
+        let activeSleep = allEvents.compactMap { event -> SleepEvent? in
+            guard case let .sleep(sleep) = event, sleep.endedAt == nil else { return nil }
+            return sleep
+        }.sorted { $0.startedAt > $1.startedAt }.first
+
         let completedSleeps = todayEvents.compactMap { event -> SleepEvent? in
             guard case let .sleep(sleep) = event, sleep.endedAt != nil else { return nil }
             return sleep
         }
-        let sleepDurations = completedSleeps.compactMap { sleepDurationMinutes(for: $0) }
-        let totalSleepMinutes = sleepDurations.reduce(0, +)
-        let longestSleepBlock = sleepDurations.max()
-        let shortestSleepBlock = sleepDurations.min()
-        let averageSleepBlock = average(of: sleepDurations)
 
-        // Time since last sleep
-        let lastSleepEndDate = completedSleeps.compactMap(\.endedAt).max()
-        let minutesSinceLastSleep = lastSleepEndDate.map {
-            max(0, Int(now.timeIntervalSince($0) / 60))
+        let completedDurations = completedSleeps.compactMap { sleepDurationMinutes(for: $0) }
+        let activeDuration = activeSleep.map { max(1, Int(now.timeIntervalSince($0.startedAt) / 60)) }
+        let allSleepDurations = completedDurations + (activeDuration.map { [$0] } ?? [])
+
+        let totalSleepMinutes = allSleepDurations.reduce(0, +)
+        let longestSleepBlock = allSleepDurations.max()
+        let shortestSleepBlock = allSleepDurations.min()
+        let averageSleepBlock = average(of: allSleepDurations)
+
+        // Time since last sleep - nil while actively sleeping
+        let minutesSinceLastSleep: Int?
+        if activeSleep != nil {
+            minutesSinceLastSleep = nil
+        } else {
+            let lastSleepEndDate = completedSleeps.compactMap(\.endedAt).max()
+            minutesSinceLastSleep = lastSleepEndDate.map {
+                max(0, Int(now.timeIntervalSince($0) / 60))
+            }
         }
 
         var daytimeSleepMinutes = 0
         var nighttimeSleepMinutes = 0
         for sleep in completedSleeps {
             let (daytime, nighttime) = splitSleepDuration(sleep, calendar: calendar)
+            daytimeSleepMinutes += daytime
+            nighttimeSleepMinutes += nighttime
+        }
+        if let active = activeSleep {
+            let (daytime, nighttime) = splitSleepDuration(active, effectiveEnd: now, calendar: calendar)
             daytimeSleepMinutes += daytime
             nighttimeSleepMinutes += nighttime
         }
@@ -196,8 +215,12 @@ public enum TodaySummaryCalculator {
                 historicalAmounts: historicalDays.map { breastHourlyAmounts(events: $0, calendar: calendar) }
             ),
             sleep: buildCumulativeSeries(
-                todayAmounts: sleepHourlyAmounts(events: todayEvents, calendar: calendar),
-                historicalAmounts: historicalDays.map { sleepHourlyAmounts(events: $0, calendar: calendar) }
+                todayAmounts: sleepHourlyAmounts(allEvents: allEvents, day: today, now: now, calendar: calendar),
+                historicalAmounts: (1...7).compactMap { offset -> [Int]? in
+                    guard let day = calendar.date(byAdding: .day, value: -offset, to: today),
+                          let dayEnd = calendar.date(byAdding: .day, value: 1, to: day) else { return nil }
+                    return sleepHourlyAmounts(allEvents: allEvents, day: day, now: dayEnd, calendar: calendar)
+                }
             ),
             nappy: buildCumulativeSeries(
                 todayAmounts: nappyHourlyAmounts(events: todayEvents, calendar: calendar),
@@ -314,15 +337,41 @@ public enum TodaySummaryCalculator {
         return amounts
     }
 
-    /// Returns a 24-element array where index h = minutes of completed sleep attributed to hour h (by endedAt).
-    private static func sleepHourlyAmounts(events: [BabyEvent], calendar: Calendar) -> [Int] {
+    /// Returns a 24-element array where index h = minutes of sleep overlapping hour h on `day`.
+    /// Minutes are distributed across each hour the sleep actually occupied, rather than
+    /// being attributed to the endedAt hour. Active sleep (endedAt == nil) is counted up to `now`.
+    /// Sleep that started before `day` (e.g. an overnight session) is also included.
+    private static func sleepHourlyAmounts(
+        allEvents: [BabyEvent],
+        day: Date,
+        now: Date,
+        calendar: Calendar
+    ) -> [Int] {
         var amounts = [Int](repeating: 0, count: 24)
-        for event in events {
-            guard case let .sleep(sleep) = event, let endedAt = sleep.endedAt else { continue }
-            let h = calendar.component(.hour, from: endedAt)
-            let minutes = max(1, Int(endedAt.timeIntervalSince(sleep.startedAt) / 60))
-            amounts[h] += minutes
+        guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: day) else { return amounts }
+        let cap = min(now, dayEnd)
+
+        for event in allEvents {
+            guard case let .sleep(sleep) = event else { continue }
+            let effectiveEnd = sleep.endedAt ?? now
+
+            // Skip sessions that don't overlap with this day at all
+            guard effectiveEnd > day && sleep.startedAt < cap else { continue }
+
+            for h in 0..<24 {
+                guard let hourStart = calendar.date(byAdding: .hour, value: h, to: day),
+                      let hourEnd = calendar.date(byAdding: .hour, value: h + 1, to: day)
+                else { continue }
+
+                let overlapStart = max(sleep.startedAt, hourStart)
+                let overlapEnd = min(effectiveEnd, min(hourEnd, cap))
+
+                if overlapEnd > overlapStart {
+                    amounts[h] += max(0, Int(overlapEnd.timeIntervalSince(overlapStart) / 60))
+                }
+            }
         }
+
         return amounts
     }
 
@@ -349,12 +398,14 @@ public enum TodaySummaryCalculator {
         return max(1, Int(endedAt.timeIntervalSince(event.startedAt) / 60))
     }
 
-    /// Splits a completed sleep block into daytime (6am–10pm) and nighttime (10pm–6am) minutes.
+    /// Splits a sleep block into daytime (6am–10pm) and nighttime (10pm–6am) minutes.
+    /// Pass `effectiveEnd` for active (in-progress) sessions; otherwise `sleep.endedAt` is used.
     private static func splitSleepDuration(
         _ sleep: SleepEvent,
+        effectiveEnd: Date? = nil,
         calendar: Calendar
     ) -> (daytime: Int, nighttime: Int) {
-        guard let endedAt = sleep.endedAt else { return (0, 0) }
+        guard let endedAt = sleep.endedAt ?? effectiveEnd else { return (0, 0) }
 
         let totalMinutes = max(0, Int(endedAt.timeIntervalSince(sleep.startedAt) / 60))
         guard totalMinutes > 0 else { return (0, 0) }

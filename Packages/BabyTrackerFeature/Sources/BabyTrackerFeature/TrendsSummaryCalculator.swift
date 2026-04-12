@@ -64,11 +64,7 @@ public enum TrendsSummaryCalculator {
         }
 
         let dailySleep = dates.map { date -> DailySleepData in
-            let dayEvents = eventsByDay[date] ?? []
-            let sleepMinutes = dayEvents.compactMap { event -> Int? in
-                guard case let .sleep(sleep) = event, let endedAt = sleep.endedAt else { return nil }
-                return max(1, Int(endedAt.timeIntervalSince(sleep.startedAt) / 60))
-            }.reduce(0, +)
+            let sleepMinutes = sleepMinutesForDay(date, from: rangeEvents, now: now, calendar: calendar)
             return DailySleepData(
                 date: date,
                 label: formatter(date),
@@ -193,6 +189,36 @@ public enum TrendsSummaryCalculator {
             fmt.setLocalizedDateFormatFromTemplate("MMM")
             return { date in fmt.string(from: date) }
         }
+    }
+
+    /// Returns the total minutes of sleep that overlapped with `day`, counting each minute
+    /// against the day it was actually slept rather than the day the session started or ended.
+    /// Active sessions (endedAt == nil) are counted up to `now`.
+    private static func sleepMinutesForDay(
+        _ day: Date,
+        from events: [BabyEvent],
+        now: Date,
+        calendar: Calendar
+    ) -> Int {
+        guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: day) else { return 0 }
+        let cap = min(now, dayEnd)
+        var total = 0
+
+        for event in events {
+            guard case let .sleep(sleep) = event else { continue }
+            let effectiveEnd = sleep.endedAt ?? now
+
+            guard effectiveEnd > day && sleep.startedAt < cap else { continue }
+
+            let overlapStart = max(sleep.startedAt, day)
+            let overlapEnd = min(effectiveEnd, cap)
+
+            if overlapEnd > overlapStart {
+                total += max(0, Int(overlapEnd.timeIntervalSince(overlapStart) / 60))
+            }
+        }
+
+        return total
     }
 
     private static func average(of values: [Int]) -> Int? {
