@@ -22,6 +22,10 @@ public final class AppModel {
     public private(set) var sleepSheetRequestToken: Int = 0
     public var selectedWorkspaceTab: ChildWorkspaceTab = .home
     public var shareSheetState: ShareSheetState?
+    /// True while the interactive onboarding flow (new-user setup) is visible.
+    /// Persists across route changes so the full-screen cover remains on screen
+    /// during the user/child creation steps.
+    public var isInteractiveOnboardingActive = false
     public private(set) var csvImportState: CSVImportState = .idle
     public private(set) var nestImportState: NestImportState = .idle
     public private(set) var dataExportState: DataExportState = .idle
@@ -1087,6 +1091,9 @@ public final class AppModel {
 
             guard let localUser else {
                 route = .identityOnboarding
+                if !isInteractiveOnboardingActive {
+                    isInteractiveOnboardingActive = true
+                }
                 activeChildren = []
                 archivedChildren = []
                 clearProfileData()
