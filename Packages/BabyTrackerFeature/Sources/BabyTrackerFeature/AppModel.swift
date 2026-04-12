@@ -65,6 +65,7 @@ public final class AppModel {
     private let eventRepository: EventRepository
     private let syncEngine: any CloudKitSyncControlling
     private let liveActivityManager: any FeedLiveActivityManaging
+    private let liveActivitySnapshotCache: any FeedLiveActivitySnapshotCaching
     private let liveActivityPreferenceStore: any LiveActivityPreferenceStore
     private let localNotificationManager: any LocalNotificationManaging
     private let hapticFeedbackProvider: any HapticFeedbackProviding
@@ -88,6 +89,7 @@ public final class AppModel {
         eventRepository: EventRepository,
         syncEngine: any CloudKitSyncControlling,
         liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager(),
+        liveActivitySnapshotCache: any FeedLiveActivitySnapshotCaching = InMemoryFeedLiveActivitySnapshotCache(),
         liveActivityPreferenceStore: any LiveActivityPreferenceStore = InMemoryLiveActivityPreferenceStore(),
         localNotificationManager: any LocalNotificationManaging = NoOpLocalNotificationManager(),
         hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider(),
@@ -101,6 +103,7 @@ public final class AppModel {
         self.eventRepository = eventRepository
         self.syncEngine = syncEngine
         self.liveActivityManager = liveActivityManager
+        self.liveActivitySnapshotCache = liveActivitySnapshotCache
         self.liveActivityPreferenceStore = liveActivityPreferenceStore
         self.localNotificationManager = localNotificationManager
         self.hapticFeedbackProvider = hapticFeedbackProvider
@@ -167,7 +170,7 @@ public final class AppModel {
         if isEnabled {
             refresh(selecting: childSelectionStore.loadSelectedChildID())
         } else {
-            liveActivityManager.synchronize(with: nil)
+            stopLiveActivity()
         }
     }
 
@@ -911,7 +914,7 @@ public final class AppModel {
                 activeChildren = []
                 archivedChildren = []
                 clearProfileData()
-                liveActivityManager.synchronize(with: nil)
+                stopLiveActivity()
                 return
             }
 
@@ -929,7 +932,7 @@ public final class AppModel {
             guard !activeChildren.isEmpty else {
                 route = .noChildren
                 clearProfileData()
-                liveActivityManager.synchronize(with: nil)
+                stopLiveActivity()
                 return
             }
 
@@ -941,7 +944,7 @@ public final class AppModel {
             if activeChildren.count > 1 && selectedSummary == nil {
                 route = .childPicker
                 clearProfileData()
-                liveActivityManager.synchronize(with: nil)
+                stopLiveActivity()
                 return
             }
 
@@ -1010,7 +1013,8 @@ public final class AppModel {
                 child: currentSummary.child,
                 activeSleep: currentActiveSleep,
                 isLiveActivityEnabled: isLiveActivityEnabled,
-                liveActivityManager: liveActivityManager
+                liveActivityManager: liveActivityManager,
+                snapshotCache: liveActivitySnapshotCache
             )
         } catch {
             AppLogger.shared.log(.error, category: "AppModel", "refresh failed: \(error)")
@@ -1020,9 +1024,14 @@ public final class AppModel {
             // shared child) must not wipe out the user's session.
             if localUser == nil {
                 route = .identityOnboarding
-                liveActivityManager.synchronize(with: nil)
+                stopLiveActivity()
             }
         }
+    }
+
+    private func stopLiveActivity() {
+        liveActivityManager.synchronize(with: nil)
+        liveActivitySnapshotCache.save(nil)
     }
 
     private func clearProfileData() {

@@ -41,7 +41,10 @@ struct AppContainer {
             LiveCloudKitClient()
         let liveActivityManager: any FeedLiveActivityManaging = launchConfiguration.usesNoOpLiveActivities ?
             NoOpFeedLiveActivityManager() :
-            FeedLiveActivityManager(userDefaults: userDefaults)
+            FeedLiveActivityManager()
+        let liveActivitySnapshotCache: any FeedLiveActivitySnapshotCaching = launchConfiguration.usesNoOpLiveActivities ?
+            InMemoryFeedLiveActivitySnapshotCache() :
+            UserDefaultsFeedLiveActivitySnapshotCache(userDefaults: userDefaults)
         let localNotificationManager: any LocalNotificationManaging = launchConfiguration.usesUnavailableCloudKitClient ?
             NoOpLocalNotificationManager() :
             SystemLocalNotificationManager()
@@ -64,6 +67,7 @@ struct AppContainer {
             eventRepository: eventRepository,
             syncEngine: syncEngine,
             liveActivityManager: liveActivityManager,
+            liveActivitySnapshotCache: liveActivitySnapshotCache,
             liveActivityPreferenceStore: liveActivityPreferenceStore,
             localNotificationManager: localNotificationManager,
             hapticFeedbackProvider: hapticFeedbackProvider,
