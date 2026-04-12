@@ -4,6 +4,7 @@ import SwiftUI
 public struct AppSettingsView: View {
     let model: AppModel
     let viewModel: ChildProfileViewModel
+    @State private var demoOnboardingModel: AppModel?
 
     public init(
         model: AppModel,
@@ -72,6 +73,17 @@ public struct AppSettingsView: View {
                     )
                 }
                 .foregroundStyle(.primary)
+
+                Button {
+                    demoOnboardingModel = AppModel.makeInMemoryDemoModel()
+                } label: {
+                    settingsRow(
+                        title: "Preview New Onboarding",
+                        value: nil,
+                        accessibilityIdentifier: "app-settings-preview-onboarding-row"
+                    )
+                }
+                .foregroundStyle(.primary)
             }
 
             Section("Account Reset") {
@@ -107,6 +119,14 @@ public struct AppSettingsView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("App Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .fullScreenCover(isPresented: Binding(
+            get: { demoOnboardingModel?.isInteractiveOnboardingActive ?? false },
+            set: { isActive in if !isActive { demoOnboardingModel = nil } }
+        )) {
+            if let dm = demoOnboardingModel {
+                InteractiveOnboardingView(model: dm)
+            }
+        }
     }
 
     private var appVersion: String {
