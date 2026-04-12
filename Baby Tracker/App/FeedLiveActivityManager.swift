@@ -7,6 +7,28 @@ import Foundation
 final class FeedLiveActivityManager: FeedLiveActivityManaging {
     private var activeActivityID: String?
     private var synchronizationTask: Task<Void, Never>?
+    private let userDefaults: UserDefaults
+
+    private enum CacheKey {
+        static let lastSnapshot = "liveActivity.lastSnapshot"
+    }
+
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+    }
+
+    private func loadCachedSnapshot() -> FeedLiveActivitySnapshot? {
+        guard let data = userDefaults.data(forKey: CacheKey.lastSnapshot) else { return nil }
+        return try? JSONDecoder().decode(FeedLiveActivitySnapshot.self, from: data)
+    }
+
+    private func cacheSnapshot(_ snapshot: FeedLiveActivitySnapshot) {
+        userDefaults.set(try? JSONEncoder().encode(snapshot), forKey: CacheKey.lastSnapshot)
+    }
+
+    private func clearCache() {
+        userDefaults.removeObject(forKey: CacheKey.lastSnapshot)
+    }
 
     func synchronize(with snapshot: FeedLiveActivitySnapshot?) {
         synchronizationTask?.cancel()
@@ -20,6 +42,7 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
 
         guard let snapshot else {
             await Self.endAllActivities()
+            clearCache()
             activeActivityID = nil
             return
         }
@@ -36,6 +59,10 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         }
 
         if let activeActivityID {
+            if snapshot == loadCachedSnapshot() {
+                return
+            }
+
             let didUpdate = await Self.updateActivity(
                 withID: activeActivityID,
                 content: content(for: snapshot)
@@ -44,6 +71,7 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
             guard !Task.isCancelled else { return }
 
             if didUpdate {
+                cacheSnapshot(snapshot)
                 return
             }
 
@@ -59,6 +87,7 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
                 pushType: nil
             )
             activeActivityID = activity.id
+            cacheSnapshot(snapshot)
         } catch {
             activeActivityID = nil
         }

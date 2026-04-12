@@ -41,7 +41,7 @@ struct AppContainer {
             LiveCloudKitClient()
         let liveActivityManager: any FeedLiveActivityManaging = launchConfiguration.usesNoOpLiveActivities ?
             NoOpFeedLiveActivityManager() :
-            FeedLiveActivityManager()
+            FeedLiveActivityManager(userDefaults: userDefaults)
         let localNotificationManager: any LocalNotificationManaging = launchConfiguration.usesUnavailableCloudKitClient ?
             NoOpLocalNotificationManager() :
             SystemLocalNotificationManager()
