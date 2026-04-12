@@ -1901,9 +1901,16 @@ public final class AppModel {
 public extension AppModel {
     /// Creates a throw-away, fully in-memory model for previewing the interactive
     /// onboarding without touching the user's real stored data.
+    ///
+    /// SwiftData uses an in-memory store (no disk writes). CloudKit is blocked via
+    /// `UnavailableCloudKitClient`. UserDefaults uses a fixed isolated suite that is
+    /// wiped before each demo session so no stale entries accumulate on disk.
     @MainActor
     static func makeInMemoryDemoModel() -> AppModel {
-        let suiteName = "InMemoryDemoModel-\(UUID().uuidString)"
+        // Use a fixed suite name and clear it before each run so demo sessions
+        // never accumulate stale plist entries in the app's Preferences directory.
+        let suiteName = "com.adappt.BabyTracker.onboardingPreview"
+        UserDefaults.standard.removePersistentDomain(forName: suiteName)
         let userDefaults = UserDefaults(suiteName: suiteName) ?? .standard
         let store = try! BabyTrackerModelStore(isStoredInMemoryOnly: true)
         let childRepository = SwiftDataChildRepository(store: store)
