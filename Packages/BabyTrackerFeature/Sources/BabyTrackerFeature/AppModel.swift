@@ -765,24 +765,9 @@ public final class AppModel {
 
     public func sleepStartSuggestions() -> [(label: String, date: Date)] {
         guard let currentChild else { return [] }
-        let timeline = (try? eventRepository.loadTimeline(for: currentChild.id, includingDeleted: false)) ?? []
-
-        var suggestions: [(label: String, date: Date)] = []
-        let timeFormatter = Date.FormatStyle(date: .omitted, time: .shortened)
-
-        if case let .bottleFeed(feed) = timeline.first(where: { if case .bottleFeed = $0 { true } else { false } }) {
-            suggestions.append((label: "Last bottle at \(feed.metadata.occurredAt.formatted(timeFormatter))", date: feed.metadata.occurredAt))
-        }
-
-        if case let .breastFeed(feed) = timeline.first(where: { if case .breastFeed = $0 { true } else { false } }) {
-            suggestions.append((label: "Last feed at \(feed.metadata.occurredAt.formatted(timeFormatter))", date: feed.metadata.occurredAt))
-        }
-
-        if case let .nappy(nappy) = timeline.first(where: { if case .nappy = $0 { true } else { false } }) {
-            suggestions.append((label: "Last nappy at \(nappy.metadata.occurredAt.formatted(timeFormatter))", date: nappy.metadata.occurredAt))
-        }
-
-        return suggestions
+        let suggestions = (try? GetSleepStartSuggestionsUseCase(eventRepository: eventRepository)
+            .execute(.init(childID: currentChild.id))) ?? []
+        return suggestions.map { (label: $0.label, date: $0.date) }
     }
 
     @discardableResult
@@ -909,103 +894,97 @@ public final class AppModel {
                 return
             }
 
-            activeChildren = try loadChildSummaries(
+            let loadSummaries = LoadChildSummariesUseCase(membershipRepository: membershipRepository)
+            activeChildren = try loadSummaries.execute(.init(
                 children: childRepository.loadActiveChildren(for: localUser.id),
                 userID: localUser.id
-            )
-            archivedChildren = try loadChildSummaries(
+            ))
+            archivedChildren = try loadSummaries.execute(.init(
                 children: childRepository.loadArchivedChildren(for: localUser.id),
                 userID: localUser.id
-            )
+            ))
             logger.info("refresh — localUserID: \(localUser.id, privacy: .public), active: \(self.activeChildren.count, privacy: .public), archived: \(self.archivedChildren.count, privacy: .public)")
             AppLogger.shared.log(.info, category: "AppModel", "refresh — active: \(self.activeChildren.count), archived: \(self.archivedChildren.count)")
 
-            guard !activeChildren.isEmpty else {
+            let effectiveSelectedChildID = selectedChildID ?? childSelectionStore.loadSelectedChildID()
+            let resolution = ResolveChildWorkspaceUseCase().execute(.init(
+                activeChildren: activeChildren,
+                selectedChildID: effectiveSelectedChildID
+            ))
+
+            switch resolution {
+            case .noActiveChildren:
                 route = .noChildren
                 clearProfileData()
                 liveActivityManager.synchronize(with: nil)
                 return
-            }
-
-            let effectiveSelectedChildID = selectedChildID ?? childSelectionStore.loadSelectedChildID()
-            let selectedSummary = activeChildren.first(where: { summary in
-                summary.child.id == effectiveSelectedChildID
-            })
-
-            if activeChildren.count > 1 && selectedSummary == nil {
+            case .needsChildSelection:
                 route = .childPicker
                 clearProfileData()
                 liveActivityManager.synchronize(with: nil)
                 return
-            }
+            case .resolved(let currentSummary):
+                childSelectionStore.saveSelectedChildID(currentSummary.child.id)
+                synchronizeTimelineSelection(for: currentSummary.child.id)
 
-            let currentSummary = selectedSummary ?? activeChildren[0]
-            childSelectionStore.saveSelectedChildID(currentSummary.child.id)
-            synchronizeTimelineSelection(for: currentSummary.child.id)
+                let workspaceData = try LoadChildWorkspaceDataUseCase(
+                    eventRepository: eventRepository,
+                    membershipRepository: membershipRepository,
+                    userIdentityRepository: userIdentityRepository
+                ).execute(.init(childID: currentSummary.child.id, localUserID: localUser.id))
 
-            let visibleEvents = try loadVisibleEvents(for: currentSummary.child.id)
-            let builtTimelinePages = try loadTimelinePages(
-                child: currentSummary.child,
-                for: currentSummary.child.id,
-                days: timelineVisibleDays(for: timelineSelectedDay)
-            )
-            let currentActiveSleep = try eventRepository.loadActiveSleepEvent(for: currentSummary.child.id)
-            let childMemberships = try membershipRepository.loadMemberships(for: currentSummary.child.id)
-            let userIDs = childMemberships.map(\.userID)
-            let users = try userIdentityRepository.loadUsers(for: userIDs)
+                let builtTimelinePages = try loadTimelinePages(
+                    child: currentSummary.child,
+                    for: currentSummary.child.id,
+                    days: timelineVisibleDays(for: timelineSelectedDay)
+                )
+                let status = CloudKitStatusViewState(summary: syncEngine.statusSummary)
+                let pendingCounts = (try? syncEngine.loadPendingChangeCounts()) ?? [:]
+                let builtPendingChanges: [PendingChangeSummaryItem] = [
+                    (.breastFeedEvent, "figure.seated.side.air.upper", "Breast feeds"),
+                    (.bottleFeedEvent, "waterbottle.fill",             "Bottle feeds"),
+                    (.sleepEvent,      "moon.zzz.fill",                "Sleep sessions"),
+                    (.nappyEvent,      "checklist.checked",            "Nappy changes"),
+                    (.membership,      "person.2.fill",                "Sharing info"),
+                    (.child,           "person.fill",                  "Profile data"),
+                ].compactMap { (type, icon, label) in
+                    guard let count = pendingCounts[type], count > 0 else { return nil }
+                    return PendingChangeSummaryItem(icon: icon, label: label, count: count)
+                }
+                let builtPendingInvites = syncEngine.pendingInvites(for: currentSummary.child.id).map { invite in
+                    PendingShareInviteViewState(
+                        id: invite.id,
+                        displayName: invite.displayName,
+                        statusLabel: invite.acceptanceStatus == .pending ? "Pending invitation" : "Invited"
+                    )
+                }
+                let stripDataset = buildTimelineStripDatasetUseCase.execute(
+                    events: workspaceData.events,
+                    calendar: calendar
+                )
 
-            guard let resolvedMembership = childMemberships.first(where: { m in
-                m.userID == localUser.id && m.status == .active
-            }) else {
-                throw ChildProfileValidationError.invalidMembershipTransition(from: .removed, to: .active)
-            }
+                // Set flat observable properties — triggers ViewModel recomputation
+                events = workspaceData.events
+                currentChild = currentSummary.child
+                currentMembership = workspaceData.currentMembership
+                activeSleep = workspaceData.activeSleep
+                timelinePages = builtTimelinePages
+                timelineStripColumns = buildTimelineStripColumns(from: stripDataset)
+                cloudKitStatus = status
+                memberships = workspaceData.memberships
+                membershipUsers = workspaceData.membershipUsers
+                pendingChanges = builtPendingChanges
+                pendingShareInvites = builtPendingInvites
 
-            let status = CloudKitStatusViewState(summary: syncEngine.statusSummary)
-            let pendingCounts = (try? syncEngine.loadPendingChangeCounts()) ?? [:]
-            let builtPendingChanges: [PendingChangeSummaryItem] = [
-                (.breastFeedEvent, "figure.seated.side.air.upper", "Breast feeds"),
-                (.bottleFeedEvent, "waterbottle.fill",             "Bottle feeds"),
-                (.sleepEvent,      "moon.zzz.fill",                "Sleep sessions"),
-                (.nappyEvent,      "checklist.checked",            "Nappy changes"),
-                (.membership,      "person.2.fill",                "Sharing info"),
-                (.child,           "person.fill",                  "Profile data"),
-            ].compactMap { (type, icon, label) in
-                guard let count = pendingCounts[type], count > 0 else { return nil }
-                return PendingChangeSummaryItem(icon: icon, label: label, count: count)
-            }
-            let builtPendingInvites = syncEngine.pendingInvites(for: currentSummary.child.id).map { invite in
-                PendingShareInviteViewState(
-                    id: invite.id,
-                    displayName: invite.displayName,
-                    statusLabel: invite.acceptanceStatus == .pending ? "Pending invitation" : "Invited"
+                route = .childProfile
+                UpdateFeedLiveActivityUseCase.execute(
+                    events: workspaceData.events,
+                    child: currentSummary.child,
+                    activeSleep: workspaceData.activeSleep,
+                    isLiveActivityEnabled: isLiveActivityEnabled,
+                    liveActivityManager: liveActivityManager
                 )
             }
-            let stripDataset = buildTimelineStripDatasetUseCase.execute(
-                events: visibleEvents,
-                calendar: calendar
-            )
-
-            // Set flat observable properties — triggers ViewModel recomputation
-            events = visibleEvents
-            currentChild = currentSummary.child
-            currentMembership = resolvedMembership
-            activeSleep = currentActiveSleep
-            timelinePages = builtTimelinePages
-            timelineStripColumns = buildTimelineStripColumns(from: stripDataset)
-            cloudKitStatus = status
-            memberships = childMemberships
-            membershipUsers = users
-            pendingChanges = builtPendingChanges
-            pendingShareInvites = builtPendingInvites
-
-            route = .childProfile
-            UpdateFeedLiveActivityUseCase.execute(
-                events: visibleEvents,
-                child: currentSummary.child,
-                activeSleep: currentActiveSleep,
-                isLiveActivityEnabled: isLiveActivityEnabled,
-                liveActivityManager: liveActivityManager
-            )
         } catch {
             AppLogger.shared.log(.error, category: "AppModel", "refresh failed: \(error)")
             setErrorMessage(resolveErrorMessage(for: error))
@@ -1031,43 +1010,6 @@ public final class AppModel {
         pendingChanges = []
         pendingShareInvites = []
         timelineChildID = nil
-    }
-
-    private func loadChildSummaries(
-        children: [Child],
-        userID: UUID
-    ) throws -> [ChildSummary] {
-        var summaries: [ChildSummary] = []
-
-        for child in children {
-            let memberships = try membershipRepository.loadMemberships(for: child.id)
-            guard let membership = memberships.first(where: { membership in
-                membership.userID == userID && membership.status == .active
-            }) else {
-                let statuses = memberships
-                    .filter { $0.userID == userID }
-                    .map { "\($0.status)" }
-                    .joined(separator: ", ")
-                let allRoles = memberships
-                    .map { "userID=\($0.userID == userID ? "self" : "other") role=\($0.role) status=\($0.status)" }
-                    .joined(separator: "; ")
-                logger.warning(
-                    "loadChildSummaries — skipping child '\(child.name, privacy: .private)': no active membership for local user. Self statuses: [\(statuses, privacy: .public)]. All memberships: [\(allRoles, privacy: .public)]"
-                )
-                AppLogger.shared.log(.warning, category: "AppModel", "loadChildSummaries — skipping child: no active membership for local user. Self statuses: [\(statuses)]. All memberships: [\(allRoles)]")
-                continue
-            }
-
-            summaries.append(ChildSummary(child: child, membership: membership))
-        }
-
-        return summaries.sorted { left, right in
-            left.child.createdAt < right.child.createdAt
-        }
-    }
-
-    private func loadVisibleEvents(for childID: UUID) throws -> [BabyEvent] {
-        try eventRepository.loadTimeline(for: childID, includingDeleted: false)
     }
 
     private func loadTimelinePages(
