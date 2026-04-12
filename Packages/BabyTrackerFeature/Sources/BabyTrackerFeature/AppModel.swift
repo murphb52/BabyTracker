@@ -523,8 +523,14 @@ public final class AppModel {
         guard let currentChild, let currentMembership,
               currentMembership.role == .caregiver && currentMembership.status == .active else { return }
         let childID = currentChild.id
+        let membership = currentMembership
         Task { @MainActor in
             do {
+                // Push .removed membership to CloudKit before leaving so the owner's
+                // device receives the status update and shows the caregiver in Past Access.
+                let removedMembership = try membership.removed()
+                try membershipRepository.saveMembership(removedMembership)
+                _ = await syncEngine.refreshAfterLocalWrite()
                 try await syncEngine.leaveShare(childID: childID)
                 try childRepository.purgeChildData(id: childID)
                 if childSelectionStore.loadSelectedChildID() == childID {
