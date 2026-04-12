@@ -1030,8 +1030,10 @@ public final class AppModel {
     }
 
     private func stopLiveActivity() {
-        liveActivityManager.synchronize(with: nil)
-        liveActivitySnapshotCache.save(nil)
+        ResetFeedLiveActivityUseCase.execute(
+            liveActivityManager: liveActivityManager,
+            snapshotCache: liveActivitySnapshotCache
+        )
     }
 
     private func clearProfileData() {

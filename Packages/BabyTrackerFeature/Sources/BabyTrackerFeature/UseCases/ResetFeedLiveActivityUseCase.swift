@@ -1,14 +1,17 @@
-/// Clears the snapshot cache and ends the live activity.
-/// Call this to force a full restart of the live activity — e.g. when
-/// recovering from a stale state or when the user manually refreshes.
-/// The next call to UpdateFeedLiveActivityUseCase will start a fresh activity.
+/// Ends the live activity and clears the snapshot cache, but only if the
+/// cache contains data (i.e. a live activity is actually running).
+/// Call this to force a full restart — the next UpdateFeedLiveActivityUseCase
+/// call will start a fresh activity regardless of previously cached state.
 public enum ResetFeedLiveActivityUseCase {
     @MainActor
     public static func execute(
         liveActivityManager: any FeedLiveActivityManaging,
         snapshotCache: any FeedLiveActivitySnapshotCaching
     ) {
-        snapshotCache.save(nil)
+        guard snapshotCache.load() != nil else {
+            return
+        }
         liveActivityManager.synchronize(with: nil)
+        snapshotCache.save(nil)
     }
 }

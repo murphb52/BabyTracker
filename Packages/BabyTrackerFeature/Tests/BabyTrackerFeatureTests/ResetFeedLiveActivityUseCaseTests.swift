@@ -19,10 +19,22 @@ struct ResetFeedLiveActivityUseCaseTests {
         )
     }
 
-    // MARK: - Tests
+    // MARK: - Cache has data
 
     @Test
-    func clearsCacheOnReset() {
+    func synchronizesManagerWithNilWhenCacheHasData() {
+        let manager = SpyFeedLiveActivityManager()
+        let cache = InMemoryFeedLiveActivitySnapshotCache()
+        cache.save(makeSnapshot())
+
+        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager, snapshotCache: cache)
+
+        #expect(manager.synchronizeCalls.count == 1)
+        #expect(manager.synchronizeCalls.first == .some(nil))
+    }
+
+    @Test
+    func clearsCacheWhenCacheHasData() {
         let manager = SpyFeedLiveActivityManager()
         let cache = InMemoryFeedLiveActivitySnapshotCache()
         cache.save(makeSnapshot())
@@ -32,16 +44,19 @@ struct ResetFeedLiveActivityUseCaseTests {
         #expect(cache.load() == nil)
     }
 
+    // MARK: - Cache is empty
+
     @Test
-    func synchronizesManagerWithNilOnReset() {
+    func doesNothingWhenCacheIsEmpty() {
         let manager = SpyFeedLiveActivityManager()
         let cache = InMemoryFeedLiveActivitySnapshotCache()
 
         ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager, snapshotCache: cache)
 
-        #expect(manager.synchronizeCalls.count == 1)
-        #expect(manager.synchronizeCalls.first == .some(nil))
+        #expect(manager.synchronizeCalls.isEmpty)
     }
+
+    // MARK: - Integration with UpdateFeedLiveActivityUseCase
 
     @Test
     func allowsSubsequentUpdateToWriteAfterReset() throws {
@@ -75,10 +90,10 @@ struct ResetFeedLiveActivityUseCaseTests {
 
         let callsBeforeReset = manager.synchronizeCalls.count
 
-        // Reset clears cache
+        // Reset ends the activity and clears the cache
         ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager, snapshotCache: cache)
 
-        // Same data again — now goes through because cache was cleared by reset
+        // Same data again — goes through because cache was cleared by reset
         UpdateFeedLiveActivityUseCase.execute(
             events: events,
             child: child,
@@ -88,7 +103,7 @@ struct ResetFeedLiveActivityUseCaseTests {
             snapshotCache: cache
         )
 
-        // Reset itself + the post-reset update both produced calls
+        // Reset's nil synchronize + post-reset update both produced calls
         #expect(manager.synchronizeCalls.count == callsBeforeReset + 2)
     }
 }
