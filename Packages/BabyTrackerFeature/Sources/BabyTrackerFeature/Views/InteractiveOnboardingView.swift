@@ -97,7 +97,11 @@ public struct InteractiveOnboardingView: View {
                 topBar
 
                 stepContent
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: currentStepIndex)
+                    .id(currentStepIndex)
+                    .transition(reduceMotion ? .opacity : .asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    ))
 
                 Spacer(minLength: 24)
 
@@ -167,9 +171,11 @@ public struct InteractiveOnboardingView: View {
             }
 
         case .quickLogDemo:
-            demoPage(
+            OnboardingDemoPageContainer(
                 title: "Log in seconds",
-                message: "Tap one button, fill in the details, done. No fumbling around."
+                message: "Tap one button, fill in the details, done. No fumbling around.",
+                pageIndex: currentStepIndex,
+                totalDemoPages: 4
             ) {
                 OnboardingQuickLogDemoView()
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -177,17 +183,21 @@ public struct InteractiveOnboardingView: View {
             }
 
         case .timelineDemo:
-            demoPage(
+            OnboardingDemoPageContainer(
                 title: "See the whole picture",
-                message: "The timeline fills in as you log, so you can see the rhythm of any day at a glance."
+                message: "The timeline fills in as you log, so you can see the rhythm of any day at a glance.",
+                pageIndex: currentStepIndex,
+                totalDemoPages: 4
             ) {
                 OnboardingTimelineDemoView()
             }
 
         case .chartsDemo:
-            demoPage(
+            OnboardingDemoPageContainer(
                 title: "Spot the patterns",
-                message: "The Summary tab turns raw events into charts so you can see what's changing week by week."
+                message: "The Summary tab turns raw events into charts so you can see what's changing week by week.",
+                pageIndex: currentStepIndex,
+                totalDemoPages: 4
             ) {
                 OnboardingChartsDemoView()
             }
@@ -215,21 +225,7 @@ public struct InteractiveOnboardingView: View {
             )
 
         case .appPreview:
-            VStack(alignment: .leading, spacing: 0) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Here's your app")
-                        .font(.largeTitle.weight(.bold))
-
-                    Text("Everything you just logged is already there.")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 32)
-                .padding(.bottom, 16)
-
-                OnboardingAppPreviewStepView(model: model)
-            }
+            OnboardingAppPreviewStepView(model: model)
         }
     }
 
@@ -309,38 +305,6 @@ public struct InteractiveOnboardingView: View {
         .accessibilityLabel("Onboarding step \(currentStepIndex + 1) of 4")
     }
 
-    // MARK: - Demo page layout
-
-    @ViewBuilder
-    private func demoPage<Demo: View>(
-        title: String,
-        message: String,
-        @ViewBuilder demo: () -> Demo
-    ) -> some View {
-        VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(title)
-                    .font(.largeTitle.weight(.bold))
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(message)
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.top, 32)
-            .padding(.bottom, 20)
-
-            demo()
-                .padding(.horizontal, 24)
-
-            pageIndicator
-                .padding(.top, 20)
-        }
-    }
-
     // MARK: - Step actions
 
     private func advance() {
@@ -352,7 +316,7 @@ public struct InteractiveOnboardingView: View {
             currentStepIndex = index
             return
         }
-        withAnimation(.easeInOut(duration: 0.25)) {
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.88)) {
             currentStepIndex = index
         }
     }

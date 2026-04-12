@@ -9,8 +9,11 @@ struct OnboardingFirstEventStepView: View {
     let onEventSaved: () -> Void
     let skipAction: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var activeEventSheet: ChildEventSheet?
     @State private var firstEventSaved = false
+    @State private var appearedMask: [Bool] = [false, false, false, false, false, false]
 
     private var childName: String {
         model.currentChild?.name ?? "your baby"
@@ -22,28 +25,32 @@ struct OnboardingFirstEventStepView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Log your first event")
                         .font(.largeTitle.weight(.bold))
+                        .opacity(appearedMask[0] ? 1 : 0)
+                        .offset(y: appearedMask[0] ? 0 : 18)
 
                     Text("Try it now — pick whichever happened most recently.")
                         .font(.title3)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                        .opacity(appearedMask[1] ? 1 : 0)
+                        .offset(y: appearedMask[1] ? 0 : 14)
                 }
 
                 VStack(spacing: 12) {
                     HStack(spacing: 12) {
-                        quickLogButton("Breast Feed", kind: .breastFeed) {
+                        quickLogButton("Breast Feed", kind: .breastFeed, appeared: appearedMask[2]) {
                             activeEventSheet = .quickLogBreastFeed
                         }
-                        quickLogButton("Bottle Feed", kind: .bottleFeed) {
+                        quickLogButton("Bottle Feed", kind: .bottleFeed, appeared: appearedMask[3]) {
                             activeEventSheet = .quickLogBottleFeed
                         }
                     }
 
                     HStack(spacing: 12) {
-                        quickLogButton("Start Sleep", kind: .sleep) {
+                        quickLogButton("Start Sleep", kind: .sleep, appeared: appearedMask[4]) {
                             activeEventSheet = .startSleep(suggestions: [])
                         }
-                        quickLogButton("Nappy", kind: .nappy) {
+                        quickLogButton("Nappy", kind: .nappy, appeared: appearedMask[5]) {
                             activeEventSheet = .quickLogNappy(.mixed)
                         }
                     }
@@ -55,6 +62,9 @@ struct OnboardingFirstEventStepView: View {
             .padding(.bottom, 8)
         }
         .scrollBounceBehavior(.basedOnSize)
+        .onAppear {
+            staggerIn()
+        }
         .sheet(item: $activeEventSheet, onDismiss: { activeEventSheet = nil }) { sheet in
             eventSheet(for: sheet)
         }
@@ -63,9 +73,23 @@ struct OnboardingFirstEventStepView: View {
         }
     }
 
+    private func staggerIn() {
+        if reduceMotion {
+            appearedMask = Array(repeating: true, count: appearedMask.count)
+            return
+        }
+        for index in 0..<appearedMask.count {
+            let delay = Double(index) * 0.08
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.82).delay(delay)) {
+                appearedMask[index] = true
+            }
+        }
+    }
+
     private func quickLogButton(
         _ title: String,
         kind: BabyEventKind,
+        appeared: Bool,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -80,6 +104,8 @@ struct OnboardingFirstEventStepView: View {
                 )
         }
         .buttonStyle(.plain)
+        .opacity(appeared ? 1 : 0)
+        .offset(y: appeared ? 0 : 18)
     }
 
     @ViewBuilder
