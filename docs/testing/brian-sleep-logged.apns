@@ -2,8 +2,7 @@
   "Simulator Target Bundle": "com.adappt.BabyTracker",
   "aps": {
     "alert": {
-      "title": "Baby Tracker",
-      "subtitle": "Robin",
+      "title": "Nest",
       "body": "Brian logged a sleep from 1:10 PM to 2:05 PM."
     },
     "sound": "default",
