@@ -19,6 +19,12 @@ struct OnboardingAddBabyStepView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                AnimatedSymbolSceneView(symbolNames: [
+                    "teddybear.fill",
+                    "moon.zzz.fill",
+                    "heart.fill",
+                ])
+
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Now let's add your baby")
                         .font(.largeTitle.weight(.bold))
