@@ -4,13 +4,14 @@ import SwiftUI
 
 /// Two animated chart cards used on the "Spot the patterns" onboarding page.
 ///
-/// Displays a Sleep chart and a Bottle Feed chart with hardcoded demo data.
-/// Each chart's line draws in from left to right using a horizontal clip mask —
-/// sleep first, then bottle feed — so the viewer sees the data fill in.
+/// Each card fades in and slides up one after the other. Once both cards have
+/// settled, the chart lines draw in left to right using a horizontal clip mask —
+/// sleep first, then bottle feed.
 struct OnboardingChartsDemoView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @State private var appeared = false
+    @State private var sleepCardVisible = false
+    @State private var bottleCardVisible = false
     @State private var sleepProgress: CGFloat = 0
     @State private var bottleProgress: CGFloat = 0
 
@@ -24,6 +25,13 @@ struct OnboardingChartsDemoView: View {
                 progress: sleepProgress,
                 valueFormatter: { "\($0) min" }
             )
+            .opacity(sleepCardVisible ? 1 : 0)
+            .offset(y: sleepCardVisible ? 0 : 20)
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.8),
+                value: sleepCardVisible
+            )
+
             chartCard(
                 title: "Bottle Feed",
                 systemImage: BabyEventStyle.systemImage(for: .bottleFeed),
@@ -32,17 +40,17 @@ struct OnboardingChartsDemoView: View {
                 progress: bottleProgress,
                 valueFormatter: { "\($0) mL" }
             )
+            .opacity(bottleCardVisible ? 1 : 0)
+            .offset(y: bottleCardVisible ? 0 : 20)
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.8),
+                value: bottleCardVisible
+            )
         }
-        // Entry slide-up
-        .opacity(appeared ? 1 : 0)
-        .offset(y: appeared ? 0 : 28)
-        .animation(
-            reduceMotion ? nil : .spring(response: 0.52, dampingFraction: 0.82).delay(0.15),
-            value: appeared
-        )
         .onAppear {
-            appeared = true
             guard !reduceMotion else {
+                sleepCardVisible = true
+                bottleCardVisible = true
                 sleepProgress = 1
                 bottleProgress = 1
                 return
@@ -50,12 +58,18 @@ struct OnboardingChartsDemoView: View {
             Task { @MainActor in
                 // Wait for the page slide-in to settle
                 try? await Task.sleep(for: .milliseconds(420))
+                sleepCardVisible = true
+                // Stagger the second card in
+                try? await Task.sleep(for: .milliseconds(180))
+                bottleCardVisible = true
+                // Wait for the bottle card spring to land before drawing charts
+                try? await Task.sleep(for: .milliseconds(500))
                 // Draw sleep line left to right
                 withAnimation(.easeInOut(duration: 1.3)) {
                     sleepProgress = 1
                 }
                 // Wait for sleep to finish then pause before bottle
-                try? await Task.sleep(for: .milliseconds(1300 + 700))
+                try? await Task.sleep(for: .milliseconds(1300 + 600))
                 // Draw bottle line left to right
                 withAnimation(.easeInOut(duration: 1.3)) {
                     bottleProgress = 1
