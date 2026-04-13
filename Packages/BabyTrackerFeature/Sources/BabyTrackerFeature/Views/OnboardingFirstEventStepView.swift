@@ -78,10 +78,22 @@ struct OnboardingFirstEventStepView: View {
             appearedMask = Array(repeating: true, count: appearedMask.count)
             return
         }
-        for index in 0..<appearedMask.count {
-            let delay = Double(index) * 0.08
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.82).delay(delay)) {
-                appearedMask[index] = true
+        Task { @MainActor in
+            // Wait for the page slide-in to settle
+            try? await Task.sleep(for: .milliseconds(420))
+            // Title and subtitle — gentle spring
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.82)) {
+                appearedMask[0] = true
+            }
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.82).delay(0.08)) {
+                appearedMask[1] = true
+            }
+            // Buttons — bouncy spring staggered in one by one
+            for index in 2..<appearedMask.count {
+                let delay = Double(index - 2) * 0.1
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.52).delay(delay)) {
+                    appearedMask[index] = true
+                }
             }
         }
     }
@@ -105,7 +117,7 @@ struct OnboardingFirstEventStepView: View {
         }
         .buttonStyle(.plain)
         .opacity(appeared ? 1 : 0)
-        .offset(y: appeared ? 0 : 18)
+        .offset(y: appeared ? 0 : 22)
     }
 
     @ViewBuilder
