@@ -2,8 +2,11 @@ import BabyTrackerDomain
 import SwiftUI
 
 /// The first-event logging step in the interactive onboarding flow.
+///
 /// Presents the real quick-log editor sheets so the user can log an event before
-/// entering the main app. On a successful save the `onEventSaved` callback fires.
+/// entering the main app. Buttons stagger in with a bouncy spring then cycle
+/// through a zoom-up → wiggle → zoom-down sequence, matching the Quick Log
+/// demo page. On a successful save the `onEventSaved` callback fires.
 struct OnboardingFirstEventStepView: View {
     let model: AppModel
     let onEventSaved: () -> Void
@@ -14,6 +17,9 @@ struct OnboardingFirstEventStepView: View {
     @State private var activeEventSheet: ChildEventSheet?
     @State private var firstEventSaved = false
     @State private var appearedMask: [Bool] = [false, false, false, false, false, false]
+    @State private var highlightedIndex = 0
+    @State private var wiggleScales: [Double] = [1.0, 1.0, 1.0, 1.0]
+    @State private var rotations: [Double] = [0, 0, 0, 0]
 
     private var childName: String {
         model.currentChild?.name ?? "your baby"
@@ -38,22 +44,24 @@ struct OnboardingFirstEventStepView: View {
 
                 VStack(spacing: 12) {
                     HStack(spacing: 12) {
-                        quickLogButton("Breast Feed", kind: .breastFeed, appeared: appearedMask[2]) {
+                        quickLogButton(0, title: "Breast Feed", kind: .breastFeed) {
                             activeEventSheet = .quickLogBreastFeed
                         }
-                        quickLogButton("Bottle Feed", kind: .bottleFeed, appeared: appearedMask[3]) {
+                        quickLogButton(1, title: "Bottle Feed", kind: .bottleFeed) {
                             activeEventSheet = .quickLogBottleFeed
                         }
                     }
+                    .geometryGroup()
 
                     HStack(spacing: 12) {
-                        quickLogButton("Start Sleep", kind: .sleep, appeared: appearedMask[4]) {
+                        quickLogButton(2, title: "Start Sleep", kind: .sleep) {
                             activeEventSheet = .startSleep(suggestions: [])
                         }
-                        quickLogButton("Nappy", kind: .nappy, appeared: appearedMask[5]) {
+                        quickLogButton(3, title: "Nappy", kind: .nappy) {
                             activeEventSheet = .quickLogNappy(.mixed)
                         }
                     }
+                    .geometryGroup()
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -65,6 +73,21 @@ struct OnboardingFirstEventStepView: View {
         .onAppear {
             staggerIn()
         }
+        .task(id: reduceMotion) {
+            guard !reduceMotion else { return }
+            // Wait for page slide-in + full stagger to settle before first wiggle
+            try? await Task.sleep(for: .milliseconds(1200))
+            animateWiggle(0)
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2.4))
+                guard !Task.isCancelled else { break }
+                let next = (highlightedIndex + 1) % 4
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.62)) {
+                    highlightedIndex = next
+                }
+                animateWiggle(next)
+            }
+        }
         .sheet(item: $activeEventSheet, onDismiss: { activeEventSheet = nil }) { sheet in
             eventSheet(for: sheet)
         }
@@ -73,22 +96,55 @@ struct OnboardingFirstEventStepView: View {
         }
     }
 
+    // MARK: - Button
+
+    private func quickLogButton(
+        _ buttonIndex: Int,
+        title: String,
+        kind: BabyEventKind,
+        action: @escaping () -> Void
+    ) -> some View {
+        let appeared = appearedMask[buttonIndex + 2]
+        let isHighlighted = highlightedIndex == buttonIndex && appearedMask.allSatisfy { $0 }
+
+        return Button(action: action) {
+            Label(title, systemImage: BabyEventStyle.systemImage(for: kind))
+                .font(.headline)
+                .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                .padding(.horizontal, 14)
+                .foregroundStyle(BabyEventStyle.buttonForegroundColor(for: kind))
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(BabyEventStyle.buttonFillColor(for: kind))
+                        .shadow(
+                            color: BabyEventStyle.buttonFillColor(for: kind).opacity(isHighlighted ? 0.55 : 0),
+                            radius: isHighlighted ? 10 : 0,
+                            y: isHighlighted ? 4 : 0
+                        )
+                )
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(wiggleScales[buttonIndex])
+        .rotationEffect(.degrees(rotations[buttonIndex]))
+        .opacity(appeared ? 1 : 0)
+        .offset(y: appeared ? 0 : 22)
+    }
+
+    // MARK: - Animation
+
     private func staggerIn() {
         if reduceMotion {
             appearedMask = Array(repeating: true, count: appearedMask.count)
             return
         }
         Task { @MainActor in
-            // Wait for the page slide-in to settle
             try? await Task.sleep(for: .milliseconds(420))
-            // Title and subtitle — gentle spring
             withAnimation(.spring(response: 0.5, dampingFraction: 0.82)) {
                 appearedMask[0] = true
             }
             withAnimation(.spring(response: 0.5, dampingFraction: 0.82).delay(0.08)) {
                 appearedMask[1] = true
             }
-            // Buttons — bouncy spring staggered in one by one
             for index in 2..<appearedMask.count {
                 let delay = Double(index - 2) * 0.1
                 withAnimation(.spring(response: 0.38, dampingFraction: 0.52).delay(delay)) {
@@ -98,27 +154,29 @@ struct OnboardingFirstEventStepView: View {
         }
     }
 
-    private func quickLogButton(
-        _ title: String,
-        kind: BabyEventKind,
-        appeared: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: BabyEventStyle.systemImage(for: kind))
-                .font(.headline)
-                .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
-                .padding(.horizontal, 14)
-                .foregroundStyle(BabyEventStyle.buttonForegroundColor(for: kind))
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(BabyEventStyle.buttonFillColor(for: kind))
-                )
+    /// Plays a zoom-up → wiggle → zoom-down sequence on the button at `index`.
+    private func animateWiggle(_ index: Int) {
+        guard !reduceMotion else { return }
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.6)) {
+            wiggleScales[index] = 1.06
         }
-        .buttonStyle(.plain)
-        .opacity(appeared ? 1 : 0)
-        .offset(y: appeared ? 0 : 22)
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(160))
+            let rotationSteps: [Double] = [4, -4, 3, 0]
+            for rot in rotationSteps {
+                guard !Task.isCancelled else { return }
+                withAnimation(.spring(response: 0.14, dampingFraction: 0.6)) {
+                    rotations[index] = rot
+                }
+                try? await Task.sleep(for: .milliseconds(110))
+            }
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                wiggleScales[index] = 1.0
+            }
+        }
     }
+
+    // MARK: - Event sheets
 
     @ViewBuilder
     private func eventSheet(for sheet: ChildEventSheet) -> some View {

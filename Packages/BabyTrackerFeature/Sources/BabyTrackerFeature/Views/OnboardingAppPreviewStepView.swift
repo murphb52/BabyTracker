@@ -11,7 +11,7 @@ struct OnboardingAppPreviewStepView: View {
     let model: AppModel
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var appearedMask: [Bool] = [false, false, false]
+    @State private var appearedMask: [Bool] = [false, false, false, false]
 
     private var firstName: String {
         let full = model.localUser?.displayName ?? ""
@@ -29,6 +29,15 @@ struct OnboardingAppPreviewStepView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
+                // Symbol scene
+                AnimatedSymbolSceneView(symbolNames: [
+                    "checkmark.seal.fill",
+                    "star.fill",
+                    "heart.fill",
+                ])
+                .opacity(appearedMask[0] ? 1 : 0)
+                .offset(y: appearedMask[0] ? 0 : 18)
+
                 // Welcome heading
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Welcome, \(firstName)!")
@@ -39,20 +48,20 @@ struct OnboardingAppPreviewStepView: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .opacity(appearedMask[0] ? 1 : 0)
-                .offset(y: appearedMask[0] ? 0 : 18)
+                .opacity(appearedMask[1] ? 1 : 0)
+                .offset(y: appearedMask[1] ? 0 : 18)
 
                 // Event summary card
                 if let event = latestEvent {
                     eventCard(for: event)
-                        .opacity(appearedMask[1] ? 1 : 0)
-                        .offset(y: appearedMask[1] ? 0 : 16)
+                        .opacity(appearedMask[2] ? 1 : 0)
+                        .offset(y: appearedMask[2] ? 0 : 16)
                 }
 
                 // Welcome to Nest
                 welcomeCard
-                    .opacity(appearedMask[2] ? 1 : 0)
-                    .offset(y: appearedMask[2] ? 0 : 14)
+                    .opacity(appearedMask[3] ? 1 : 0)
+                    .offset(y: appearedMask[3] ? 0 : 14)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
@@ -189,7 +198,7 @@ struct OnboardingAppPreviewStepView: View {
 
     private func animateIn() {
         if reduceMotion {
-            appearedMask = [true, true, true]
+            appearedMask = [true, true, true, true]
             return
         }
         Task { @MainActor in
@@ -197,13 +206,17 @@ struct OnboardingAppPreviewStepView: View {
             withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
                 appearedMask[0] = true
             }
-            try? await Task.sleep(for: .milliseconds(320))
+            try? await Task.sleep(for: .milliseconds(280))
             withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
                 appearedMask[1] = true
             }
-            try? await Task.sleep(for: .milliseconds(380))
+            try? await Task.sleep(for: .milliseconds(320))
             withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
                 appearedMask[2] = true
+            }
+            try? await Task.sleep(for: .milliseconds(380))
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
+                appearedMask[3] = true
             }
         }
     }
