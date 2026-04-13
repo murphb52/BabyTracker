@@ -159,23 +159,17 @@ public struct InteractiveOnboardingView: View {
     private var stepContent: some View {
         switch currentStep {
         case .welcome:
-            VStack(spacing: 24) {
-                TabView(selection: .constant(0)) {
-                    OnboardingIntroStepView(page: Self.welcomePage)
-                        .tag(0)
-                        .padding(.horizontal, 24)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-
-                pageIndicator
+            TabView(selection: .constant(0)) {
+                OnboardingIntroStepView(page: Self.welcomePage)
+                    .tag(0)
+                    .padding(.horizontal, 24)
             }
+            .tabViewStyle(.page(indexDisplayMode: .never))
 
         case .quickLogDemo:
             OnboardingDemoPageContainer(
                 title: "Log in seconds",
-                message: "Tap one button, fill in the details, done. No fumbling around.",
-                pageIndex: currentStepIndex,
-                totalDemoPages: 4
+                message: "Tap one button, fill in the details, done. No fumbling around."
             ) {
                 OnboardingQuickLogDemoView()
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -185,9 +179,7 @@ public struct InteractiveOnboardingView: View {
         case .timelineDemo:
             OnboardingDemoPageContainer(
                 title: "See the whole picture",
-                message: "The timeline fills in as you log, so you can see the rhythm of any day at a glance.",
-                pageIndex: currentStepIndex,
-                totalDemoPages: 4
+                message: "The timeline fills in as you log, so you can see the rhythm of any day at a glance."
             ) {
                 OnboardingTimelineDemoView()
             }
@@ -195,9 +187,7 @@ public struct InteractiveOnboardingView: View {
         case .chartsDemo:
             OnboardingDemoPageContainer(
                 title: "Spot the patterns",
-                message: "The Summary tab turns raw events into charts so you can see what's changing week by week.",
-                pageIndex: currentStepIndex,
-                totalDemoPages: 4
+                message: "The Summary tab turns raw events into charts so you can see what's changing week by week."
             ) {
                 OnboardingChartsDemoView()
             }
@@ -235,13 +225,16 @@ public struct InteractiveOnboardingView: View {
     private var footer: some View {
         switch currentStep {
         case .welcome, .quickLogDemo, .timelineDemo, .chartsDemo:
-            Button(action: advance) {
-                Text("Continue")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+            VStack(spacing: 16) {
+                pageIndicator
+                Button(action: advance) {
+                    Text("Continue")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
 
         case .caregiverName:
             Button(action: submitCaregiverName) {
