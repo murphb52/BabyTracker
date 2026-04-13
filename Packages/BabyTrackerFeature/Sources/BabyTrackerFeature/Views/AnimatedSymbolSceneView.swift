@@ -4,6 +4,7 @@ struct AnimatedSymbolSceneView: View {
     let symbolNames: [String]
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     @ScaledMetric(relativeTo: .largeTitle) private var symbolSize = 56
 
     @State private var currentSymbolIndex = 0
@@ -25,18 +26,18 @@ struct AnimatedSymbolSceneView: View {
                 )
 
             Circle()
-                .fill(Color.white.opacity(0.4))
+                .fill(glowColor)
                 .frame(width: 116, height: 116)
-                .blur(radius: 18)
+                .blur(radius: glowBlurRadius)
                 .offset(x: -48, y: -34)
 
             Image(systemName: currentSymbolName)
                 .font(.system(size: symbolSize, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(Color.accentColor)
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(symbolPrimaryColor, symbolSecondaryColor)
                 .contentTransition(.symbolEffect(.replace.downUp.wholeSymbol))
                 .symbolEffect(.bounce.down.byLayer, value: symbolAnimationTrigger)
-                .shadow(color: Color.accentColor.opacity(0.18), radius: 12, y: 6)
+                .shadow(color: symbolShadowColor, radius: 12, y: 6)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 196)
@@ -83,6 +84,33 @@ struct AnimatedSymbolSceneView: View {
         }
 
         return symbolNames[currentSymbolIndex]
+    }
+
+    private var glowColor: Color {
+        switch colorScheme {
+        case .dark:
+            return Color.accentColor.opacity(0.16)
+        case .light:
+            return Color.white.opacity(0.4)
+        @unknown default:
+            return Color.white.opacity(0.4)
+        }
+    }
+
+    private var glowBlurRadius: CGFloat {
+        colorScheme == .dark ? 26 : 18
+    }
+
+    private var symbolPrimaryColor: Color {
+        colorScheme == .dark ? .white : Color.accentColor
+    }
+
+    private var symbolSecondaryColor: Color {
+        Color.accentColor
+    }
+
+    private var symbolShadowColor: Color {
+        colorScheme == .dark ? Color.accentColor.opacity(0.28) : Color.accentColor.opacity(0.18)
     }
 }
 

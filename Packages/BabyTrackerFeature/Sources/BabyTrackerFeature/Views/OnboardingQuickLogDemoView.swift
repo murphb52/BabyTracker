@@ -8,6 +8,7 @@ import SwiftUI
 struct OnboardingQuickLogDemoView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    @State private var cardVisible = false
     @State private var appearedMask: [Bool] = [false, false, false, false]
     @State private var highlightedIndex = 0
     @State private var wiggleScales: [Double] = [1.0, 1.0, 1.0, 1.0]
@@ -43,21 +44,31 @@ struct OnboardingQuickLogDemoView: View {
         }
         .padding(.vertical, 12)
         .background(Color(.systemGroupedBackground))
+        .opacity(cardVisible ? 1 : 0)
+        .offset(y: cardVisible ? 0 : 20)
+        .animation(
+            reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.8),
+            value: cardVisible
+        )
         .onAppear {
             if reduceMotion {
+                cardVisible = true
                 appearedMask = [true, true, true, true]
                 return
             }
-            // Delay until the page slide-in transition has settled (~420ms spring)
             Task { @MainActor in
+                // Delay until the page slide-in transition has settled (~420ms spring)
                 try? await Task.sleep(for: .milliseconds(420))
+                cardVisible = true
+                // Let the card spring land before the buttons start popping in.
+                try? await Task.sleep(for: .milliseconds(520))
                 staggerIn()
             }
         }
         .task(id: reduceMotion) {
             guard !reduceMotion else { return }
-            // Wait for slide-in + full stagger to finish before first wiggle
-            try? await Task.sleep(for: .milliseconds(1350))
+            // Wait for slide-in, card spring, and full stagger to finish before first wiggle.
+            try? await Task.sleep(for: .milliseconds(1870))
             // Animate the initial highlighted button
             animateWiggle(0)
             while !Task.isCancelled {

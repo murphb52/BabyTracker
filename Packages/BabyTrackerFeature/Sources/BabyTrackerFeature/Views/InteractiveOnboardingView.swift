@@ -45,6 +45,7 @@ public struct InteractiveOnboardingView: View {
         case quickLogDemo
         case timelineDemo
         case chartsDemo
+        case liveActivityDemo
         case caregiverName
         case babySetup
         case firstEvent
@@ -52,7 +53,7 @@ public struct InteractiveOnboardingView: View {
 
         var isSkippableToSetup: Bool {
             switch self {
-            case .welcome, .quickLogDemo, .timelineDemo, .chartsDemo:
+            case .welcome, .quickLogDemo, .timelineDemo, .chartsDemo, .liveActivityDemo:
                 return true
             default:
                 return false
@@ -202,6 +203,14 @@ public struct InteractiveOnboardingView: View {
                 OnboardingChartsDemoView()
             }
 
+        case .liveActivityDemo:
+            OnboardingDemoPageContainer(
+                title: "Stay updated from your Lock Screen",
+                message: "See the latest feed, sleep, and nappy timings without unlocking your phone."
+            ) {
+                OnboardingLiveActivityDemoView()
+            }
+
         case .caregiverName:
             IdentityOnboardingNameStepView(
                 displayName: $caregiverName,
@@ -234,7 +243,7 @@ public struct InteractiveOnboardingView: View {
     @ViewBuilder
     private var footer: some View {
         switch currentStep {
-        case .welcome, .quickLogDemo, .timelineDemo, .chartsDemo:
+        case .welcome, .quickLogDemo, .timelineDemo, .chartsDemo, .liveActivityDemo:
             VStack(spacing: 16) {
                 pageIndicator
                 Button(action: advance) {
@@ -294,18 +303,18 @@ public struct InteractiveOnboardingView: View {
         }
     }
 
-    // MARK: - Page indicator (shown on demo steps 0–3)
+    // MARK: - Page indicator (shown on demo steps 0–4)
 
     private var pageIndicator: some View {
         HStack(spacing: 8) {
-            ForEach(0..<4) { index in
+            ForEach(0..<5) { index in
                 Capsule()
                     .fill(index == currentStepIndex ? Color.accentColor : Color.secondary.opacity(0.18))
                     .frame(width: index == currentStepIndex ? 28 : 10, height: 10)
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Onboarding step \(currentStepIndex + 1) of 4")
+        .accessibilityLabel("Onboarding step \(currentStepIndex + 1) of 5")
     }
 
     // MARK: - Step actions
@@ -397,31 +406,38 @@ public struct InteractiveOnboardingView: View {
     )
 }
 
-#Preview("Caregiver Name") {
+#Preview("Live Activity Demo") {
     InteractiveOnboardingView(
         model: InteractiveOnboardingPreviewFactory.makeModel(),
         previewStepIndex: 4
     )
 }
 
-#Preview("Baby Setup") {
+#Preview("Caregiver Name") {
     InteractiveOnboardingView(
         model: InteractiveOnboardingPreviewFactory.makeModel(),
         previewStepIndex: 5
     )
 }
 
+#Preview("Baby Setup") {
+    InteractiveOnboardingView(
+        model: InteractiveOnboardingPreviewFactory.makeModel(),
+        previewStepIndex: 6
+    )
+}
+
 #Preview("First Event") {
     InteractiveOnboardingView(
         model: ChildProfilePreviewFactory.makeModel(),
-        previewStepIndex: 6
+        previewStepIndex: 7
     )
 }
 
 #Preview("App Preview") {
     InteractiveOnboardingView(
         model: ChildProfilePreviewFactory.makeModel(),
-        previewStepIndex: 7
+        previewStepIndex: 8
     )
 }
 
