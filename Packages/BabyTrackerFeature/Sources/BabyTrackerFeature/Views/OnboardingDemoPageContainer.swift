@@ -32,14 +32,12 @@ struct OnboardingDemoPageContainer<Demo: View>: View {
                     .font(.largeTitle.weight(.bold))
                     .fixedSize(horizontal: false, vertical: true)
                     .opacity(titleAppeared ? 1 : 0)
-                    .offset(y: titleAppeared ? 0 : 18)
 
                 Text(message)
                     .font(.title3)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .opacity(messageAppeared ? 1 : 0)
-                    .offset(y: messageAppeared ? 0 : 14)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
@@ -61,10 +59,10 @@ struct OnboardingDemoPageContainer<Demo: View>: View {
             return
         }
 
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.82)) {
+        withAnimation(.easeIn(duration: 0.35)) {
             titleAppeared = true
         }
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.82).delay(0.09)) {
+        withAnimation(.easeIn(duration: 0.35).delay(0.1)) {
             messageAppeared = true
         }
     }

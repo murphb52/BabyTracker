@@ -44,12 +44,20 @@ struct OnboardingQuickLogDemoView: View {
         .padding(.vertical, 12)
         .background(Color(.systemGroupedBackground))
         .onAppear {
-            staggerIn()
+            if reduceMotion {
+                appearedMask = [true, true, true, true]
+                return
+            }
+            // Delay until the page slide-in transition has settled (~420ms spring)
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(420))
+                staggerIn()
+            }
         }
         .task(id: reduceMotion) {
             guard !reduceMotion else { return }
-            // Wait for pop-in stagger to finish
-            try? await Task.sleep(for: .milliseconds(1000))
+            // Wait for slide-in + full stagger to finish before first wiggle
+            try? await Task.sleep(for: .milliseconds(1350))
             // Animate the initial highlighted button
             animateWiggle(0)
             while !Task.isCancelled {
@@ -89,13 +97,8 @@ struct OnboardingQuickLogDemoView: View {
     }
 
     private func staggerIn() {
-        if reduceMotion {
-            appearedMask = [true, true, true, true]
-            return
-        }
         for index in 0..<buttons.count {
             let delay = Double(index) * 0.1
-            // Bouncy spring for the "pop" entry feel
             withAnimation(.spring(response: 0.38, dampingFraction: 0.52).delay(delay)) {
                 appearedMask[index] = true
             }
@@ -105,24 +108,24 @@ struct OnboardingQuickLogDemoView: View {
     /// Plays a zoom-up → wiggle → zoom-down sequence on the button at `index`.
     private func animateWiggle(_ index: Int) {
         guard !reduceMotion else { return }
-        // 1. Zoom up
-        withAnimation(.spring(response: 0.22, dampingFraction: 0.55)) {
-            wiggleScales[index] = 1.13
+        // 1. Zoom up slightly
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.6)) {
+            wiggleScales[index] = 1.06
         }
         Task { @MainActor in
             // 2. Short pause so zoom lands before wiggle starts
-            try? await Task.sleep(for: .milliseconds(170))
-            // 3. Wiggle sequence
-            let rotationSteps: [Double] = [9, -9, 7, -7, 4, 0]
+            try? await Task.sleep(for: .milliseconds(160))
+            // 3. Gentle wiggle sequence
+            let rotationSteps: [Double] = [4, -4, 3, 0]
             for rot in rotationSteps {
                 guard !Task.isCancelled else { return }
-                withAnimation(.spring(response: 0.11, dampingFraction: 0.55)) {
+                withAnimation(.spring(response: 0.14, dampingFraction: 0.6)) {
                     rotations[index] = rot
                 }
-                try? await Task.sleep(for: .milliseconds(95))
+                try? await Task.sleep(for: .milliseconds(110))
             }
             // 4. Zoom back to normal
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                 wiggleScales[index] = 1.0
             }
         }
