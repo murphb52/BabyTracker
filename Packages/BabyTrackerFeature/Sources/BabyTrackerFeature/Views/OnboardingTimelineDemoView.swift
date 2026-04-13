@@ -13,6 +13,9 @@ struct OnboardingTimelineDemoView: View {
     @State private var sleepVisible = false
     @State private var feedsVisible = false
     @State private var nappiesVisible = false
+    @State private var sleepOffset: CGFloat = 14
+    @State private var feedsOffset: CGFloat = 14
+    @State private var nappiesOffset: CGFloat = 14
     @State private var legendMask: [Bool] = [false, false, false, false]
 
     private let columnHeight: CGFloat = 200
@@ -68,7 +71,7 @@ struct OnboardingTimelineDemoView: View {
                     .fill(BabyEventStyle.timelineFillColor(for: block.kind))
                     .frame(height: max(5, CGFloat(block.end - block.start) * columnHeight))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .offset(y: CGFloat(block.start) * columnHeight)
+                    .offset(y: CGFloat(block.start) * columnHeight + blockOffset(for: block.kind))
                     .opacity(blockOpacity(for: block.kind))
             }
         }
@@ -82,6 +85,15 @@ struct OnboardingTimelineDemoView: View {
         case .sleep:                    return sleepVisible   ? 1 : 0
         case .breastFeed, .bottleFeed:  return feedsVisible   ? 1 : 0
         case .nappy:                    return nappiesVisible ? 1 : 0
+        default:                        return 0
+        }
+    }
+
+    private func blockOffset(for kind: BabyEventKind) -> CGFloat {
+        switch kind {
+        case .sleep:                    return sleepOffset
+        case .breastFeed, .bottleFeed:  return feedsOffset
+        case .nappy:                    return nappiesOffset
         default:                        return 0
         }
     }
@@ -110,6 +122,9 @@ struct OnboardingTimelineDemoView: View {
             sleepVisible = true
             feedsVisible = true
             nappiesVisible = true
+            sleepOffset = 0
+            feedsOffset = 0
+            nappiesOffset = 0
             legendMask = [true, true, true, true]
             return
         }
@@ -121,13 +136,22 @@ struct OnboardingTimelineDemoView: View {
             }
             // Sleep blocks — most prominent, reveal first
             try? await Task.sleep(for: .milliseconds(400))
-            withAnimation(.easeInOut(duration: 0.55)) { sleepVisible = true }
+            withAnimation(.easeInOut(duration: 0.55)) {
+                sleepVisible = true
+                sleepOffset = 0
+            }
             // Feed blocks
             try? await Task.sleep(for: .milliseconds(700))
-            withAnimation(.easeInOut(duration: 0.55)) { feedsVisible = true }
+            withAnimation(.easeInOut(duration: 0.55)) {
+                feedsVisible = true
+                feedsOffset = 0
+            }
             // Nappy blocks
             try? await Task.sleep(for: .milliseconds(600))
-            withAnimation(.easeInOut(duration: 0.55)) { nappiesVisible = true }
+            withAnimation(.easeInOut(duration: 0.55)) {
+                nappiesVisible = true
+                nappiesOffset = 0
+            }
             // Legend items stagger in
             for i in 0..<legendItems.count {
                 try? await Task.sleep(for: .milliseconds(160))
