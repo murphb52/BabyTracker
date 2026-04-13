@@ -1,7 +1,7 @@
 import BabyTrackerDomain
 import Foundation
 
-public struct FeedLiveActivitySnapshot: Equatable, Sendable {
+public struct FeedLiveActivitySnapshot: Codable, Equatable, Sendable {
     public let childID: UUID
     public let childName: String
     public let lastFeedKind: BabyEventKind

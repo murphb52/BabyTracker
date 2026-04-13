@@ -29,7 +29,10 @@ let package = Package(
         ),
         .testTarget(
             name: "BabyTrackerFeatureTests",
-            dependencies: ["BabyTrackerFeature"]
+            dependencies: [
+                "BabyTrackerFeature",
+                .product(name: "BabyTrackerDomain", package: "BabyTrackerDomain"),
+            ]
         ),
     ]
 )

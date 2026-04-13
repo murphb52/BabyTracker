@@ -15,7 +15,8 @@ struct UpdateFeedLiveActivityUseCaseTests {
             child: context.child,
             activeSleep: nil,
             isLiveActivityEnabled: false,
-            liveActivityManager: spy
+            liveActivityManager: spy,
+            snapshotCache: InMemoryFeedLiveActivitySnapshotCache()
         )
 
         #expect(spy.latestSnapshot == nil)
@@ -32,7 +33,8 @@ struct UpdateFeedLiveActivityUseCaseTests {
             child: nil,
             activeSleep: nil,
             isLiveActivityEnabled: true,
-            liveActivityManager: spy
+            liveActivityManager: spy,
+            snapshotCache: InMemoryFeedLiveActivitySnapshotCache()
         )
 
         #expect(spy.latestSnapshot == nil)
@@ -49,7 +51,8 @@ struct UpdateFeedLiveActivityUseCaseTests {
             child: context.child,
             activeSleep: nil,
             isLiveActivityEnabled: true,
-            liveActivityManager: spy
+            liveActivityManager: spy,
+            snapshotCache: InMemoryFeedLiveActivitySnapshotCache()
         )
 
         let snapshot = try #require(spy.latestSnapshot)
