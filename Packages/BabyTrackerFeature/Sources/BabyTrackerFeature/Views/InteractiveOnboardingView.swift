@@ -46,6 +46,7 @@ public struct InteractiveOnboardingView: View {
         case timelineDemo
         case chartsDemo
         case liveActivityDemo
+        case notificationsDemo
         case caregiverName
         case babySetup
         case firstEvent
@@ -53,7 +54,7 @@ public struct InteractiveOnboardingView: View {
 
         var isSkippableToSetup: Bool {
             switch self {
-            case .welcome, .quickLogDemo, .timelineDemo, .chartsDemo, .liveActivityDemo:
+            case .welcome, .quickLogDemo, .timelineDemo, .chartsDemo, .liveActivityDemo, .notificationsDemo:
                 return true
             default:
                 return false
@@ -135,10 +136,10 @@ public struct InteractiveOnboardingView: View {
         )
         .opacity(viewOpacity)
         .alert("Enable Notifications?", isPresented: $isShowingNotificationPermissionPrompt) {
-            Button("Enable Notifications", action: requestNotificationAuthorization)
-            Button("Not Now", role: .cancel, action: { advance() })
+            Button("Continue", action: requestNotificationAuthorization)
+            Button("Not Now", role: .cancel, action: continueWithoutNotificationPermission)
         } message: {
-            Text("Get a heads-up when another caregiver logs an event so you stay in the loop.")
+            Text("We'll show the system prompt next so Nest can send helpful alerts.")
         }
     }
 
@@ -211,6 +212,14 @@ public struct InteractiveOnboardingView: View {
                 OnboardingLiveActivityDemoView()
             }
 
+        case .notificationsDemo:
+            OnboardingDemoPageContainer(
+                title: "Get helpful alerts",
+                message: "Know when feeds, sleep, and changes are logged, even when you're away from the app."
+            ) {
+                OnboardingNotificationsDemoView()
+            }
+
         case .caregiverName:
             IdentityOnboardingNameStepView(
                 displayName: $caregiverName,
@@ -247,6 +256,18 @@ public struct InteractiveOnboardingView: View {
             VStack(spacing: 16) {
                 pageIndicator
                 Button(action: advance) {
+                    Text("Continue")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+
+        case .notificationsDemo:
+            VStack(spacing: 16) {
+                pageIndicator
+                Button(action: handleNotificationsDemoContinue) {
                     Text("Continue")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
@@ -303,18 +324,18 @@ public struct InteractiveOnboardingView: View {
         }
     }
 
-    // MARK: - Page indicator (shown on demo steps 0–4)
+    // MARK: - Page indicator (shown on demo steps 0–5)
 
     private var pageIndicator: some View {
         HStack(spacing: 8) {
-            ForEach(0..<5) { index in
+            ForEach(0..<6) { index in
                 Capsule()
                     .fill(index == currentStepIndex ? Color.accentColor : Color.secondary.opacity(0.18))
                     .frame(width: index == currentStepIndex ? 28 : 10, height: 10)
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Onboarding step \(currentStepIndex + 1) of 5")
+        .accessibilityLabel("Onboarding step \(currentStepIndex + 1) of 6")
     }
 
     // MARK: - Step actions
@@ -342,12 +363,7 @@ public struct InteractiveOnboardingView: View {
     private func submitCaregiverName() {
         guard !trimmedCaregiverName.isEmpty else { return }
         model.createLocalUser(displayName: trimmedCaregiverName)
-        // Offer notification permission before moving to baby setup
-        if notificationAuthorizationStatus == .notDetermined {
-            isShowingNotificationPermissionPrompt = true
-        } else {
-            advance()
-        }
+        advance()
     }
 
     private func submitBabySetup() {
@@ -372,6 +388,21 @@ public struct InteractiveOnboardingView: View {
 
     private func requestNotificationAuthorization() {
         model.requestNotificationAuthorizationIfNeeded()
+        advance()
+    }
+
+    private func handleNotificationsDemoContinue() {
+        switch notificationAuthorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            advance()
+        case .notDetermined, .denied:
+            isShowingNotificationPermissionPrompt = true
+        @unknown default:
+            isShowingNotificationPermissionPrompt = true
+        }
+    }
+
+    private func continueWithoutNotificationPermission() {
         advance()
     }
 }
@@ -413,31 +444,38 @@ public struct InteractiveOnboardingView: View {
     )
 }
 
-#Preview("Caregiver Name") {
+#Preview("Notifications Demo") {
     InteractiveOnboardingView(
         model: InteractiveOnboardingPreviewFactory.makeModel(),
         previewStepIndex: 5
     )
 }
 
-#Preview("Baby Setup") {
+#Preview("Caregiver Name") {
     InteractiveOnboardingView(
         model: InteractiveOnboardingPreviewFactory.makeModel(),
         previewStepIndex: 6
     )
 }
 
+#Preview("Baby Setup") {
+    InteractiveOnboardingView(
+        model: InteractiveOnboardingPreviewFactory.makeModel(),
+        previewStepIndex: 7
+    )
+}
+
 #Preview("First Event") {
     InteractiveOnboardingView(
         model: ChildProfilePreviewFactory.makeModel(),
-        previewStepIndex: 7
+        previewStepIndex: 8
     )
 }
 
 #Preview("App Preview") {
     InteractiveOnboardingView(
         model: ChildProfilePreviewFactory.makeModel(),
-        previewStepIndex: 8
+        previewStepIndex: 9
     )
 }
 
