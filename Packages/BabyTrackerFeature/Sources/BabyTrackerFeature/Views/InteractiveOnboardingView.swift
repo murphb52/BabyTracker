@@ -2,6 +2,7 @@ import BabyTrackerDomain
 import BabyTrackerPersistence
 import BabyTrackerSync
 import SwiftUI
+import UIKit
 import UserNotifications
 
 /// The interactive onboarding experience for new users.
@@ -14,6 +15,7 @@ public struct InteractiveOnboardingView: View {
     let model: AppModel
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
 
     @State private var currentStepIndex = 0
     @State private var isGoingBack = false
@@ -23,7 +25,7 @@ public struct InteractiveOnboardingView: View {
     @State private var babyBirthDate = Date()
     @State private var viewOpacity = 0.0
     @State private var notificationAuthorizationStatus: UNAuthorizationStatus = .notDetermined
-    @State private var isShowingNotificationPermissionPrompt = false
+    @State private var activeNotificationAlert: NotificationAlert?
 
     private static let welcomePage = OnboardingIntroPage(
         id: "welcome",
@@ -58,6 +60,18 @@ public struct InteractiveOnboardingView: View {
                 return true
             default:
                 return false
+            }
+        }
+    }
+
+    private enum NotificationAlert: Identifiable {
+        case prePrompt
+        case denied
+
+        var id: Int {
+            switch self {
+            case .prePrompt: return 0
+            case .denied: return 1
             }
         }
     }
@@ -135,11 +149,23 @@ public struct InteractiveOnboardingView: View {
                 }
         )
         .opacity(viewOpacity)
-        .alert("Enable Notifications?", isPresented: $isShowingNotificationPermissionPrompt) {
-            Button("Continue", action: requestNotificationAuthorization)
-            Button("Not Now", role: .cancel, action: continueWithoutNotificationPermission)
-        } message: {
-            Text("We'll show the system prompt next so Nest can send helpful alerts.")
+        .alert(item: $activeNotificationAlert) { alert in
+            switch alert {
+            case .prePrompt:
+                Alert(
+                    title: Text("Enable Notifications?"),
+                    message: Text("We'll show the system prompt next so Nest can send helpful alerts."),
+                    primaryButton: .default(Text("Continue"), action: requestNotificationAuthorization),
+                    secondaryButton: .cancel(Text("Not Now"), action: continueWithoutNotificationPermission)
+                )
+            case .denied:
+                Alert(
+                    title: Text("Notifications Are Off"),
+                    message: Text("To enable alerts, update notification permissions for Nest in Settings."),
+                    primaryButton: .default(Text("Open Settings"), action: openSettingsForNotifications),
+                    secondaryButton: .cancel(Text("Not Now"), action: continueWithoutNotificationPermission)
+                )
+            }
         }
     }
 
@@ -153,7 +179,6 @@ public struct InteractiveOnboardingView: View {
 
             Spacer()
 
-            // Skip to caregiver name step from demo pages
             if currentStep.isSkippableToSetup {
                 Button("Skip") {
                     move(to: Step.caregiverName.rawValue)
@@ -395,14 +420,25 @@ public struct InteractiveOnboardingView: View {
         switch notificationAuthorizationStatus {
         case .authorized, .provisional, .ephemeral:
             advance()
-        case .notDetermined, .denied:
-            isShowingNotificationPermissionPrompt = true
+        case .notDetermined:
+            activeNotificationAlert = .prePrompt
+        case .denied:
+            activeNotificationAlert = .denied
         @unknown default:
-            isShowingNotificationPermissionPrompt = true
+            activeNotificationAlert = .prePrompt
         }
     }
 
     private func continueWithoutNotificationPermission() {
+        advance()
+    }
+
+    private func openSettingsForNotifications() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else {
+            advance()
+            return
+        }
+        openURL(url)
         advance()
     }
 }
