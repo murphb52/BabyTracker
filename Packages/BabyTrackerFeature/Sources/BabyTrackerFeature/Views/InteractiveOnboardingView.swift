@@ -16,6 +16,7 @@ public struct InteractiveOnboardingView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var currentStepIndex = 0
+    @State private var isGoingBack = false
     @State private var caregiverName = ""
     @State private var childName = ""
     @State private var includesBirthDate = false
@@ -99,8 +100,8 @@ public struct InteractiveOnboardingView: View {
                 stepContent
                     .id(currentStepIndex)
                     .transition(reduceMotion ? .opacity : .asymmetric(
-                        insertion: .move(edge: .trailing).combined(with: .opacity),
-                        removal: .move(edge: .leading).combined(with: .opacity)
+                        insertion: .move(edge: isGoingBack ? .leading : .trailing).combined(with: .opacity),
+                        removal: .move(edge: isGoingBack ? .trailing : .leading).combined(with: .opacity)
                     ))
 
                 Spacer(minLength: 24)
@@ -122,6 +123,15 @@ public struct InteractiveOnboardingView: View {
                 viewOpacity = 1
             }
         }
+        .gesture(
+            DragGesture()
+                .onEnded { value in
+                    let isRightSwipe = value.translation.width > 60
+                    let isHorizontal = abs(value.translation.width) > abs(value.translation.height)
+                    guard isRightSwipe && isHorizontal && currentStepIndex > 0 else { return }
+                    goBack()
+                }
+        )
         .opacity(viewOpacity)
         .alert("Enable Notifications?", isPresented: $isShowingNotificationPermissionPrompt) {
             Button("Enable Notifications", action: requestNotificationAuthorization)
@@ -304,7 +314,13 @@ public struct InteractiveOnboardingView: View {
         move(to: currentStepIndex + 1)
     }
 
+    private func goBack() {
+        guard currentStepIndex > 0 else { return }
+        move(to: currentStepIndex - 1)
+    }
+
     private func move(to index: Int) {
+        isGoingBack = index < currentStepIndex
         guard !reduceMotion else {
             currentStepIndex = index
             return
