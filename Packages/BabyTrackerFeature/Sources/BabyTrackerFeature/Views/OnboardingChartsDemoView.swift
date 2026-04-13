@@ -125,8 +125,8 @@ struct OnboardingChartsDemoView: View {
                     series: .value("Series", "average")
                 )
                 .interpolationMethod(.monotone)
-                .foregroundStyle(Color.secondary.opacity(0.5))
-                .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                .foregroundStyle(Color.secondary.opacity(0.3))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 6]))
             }
             // Today — area fill behind solid line
             ForEach(todayPoints) { point in
