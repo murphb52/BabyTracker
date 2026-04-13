@@ -3,13 +3,15 @@ import SwiftUI
 
 /// A demo of the Quick Log grid, used on the "Log in seconds" onboarding page.
 ///
-/// Buttons stagger in on appear, then cycle a gentle spotlight highlight so
-/// each event type gets a moment of attention.
+/// Buttons pop in one by one on appear. Each button then cycles through a
+/// zoom-up → wiggle → zoom-down animation when it becomes the active spotlight.
 struct OnboardingQuickLogDemoView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var appearedMask: [Bool] = [false, false, false, false]
     @State private var highlightedIndex = 0
+    @State private var wiggleScales: [Double] = [1.0, 1.0, 1.0, 1.0]
+    @State private var rotations: [Double] = [0, 0, 0, 0]
 
     private let buttons: [(title: String, kind: BabyEventKind)] = [
         ("Breast Feed", .breastFeed),
@@ -46,22 +48,23 @@ struct OnboardingQuickLogDemoView: View {
         }
         .task(id: reduceMotion) {
             guard !reduceMotion else { return }
-            // Wait for stagger to finish before cycling starts
-            try? await Task.sleep(for: .milliseconds(900))
+            // Wait for pop-in stagger to finish
+            try? await Task.sleep(for: .milliseconds(1000))
+            // Animate the initial highlighted button
+            animateWiggle(0)
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(2.2))
+                try? await Task.sleep(for: .seconds(2.4))
                 guard !Task.isCancelled else { break }
-                await MainActor.run {
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.62)) {
-                        highlightedIndex = (highlightedIndex + 1) % buttons.count
-                    }
+                let next = (highlightedIndex + 1) % buttons.count
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.62)) {
+                    highlightedIndex = next
                 }
+                animateWiggle(next)
             }
         }
     }
 
     private func demoButton(index: Int) -> some View {
-        let entry = appearedMask[index]
         let isHighlighted = highlightedIndex == index && appearedMask.allSatisfy({ $0 })
         let item = buttons[index]
 
@@ -79,9 +82,10 @@ struct OnboardingQuickLogDemoView: View {
                         y: isHighlighted ? 4 : 0
                     )
             )
-            .scaleEffect(isHighlighted ? 1.035 : 1.0)
-            .opacity(entry ? 1 : 0)
-            .offset(y: entry ? 0 : 18)
+            .scaleEffect(wiggleScales[index])
+            .rotationEffect(.degrees(rotations[index]))
+            .opacity(appearedMask[index] ? 1 : 0)
+            .offset(y: appearedMask[index] ? 0 : 22)
     }
 
     private func staggerIn() {
@@ -89,11 +93,37 @@ struct OnboardingQuickLogDemoView: View {
             appearedMask = [true, true, true, true]
             return
         }
-
         for index in 0..<buttons.count {
-            let delay = Double(index) * 0.09
-            withAnimation(.spring(response: 0.46, dampingFraction: 0.8).delay(delay)) {
+            let delay = Double(index) * 0.1
+            // Bouncy spring for the "pop" entry feel
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.52).delay(delay)) {
                 appearedMask[index] = true
+            }
+        }
+    }
+
+    /// Plays a zoom-up → wiggle → zoom-down sequence on the button at `index`.
+    private func animateWiggle(_ index: Int) {
+        guard !reduceMotion else { return }
+        // 1. Zoom up
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.55)) {
+            wiggleScales[index] = 1.13
+        }
+        Task { @MainActor in
+            // 2. Short pause so zoom lands before wiggle starts
+            try? await Task.sleep(for: .milliseconds(170))
+            // 3. Wiggle sequence
+            let rotationSteps: [Double] = [9, -9, 7, -7, 4, 0]
+            for rot in rotationSteps {
+                guard !Task.isCancelled else { return }
+                withAnimation(.spring(response: 0.11, dampingFraction: 0.55)) {
+                    rotations[index] = rot
+                }
+                try? await Task.sleep(for: .milliseconds(95))
+            }
+            // 4. Zoom back to normal
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
+                wiggleScales[index] = 1.0
             }
         }
     }

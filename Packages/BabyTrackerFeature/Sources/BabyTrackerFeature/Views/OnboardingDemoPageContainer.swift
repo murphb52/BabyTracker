@@ -3,13 +3,12 @@ import SwiftUI
 /// Animated page wrapper used by the three feature-demo steps (Quick Log, Timeline, Charts).
 ///
 /// Title and body text stagger in on appear. The `demo` content is responsible for its
-/// own entry animation so per-element timing is preserved. The page indicator dots are
-/// rendered at the bottom.
+/// own entry animation so per-element timing is preserved. The page indicator lives in
+/// `InteractiveOnboardingView`'s footer so it stays pinned just above the Continue button
+/// across all four intro pages.
 struct OnboardingDemoPageContainer<Demo: View>: View {
     let title: String
     let message: String
-    let pageIndex: Int
-    let totalDemoPages: Int
     let demo: () -> Demo
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -19,14 +18,10 @@ struct OnboardingDemoPageContainer<Demo: View>: View {
     init(
         title: String,
         message: String,
-        pageIndex: Int,
-        totalDemoPages: Int = 4,
         @ViewBuilder demo: @escaping () -> Demo
     ) {
         self.title = title
         self.message = message
-        self.pageIndex = pageIndex
-        self.totalDemoPages = totalDemoPages
         self.demo = demo
     }
 
@@ -53,25 +48,10 @@ struct OnboardingDemoPageContainer<Demo: View>: View {
 
             demo()
                 .padding(.horizontal, 24)
-
-            pageIndicator
-                .padding(.top, 20)
         }
         .onAppear {
             animateIn()
         }
-    }
-
-    private var pageIndicator: some View {
-        HStack(spacing: 8) {
-            ForEach(0..<totalDemoPages, id: \.self) { index in
-                Capsule()
-                    .fill(index == pageIndex ? Color.accentColor : Color.secondary.opacity(0.18))
-                    .frame(width: index == pageIndex ? 28 : 10, height: 10)
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Onboarding step \(pageIndex + 1) of \(totalDemoPages)")
     }
 
     private func animateIn() {
@@ -93,8 +73,7 @@ struct OnboardingDemoPageContainer<Demo: View>: View {
 #Preview {
     OnboardingDemoPageContainer(
         title: "Log in seconds",
-        message: "Tap one button, fill in the details, done. No fumbling around.",
-        pageIndex: 1
+        message: "Tap one button, fill in the details, done. No fumbling around."
     ) {
         Color.accentColor.opacity(0.1)
             .frame(height: 180)
