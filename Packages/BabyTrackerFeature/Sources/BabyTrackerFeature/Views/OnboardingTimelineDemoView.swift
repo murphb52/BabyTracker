@@ -26,13 +26,25 @@ struct OnboardingTimelineDemoView: View {
         (.bottleFeed, "Bottle Feed"),
         (.nappy, "Nappy"),
     ]
+    private let weekdayLabels = ["M", "T", "W", "T", "F"]
 
     var body: some View {
         VStack(spacing: 14) {
-            // Mini timeline
-            HStack(alignment: .top, spacing: 7) {
-                ForEach(0..<5, id: \.self) { col in
-                    timelineColumn(col)
+            VStack(spacing: 8) {
+                // Mini timeline
+                HStack(alignment: .top, spacing: 7) {
+                    ForEach(0..<5, id: \.self) { col in
+                        timelineColumn(col)
+                    }
+                }
+
+                HStack(spacing: 7) {
+                    ForEach(Array(weekdayLabels.enumerated()), id: \.offset) { _, label in
+                        Text(label)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                    }
                 }
             }
             .opacity(columnsVisible ? 1 : 0)
@@ -152,6 +164,7 @@ struct OnboardingTimelineDemoView: View {
                 nappiesVisible = true
                 nappiesOffset = 0
             }
+            try? await Task.sleep(for: .milliseconds(820))
             // Legend items stagger in
             for i in 0..<legendItems.count {
                 try? await Task.sleep(for: .milliseconds(160))

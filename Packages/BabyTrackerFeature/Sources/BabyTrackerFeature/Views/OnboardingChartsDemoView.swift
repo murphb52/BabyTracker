@@ -68,8 +68,8 @@ struct OnboardingChartsDemoView: View {
                 withAnimation(.easeInOut(duration: 1.3)) {
                     sleepProgress = 1
                 }
-                // Wait for sleep to finish then pause before bottle
-                try? await Task.sleep(for: .milliseconds(1300 + 600))
+                // Start bottle halfway through the sleep draw so the two charts overlap.
+                try? await Task.sleep(for: .milliseconds(650))
                 // Draw bottle line left to right
                 withAnimation(.easeInOut(duration: 1.3)) {
                     bottleProgress = 1
