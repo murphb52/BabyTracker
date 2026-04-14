@@ -17,6 +17,7 @@ let package = Package(
         .package(path: "../BabyTrackerDomain"),
         .package(path: "../BabyTrackerPersistence"),
         .package(path: "../BabyTrackerSync"),
+        .package(url: "https://github.com/firebase/firebase-ios-sdk.git", from: "11.0.0"),
     ],
     targets: [
         .target(
@@ -25,6 +26,9 @@ let package = Package(
                 .product(name: "BabyTrackerDomain", package: "BabyTrackerDomain"),
                 .product(name: "BabyTrackerPersistence", package: "BabyTrackerPersistence"),
                 .product(name: "BabyTrackerSync", package: "BabyTrackerSync"),
+                .product(name: "FirebaseAnalytics", package: "firebase-ios-sdk"),
+                .product(name: "FirebaseCore", package: "firebase-ios-sdk"),
+                .product(name: "FirebaseCrashlytics", package: "firebase-ios-sdk"),
             ]
         ),
         .testTarget(

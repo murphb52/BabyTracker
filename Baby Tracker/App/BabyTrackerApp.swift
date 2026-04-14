@@ -9,6 +9,7 @@ struct BabyTrackerApp: App {
     private let container: AppContainer
 
     init() {
+        FirebaseBootstrapper.configureIfNeeded()
         let container = AppContainer.live
         self.container = container
         CloudKitShareAcceptanceBridge.shared.handler = container.shareAcceptanceHandler

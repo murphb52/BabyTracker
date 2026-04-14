@@ -50,6 +50,7 @@ struct AppContainer {
             SystemLocalNotificationManager()
         let hapticFeedbackProvider: any HapticFeedbackProviding = SystemHapticFeedbackProvider()
         let appReviewRequester: any AppReviewRequesting = SystemAppReviewRequester()
+        let analyticsTracker: any AnalyticsTracking = FirebaseAnalyticsTracker()
         let syncEngine = CloudKitSyncEngine(
             childRepository: childRepository,
             userIdentityRepository: userIdentityRepository,
@@ -72,7 +73,8 @@ struct AppContainer {
             localNotificationManager: localNotificationManager,
             hapticFeedbackProvider: hapticFeedbackProvider,
             appReviewPromptStateStore: appReviewPromptStateStore,
-            appReviewRequester: appReviewRequester
+            appReviewRequester: appReviewRequester,
+            analyticsTracker: analyticsTracker
         )
         let shareAcceptanceHandler = ShareAcceptanceHandler(
             syncEngine: syncEngine,
@@ -140,7 +142,8 @@ struct AppContainer {
             liveActivityManager: NoOpFeedLiveActivityManager(),
             liveActivityPreferenceStore: liveActivityPreferenceStore,
             localNotificationManager: NoOpLocalNotificationManager(),
-            hapticFeedbackProvider: NoOpHapticFeedbackProvider()
+            hapticFeedbackProvider: NoOpHapticFeedbackProvider(),
+            analyticsTracker: NoOpAnalyticsTracker()
         )
         let shareAcceptanceHandler = ShareAcceptanceHandler(
             syncEngine: syncEngine,

@@ -71,6 +71,7 @@ public final class AppModel {
     private let hapticFeedbackProvider: any HapticFeedbackProviding
     private let appReviewPromptStateStore: any AppReviewPromptStateStoring
     private let appReviewRequester: any AppReviewRequesting
+    private let analyticsTracker: any AnalyticsTracking
     private let buildTimelineStripDatasetUseCase = BuildTimelineStripDatasetUseCase()
     private let buildTimelineDayGridDatasetUseCase = BuildTimelineDayGridDatasetUseCase()
     private let buildRemoteNotificationUseCase = BuildRemoteCaregiverNotificationUseCase()
@@ -94,7 +95,8 @@ public final class AppModel {
         localNotificationManager: any LocalNotificationManaging = NoOpLocalNotificationManager(),
         hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider(),
         appReviewPromptStateStore: any AppReviewPromptStateStoring = NoOpAppReviewPromptStateStore(),
-        appReviewRequester: any AppReviewRequesting = NoOpAppReviewRequester()
+        appReviewRequester: any AppReviewRequesting = NoOpAppReviewRequester(),
+        analyticsTracker: any AnalyticsTracking = NoOpAnalyticsTracker()
     ) {
         self.childRepository = childRepository
         self.userIdentityRepository = userIdentityRepository
@@ -109,6 +111,7 @@ public final class AppModel {
         self.hapticFeedbackProvider = hapticFeedbackProvider
         self.appReviewPromptStateStore = appReviewPromptStateStore
         self.appReviewRequester = appReviewRequester
+        self.analyticsTracker = analyticsTracker
         self.isLiveActivityEnabled = liveActivityPreferenceStore.isLiveActivityEnabled
     }
 
@@ -300,10 +303,12 @@ public final class AppModel {
                 clearUndoDeleteState()
                 refresh(selecting: nil)
                 playHaptic(.destructiveActionConfirmed)
+                trackMainUseCase("nuke_all_data", didSucceed: true)
             } catch {
                 AppLogger.shared.log(.error, category: "CloudKitSync", "Nuke: failed to reset local data: \(error)")
                 setErrorMessage(resolveErrorMessage(for: error))
                 refresh(selecting: nil)
+                trackMainUseCase("nuke_all_data", didSucceed: false)
             }
         }
     }
@@ -330,7 +335,7 @@ public final class AppModel {
     }
 
     public func createChild(name: String, birthDate: Date?, imageData: Data? = nil) {
-        let succeeded = perform {
+        let succeeded = perform(analyticsEventName: "create_child") {
             guard let localUser else { return }
             _ = try CreateChildUseCase(
                 childRepository: childRepository,
@@ -348,7 +353,7 @@ public final class AppModel {
         imageData: Data? = nil,
         preferredFeedVolumeUnit: FeedVolumeUnit? = nil
     ) {
-        perform {
+        perform(analyticsEventName: "update_current_child") {
             guard let currentChild, let currentMembership else { return }
             _ = try UpdateCurrentChildUseCase(
                 childRepository: childRepository,
@@ -366,7 +371,7 @@ public final class AppModel {
     }
 
     public func archiveCurrentChild() {
-        let succeeded = perform {
+        let succeeded = perform(analyticsEventName: "archive_child") {
             guard let currentChild, let currentMembership else { return }
             let revokedCaregivers = try ArchiveChildUseCase(
                 childRepository: childRepository,
@@ -388,7 +393,7 @@ public final class AppModel {
     }
 
     public func restoreChild(id: UUID) {
-        perform {
+        perform(analyticsEventName: "restore_child") {
             _ = try RestoreChildUseCase(
                 childRepository: childRepository,
                 childSelectionStore: childSelectionStore,
@@ -557,7 +562,7 @@ public final class AppModel {
         leftDurationSeconds: Int? = nil,
         rightDurationSeconds: Int? = nil
     ) -> Bool {
-        perform(onSuccess: handleSuccessfulEventLog) {
+        perform(onSuccess: handleSuccessfulEventLog, analyticsEventName: "log_breast_feed") {
             guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try LogBreastFeedUseCase(
@@ -583,7 +588,7 @@ public final class AppModel {
         occurredAt: Date,
         milkType: MilkType?
     ) -> Bool {
-        perform(onSuccess: handleSuccessfulEventLog) {
+        perform(onSuccess: handleSuccessfulEventLog, analyticsEventName: "log_bottle_feed") {
             guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try LogBottleFeedUseCase(
@@ -609,7 +614,7 @@ public final class AppModel {
         pooVolume: NappyVolume? = nil,
         pooColor: PooColor? = nil
     ) -> Bool {
-        perform(onSuccess: handleSuccessfulEventLog) {
+        perform(onSuccess: handleSuccessfulEventLog, analyticsEventName: "log_nappy") {
             guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try LogNappyUseCase(
@@ -631,7 +636,7 @@ public final class AppModel {
 
     @discardableResult
     public func startSleep(startedAt: Date) -> Bool {
-        perform(onSuccess: handleSuccessfulEventLog) {
+        perform(onSuccess: handleSuccessfulEventLog, analyticsEventName: "start_sleep") {
             guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try StartSleepUseCase(
@@ -649,7 +654,7 @@ public final class AppModel {
 
     @discardableResult
     public func logSleep(startedAt: Date, endedAt: Date) -> Bool {
-        perform(onSuccess: handleSuccessfulEventLog) {
+        perform(onSuccess: handleSuccessfulEventLog, analyticsEventName: "log_sleep") {
             guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try LogSleepUseCase(
@@ -672,7 +677,7 @@ public final class AppModel {
         startedAt: Date,
         endedAt: Date
     ) -> Bool {
-        perform {
+        perform(analyticsEventName: "end_sleep") {
             guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try EndSleepUseCase(
@@ -698,7 +703,7 @@ public final class AppModel {
         leftDurationSeconds: Int? = nil,
         rightDurationSeconds: Int? = nil
     ) -> Bool {
-        perform {
+        perform(analyticsEventName: "update_breast_feed") {
             guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             try UpdateBreastFeedUseCase(
@@ -725,7 +730,7 @@ public final class AppModel {
         occurredAt: Date,
         milkType: MilkType?
     ) -> Bool {
-        perform {
+        perform(analyticsEventName: "update_bottle_feed") {
             guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             try UpdateBottleFeedUseCase(
@@ -752,7 +757,7 @@ public final class AppModel {
         pooVolume: NappyVolume? = nil,
         pooColor: PooColor? = nil
     ) -> Bool {
-        perform {
+        perform(analyticsEventName: "update_nappy") {
             guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             try UpdateNappyUseCase(
@@ -800,7 +805,7 @@ public final class AppModel {
         startedAt: Date,
         endedAt: Date
     ) -> Bool {
-        perform {
+        perform(analyticsEventName: "update_sleep") {
             guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             try UpdateSleepUseCase(
@@ -819,7 +824,7 @@ public final class AppModel {
 
     @discardableResult
     public func resumeSleep(id: UUID, startedAt: Date) -> Bool {
-        perform {
+        perform(analyticsEventName: "resume_sleep") {
             guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try ResumeSleepUseCase(
@@ -837,7 +842,7 @@ public final class AppModel {
 
     @discardableResult
     public func deleteEvent(id: UUID) -> Bool {
-        perform {
+        perform(analyticsEventName: "delete_event") {
             guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             clearUndoDeleteState()
@@ -858,7 +863,7 @@ public final class AppModel {
     }
 
     public func undoLastDeletedEvent() {
-        perform {
+        perform(analyticsEventName: "restore_deleted_event") {
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             guard let pendingUndoDeletedEvent else { return }
             _ = try RestoreDeletedEventUseCase(
@@ -874,11 +879,15 @@ public final class AppModel {
     private func perform(
         failureHaptic: HapticEvent = .actionFailed,
         onSuccess: (() -> Void)? = nil,
+        analyticsEventName: String? = nil,
         _ operation: () throws -> Void
     ) -> Bool {
         do {
             try operation()
             onSuccess?()
+            if let analyticsEventName {
+                trackMainUseCase(analyticsEventName, didSucceed: true)
+            }
             refresh(selecting: childSelectionStore.loadSelectedChildID())
             Task { @MainActor in
                 await runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
@@ -886,10 +895,25 @@ public final class AppModel {
             return true
         } catch {
             AppLogger.shared.log(.error, category: "AppModel", "perform failed: \(error)")
+            if let analyticsEventName {
+                trackMainUseCase(analyticsEventName, didSucceed: false)
+            }
             setErrorMessage(resolveErrorMessage(for: error), haptic: failureHaptic)
             refresh(selecting: childSelectionStore.loadSelectedChildID())
             return false
         }
+    }
+
+    private func trackMainUseCase(_ name: String, didSucceed: Bool) {
+        analyticsTracker.track(
+            AnalyticsEvent(
+                name: "main_use_case",
+                parameters: [
+                    "name": name,
+                    "result": didSucceed ? "success" : "failure",
+                ]
+            )
+        )
     }
 
     private func handleSuccessfulEventLog() {
