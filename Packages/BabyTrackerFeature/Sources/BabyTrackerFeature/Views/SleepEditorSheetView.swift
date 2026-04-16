@@ -86,6 +86,7 @@ public struct SleepEditorSheetView: View {
             .navigationTitle(mode.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .presentationDetents([.large])
+            .presentationBackground(.regularMaterial)
             .onChange(of: startedAt) { _, updatedStart in
                 if endedAt < updatedStart {
                     endedAt = updatedStart

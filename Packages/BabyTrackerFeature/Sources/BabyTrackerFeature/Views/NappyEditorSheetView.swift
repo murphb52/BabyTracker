@@ -91,6 +91,7 @@ public struct NappyEditorSheetView: View {
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .presentationDetents([.large])
+            .presentationBackground(.regularMaterial)
             .onChange(of: type) { _, newType in
                 if !NappyEntry.supportsPooColor(for: newType.value) {
                     pooColor = .notSet

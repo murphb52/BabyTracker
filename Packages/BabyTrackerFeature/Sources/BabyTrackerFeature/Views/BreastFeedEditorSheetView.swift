@@ -98,6 +98,7 @@ public struct BreastFeedEditorSheetView: View {
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .presentationDetents([.large])
+            .presentationBackground(.regularMaterial)
             .onReceive(
                 Timer.publish(every: 1, on: .main, in: .common).autoconnect()
             ) { _ in

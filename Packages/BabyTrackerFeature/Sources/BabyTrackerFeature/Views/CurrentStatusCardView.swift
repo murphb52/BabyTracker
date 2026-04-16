@@ -69,11 +69,7 @@ public struct CurrentStatusCardView: View {
             }
         }
         .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(Color(.separator).opacity(0.35), lineWidth: 1)

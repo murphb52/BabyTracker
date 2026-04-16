@@ -126,6 +126,7 @@ public struct BottleFeedEditorSheetView: View {
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .presentationDetents([.large])
+            .presentationBackground(.regularMaterial)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

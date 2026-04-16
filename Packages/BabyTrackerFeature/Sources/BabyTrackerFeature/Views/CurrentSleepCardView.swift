@@ -45,13 +45,10 @@ public struct CurrentSleepCardView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(BabyEventStyle.backgroundColor(for: .sleep))
-        )
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(BabyEventStyle.accentColor(for: .sleep).opacity(0.35), lineWidth: 1)
+                .stroke(BabyEventStyle.accentColor(for: .sleep).opacity(0.4), lineWidth: 1)
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("current-sleep-card")

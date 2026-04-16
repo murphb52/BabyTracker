@@ -117,10 +117,7 @@ public struct ChildHomeView: View {
                 .accessibilityHidden(true)
         }
         .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
@@ -155,44 +152,46 @@ public struct ChildHomeView: View {
             Text("Quick Log")
                 .font(.headline)
 
-            VStack(spacing: 12) {
-                HStack(spacing: 12) {
-                    quickLogButton(
-                        title: "Breast Feed",
-                        systemImage: BabyEventStyle.systemImage(for: .breastFeed),
-                        kind: .breastFeed,
-                        accessibilityIdentifier: "quick-log-breast-feed-button",
-                        action: quickLogBreastFeed
-                    )
+            GlassEffectContainer {
+                VStack(spacing: 12) {
+                    HStack(spacing: 12) {
+                        quickLogButton(
+                            title: "Breast Feed",
+                            systemImage: BabyEventStyle.systemImage(for: .breastFeed),
+                            kind: .breastFeed,
+                            accessibilityIdentifier: "quick-log-breast-feed-button",
+                            action: quickLogBreastFeed
+                        )
 
-                    quickLogButton(
-                        title: "Bottle Feed",
-                        systemImage: BabyEventStyle.systemImage(for: .bottleFeed),
-                        kind: .bottleFeed,
-                        accessibilityIdentifier: "quick-log-bottle-feed-button",
-                        action: quickLogBottleFeed
-                    )
+                        quickLogButton(
+                            title: "Bottle Feed",
+                            systemImage: BabyEventStyle.systemImage(for: .bottleFeed),
+                            kind: .bottleFeed,
+                            accessibilityIdentifier: "quick-log-bottle-feed-button",
+                            action: quickLogBottleFeed
+                        )
+                    }
+                    .geometryGroup()
+
+                    HStack(spacing: 12) {
+                        quickLogButton(
+                            title: sleepQuickLogTitle,
+                            systemImage: BabyEventStyle.systemImage(for: .sleep),
+                            kind: .sleep,
+                            accessibilityIdentifier: "quick-log-sleep-button",
+                            action: quickLogSleep
+                        )
+
+                        quickLogButton(
+                            title: "Nappy",
+                            systemImage: BabyEventStyle.systemImage(for: .nappy),
+                            kind: .nappy,
+                            accessibilityIdentifier: "quick-log-nappy-button",
+                            action: quickLogNappy
+                        )
+                    }
+                    .geometryGroup()
                 }
-                .geometryGroup()
-
-                HStack(spacing: 12) {
-                    quickLogButton(
-                        title: sleepQuickLogTitle,
-                        systemImage: BabyEventStyle.systemImage(for: .sleep),
-                        kind: .sleep,
-                        accessibilityIdentifier: "quick-log-sleep-button",
-                        action: quickLogSleep
-                    )
-
-                    quickLogButton(
-                        title: "Nappy",
-                        systemImage: BabyEventStyle.systemImage(for: .nappy),
-                        kind: .nappy,
-                        accessibilityIdentifier: "quick-log-nappy-button",
-                        action: quickLogNappy
-                    )
-                }
-                .geometryGroup()
             }
         }
     }
@@ -204,17 +203,18 @@ public struct ChildHomeView: View {
         accessibilityIdentifier: String,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        let accentColor = BabyEventStyle.accentColor(for: kind)
+        return Button(action: action) {
             Label(title, systemImage: systemImage)
                 .font(.headline)
                 .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
                 .padding(.horizontal, 14)
-                .foregroundStyle(BabyEventStyle.buttonForegroundColor(for: kind))
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(BabyEventStyle.buttonFillColor(for: kind))
-                )
+                .foregroundStyle(accentColor)
         }
+        .glassEffect(
+            .regular.tint(accentColor.opacity(0.15)).interactive(),
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
         .buttonStyle(.plain)
         .accessibilityIdentifier(accessibilityIdentifier)
     }

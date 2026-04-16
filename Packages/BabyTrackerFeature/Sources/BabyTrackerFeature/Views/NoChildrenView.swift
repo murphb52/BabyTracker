@@ -95,10 +95,10 @@ public struct NoChildrenView: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(20)
-        .background(
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-                .shadow(color: Color.black.opacity(0.06), radius: 12, y: 4)
+                .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
         )
     }
 }
