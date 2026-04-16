@@ -9,6 +9,8 @@ public struct ChildWorkspaceTabView: View {
     @State private var deleteCandidate: EventDeleteCandidate?
     @State private var showingEditChildSheet = false
     @State private var showingEventFilter = false
+    @State private var showingLogEventPicker = false
+    @State private var pendingLogEventKind: BabyEventKind?
     @State private var handledSleepSheetRequestToken = 0
     @State private var summaryViewModel: SummaryViewModel
     @State private var eventHistoryViewModel: EventHistoryViewModel
@@ -96,6 +98,18 @@ public struct ChildWorkspaceTabView: View {
         .navigationTitle(childProfileViewModel.childName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showingLogEventPicker = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 28, height: 28)
+                }
+                .glassEffect(.regular.interactive(), in: Circle())
+                .accessibilityLabel("Log event")
+                .accessibilityIdentifier("log-event-button")
+            }
             if model.selectedWorkspaceTab == .events {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -151,6 +165,12 @@ public struct ChildWorkspaceTabView: View {
                 }
             )
         }
+        .sheet(isPresented: $showingLogEventPicker, onDismiss: handleLogPickerDismiss) {
+            LogEventPickerSheetView { kind in
+                pendingLogEventKind = kind
+                showingLogEventPicker = false
+            }
+        }
         .sheet(item: $bindableModel.shareSheetState) { shareState in
             CloudKitShareSheetView(
                 shareState: shareState,
@@ -167,6 +187,17 @@ public struct ChildWorkspaceTabView: View {
         }
         .onChange(of: model.sleepSheetRequestToken) { _, _ in
             processPendingSleepSheetRequest()
+        }
+    }
+
+    private func handleLogPickerDismiss() {
+        guard let kind = pendingLogEventKind else { return }
+        pendingLogEventKind = nil
+        switch kind {
+        case .breastFeed: activeEventSheet = .quickLogBreastFeed
+        case .bottleFeed: activeEventSheet = .quickLogBottleFeed
+        case .sleep: showSleepSheet()
+        case .nappy: activeEventSheet = .quickLogNappy(.mixed)
         }
     }
 
