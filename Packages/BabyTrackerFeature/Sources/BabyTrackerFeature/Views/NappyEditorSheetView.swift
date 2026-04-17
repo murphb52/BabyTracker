@@ -8,9 +8,11 @@ public struct NappyEditorSheetView: View {
     let primaryActionTitle: String
     let childName: String
     let saveAction: (_ type: NappyType, _ occurredAt: Date, _ peeVolume: NappyVolume?, _ pooVolume: NappyVolume?, _ pooColor: PooColor?) -> Bool
+    let deleteAction: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var type: NappyTypeChoice
+    @State private var showDeleteConfirmation = false
     @State private var occurredAt: Date
     @State private var peeVolume: NappyVolumeChoice
     @State private var pooVolume: NappyVolumeChoice
@@ -27,11 +29,13 @@ public struct NappyEditorSheetView: View {
         initialPooVolume: NappyVolume?,
         initialPooColor: PooColor?,
         initialTimePreset: QuickTimeSelectorView.TimePreset = .now,
+        deleteAction: (() -> Void)? = nil,
         saveAction: @escaping (_ type: NappyType, _ occurredAt: Date, _ peeVolume: NappyVolume?, _ pooVolume: NappyVolume?, _ pooColor: PooColor?) -> Bool
     ) {
         self.navigationTitle = navigationTitle
         self.primaryActionTitle = primaryActionTitle
         self.childName = childName
+        self.deleteAction = deleteAction
         self.saveAction = saveAction
         _type = State(initialValue: NappyTypeChoice(type: initialType))
         _occurredAt = State(initialValue: initialOccurredAt)
@@ -84,6 +88,24 @@ public struct NappyEditorSheetView: View {
                         pooColorButtons
                     }
                 }
+
+                if deleteAction != nil {
+                    Section {
+                        Button("Delete Nappy", role: .destructive) {
+                            showDeleteConfirmation = true
+                        }
+                        .accessibilityIdentifier("delete-nappy-button")
+                    }
+                }
+            }
+            .alert("Delete Nappy?", isPresented: $showDeleteConfirmation) {
+                Button("Delete", role: .destructive) {
+                    deleteAction?()
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This event will be permanently removed.")
             }
             .tint(Self.eventColor)
             .scrollContentBackground(.hidden)

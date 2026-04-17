@@ -375,7 +375,12 @@ public struct ChildWorkspaceTabView: View {
                 allowsTimerMode: false,
                 initialTimePreset: .custom,
                 initialLeftDurationSeconds: leftDurationSeconds,
-                initialRightDurationSeconds: rightDurationSeconds
+                initialRightDurationSeconds: rightDurationSeconds,
+                deleteAction: childProfileViewModel.canManageEvents ? {
+                    if model.deleteEvent(id: id) {
+                        activeEventSheet = nil
+                    }
+                } : nil
             ) { updatedDuration, updatedEndTime, updatedSide, updatedLeft, updatedRight in
                 let didSave = model.updateBreastFeed(
                     id: id,
@@ -401,6 +406,11 @@ public struct ChildWorkspaceTabView: View {
                 initialMilkType: milkType,
                 initialTimePreset: .custom,
                 showCustomAmountOnOpen: true,
+                deleteAction: childProfileViewModel.canManageEvents ? {
+                    if model.deleteEvent(id: id) {
+                        activeEventSheet = nil
+                    }
+                } : nil
             ) { updatedAmount, updatedOccurredAt, updatedMilkType in
                 let didSave = model.updateBottleFeed(
                     id: id,
@@ -435,6 +445,11 @@ public struct ChildWorkspaceTabView: View {
                     }
                     return didSave
                 },
+                deleteAction: childProfileViewModel.canManageEvents ? {
+                    if model.deleteEvent(id: id) {
+                        activeEventSheet = nil
+                    }
+                } : nil,
                 resumeAction: {
                     let didResume = model.resumeSleep(id: id, startedAt: startedAt)
                     if didResume {
@@ -452,7 +467,12 @@ public struct ChildWorkspaceTabView: View {
                 initialPeeVolume: peeVolume,
                 initialPooVolume: pooVolume,
                 initialPooColor: pooColor,
-                initialTimePreset: .custom
+                initialTimePreset: .custom,
+                deleteAction: childProfileViewModel.canManageEvents ? {
+                    if model.deleteEvent(id: id) {
+                        activeEventSheet = nil
+                    }
+                } : nil
             ) { updatedType, updatedOccurredAt, updatedPeeVolume, updatedPooVolume, updatedPooColor in
                 let didSave = model.updateNappy(
                     id: id,
