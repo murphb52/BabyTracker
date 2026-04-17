@@ -120,16 +120,9 @@ public struct CurrentStatusCardView: View {
     }
 
     private func relativeTimeText(for date: Date) -> some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-            Text(relativeText(for: date, relativeTo: Date()))
+        TimelineView(.everyMinute) { _ in
+            Text(ElapsedTimeFormatter.string(from: date))
         }
-    }
-
-    private func relativeText(
-        for date: Date,
-        relativeTo referenceDate: Date
-    ) -> String {
-        RelativeDateTimeFormatter().localizedString(for: date, relativeTo: referenceDate)
     }
 }
 
