@@ -21,7 +21,7 @@ public final class HomeViewModel {
 
     public var currentStatus: CurrentStatusCardViewState {
         guard let child = appModel.currentChild else {
-            return CurrentStatusCardViewState(lastSleep: nil, timeSinceLastFeedAt: nil, feedsTodayCount: 0, timeSinceLastNappyAt: nil)
+            return CurrentStatusCardViewState(lastSleep: nil, lastBreastFeed: nil, lastBottleFeed: nil, feedsTodayCount: 0, lastNappy: nil)
         }
         return BuildCurrentStatusViewStateUseCase.execute(events: appModel.events, child: child, activeSleep: appModel.activeSleep)
     }

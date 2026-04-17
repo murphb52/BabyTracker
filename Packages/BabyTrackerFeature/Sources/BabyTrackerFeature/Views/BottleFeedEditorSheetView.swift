@@ -9,9 +9,11 @@ public struct BottleFeedEditorSheetView: View {
     let childName: String
     let preferredVolumeUnit: FeedVolumeUnit
     let saveAction: (_ amountMilliliters: Int, _ occurredAt: Date, _ milkType: MilkType?) -> Bool
+    let deleteAction: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var amountText: String
+    @State private var showDeleteConfirmation = false
     @State private var occurredAt: Date
     @State private var milkType: MilkTypeChoice
     @State private var showCustomAmount: Bool = false
@@ -36,12 +38,14 @@ public struct BottleFeedEditorSheetView: View {
         initialMilkType: MilkType?,
         initialTimePreset: QuickTimeSelectorView.TimePreset = .now,
         showCustomAmountOnOpen: Bool = false,
+        deleteAction: (() -> Void)? = nil,
         saveAction: @escaping (_ amountMilliliters: Int, _ occurredAt: Date, _ milkType: MilkType?) -> Bool
     ) {
         self.navigationTitle = navigationTitle
         self.primaryActionTitle = primaryActionTitle
         self.childName = childName
         self.preferredVolumeUnit = preferredVolumeUnit
+        self.deleteAction = deleteAction
         self.saveAction = saveAction
         _amountText = State(initialValue: Self.initialAmountText(
             for: initialAmountMilliliters,
@@ -119,6 +123,24 @@ public struct BottleFeedEditorSheetView: View {
                             .foregroundStyle(.red)
                     }
                 }
+
+                if deleteAction != nil {
+                    Section {
+                        Button("Delete Bottle Feed", role: .destructive) {
+                            showDeleteConfirmation = true
+                        }
+                        .accessibilityIdentifier("delete-bottle-feed-button")
+                    }
+                }
+            }
+            .alert("Delete Bottle Feed?", isPresented: $showDeleteConfirmation) {
+                Button("Delete", role: .destructive) {
+                    deleteAction?()
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This event will be permanently removed.")
             }
             .tint(Self.eventColor)
             .scrollContentBackground(.hidden)

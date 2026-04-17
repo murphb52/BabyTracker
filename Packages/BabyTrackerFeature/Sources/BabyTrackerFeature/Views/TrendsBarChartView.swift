@@ -9,6 +9,7 @@ struct TrendsBarChartView: View {
     let points: [(String, Int)]
     let tint: Color
     var valueFormatter: ((Int) -> String)? = nil
+    var averageValue: Int? = nil
 
     @State private var selectedKey: String?
 
@@ -35,6 +36,17 @@ struct TrendsBarChartView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            }
+
+            if let avg = averageValue {
+                RuleMark(y: .value("Average", avg))
+                    .foregroundStyle(.orange.opacity(0.8))
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                    .annotation(position: .top, alignment: .trailing, spacing: 2) {
+                        Text("Avg")
+                            .font(.system(size: 9).weight(.medium))
+                            .foregroundStyle(.orange.opacity(0.9))
+                    }
             }
 
             if let selectedPoint {
@@ -91,7 +103,9 @@ struct TrendsBarChartView: View {
     }
 
     private var yAxisUpperBound: Int {
-        TrendsChartLayout.yDomainUpperBound(for: points.map(\.1))
+        var values = points.map(\.1)
+        if let avg = averageValue { values.append(avg) }
+        return TrendsChartLayout.yDomainUpperBound(for: values)
     }
 }
 

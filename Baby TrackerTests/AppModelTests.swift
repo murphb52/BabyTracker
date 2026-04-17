@@ -842,6 +842,39 @@ struct AppModelTests {
     }
 
     @Test
+    func logPastSleepSucceedsWhileAnotherSleepIsActive() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        let activeStart = Date(timeIntervalSince1970: 10_000)
+        let pastStart = Date(timeIntervalSince1970: 5_000)
+        let pastEnd = Date(timeIntervalSince1970: 7_000)
+
+        harness.model.load(performLaunchSync: false)
+
+        #expect(harness.model.startSleep(startedAt: activeStart))
+        #expect(harness.model.activeSleep != nil)
+
+        #expect(harness.model.logSleep(startedAt: pastStart, endedAt: pastEnd))
+
+        #expect(harness.model.activeSleep != nil, "Active sleep should still be running")
+
+        let events = try harness.eventRepository.loadTimeline(
+            for: harness.model.currentChild!.id,
+            includingDeleted: false
+        )
+        let sleepEvents = events.compactMap { event -> SleepEvent? in
+            if case let .sleep(s) = event { return s }
+            return nil
+        }
+        #expect(sleepEvents.count == 2)
+        let loggedPast = try #require(sleepEvents.first(where: { $0.endedAt != nil }))
+        #expect(loggedPast.startedAt == pastStart)
+        #expect(loggedPast.endedAt == pastEnd)
+    }
+
+    @Test
     func resumeSleepClearsEndedAtAndMakesSleepActive() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }

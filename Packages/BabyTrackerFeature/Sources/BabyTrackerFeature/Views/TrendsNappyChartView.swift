@@ -7,6 +7,7 @@ import SwiftUI
 /// for that day. The chart generates its own legend.
 struct TrendsNappyChartView: View {
     let data: [DailyNappyData]
+    var averageValue: Int? = nil
 
     @State private var selectedKey: String?
 
@@ -23,6 +24,17 @@ struct TrendsNappyChartView: View {
                 )
                 .foregroundStyle(by: .value("Type", segment.type))
                 .opacity(selectedKey == nil || selectedKey == segment.dayKey ? 1 : 0.3)
+            }
+
+            if let avg = averageValue {
+                RuleMark(y: .value("Average", avg))
+                    .foregroundStyle(.orange.opacity(0.8))
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                    .annotation(position: .top, alignment: .trailing, spacing: 2) {
+                        Text("Avg")
+                            .font(.system(size: 9).weight(.medium))
+                            .foregroundStyle(.orange.opacity(0.9))
+                    }
             }
 
             if let selectedDay {
@@ -101,7 +113,9 @@ struct TrendsNappyChartView: View {
     }
 
     private var yAxisUpperBound: Int {
-        TrendsChartLayout.yDomainUpperBound(for: data.map(\.totalCount))
+        var values = data.map(\.totalCount)
+        if let avg = averageValue { values.append(avg) }
+        return TrendsChartLayout.yDomainUpperBound(for: values)
     }
 }
 
