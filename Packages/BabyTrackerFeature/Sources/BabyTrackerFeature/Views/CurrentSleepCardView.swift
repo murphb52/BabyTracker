@@ -4,44 +4,57 @@ import SwiftUI
 public struct CurrentSleepCardView: View {
     let sleep: CurrentSleepCardViewState
     let stopSleep: () -> Void
+    let logPastSleep: () -> Void
 
     public init(
         sleep: CurrentSleepCardViewState,
-        stopSleep: @escaping () -> Void
+        stopSleep: @escaping () -> Void,
+        logPastSleep: @escaping () -> Void
     ) {
         self.sleep = sleep
         self.stopSleep = stopSleep
+        self.logPastSleep = logPastSleep
     }
 
     public var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            sleepIcon
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 14) {
+                sleepIcon
 
-            VStack(alignment: .leading, spacing: 6) {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Text(durationText(from: sleep.startedAt, to: context.date))
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                        .foregroundStyle(BabyEventStyle.accentColor(for: .sleep))
-                        .accessibilityIdentifier("current-sleep-duration")
+                VStack(alignment: .leading, spacing: 6) {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        Text(durationText(from: sleep.startedAt, to: context.date))
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .foregroundStyle(BabyEventStyle.accentColor(for: .sleep))
+                            .accessibilityIdentifier("current-sleep-duration")
+                    }
+
+                    Text("Went to sleep \(sleep.startedAt, format: .dateTime.hour().minute())")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("current-sleep-started-at")
                 }
 
-                Text("Went to sleep \(sleep.startedAt, format: .dateTime.hour().minute())")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("current-sleep-started-at")
+                Spacer(minLength: 8)
+
+                Button("Stop") {
+                    stopSleep()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(BabyEventStyle.accentColor(for: .sleep))
+                .accessibilityIdentifier("current-sleep-stop-button")
             }
 
-            Spacer(minLength: 8)
-
-            Button("Stop") {
-                stopSleep()
+            Button(action: logPastSleep) {
+                Label("Log a past sleep", systemImage: "plus.circle")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(BabyEventStyle.accentColor(for: .sleep))
             }
-            .buttonStyle(.borderedProminent)
-            .tint(BabyEventStyle.accentColor(for: .sleep))
-            .accessibilityIdentifier("current-sleep-stop-button")
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("log-past-sleep-button")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
@@ -78,4 +91,16 @@ public struct CurrentSleepCardView: View {
 
         return String(format: "%02dh %02dm %02ds", hours, minutes, remainingSeconds)
     }
+}
+
+#Preview {
+    CurrentSleepCardView(
+        sleep: CurrentSleepCardViewState(
+            sleepEventID: UUID(),
+            startedAt: Date(timeIntervalSinceNow: -4_500)
+        ),
+        stopSleep: {},
+        logPastSleep: {}
+    )
+    .padding()
 }

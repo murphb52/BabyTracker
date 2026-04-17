@@ -6,6 +6,7 @@ public enum ChildEventSheet: Identifiable {
     case quickLogBottleFeed
     case startSleep(suggestions: [(label: String, date: Date)])
     case endSleep(id: UUID, startedAt: Date)
+    case logPastSleep(suggestions: [(label: String, date: Date)])
     case quickLogNappy(NappyType)
     case editBreastFeed(
         id: UUID,
@@ -83,6 +84,8 @@ public enum ChildEventSheet: Identifiable {
             "start-sleep"
         case let .endSleep(id, _):
             "end-sleep-\(id.uuidString)"
+        case .logPastSleep:
+            "log-past-sleep"
         case let .quickLogNappy(type):
             "quick-log-nappy-\(type.rawValue)"
         case let .editBreastFeed(id, _, _, _, _, _):

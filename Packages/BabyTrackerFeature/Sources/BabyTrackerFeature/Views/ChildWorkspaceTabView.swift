@@ -34,6 +34,7 @@ public struct ChildWorkspaceTabView: View {
                 viewModel: homeViewModel,
                 childProfileViewModel: childProfileViewModel,
                 stopSleep: showSleepSheet,
+                logPastSleep: { activeEventSheet = .logPastSleep(suggestions: model.sleepStartSuggestions()) },
                 quickLogBreastFeed: { activeEventSheet = .quickLogBreastFeed },
                 quickLogBottleFeed: { activeEventSheet = .quickLogBottleFeed },
                 quickLogSleep: showSleepSheet,
@@ -292,6 +293,22 @@ public struct ChildWorkspaceTabView: View {
                 } else {
                     didSave = model.startSleep(startedAt: startedAt)
                 }
+                if didSave {
+                    activeEventSheet = nil
+                }
+                return didSave
+            }
+        case let .logPastSleep(suggestions):
+            SleepEditorSheetView(
+                mode: .start,
+                childName: childProfileViewModel.childName,
+                initialStartedAt: Date(),
+                initialEndedAt: nil,
+                startSuggestions: suggestions,
+                initialIncludesEndTime: true
+            ) { startedAt, endedAt in
+                guard let endedAt else { return false }
+                let didSave = model.logSleep(startedAt: startedAt, endedAt: endedAt)
                 if didSave {
                     activeEventSheet = nil
                 }
