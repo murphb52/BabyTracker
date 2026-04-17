@@ -195,11 +195,30 @@ public struct SummaryScreenView: View {
     let viewModel: SummaryViewModel
 
     @State private var selectedTab: SummaryTab = .today
+    @State private var selectedDate: Date = .now
+    @State private var showDatePicker: Bool = false
     @State private var selectedTrendsRange: TrendsTimeRange = .sevenDays
     @State private var selectedNappyFilter: TodayNappyChartFilter = .all
     @State private var selectedBottleFilter: TodayBottleChartFilter = .all
     @State private var selectedTrendsNappyFilter: TrendsNappyChartFilter = .all
     @State private var selectedTrendsBottleFilter: TrendsBottleChartFilter = .all
+
+    private var isSelectedDateToday: Bool {
+        Calendar.autoupdatingCurrent.isDateInToday(selectedDate)
+    }
+
+    private var dateLabel: String {
+        if isSelectedDateToday {
+            return "Today"
+        } else if Calendar.autoupdatingCurrent.isDateInYesterday(selectedDate) {
+            return "Yesterday"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .none
+            return formatter.string(from: selectedDate)
+        }
+    }
 
     public init(viewModel: SummaryViewModel) {
         self.viewModel = viewModel
@@ -242,7 +261,7 @@ public struct SummaryScreenView: View {
     // MARK: - Today Tab
 
     private var todayTabContent: some View {
-        let data = TodaySummaryCalculator.makeData(from: viewModel.events)
+        let data = TodaySummaryCalculator.makeData(from: viewModel.events, now: selectedDate)
 
         return Group {
             if viewModel.events.isEmpty {
@@ -252,6 +271,7 @@ public struct SummaryScreenView: View {
                 )
             } else {
                 VStack(alignment: .leading, spacing: 12) {
+                    dateNavigationRow
                     sleepSectionCard(data: data)
                     bottleSectionCard(data: data)
                     breastSectionCard(data: data)
@@ -261,6 +281,70 @@ public struct SummaryScreenView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Date Navigation
+
+    private var dateNavigationRow: some View {
+        HStack(spacing: 0) {
+            Button {
+                let calendar = Calendar.autoupdatingCurrent
+                selectedDate = calendar.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.body.weight(.semibold))
+                    .frame(width: 44, height: 36)
+                    .contentShape(Rectangle())
+            }
+
+            Spacer(minLength: 0)
+
+            Button {
+                showDatePicker = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar")
+                        .font(.subheadline)
+                    Text(dateLabel)
+                        .font(.subheadline.weight(.semibold))
+                }
+                .foregroundStyle(.primary)
+            }
+            .popover(isPresented: $showDatePicker) {
+                VStack(spacing: 0) {
+                    DatePicker(
+                        "Select date",
+                        selection: $selectedDate,
+                        in: ...Date.now,
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.graphical)
+                    .padding()
+
+                    Button("Done") { showDatePicker = false }
+                        .padding(.bottom, 16)
+                }
+                .presentationCompactAdaptation(.popover)
+            }
+
+            Spacer(minLength: 0)
+
+            Button {
+                let calendar = Calendar.autoupdatingCurrent
+                if let next = calendar.date(byAdding: .day, value: 1, to: selectedDate), next <= .now {
+                    selectedDate = next
+                }
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.body.weight(.semibold))
+                    .frame(width: 44, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .disabled(isSelectedDateToday)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(cardBackground)
     }
 
     // MARK: - Today Section Cards
@@ -326,12 +410,15 @@ public struct SummaryScreenView: View {
     }
 
     private func bottleFeedTimingRow(data: TodaySummaryData) -> some View {
-        let parts: [String] = [
-            data.minutesSinceLastFeed.map { "Last \(DurationText.short(minutes: $0)) ago" },
-            data.averageFeedIntervalMinutes.map { "Avg interval \(DurationText.short(minutes: $0))" },
-        ].compactMap { $0 }
-
-        guard !parts.isEmpty else { return Text("No bottle feeds today").font(.caption).foregroundStyle(.secondary) }
+        var parts: [String] = []
+        if isSelectedDateToday, let mins = data.minutesSinceLastFeed {
+            parts.append("Last \(DurationText.short(minutes: mins)) ago")
+        }
+        if let avg = data.averageFeedIntervalMinutes {
+            parts.append("Avg interval \(DurationText.short(minutes: avg))")
+        }
+        let noFeedsText = isSelectedDateToday ? "No bottle feeds today" : "No bottle feeds on this day"
+        guard !parts.isEmpty else { return Text(noFeedsText).font(.caption).foregroundStyle(.secondary) }
         return Text(parts.joined(separator: " • ")).font(.caption).foregroundStyle(.secondary)
     }
 
@@ -345,7 +432,7 @@ public struct SummaryScreenView: View {
             if data.breastFeedCount > 0 {
                 breastMetricsRow(data: data)
             } else {
-                Text("No breast feeds today")
+                Text(isSelectedDateToday ? "No breast feeds today" : "No breast feeds on this day")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -374,7 +461,7 @@ public struct SummaryScreenView: View {
                 sleepSessionMetricsRow(data: data)
                 sleepTimingRow(data: data)
             } else {
-                Text("No sleep logged today")
+                Text(isSelectedDateToday ? "No sleep logged today" : "No sleep logged on this day")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -398,7 +485,7 @@ public struct SummaryScreenView: View {
 
     private func sleepTimingRow(data: TodaySummaryData) -> some View {
         Group {
-            if let mins = data.minutesSinceLastSleep {
+            if isSelectedDateToday, let mins = data.minutesSinceLastSleep {
                 Text("Last sleep \(DurationText.short(minutes: mins)) ago")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -427,7 +514,7 @@ public struct SummaryScreenView: View {
             if data.totalNappies > 0 {
                 nappyBreakdownRow(data: data)
             } else {
-                Text("No nappy changes today")
+                Text(isSelectedDateToday ? "No nappy changes today" : "No nappy changes on this day")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -706,7 +793,9 @@ public struct SummaryScreenView: View {
         NavigationLink {
             AdvancedSummaryView(
                 viewModel: viewModel,
-                initialSelection: .range(selectedTrendsRange.asSummaryTimeRange)
+                initialSelection: isSelectedDateToday
+                    ? .range(selectedTrendsRange.asSummaryTimeRange)
+                    : .day(selectedDate)
             )
         } label: {
             HStack(alignment: .center, spacing: 12) {
