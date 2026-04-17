@@ -8,6 +8,8 @@ public struct TimelineDayGridView: View {
     let openItem: (TimelineDayGridItemViewState) -> Void
     let deleteItem: (TimelineDayGridItemViewState) -> Void
 
+    static let nowScrollAnchorID = "timeline-now-scroll-anchor"
+
     private let timeColumnWidth: CGFloat = 20
     private let columnSpacing: CGFloat = 8
     private let slotHeight: CGFloat = 30
@@ -105,7 +107,8 @@ public struct TimelineDayGridView: View {
     }
 
     private func slotGrid(columnWidth: CGFloat) -> some View {
-        VStack(spacing: 0) {
+        let scrollAnchorSlot = nowScrollAnchorSlotIndex
+        return VStack(spacing: 0) {
             ForEach(0..<slotCount, id: \.self) { slotIndex in
                 HStack(spacing: columnSpacing) {
                     if slotIndex.isMultiple(of: slotsPerHour) {
@@ -127,6 +130,12 @@ public struct TimelineDayGridView: View {
                         )
                         .frame(width: columnWidth, height: slotHeight)
                     }
+                }
+
+                if let target = scrollAnchorSlot, slotIndex == target {
+                    Color.clear
+                        .frame(height: 0)
+                        .id(Self.nowScrollAnchorID)
                 }
             }
         }
@@ -203,6 +212,15 @@ public struct TimelineDayGridView: View {
 
     private var isToday: Bool {
         Calendar.autoupdatingCurrent.isDateInToday(day)
+    }
+
+    private var nowScrollAnchorSlotIndex: Int? {
+        guard isToday else { return nil }
+        let calendar = Calendar.autoupdatingCurrent
+        let components = calendar.dateComponents([.hour, .minute], from: Date())
+        let currentMinutes = (components.hour ?? 0) * 60 + (components.minute ?? 0)
+        let nowSlot = currentMinutes / grid.slotMinutes
+        return min(slotCount - 1, nowSlot + 2)
     }
 
     private func eventKind(for columnKind: TimelineDayGridColumnKind) -> BabyEventKind {
