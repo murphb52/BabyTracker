@@ -6,6 +6,7 @@ public struct ChildHomeView: View {
     let viewModel: HomeViewModel
     let childProfileViewModel: ChildProfileViewModel
     let stopSleep: () -> Void
+    let logPastSleep: () -> Void
     let quickLogBreastFeed: () -> Void
     let quickLogBottleFeed: () -> Void
     let quickLogSleep: () -> Void
@@ -17,6 +18,7 @@ public struct ChildHomeView: View {
         viewModel: HomeViewModel,
         childProfileViewModel: ChildProfileViewModel,
         stopSleep: @escaping () -> Void,
+        logPastSleep: @escaping () -> Void,
         quickLogBreastFeed: @escaping () -> Void,
         quickLogBottleFeed: @escaping () -> Void,
         quickLogSleep: @escaping () -> Void,
@@ -26,6 +28,7 @@ public struct ChildHomeView: View {
         self.viewModel = viewModel
         self.childProfileViewModel = childProfileViewModel
         self.stopSleep = stopSleep
+        self.logPastSleep = logPastSleep
         self.quickLogBreastFeed = quickLogBreastFeed
         self.quickLogBottleFeed = quickLogBottleFeed
         self.quickLogSleep = quickLogSleep
@@ -59,7 +62,8 @@ public struct ChildHomeView: View {
     private func currentSleepSection(_ sleep: CurrentSleepCardViewState) -> some View {
         CurrentSleepCardView(
             sleep: sleep,
-            stopSleep: stopSleep
+            stopSleep: stopSleep,
+            logPastSleep: logPastSleep
         )
     }
 
@@ -269,6 +273,7 @@ public struct ChildHomeView: View {
             viewModel: HomeViewModel(appModel: model),
             childProfileViewModel: ChildProfileViewModel(appModel: model),
             stopSleep: {},
+            logPastSleep: {},
             quickLogBreastFeed: {},
             quickLogBottleFeed: {},
             quickLogSleep: {},

@@ -24,6 +24,7 @@ public struct SleepEditorSheetView: View {
         initialEndedAt: Date?,
         startSuggestions: [(label: String, date: Date)] = [],
         endTimeInitialPreset: QuickTimeSelectorView.TimePreset = .now,
+        initialIncludesEndTime: Bool = false,
         saveAction: @escaping (_ startedAt: Date, _ endedAt: Date?) -> Bool,
         deleteAction: (() -> Void)? = nil,
         resumeAction: (() -> Void)? = nil
@@ -37,7 +38,7 @@ public struct SleepEditorSheetView: View {
         self.endTimeInitialPreset = endTimeInitialPreset
         _startedAt = State(initialValue: initialStartedAt)
         _endedAt = State(initialValue: initialEndedAt ?? Date())
-        _includesEndTime = State(initialValue: mode != .start)
+        _includesEndTime = State(initialValue: mode != .start || initialIncludesEndTime)
     }
 
     public var body: some View {
