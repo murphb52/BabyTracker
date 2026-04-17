@@ -389,6 +389,7 @@ public struct SummaryScreenView: View {
             CumulativeLineChartView(
                 series: selectedBottleFilter.series(from: data.chartData),
                 tint: .blue,
+                isToday: isSelectedDateToday,
                 valueFormatter: { value in
                     FeedVolumePresentation.amountText(for: value, unit: preferredUnit)
                 }
@@ -447,7 +448,7 @@ public struct SummaryScreenView: View {
                     .foregroundStyle(.secondary)
             }
 
-            CumulativeLineChartView(series: data.chartData.breast, tint: .pink)
+            CumulativeLineChartView(series: data.chartData.breast, tint: .pink, isToday: isSelectedDateToday)
                 .padding(.top, 4)
         }
     }
@@ -476,7 +477,7 @@ public struct SummaryScreenView: View {
                     .foregroundStyle(.secondary)
             }
 
-            CumulativeLineChartView(series: data.chartData.sleep, tint: .indigo)
+            CumulativeLineChartView(series: data.chartData.sleep, tint: .indigo, isToday: isSelectedDateToday)
                 .padding(.top, 4)
         }
     }
@@ -529,7 +530,7 @@ public struct SummaryScreenView: View {
                     .foregroundStyle(.secondary)
             }
 
-            CumulativeLineChartView(series: selectedNappyFilter.series(from: data.chartData), tint: .green)
+            CumulativeLineChartView(series: selectedNappyFilter.series(from: data.chartData), tint: .green, isToday: isSelectedDateToday)
                 .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

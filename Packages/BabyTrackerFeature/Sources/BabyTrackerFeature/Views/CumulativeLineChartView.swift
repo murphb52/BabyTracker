@@ -11,6 +11,7 @@ import SwiftUI
 struct CumulativeLineChartView: View {
     let series: HourlyCumulativeSeries
     let tint: Color
+    let isToday: Bool
     let valueFormatter: (Int) -> String
 
     @State private var selectedHour: Int?
@@ -18,10 +19,12 @@ struct CumulativeLineChartView: View {
     init(
         series: HourlyCumulativeSeries,
         tint: Color,
+        isToday: Bool = true,
         valueFormatter: @escaping (Int) -> String = { "\($0)" }
     ) {
         self.series = series
         self.tint = tint
+        self.isToday = isToday
         self.valueFormatter = valueFormatter
     }
 
@@ -53,19 +56,21 @@ struct CumulativeLineChartView: View {
                 .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
             }
 
-            // "Now" indicator — always visible; selection callout renders on top due to mark order.
-            RuleMark(x: .value("Now", currentHour))
-                .foregroundStyle(tint.opacity(0.25))
-                .lineStyle(StrokeStyle(lineWidth: 1))
-                .annotation(position: .top, alignment: .center, spacing: 4) {
-                    Text("Now")
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .foregroundStyle(tint)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(tint.opacity(0.12), in: Capsule())
-                }
+            // "Now" indicator — only shown for today; selection callout renders on top due to mark order.
+            if isToday {
+                RuleMark(x: .value("Now", currentHour))
+                    .foregroundStyle(tint.opacity(0.25))
+                    .lineStyle(StrokeStyle(lineWidth: 1))
+                    .annotation(position: .top, alignment: .center, spacing: 4) {
+                        Text("Now")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundStyle(tint)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(tint.opacity(0.12), in: Capsule())
+                    }
+            }
 
             // Selection indicator — rendered after "Now" so it draws on top.
             if let hour = selectedHour, hour >= 0, hour < 24 {
@@ -119,9 +124,10 @@ struct CumulativeLineChartView: View {
     }
 
     private var todayPoints: [HourPoint] {
-        series.todayCumulative
+        let hourLimit = isToday ? currentHour + 1 : 24
+        return series.todayCumulative
             .enumerated()
-            .prefix(currentHour + 1)
+            .prefix(hourLimit)
             .map { HourPoint(id: $0, hour: $0, value: $1) }
     }
 
@@ -137,7 +143,7 @@ struct CumulativeLineChartView: View {
         let todayVal = series.todayCumulative[hour]
         let avgVal = series.averageCumulative[hour]
         return VStack(alignment: .leading, spacing: 2) {
-            if hour <= currentHour {
+            if !isToday || hour <= currentHour {
                 Text("Today: \(valueFormatter(todayVal))").foregroundStyle(tint)
             }
             Text("Avg: \(valueFormatter(avgVal))").foregroundStyle(.secondary)
