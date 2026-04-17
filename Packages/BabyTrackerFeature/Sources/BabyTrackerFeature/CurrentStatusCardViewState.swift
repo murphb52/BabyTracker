@@ -2,19 +2,22 @@ import Foundation
 
 public struct CurrentStatusCardViewState: Equatable, Sendable {
     public let lastSleep: LastSleepSummaryViewState?
-    public let timeSinceLastFeedAt: Date?
+    public let lastBreastFeed: LastEventSummaryViewState?
+    public let lastBottleFeed: LastEventSummaryViewState?
     public let feedsTodayCount: Int
-    public let timeSinceLastNappyAt: Date?
+    public let lastNappy: LastNappySummaryViewState?
 
     public init(
         lastSleep: LastSleepSummaryViewState?,
-        timeSinceLastFeedAt: Date?,
+        lastBreastFeed: LastEventSummaryViewState?,
+        lastBottleFeed: LastEventSummaryViewState?,
         feedsTodayCount: Int,
-        timeSinceLastNappyAt: Date?
+        lastNappy: LastNappySummaryViewState?
     ) {
         self.lastSleep = lastSleep
-        self.timeSinceLastFeedAt = timeSinceLastFeedAt
+        self.lastBreastFeed = lastBreastFeed
+        self.lastBottleFeed = lastBottleFeed
         self.feedsTodayCount = feedsTodayCount
-        self.timeSinceLastNappyAt = timeSinceLastNappyAt
+        self.lastNappy = lastNappy
     }
 }
