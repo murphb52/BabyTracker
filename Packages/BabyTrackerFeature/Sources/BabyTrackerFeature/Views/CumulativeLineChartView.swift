@@ -30,18 +30,20 @@ struct CumulativeLineChartView: View {
 
     var body: some View {
         Chart {
-            // 7-day average — dashed, secondary, full 24 hours
+            // 7-day average — dashed, secondary, full 24 hours; only shown while interacting.
             // series: groups all 24 marks into one continuous line so the
             // dash pattern is applied across the whole series, not per segment.
-            ForEach(averagePoints) { point in
-                LineMark(
-                    x: .value("Hour", point.hour),
-                    y: .value("7-Day Avg", point.value),
-                    series: .value("Series", "average")
-                )
-                .interpolationMethod(.monotone)
-                .foregroundStyle(Color.secondary.opacity(0.6))
-                .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+            if selectedHour != nil {
+                ForEach(averagePoints) { point in
+                    LineMark(
+                        x: .value("Hour", point.hour),
+                        y: .value("7-Day Avg", point.value),
+                        series: .value("Series", "average")
+                    )
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(Color.secondary.opacity(0.6))
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                }
             }
 
             // Today — solid, tinted, stops at the current hour

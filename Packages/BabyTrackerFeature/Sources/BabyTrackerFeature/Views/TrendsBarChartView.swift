@@ -38,7 +38,7 @@ struct TrendsBarChartView: View {
                 }
             }
 
-            if let avg = averageValue {
+            if let avg = averageValue, selectedKey != nil {
                 RuleMark(y: .value("Average", avg))
                     .foregroundStyle(.orange.opacity(0.8))
                     .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
