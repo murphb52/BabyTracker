@@ -63,17 +63,6 @@ public struct CurrentStatusCardView: View {
             Divider()
 
             statusRow(
-                title: "Feeds today",
-                systemImage: "list.number",
-                iconTint: BabyEventStyle.accentColor(for: .breastFeed),
-                identifier: "current-status-feeds-today"
-            ) {
-                Text("\(status.feedsTodayCount)")
-            }
-
-            Divider()
-
-            statusRow(
                 title: "Last nappy",
                 subtitle: status.lastNappy?.detailText,
                 systemImage: BabyEventStyle.systemImage(for: .nappy),
@@ -85,6 +74,17 @@ public struct CurrentStatusCardView: View {
                 } else {
                     Text("No nappies yet")
                 }
+            }
+
+            Divider()
+
+            statusRow(
+                title: "Feeds today",
+                systemImage: "list.number",
+                iconTint: BabyEventStyle.accentColor(for: .breastFeed),
+                identifier: "current-status-feeds-today"
+            ) {
+                Text("\(status.feedsTodayCount)")
             }
         }
         .padding(20)
