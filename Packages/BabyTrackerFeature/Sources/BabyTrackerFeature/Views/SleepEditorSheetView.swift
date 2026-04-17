@@ -14,6 +14,7 @@ public struct SleepEditorSheetView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var startedAt: Date
+    @State private var showDeleteConfirmation = false
     @State private var endedAt: Date
     @State private var includesEndTime: Bool
 
@@ -70,15 +71,23 @@ public struct SleepEditorSheetView: View {
                     }
                 }
 
-                if let deleteAction {
+                if deleteAction != nil {
                     Section {
                         Button("Delete Sleep", role: .destructive) {
-                            deleteAction()
-                            dismiss()
+                            showDeleteConfirmation = true
                         }
                         .accessibilityIdentifier("delete-sleep-button")
                     }
                 }
+            }
+            .alert("Delete Sleep?", isPresented: $showDeleteConfirmation) {
+                Button("Delete", role: .destructive) {
+                    deleteAction?()
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This event will be permanently removed.")
             }
             .tint(Self.eventColor)
             .scrollContentBackground(.hidden)
