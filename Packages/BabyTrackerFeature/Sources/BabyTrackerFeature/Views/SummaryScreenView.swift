@@ -116,11 +116,15 @@ private enum TrendsNappyChartFilter: String, TodayChartFilter {
     }
 
     func averageText(from data: [DailyNappyData]) -> String? {
+        guard let average = averageValue(from: data) else { return nil }
+        return "Avg \(average)/day"
+    }
+
+    func averageValue(from data: [DailyNappyData]) -> Int? {
         let values = data.map(count(for:))
         let nonZeroValues = values.filter { $0 > 0 }
         guard !nonZeroValues.isEmpty else { return nil }
-        let average = Int((Double(nonZeroValues.reduce(0, +)) / Double(nonZeroValues.count)).rounded())
-        return "Avg \(average)/day"
+        return Int((Double(nonZeroValues.reduce(0, +)) / Double(nonZeroValues.count)).rounded())
     }
 
     private func count(for day: DailyNappyData) -> Int {
@@ -172,11 +176,15 @@ private enum TrendsBottleChartFilter: String, TodayChartFilter {
     }
 
     func averageText(from data: [DailyBottleData], unit: FeedVolumeUnit) -> String? {
+        guard let average = averageValue(from: data) else { return nil }
+        return "Avg \(FeedVolumePresentation.perDayText(for: average, unit: unit))"
+    }
+
+    func averageValue(from data: [DailyBottleData]) -> Int? {
         let values = data.map(value(for:))
         let nonZeroValues = values.filter { $0 > 0 }
         guard !nonZeroValues.isEmpty else { return nil }
-        let average = Int((Double(nonZeroValues.reduce(0, +)) / Double(nonZeroValues.count)).rounded())
-        return "Avg \(FeedVolumePresentation.perDayText(for: average, unit: unit))"
+        return Int((Double(nonZeroValues.reduce(0, +)) / Double(nonZeroValues.count)).rounded())
     }
 
     private func value(for day: DailyBottleData) -> Int {
@@ -620,6 +628,7 @@ public struct SummaryScreenView: View {
         let preferredUnit = viewModel.preferredFeedVolumeUnit
         let points = selectedTrendsBottleFilter.points(from: data.dailyBottle)
         let avgText = selectedTrendsBottleFilter.averageText(from: data.dailyBottle, unit: preferredUnit)
+        let avgValue = selectedTrendsBottleFilter.averageValue(from: data.dailyBottle)
 
         return chartCard(
             title: "Bottle Feeds",
@@ -638,7 +647,8 @@ public struct SummaryScreenView: View {
                 tint: selectedTrendsBottleFilter.tint,
                 valueFormatter: { value in
                     FeedVolumePresentation.amountText(for: value, unit: preferredUnit)
-                }
+                },
+                averageValue: avgValue
             )
         }
     }
@@ -653,7 +663,11 @@ public struct SummaryScreenView: View {
             tint: .pink,
             subtitle: avgText ?? "No breast feeds in this period"
         ) {
-            TrendsBarChartView(points: points, tint: .pink)
+            TrendsBarChartView(
+                points: points,
+                tint: .pink,
+                averageValue: data.avgDailyBreastFeedSessions
+            )
         }
     }
 
@@ -667,12 +681,18 @@ public struct SummaryScreenView: View {
             tint: .indigo,
             subtitle: avgText ?? "No sleep logged in this period"
         ) {
-            TrendsBarChartView(points: points, tint: .indigo, valueFormatter: { DurationText.short(minutes: $0) })
+            TrendsBarChartView(
+                points: points,
+                tint: .indigo,
+                valueFormatter: { DurationText.short(minutes: $0) },
+                averageValue: data.avgDailySleepMinutes
+            )
         }
     }
 
     private func nappyChartCard(data: TrendsSummaryData) -> some View {
         let avgText = selectedTrendsNappyFilter.averageText(from: data.dailyNappy)
+        let avgValue = selectedTrendsNappyFilter.averageValue(from: data.dailyNappy)
 
         return chartCard(
             title: "Nappies",
@@ -687,11 +707,12 @@ public struct SummaryScreenView: View {
             }
         ) {
             if selectedTrendsNappyFilter == .all {
-                TrendsNappyChartView(data: data.dailyNappy)
+                TrendsNappyChartView(data: data.dailyNappy, averageValue: avgValue)
             } else {
                 TrendsBarChartView(
                     points: selectedTrendsNappyFilter.points(from: data.dailyNappy),
-                    tint: selectedTrendsNappyFilter.tint
+                    tint: selectedTrendsNappyFilter.tint,
+                    averageValue: avgValue
                 )
             }
         }
