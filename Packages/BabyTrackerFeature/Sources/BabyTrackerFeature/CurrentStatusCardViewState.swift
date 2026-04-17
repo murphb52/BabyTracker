@@ -7,6 +7,23 @@ public struct CurrentStatusCardViewState: Equatable, Sendable {
     public let feedsTodayCount: Int
     public let lastNappy: LastNappySummaryViewState?
 
+    public var timeSinceLastFeedAt: Date? {
+        switch (lastBreastFeed?.occurredAt, lastBottleFeed?.occurredAt) {
+        case let (left?, right?):
+            return max(left, right)
+        case let (left?, nil):
+            return left
+        case let (nil, right?):
+            return right
+        case (nil, nil):
+            return nil
+        }
+    }
+
+    public var timeSinceLastNappyAt: Date? {
+        lastNappy?.occurredAt
+    }
+
     public init(
         lastSleep: LastSleepSummaryViewState?,
         lastBreastFeed: LastEventSummaryViewState?,

@@ -34,4 +34,8 @@ public struct AdvancedSummarySelection: Equatable, Sendable {
     public static func range(_ range: SummaryTimeRange, day: Date = .now) -> AdvancedSummarySelection {
         AdvancedSummarySelection(mode: .range, range: range, day: day)
     }
+
+    public static func day(_ day: Date, range: SummaryTimeRange = .today) -> AdvancedSummarySelection {
+        AdvancedSummarySelection(mode: .day, range: range, day: day)
+    }
 }
