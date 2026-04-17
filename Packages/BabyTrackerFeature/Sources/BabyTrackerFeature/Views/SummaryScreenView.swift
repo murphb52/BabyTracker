@@ -330,8 +330,10 @@ public struct SummaryScreenView: View {
                     .padding()
 
                     Button("Done") { showDatePicker = false }
+                        .frame(maxWidth: .infinity)
                         .padding(.bottom, 16)
                 }
+                .frame(width: 340, height: 420)
                 .presentationCompactAdaptation(.popover)
             }
 
