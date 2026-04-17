@@ -80,7 +80,7 @@ public struct TimelineDayGridPageView: View {
         let visibleHour = page.isToday ? calendar.component(.hour, from: .now) : 6
 
         DispatchQueue.main.async {
-            proxy.scrollTo("timeline-day-grid-hour-\(visibleHour)", anchor: .top)
+            proxy.scrollTo("timeline-day-grid-hour-\(visibleHour)", anchor: .bottom)
         }
     }
 }
