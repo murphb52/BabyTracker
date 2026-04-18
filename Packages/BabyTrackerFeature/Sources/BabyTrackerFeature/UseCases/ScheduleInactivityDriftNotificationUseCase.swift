@@ -32,14 +32,16 @@ public enum ScheduleInactivityDriftNotificationUseCase {
 
         let targetFireDate = input.lastEventOccurredAt.addingTimeInterval(threshold)
         let fireAfter = targetFireDate.timeIntervalSince(input.now)
-        // If already past threshold (e.g. app relaunched hours later), give a short grace
-        // period rather than firing immediately on launch.
-        let resolvedFireAfter = fireAfter > 0 ? fireAfter : 5 * 60
+        let resolvedFireAfter = fireAfter > 0 ? fireAfter : overdueGrace(for: threshold)
 
         await notificationManager.scheduleInactivityDriftNotification(
             childID: input.childID,
             childName: input.childName,
             fireAfter: resolvedFireAfter
         )
+    }
+
+    private static func overdueGrace(for threshold: TimeInterval) -> TimeInterval {
+        min(max(threshold * 0.10, 5 * 60), 30 * 60)
     }
 }

@@ -28,19 +28,24 @@ public enum ScheduleSleepDriftNotificationUseCase {
     @MainActor
     public static func execute(input: Input, notificationManager: any LocalNotificationManaging) async {
         let threshold = CalculateSleepDriftThresholdUseCase().execute(
-            .init(completedSleepEvents: input.completedSleepEvents)
+            .init(
+                completedSleepEvents: input.completedSleepEvents,
+                activeSleepStartedAt: input.activeSleepStartedAt
+            )
         )
 
         let elapsed = input.now.timeIntervalSince(input.activeSleepStartedAt)
         let remaining = threshold - elapsed
-        // If sleep already exceeds threshold (e.g. app relaunched mid-sleep), give a short
-        // grace period rather than firing immediately on launch.
-        let fireAfter = remaining > 0 ? remaining : 5 * 60
+        let fireAfter = remaining > 0 ? remaining : overdueGrace(for: threshold)
 
         await notificationManager.scheduleSleepDriftNotification(
             childID: input.childID,
             childName: input.childName,
             fireAfter: fireAfter
         )
+    }
+
+    private static func overdueGrace(for threshold: TimeInterval) -> TimeInterval {
+        min(max(threshold * 0.10, 5 * 60), 30 * 60)
     }
 }
