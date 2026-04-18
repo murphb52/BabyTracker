@@ -21,16 +21,21 @@ public struct CalculateInactivityDriftThresholdUseCase {
     public init() {}
 
     /// Returns the time interval after the last event at which to fire an inactivity notification.
-    public func execute(_ input: Input) -> TimeInterval {
+    public func execute(
+        _ input: Input,
+        randomMinuteOffset: () -> Int = { Int.random(in: 1...60) }
+    ) -> TimeInterval {
+        let randomOffset = TimeInterval(randomMinuteOffset() * 60)
+
         guard let lastEvent = input.events.max(by: { $0.metadata.occurredAt < $1.metadata.occurredAt }) else {
-            return Self.defaultThreshold
+            return Self.defaultThreshold + randomOffset
         }
 
         let hour = Calendar.autoupdatingCurrent.component(.hour, from: lastEvent.metadata.occurredAt)
         if hour >= Self.daytimeStartHour, hour < Self.nighttimeStartHour {
-            return Self.daytimeThreshold
+            return Self.daytimeThreshold + randomOffset
         }
 
-        return Self.defaultThreshold
+        return Self.defaultThreshold + randomOffset
     }
 }

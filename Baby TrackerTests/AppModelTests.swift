@@ -1424,6 +1424,52 @@ struct AppModelTests {
     }
 
     @Test
+    func syncRefreshReschedulesReminderNotificationsUsingRefreshedTimelineEvents() async throws {
+        let notificationManager = LocalNotificationManagerSpy()
+        let reminderPreferenceStore = InMemoryReminderNotificationPreferenceStore(
+            isReminderNotificationsEnabled: true
+        )
+        let harness = try Harness(
+            reminderNotificationPreferenceStore: reminderPreferenceStore,
+            localNotificationManager: notificationManager
+        )
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: .now)
+        let originalEventTime = try #require(calendar.date(byAdding: .hour, value: 8, to: today))
+        let refreshedEventTime = try #require(calendar.date(byAdding: .hour, value: 10, to: today))
+
+        _ = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 120,
+            occurredAt: originalEventTime,
+            milkType: nil
+        )
+
+        harness.model.load(performLaunchSync: false)
+        await Task.yield()
+
+        #expect(notificationManager.scheduledInactivityNotifications.count == 1)
+
+        _ = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 150,
+            occurredAt: refreshedEventTime,
+            milkType: .formula
+        )
+
+        await harness.model.refreshSyncStatus()
+
+        #expect(notificationManager.scheduledInactivityNotifications.count == 2)
+        #expect(notificationManager.scheduledInactivityNotifications.last?.childID == seed.child.id)
+        #expect(notificationManager.scheduledInactivityNotifications.last?.childName == seed.child.name)
+    }
+
+    @Test
     func updatingCurrentChildAdvancesUpdatedAt() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }
@@ -1713,6 +1759,8 @@ extension AppModelTests {
             syncEngine: any CloudKitSyncControlling = TestSyncEngine(),
             liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager(),
             liveActivityPreferenceStore: any LiveActivityPreferenceStore = InMemoryLiveActivityPreferenceStore(),
+            reminderNotificationPreferenceStore: any ReminderNotificationPreferenceStore = InMemoryReminderNotificationPreferenceStore(),
+            localNotificationManager: any LocalNotificationManaging = NoOpLocalNotificationManager(),
             hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
         ) throws {
             let store = InMemoryStore()
@@ -1731,6 +1779,8 @@ extension AppModelTests {
                 syncEngine: syncEngine,
                 liveActivityManager: liveActivityManager,
                 liveActivityPreferenceStore: liveActivityPreferenceStore,
+                reminderNotificationPreferenceStore: reminderNotificationPreferenceStore,
+                localNotificationManager: localNotificationManager,
                 hapticFeedbackProvider: hapticFeedbackProvider
             )
         }
@@ -1931,6 +1981,47 @@ extension AppModelTests {
         func play(_ event: HapticEvent) {
             events.append(event)
         }
+    }
+
+    @MainActor
+    private final class LocalNotificationManagerSpy: LocalNotificationManaging {
+        struct InactivityNotification: Equatable {
+            let childID: UUID
+            let childName: String
+            let fireAfter: TimeInterval
+        }
+
+        private(set) var scheduledInactivityNotifications: [InactivityNotification] = []
+
+        func isAuthorizedForNotifications() async -> Bool { true }
+        func requestAuthorizationIfNeeded() async -> Bool { true }
+        func scheduleRemoteSyncNotification(_ content: RemoteCaregiverNotificationContent) async {
+            _ = content
+        }
+
+        func scheduleSleepDriftNotification(childID: UUID, childName: String, fireAfter: TimeInterval) async {
+            _ = (childID, childName, fireAfter)
+        }
+
+        func cancelSleepDriftNotification(childID: UUID) async {
+            _ = childID
+        }
+
+        func scheduleInactivityDriftNotification(childID: UUID, childName: String, fireAfter: TimeInterval) async {
+            scheduledInactivityNotifications.append(
+                InactivityNotification(
+                    childID: childID,
+                    childName: childName,
+                    fireAfter: fireAfter
+                )
+            )
+        }
+
+        func cancelInactivityDriftNotification(childID: UUID) async {
+            _ = childID
+        }
+
+        func pendingDriftNotifications() async -> [PendingDriftNotification] { [] }
     }
 }
 

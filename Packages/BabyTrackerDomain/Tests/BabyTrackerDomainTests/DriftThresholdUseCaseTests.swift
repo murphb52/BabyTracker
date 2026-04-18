@@ -7,14 +7,15 @@ struct DriftThresholdUseCaseTests {
     private let userID = UUID()
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
     private let calendar = Calendar(identifier: .gregorian)
+    private let randomMinuteOffset = 17
 
     @Test
     func inactivityThresholdUsesFixedTwelveHoursWithoutHistory() {
         let useCase = CalculateInactivityDriftThresholdUseCase()
 
-        let threshold = useCase.execute(.init(events: []))
+        let threshold = useCase.execute(.init(events: [])) { randomMinuteOffset }
 
-        #expect(threshold == 12 * 60 * 60)
+        #expect(threshold == (12 * 60 * 60) + (17 * 60))
     }
 
     @Test
@@ -26,9 +27,9 @@ struct DriftThresholdUseCaseTests {
             bottleFeed(atHour: 14),
         ]
 
-        let threshold = useCase.execute(.init(events: events))
+        let threshold = useCase.execute(.init(events: events)) { randomMinuteOffset }
 
-        #expect(threshold == 6 * 60 * 60)
+        #expect(threshold == (6 * 60 * 60) + (17 * 60))
     }
 
     @Test
@@ -40,9 +41,9 @@ struct DriftThresholdUseCaseTests {
             bottleFeed(atHour: 18),
         ]
 
-        let threshold = useCase.execute(.init(events: events))
+        let threshold = useCase.execute(.init(events: events)) { randomMinuteOffset }
 
-        #expect(threshold == 12 * 60 * 60)
+        #expect(threshold == (12 * 60 * 60) + (17 * 60))
     }
 
     @Test
@@ -50,9 +51,9 @@ struct DriftThresholdUseCaseTests {
         let useCase = CalculateSleepDriftThresholdUseCase()
         let startedAt = dateAtHour(1)
 
-        let threshold = useCase.execute(.init(activeSleepStartedAt: startedAt))
+        let threshold = useCase.execute(.init(activeSleepStartedAt: startedAt)) { randomMinuteOffset }
 
-        #expect(threshold == 12 * 60 * 60)
+        #expect(threshold == (12 * 60 * 60) + (17 * 60))
     }
 
     @Test
@@ -60,9 +61,9 @@ struct DriftThresholdUseCaseTests {
         let useCase = CalculateSleepDriftThresholdUseCase()
         let startedAt = dateAtHour(14)
 
-        let threshold = useCase.execute(.init(activeSleepStartedAt: startedAt))
+        let threshold = useCase.execute(.init(activeSleepStartedAt: startedAt)) { randomMinuteOffset }
 
-        #expect(threshold == 6 * 60 * 60)
+        #expect(threshold == (6 * 60 * 60) + (17 * 60))
     }
 
     @Test
@@ -70,9 +71,9 @@ struct DriftThresholdUseCaseTests {
         let useCase = CalculateSleepDriftThresholdUseCase()
         let startedAt = dateAtHour(18)
 
-        let threshold = useCase.execute(.init(activeSleepStartedAt: startedAt))
+        let threshold = useCase.execute(.init(activeSleepStartedAt: startedAt)) { randomMinuteOffset }
 
-        #expect(threshold == 12 * 60 * 60)
+        #expect(threshold == (12 * 60 * 60) + (17 * 60))
     }
 
     @Test
@@ -80,9 +81,9 @@ struct DriftThresholdUseCaseTests {
         let useCase = CalculateSleepDriftThresholdUseCase()
         let startedAt = dateAtHour(5)
 
-        let threshold = useCase.execute(.init(activeSleepStartedAt: startedAt))
+        let threshold = useCase.execute(.init(activeSleepStartedAt: startedAt)) { randomMinuteOffset }
 
-        #expect(threshold == 6 * 60 * 60)
+        #expect(threshold == (6 * 60 * 60) + (17 * 60))
     }
 
     @Test
@@ -90,9 +91,9 @@ struct DriftThresholdUseCaseTests {
         let useCase = CalculateInactivityDriftThresholdUseCase()
         let events = try [bottleFeed(atHour: 18)]
 
-        let threshold = useCase.execute(.init(events: events))
+        let threshold = useCase.execute(.init(events: events)) { randomMinuteOffset }
 
-        #expect(threshold == 12 * 60 * 60)
+        #expect(threshold == (12 * 60 * 60) + (17 * 60))
     }
 
     private func bottleFeed(atHour hour: Int) throws -> BabyEvent {

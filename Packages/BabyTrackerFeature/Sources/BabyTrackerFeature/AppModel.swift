@@ -1980,6 +1980,7 @@ public final class AppModel {
         setSyncIndicator(.syncing)
         let summary = await operation()
         refresh(selecting: childSelectionStore.loadSelectedChildID())
+        await rescheduleAllDriftNotificationsAsync()
         updateSyncIndicator(using: summary)
     }
 

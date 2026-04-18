@@ -18,12 +18,16 @@ public struct CalculateSleepDriftThresholdUseCase {
     public init() {}
 
     /// Returns the duration after sleep start at which to fire a drift notification.
-    public func execute(_ input: Input) -> TimeInterval {
+    public func execute(
+        _ input: Input,
+        randomMinuteOffset: () -> Int = { Int.random(in: 1...60) }
+    ) -> TimeInterval {
+        let randomOffset = TimeInterval(randomMinuteOffset() * 60)
         let hour = Calendar.autoupdatingCurrent.component(.hour, from: input.activeSleepStartedAt)
         if hour >= Self.daytimeStartHour, hour < Self.nighttimeStartHour {
-            return Self.daytimeThreshold
+            return Self.daytimeThreshold + randomOffset
         }
 
-        return Self.defaultThreshold
+        return Self.defaultThreshold + randomOffset
     }
 }
