@@ -8,7 +8,7 @@ struct IdentityOnboardingNameStepView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 AnimatedSymbolSceneView(symbolNames: [
-                    "person.crop.circle.fill",
+                    "person.fill",
                     "heart.fill",
                     "figure.and.child.holdinghands",
                 ])
