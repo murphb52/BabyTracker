@@ -6,6 +6,7 @@ struct AppRootView: View {
     @State private var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage(accentColorHexKey) private var accentColorHex: String = accentColorHexDefault
+    @AppStorage(debugOptionsUnlockedKey) private var areDebugOptionsVisible = false
 
     init(container: AppContainer) {
         _model = State(initialValue: container.appModel)
@@ -86,6 +87,11 @@ struct AppRootView: View {
             }
         }
         .onOpenURL { url in
+            if isDebugOptionsDeepLink(url) {
+                areDebugOptionsVisible = true
+                return
+            }
+
             guard let childID = FeedLiveActivityDeepLink.endSleepChildID(from: url) else {
                 return
             }

@@ -5,6 +5,7 @@ public struct AppSettingsView: View {
     let model: AppModel
     let viewModel: ChildProfileViewModel
     @State private var demoOnboardingModel: AppModel?
+    @AppStorage(debugOptionsUnlockedKey) private var areDebugOptionsVisible = false
 
     public init(
         model: AppModel,
@@ -61,39 +62,42 @@ public struct AppSettingsView: View {
                     )
                 }
 
-                NavigationLink {
-                    LoggingView(appLogger: AppLogger.shared)
-                } label: {
-                    settingsRow(
-                        title: "Logs",
-                        value: nil,
-                        accessibilityIdentifier: "app-settings-logs-row"
-                    )
-                }
             }
 
-            Section("Help") {
-                Button {
-                    model.showOnboarding()
-                } label: {
-                    settingsRow(
-                        title: "Start Onboarding",
-                        value: nil,
-                        accessibilityIdentifier: "app-settings-onboarding-row"
-                    )
-                }
-                .foregroundStyle(.primary)
+            if areDebugOptionsVisible {
+                Section("Debug Options") {
+                    NavigationLink {
+                        LoggingView(appLogger: AppLogger.shared)
+                    } label: {
+                        settingsRow(
+                            title: "Logs",
+                            value: nil,
+                            accessibilityIdentifier: "app-settings-logs-row"
+                        )
+                    }
 
-                Button {
-                    demoOnboardingModel = AppModel.makeInMemoryDemoModel()
-                } label: {
-                    settingsRow(
-                        title: "Preview New Onboarding",
-                        value: nil,
-                        accessibilityIdentifier: "app-settings-preview-onboarding-row"
-                    )
+                    Button {
+                        model.showOnboarding()
+                    } label: {
+                        settingsRow(
+                            title: "Start Onboarding",
+                            value: nil,
+                            accessibilityIdentifier: "app-settings-onboarding-row"
+                        )
+                    }
+                    .foregroundStyle(.primary)
+
+                    Button {
+                        demoOnboardingModel = AppModel.makeInMemoryDemoModel()
+                    } label: {
+                        settingsRow(
+                            title: "Preview New Onboarding",
+                            value: nil,
+                            accessibilityIdentifier: "app-settings-preview-onboarding-row"
+                        )
+                    }
+                    .foregroundStyle(.primary)
                 }
-                .foregroundStyle(.primary)
             }
 
             Section("Account Reset") {
