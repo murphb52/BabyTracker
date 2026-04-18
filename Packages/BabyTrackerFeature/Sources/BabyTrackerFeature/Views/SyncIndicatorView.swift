@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 public struct SyncIndicatorView: View {
     let state: SyncBannerState
@@ -15,12 +16,14 @@ public struct SyncIndicatorView: View {
             .foregroundStyle(symbolColor)
             .rotationEffect(.degrees(isSpinning ? 360 : 0))
             .frame(width: 38, height: 38)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(backgroundStyle, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(borderColor.opacity(0.28), lineWidth: 1)
+                if isIncreaseContrastEnabled {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(borderColor.opacity(0.35), lineWidth: 1)
+                }
             }
-            .shadow(color: .black.opacity(0.14), radius: 10, y: 4)
+            .shadow(color: .black.opacity(isReduceTransparencyEnabled ? 0.08 : 0.14), radius: isReduceTransparencyEnabled ? 6 : 10, y: 4)
             .contentTransition(.symbolEffect(.replace.downUp.wholeSymbol))
             .scaleEffect(1)
             .animation(.spring(response: 0.28, dampingFraction: 0.65), value: state)
@@ -39,6 +42,12 @@ public struct SyncIndicatorView: View {
             .onChange(of: state) { _, _ in
                 updateSpinState()
             }
+    }
+
+    private var backgroundStyle: AnyShapeStyle {
+        isReduceTransparencyEnabled
+            ? AnyShapeStyle(Color(.secondarySystemGroupedBackground))
+            : AnyShapeStyle(.ultraThinMaterial)
     }
 
     private var symbolName: String {
@@ -81,6 +90,14 @@ public struct SyncIndicatorView: View {
         } else {
             isSpinning = false
         }
+    }
+
+    private var isReduceTransparencyEnabled: Bool {
+        UIAccessibility.isReduceTransparencyEnabled
+    }
+
+    private var isIncreaseContrastEnabled: Bool {
+        UIAccessibility.isDarkerSystemColorsEnabled
     }
 }
 

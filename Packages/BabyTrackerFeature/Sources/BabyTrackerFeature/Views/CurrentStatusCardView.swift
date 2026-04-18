@@ -92,11 +92,6 @@ public struct CurrentStatusCardView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(Color(.secondarySystemGroupedBackground))
         )
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
-        )
         .animation(.easeInOut(duration: 0.35), value: showSleepRow)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("current-status-card")

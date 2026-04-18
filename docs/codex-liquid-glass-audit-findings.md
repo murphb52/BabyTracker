@@ -1,6 +1,6 @@
 # Liquid Glass Audit Execution Report
 
-Generated: 2026-04-18 20:53 IST
+Generated: 2026-04-18 21:18 IST
 
 Worktree path: `/private/tmp/babytracker-liquid-glass-fix`
 
@@ -8,40 +8,76 @@ Branch: `codex/liquid-glass-native-chrome-cleanup`
 
 ## Selected findings
 
-1. Remove the custom drag gesture from the timeline pager.
-   - Reason: high-impact, low-risk fix for a clear gesture conflict candidate.
-   - The page `TabView` already provides native paging; the extra gesture layer was custom friction.
+1. Move the root top chrome into a safe-area-aware container.
+   - Reason: high-impact cleanup that removes a custom overlay layer from the app shell.
 
-2. Simplify the repeated summary card chrome.
-   - Reason: high leverage, low-risk styling cleanup across a major screen.
-   - The screen was using material + stroke + shadow stacks where plain system grouped backgrounds are enough.
+2. Simplify the repeated card shells on the home, status, sleep, picker, and empty-state screens.
+   - Reason: low-risk visual cleanup that removes redundant shadows and strokes.
+
+3. Replace the inline event delete prompt with a system confirmation dialog.
+   - Reason: restores native deletion behavior and removes custom inline modal chrome.
+
+4. Add explicit transparency/contrast fallback handling around material-heavy surfaces.
+   - Reason: improves resilience when Reduce Transparency or higher-contrast display settings are enabled.
 
 ## Plan of attack
 
-1. Edit only the targeted view files in the isolated worktree.
-2. Preserve existing behavior except for the removed gesture layer.
-3. Reduce custom chrome before adding any new Liquid Glass styling.
-4. Build the app to confirm the batch is safe.
-5. Review the diff for unintended behavior or styling expansion.
+1. Edit only the targeted files in the isolated worktree.
+2. Preserve existing behavior except where the custom UI was the problem.
+3. Remove unnecessary styling before adding any new styling.
+4. Validate with an Xcode build.
+5. Keep the diff focused and review the result for unintended behavior changes.
 
 ## Changes made
 
-### Timeline screen
+### Root app shell
 
-- Removed `dragStartPageIndex` state from `TimelineScreenView`.
-- Removed the custom `DragGesture` attached to the page `TabView`.
-- Result: the pager now relies on the native `.page` `TabView` interaction model without an extra gesture layer competing with back/paging behavior.
+- Replaced the top `overlay` in `AppRootView` with `.safeAreaInset(edge: .top)`.
+- Kept the existing error and sync surfaces, but now they participate in safe-area-aware layout instead of floating independently above the whole app.
 
-### Summary screen
+### Banner / chrome surfaces
 
-- Changed the segmented picker container background from `.ultraThinMaterial` to `Color(.secondarySystemGroupedBackground)`.
-- Simplified `cardBackground` from a material + stroke + shadow stack to a plain grouped background fill.
-- Result: the Summary tab has less decorative chrome and feels closer to native grouped iOS surfaces.
+- Updated `ErrorBannerView`, `SyncIndicatorView`, `TransientMessageBannerView`, and `UndoBannerView`.
+- Each view now uses `UIAccessibility.isReduceTransparencyEnabled` as a fallback to a solid grouped background instead of relying only on material.
+- Each view now uses `UIAccessibility.isDarkerSystemColorsEnabled` to add a stronger border in higher-contrast modes.
+- Shadows were reduced for the solid-background fallback path so the controls do not look like layered frosted cards.
+
+### Home and profile cards
+
+- Simplified `ChildHomeView` by removing the border stroke from the sync card.
+- Simplified `CurrentStatusCardView` by removing the extra clip shape and border stroke.
+- Simplified `CurrentSleepCardView` by removing the extra border stroke.
+- Simplified `ChildPickerView` and `NoChildrenView` by removing the drop shadows from the main action cards.
+
+### Event history delete flow
+
+- Replaced the inline delete prompt in `EventHistoryView` with a standard `.confirmationDialog`.
+- Removed the custom `AnchoredDeletePromptView` file entirely.
+- Preserved the existing delete callback flow; only the presentation changed.
+
+### Summary and timeline surfaces
+
+- Simplified `SummaryScreenView` card backgrounds from material-heavy chrome to grouped fills.
+- Added a stronger border in higher-contrast mode for those cards.
+- Kept the timeline header material, but added Reduce Transparency and high-contrast fallbacks so it can degrade to a solid grouped surface when needed.
 
 ## Files changed
 
-- `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/Views/TimelineScreenView.swift`
+- `Baby Tracker/App/AppRootView.swift`
+- `Baby Tracker/App/UndoBannerView.swift`
+- `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/Views/ErrorBannerView.swift`
+- `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/Views/SyncIndicatorView.swift`
+- `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/Views/TransientMessageBannerView.swift`
+- `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/Views/ChildHomeView.swift`
+- `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/Views/ChildPickerView.swift`
+- `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/Views/CurrentSleepCardView.swift`
+- `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/Views/CurrentStatusCardView.swift`
+- `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/Views/EventHistoryView.swift`
+- `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/Views/NoChildrenView.swift`
 - `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/Views/SummaryScreenView.swift`
+- `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/Views/TimelineScreenView.swift`
+- `Packages/BabyTrackerFeature/Sources/BabyTrackerFeature/Views/AnchoredDeletePromptView.swift` deleted
+- `docs/plans/099-liquid-glass-follow-up.md`
 
 ## Validation
 
@@ -53,27 +89,17 @@ xcodebuild -project 'Baby Tracker.xcodeproj' -scheme 'Baby Tracker' -destination
 ```
 
 - Tests: not run
-  - Reason: this batch only touched SwiftUI view chrome and gesture behavior, and the build was the most relevant validation.
+  - Reason: this batch was confined to view chrome and interaction cleanup, so the build was the most relevant validation.
 - Lint: not run
-  - Reason: no project lint task was identified in this session.
+  - Reason: no lint task is configured in the current context.
 
 ## Follow-up recommendations
 
-1. Move the root overlay banners in `AppRootView` toward a native safe-area/bar model.
-2. Simplify the custom card shells in `ChildHomeView`, `CurrentStatusCardView`, `CurrentSleepCardView`, `ChildPickerView`, and `NoChildrenView`.
-3. Revisit the inline delete prompt in `EventHistoryView` and decide whether a standard confirmation surface is enough.
-4. Add explicit handling for Reduce Transparency and Increase Contrast around material-heavy surfaces.
+1. Consider a later pass on source-linked transitions for `SummaryScreenView` -> `AdvancedSummaryView` and other obvious source/destination pairs.
+2. Consider moving the timeline header controls into toolbar or `safeAreaBar` semantics in a separate runtime-reviewed pass.
+3. If the app target supports newer APIs consistently, revisit the banner surfaces with `glassEffect`/`GlassEffectContainer` only where they earn their keep.
 
 ## Intentionally skipped
 
-- Root overlay redesign in `AppRootView`
-  - Skipped because it is broader than a safe batch and would require deciding how to restructure top/bottom chrome across the app.
-
-- Timeline header rewrite into toolbar/safe-area-bar chrome
-  - Skipped because the timeline header is tightly coupled to the current layout and would benefit from runtime review before changing the presentation model.
-
-- Source-linked transitions and matched continuity
-  - Skipped because they need design/runtime verification to avoid adding motion that does not improve comprehension.
-
-- Accessibility branching for Reduce Transparency / Increase Contrast
-  - Skipped for now because it touches multiple shared surfaces and should be implemented as a dedicated accessibility pass rather than a cosmetic batch.
+- No remaining items from the prior follow-up batch were skipped in this pass.
+- The broader timeline toolbar rewrite and matched-transition work were not part of this implementation batch because they need runtime behavior review before changing presentation patterns.

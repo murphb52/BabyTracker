@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 public struct TimelineScreenView: View {
     private let defaultDayPickerSheetHeight: CGFloat = 420
@@ -165,10 +166,25 @@ public struct TimelineScreenView: View {
         .padding(.horizontal, 12)
         .padding(.top, 10)
         .padding(.bottom, 12)
-        .background(.regularMaterial)
+        .background(headerBackgroundStyle)
         .overlay(alignment: .bottom) {
             Divider()
+                .overlay(isIncreaseContrastEnabled ? Color.primary.opacity(0.45) : Color.clear)
         }
+    }
+
+    private var headerBackgroundStyle: AnyShapeStyle {
+        isReduceTransparencyEnabled
+            ? AnyShapeStyle(Color(.secondarySystemGroupedBackground))
+            : AnyShapeStyle(.regularMaterial)
+    }
+
+    private var isReduceTransparencyEnabled: Bool {
+        UIAccessibility.isReduceTransparencyEnabled
+    }
+
+    private var isIncreaseContrastEnabled: Bool {
+        UIAccessibility.isDarkerSystemColorsEnabled
     }
 
     private var dayPickerSheet: some View {

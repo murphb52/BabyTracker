@@ -98,7 +98,6 @@ public struct NoChildrenView: View {
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(Color(.secondarySystemGroupedBackground))
-                .shadow(color: Color.black.opacity(0.06), radius: 12, y: 4)
         )
     }
 }

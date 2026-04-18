@@ -1,6 +1,7 @@
 import BabyTrackerDomain
 import Charts
 import SwiftUI
+import UIKit
 
 private enum SummaryTab: String, CaseIterable {
     case today = "Today"
@@ -864,6 +865,16 @@ public struct SummaryScreenView: View {
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 18, style: .continuous)
             .fill(Color(.secondarySystemGroupedBackground))
+            .overlay {
+                if isIncreaseContrastEnabled {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 1)
+                }
+            }
+    }
+
+    private var isIncreaseContrastEnabled: Bool {
+        UIAccessibility.isDarkerSystemColorsEnabled
     }
 
 }

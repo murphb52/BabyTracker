@@ -66,6 +66,23 @@ public struct EventHistoryView: View {
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .confirmationDialog(
+            pendingDeleteEvent?.dialogTitle ?? "Delete Event?",
+            isPresented: pendingDeleteDialogBinding,
+            presenting: pendingDeleteEvent
+        ) { event in
+            Button(event.confirmButtonTitle, role: .destructive) {
+                confirmDelete()
+            }
+
+            Button("Cancel", role: .cancel) {
+                cancelDelete()
+            }
+        } message: { event in
+            if !event.timestampText.isEmpty {
+                Text(event.timestampText)
+            }
+        }
     }
 
     // MARK: - Filter pills
@@ -108,8 +125,6 @@ public struct EventHistoryView: View {
 
     @ViewBuilder
     private func eventRow(for event: EventCardViewState) -> some View {
-        let isPendingDelete = pendingDeleteEvent?.id == event.id
-
         if canManageEvents {
             VStack(alignment: .leading, spacing: 8) {
                 Button {
@@ -137,21 +152,22 @@ public struct EventHistoryView: View {
                         deleteEvent(event)
                     }
                 }
-
-                if isPendingDelete, let pendingDeleteEvent {
-                    AnchoredDeletePromptView(
-                        title: "Delete \(pendingDeleteEvent.title.lowercased())?",
-                        confirmTitle: pendingDeleteEvent.confirmButtonTitle,
-                        confirmAction: confirmDelete,
-                        cancelAction: cancelDelete
-                    )
-                    .accessibilityIdentifier("event-history-delete-confirm-\(event.id.uuidString)")
-                }
             }
         } else {
             EventCardView(event: event)
                 .accessibilityIdentifier("event-history-event-\(event.id.uuidString)")
         }
+    }
+
+    private var pendingDeleteDialogBinding: Binding<Bool> {
+        Binding(
+            get: { pendingDeleteEvent != nil },
+            set: { isPresented in
+                if !isPresented {
+                    cancelDelete()
+                }
+            }
+        )
     }
 
     private var emptyState: some View {

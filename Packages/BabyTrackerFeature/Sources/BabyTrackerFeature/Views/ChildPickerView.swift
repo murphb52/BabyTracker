@@ -64,7 +64,6 @@ public struct ChildPickerView: View {
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(Color(.secondarySystemGroupedBackground))
-                    .shadow(color: Color.black.opacity(0.06), radius: 12, y: 4)
             )
         }
         .buttonStyle(.plain)
@@ -101,7 +100,7 @@ public struct ChildPickerView: View {
             .padding(.vertical, 4)
             .background(
                 Capsule()
-                    .fill(isOwner ? Color.accentColor.opacity(0.12) : Color(.systemGray5))
+                    .fill(isOwner ? Color.accentColor.opacity(0.14) : Color(.systemGray5))
             )
     }
 
