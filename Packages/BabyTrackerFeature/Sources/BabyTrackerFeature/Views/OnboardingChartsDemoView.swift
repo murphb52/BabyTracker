@@ -20,7 +20,7 @@ struct OnboardingChartsDemoView: View {
             chartCard(
                 title: "Sleep",
                 systemImage: BabyEventStyle.systemImage(for: .sleep),
-                tint: Color(.systemIndigo),
+                tint: Color.accentColor,
                 series: Self.sleepSeries,
                 progress: sleepProgress,
                 valueFormatter: { "\($0) min" }
@@ -35,7 +35,7 @@ struct OnboardingChartsDemoView: View {
             chartCard(
                 title: "Bottle Feed",
                 systemImage: BabyEventStyle.systemImage(for: .bottleFeed),
-                tint: Color.blue,
+                tint: BabyEventStyle.accentColor(for: .bottleFeed),
                 series: Self.bottleSeries,
                 progress: bottleProgress,
                 valueFormatter: { "\($0) mL" }
