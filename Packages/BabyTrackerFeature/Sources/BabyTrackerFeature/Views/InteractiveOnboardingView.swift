@@ -208,7 +208,7 @@ public struct InteractiveOnboardingView: View {
                 title: "We're here to help",
                 message: "Log quickly, spot patterns, and stay in sync with your partner without carrying it all in your head."
             ) {
-                VStack(spacing: 16) {
+                VStack(spacing: 10) {
                     OnboardingSupportHighlightsView()
 
                     OnboardingQuickLogDemoView()

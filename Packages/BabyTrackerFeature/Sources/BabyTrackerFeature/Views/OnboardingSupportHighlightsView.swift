@@ -48,7 +48,7 @@ struct OnboardingSupportHighlightsView: View {
 
                     Spacer(minLength: 0)
                 }
-                .padding(14)
+                .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .fill(Color(.secondarySystemGroupedBackground))

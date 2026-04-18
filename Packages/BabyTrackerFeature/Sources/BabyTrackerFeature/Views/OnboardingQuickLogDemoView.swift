@@ -36,7 +36,7 @@ struct OnboardingQuickLogDemoView: View {
             }
             .padding(.horizontal, 16)
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, 8)
         .background(Color(.systemGroupedBackground))
         .opacity(cardVisible ? 1 : 0)
         .offset(y: cardVisible ? 0 : 20)
