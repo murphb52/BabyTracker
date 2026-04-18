@@ -39,10 +39,7 @@ final class SystemLocalNotificationManager: NSObject, LocalNotificationManaging 
     }
 
     func scheduleRemoteSyncNotification(_ content: RemoteCaregiverNotificationContent) async {
-        let settings = await notificationCenter.notificationSettings()
-        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
-            return
-        }
+        guard await isAuthorized() else { return }
 
         let notificationContent = UNMutableNotificationContent()
         notificationContent.title = content.title
@@ -56,6 +53,59 @@ final class SystemLocalNotificationManager: NSObject, LocalNotificationManaging 
         )
 
         try? await notificationCenter.add(request)
+    }
+
+    func scheduleSleepDriftNotification(childID: UUID, childName: String, fireAfter: TimeInterval) async {
+        guard await isAuthorized() else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Still sleeping?"
+        content.body = "\(childName) has been asleep longer than usual. Tap to check."
+        content.sound = .default
+
+        let id = sleepDriftIdentifier(childID: childID)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, fireAfter), repeats: false)
+        let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [id])
+        try? await notificationCenter.add(request)
+    }
+
+    func cancelSleepDriftNotification(childID: UUID) async {
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [sleepDriftIdentifier(childID: childID)])
+    }
+
+    func scheduleInactivityDriftNotification(childID: UUID, childName: String, fireAfter: TimeInterval) async {
+        guard await isAuthorized() else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Anything to log for \(childName)?"
+        content.body = "It's been a while since the last recorded event. Did you forget to log something?"
+        content.sound = .default
+
+        let id = inactivityDriftIdentifier(childID: childID)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, fireAfter), repeats: false)
+        let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [id])
+        try? await notificationCenter.add(request)
+    }
+
+    func cancelInactivityDriftNotification(childID: UUID) async {
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [inactivityDriftIdentifier(childID: childID)])
+    }
+
+    // MARK: - Private helpers
+
+    private func isAuthorized() async -> Bool {
+        let settings = await notificationCenter.notificationSettings()
+        return settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
+    }
+
+    private func sleepDriftIdentifier(childID: UUID) -> String {
+        "drift.sleep.\(childID.uuidString)"
+    }
+
+    private func inactivityDriftIdentifier(childID: UUID) -> String {
+        "drift.inactivity.\(childID.uuidString)"
     }
 }
 

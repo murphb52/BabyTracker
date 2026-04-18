@@ -114,6 +114,7 @@ public final class AppModel {
 
     public func load(performLaunchSync: Bool = true) {
         refresh(selecting: nil)
+        rescheduleAllDriftNotifications()
 
         guard performLaunchSync else {
             return
@@ -631,7 +632,7 @@ public final class AppModel {
 
     @discardableResult
     public func startSleep(startedAt: Date) -> Bool {
-        perform(onSuccess: handleSuccessfulEventLog) {
+        let succeeded = perform(onSuccess: handleSuccessfulEventLog) {
             guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try StartSleepUseCase(
@@ -645,6 +646,10 @@ public final class AppModel {
                     membership: currentMembership
                 ))
         }
+        if succeeded {
+            scheduleSleepDriftNotificationIfNeeded()
+        }
+        return succeeded
     }
 
     @discardableResult
@@ -672,7 +677,7 @@ public final class AppModel {
         startedAt: Date,
         endedAt: Date
     ) -> Bool {
-        perform {
+        let succeeded = perform {
             guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try EndSleepUseCase(
@@ -687,6 +692,11 @@ public final class AppModel {
                     membership: currentMembership
                 ))
         }
+        if succeeded {
+            cancelSleepDriftNotification()
+            scheduleInactivityDriftNotificationIfNeeded()
+        }
+        return succeeded
     }
 
     @discardableResult
@@ -819,7 +829,7 @@ public final class AppModel {
 
     @discardableResult
     public func resumeSleep(id: UUID, startedAt: Date) -> Bool {
-        perform {
+        let succeeded = perform {
             guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try ResumeSleepUseCase(
@@ -833,6 +843,11 @@ public final class AppModel {
                     membership: currentMembership
                 ))
         }
+        if succeeded {
+            cancelSleepDriftNotification()
+            scheduleSleepDriftNotificationIfNeeded()
+        }
+        return succeeded
     }
 
     @discardableResult
@@ -898,11 +913,62 @@ public final class AppModel {
         )
         .execute(.init(minimumLoggedEventsBeforePrompt: 5))
 
-        guard shouldRequestReview else {
-            return
+        if shouldRequestReview {
+            appReviewRequester.requestReview()
         }
 
-        appReviewRequester.requestReview()
+        scheduleInactivityDriftNotificationIfNeeded()
+    }
+
+    private func scheduleSleepDriftNotificationIfNeeded() {
+        guard let child = currentChild, let activeSleep else { return }
+        let completedSleeps = events
+            .compactMap { event -> SleepEvent? in
+                guard case let .sleep(s) = event, s.endedAt != nil else { return nil }
+                return s
+            }
+            .sorted { ($0.endedAt ?? $0.startedAt) > ($1.endedAt ?? $1.startedAt) }
+        Task { @MainActor in
+            await ScheduleSleepDriftNotificationUseCase.execute(
+                input: .init(
+                    childID: child.id,
+                    childName: child.name,
+                    activeSleepStartedAt: activeSleep.startedAt,
+                    completedSleepEvents: completedSleeps
+                ),
+                notificationManager: localNotificationManager
+            )
+        }
+    }
+
+    private func scheduleInactivityDriftNotificationIfNeeded() {
+        guard let child = currentChild else { return }
+        guard let lastEvent = events.max(by: { $0.metadata.occurredAt < $1.metadata.occurredAt }) else { return }
+        Task { @MainActor in
+            await ScheduleInactivityDriftNotificationUseCase.execute(
+                input: .init(
+                    childID: child.id,
+                    childName: child.name,
+                    lastEventOccurredAt: lastEvent.metadata.occurredAt,
+                    allEvents: events
+                ),
+                notificationManager: localNotificationManager
+            )
+        }
+    }
+
+    private func cancelSleepDriftNotification() {
+        guard let child = currentChild else { return }
+        Task { @MainActor in
+            await localNotificationManager.cancelSleepDriftNotification(childID: child.id)
+        }
+    }
+
+    private func rescheduleAllDriftNotifications() {
+        if activeSleep != nil {
+            scheduleSleepDriftNotificationIfNeeded()
+        }
+        scheduleInactivityDriftNotificationIfNeeded()
     }
 
     private func refresh(selecting selectedChildID: UUID?) {
