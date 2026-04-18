@@ -651,6 +651,7 @@ public final class AppModel {
                 ))
         }
         if succeeded {
+            cancelInactivityDriftNotification()
             scheduleSleepDriftNotificationIfNeeded()
         }
         return succeeded
@@ -946,6 +947,7 @@ public final class AppModel {
     }
 
     private func scheduleInactivityDriftNotificationIfNeeded() {
+        guard activeSleep == nil else { return }
         guard let child = currentChild else { return }
         guard let lastEvent = events.max(by: { $0.metadata.occurredAt < $1.metadata.occurredAt }) else { return }
         Task { @MainActor in
@@ -968,10 +970,20 @@ public final class AppModel {
         }
     }
 
+    private func cancelInactivityDriftNotification() {
+        guard let child = currentChild else { return }
+        Task { @MainActor in
+            await localNotificationManager.cancelInactivityDriftNotification(childID: child.id)
+        }
+    }
+
     private func rescheduleAllDriftNotifications() {
         if activeSleep != nil {
+            cancelInactivityDriftNotification()
             scheduleSleepDriftNotificationIfNeeded()
+            return
         }
+
         scheduleInactivityDriftNotificationIfNeeded()
     }
 
