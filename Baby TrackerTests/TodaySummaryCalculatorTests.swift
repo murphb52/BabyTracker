@@ -393,8 +393,8 @@ struct TodaySummaryCalculatorTests {
 
         let data = TodaySummaryCalculator.makeData(from: events, now: now, calendar: calendar)
 
-        // 4 hours total (10pm→2am) should be in the total
-        #expect(data.totalSleepMinutes == 240)
+        // Only the selected day's overlap counts: midnight→2am = 120 minutes.
+        #expect(data.totalSleepMinutes == 120)
         #expect(data.minutesSinceLastSleep == nil)
     }
 
@@ -485,6 +485,99 @@ struct TodaySummaryCalculatorTests {
         #expect(today[1] == 120)
         // Hour 2 onwards: still 120 (nothing beyond now)
         #expect(today[2] == 120)
+    }
+
+    @Test
+    func historicalDayUsesSelectedDateInsteadOfFollowingMidnightBoundary() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let childID = UUID()
+        let userID = UUID()
+        let referenceNow = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 18, hour: 12)))
+        let selectedDay = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 17, hour: 9)))
+
+        let selectedSleepStart = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 17, hour: 9)))
+        let selectedSleepEnd = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 17, hour: 10, minute: 30)))
+        let followingDayBottleTime = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 18, hour: 8)))
+
+        let events: [BabyEvent] = [
+            .sleep(try SleepEvent(
+                metadata: EventMetadata(
+                    childID: childID,
+                    occurredAt: selectedSleepEnd,
+                    createdAt: selectedSleepEnd,
+                    createdBy: userID
+                ),
+                startedAt: selectedSleepStart,
+                endedAt: selectedSleepEnd
+            )),
+            .bottleFeed(try BottleFeedEvent(
+                metadata: EventMetadata(
+                    childID: childID,
+                    occurredAt: followingDayBottleTime,
+                    createdAt: followingDayBottleTime,
+                    createdBy: userID
+                ),
+                amountMilliliters: 120,
+                milkType: .formula
+            )),
+        ]
+
+        let data = TodaySummaryCalculator.makeData(
+            from: events,
+            day: selectedDay,
+            referenceNow: referenceNow,
+            calendar: calendar
+        )
+
+        #expect(data.totalSleepMinutes == 90)
+        #expect(data.bottleCount == 0)
+        #expect(data.chartData.sleep.todayCumulative[9] == 60)
+        #expect(data.chartData.sleep.todayCumulative[10] == 90)
+        #expect(data.chartData.sleep.todayCumulative[23] == 90)
+        #expect(data.chartData.bottle.todayCumulative[23] == 0)
+    }
+
+    @Test
+    func historicalDaySleepTotalsCountOnlyMinutesWithinThatDay() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let childID = UUID()
+        let userID = UUID()
+        let referenceNow = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 18, hour: 12)))
+        let selectedDay = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 17, hour: 9)))
+
+        let overnightSleepStart = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 16, hour: 20)))
+        let overnightSleepEnd = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 17, hour: 10)))
+
+        let events: [BabyEvent] = [
+            .sleep(try SleepEvent(
+                metadata: EventMetadata(
+                    childID: childID,
+                    occurredAt: overnightSleepEnd,
+                    createdAt: overnightSleepEnd,
+                    createdBy: userID
+                ),
+                startedAt: overnightSleepStart,
+                endedAt: overnightSleepEnd
+            )),
+        ]
+
+        let data = TodaySummaryCalculator.makeData(
+            from: events,
+            day: selectedDay,
+            referenceNow: referenceNow,
+            calendar: calendar
+        )
+
+        #expect(data.totalSleepMinutes == 600)
+        #expect(data.longestSleepBlockMinutes == 600)
+        #expect(data.shortestSleepBlockMinutes == 600)
+        #expect(data.averageSleepBlockMinutes == 600)
+        #expect(data.chartData.sleep.todayCumulative[9] == 600)
+        #expect(data.chartData.sleep.todayCumulative[23] == 600)
     }
 
     // MARK: - Existing tests

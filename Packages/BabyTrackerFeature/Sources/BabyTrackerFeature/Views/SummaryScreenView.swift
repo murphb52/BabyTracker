@@ -269,7 +269,10 @@ public struct SummaryScreenView: View {
     // MARK: - Today Tab
 
     private var todayTabContent: some View {
-        let data = TodaySummaryCalculator.makeData(from: viewModel.events, now: todaySummaryCalculationDate)
+        let data = TodaySummaryCalculator.makeData(
+            from: viewModel.events,
+            day: selectedDate
+        )
 
         return Group {
             if viewModel.events.isEmpty {
@@ -289,18 +292,6 @@ public struct SummaryScreenView: View {
                 }
             }
         }
-    }
-
-
-    private var todaySummaryCalculationDate: Date {
-        let calendar = Calendar.autoupdatingCurrent
-        let selectedDayStart = calendar.startOfDay(for: selectedDate)
-
-        guard !calendar.isDateInToday(selectedDate) else {
-            return .now
-        }
-
-        return calendar.date(byAdding: .day, value: 1, to: selectedDayStart) ?? selectedDate
     }
 
     // MARK: - Date Navigation
