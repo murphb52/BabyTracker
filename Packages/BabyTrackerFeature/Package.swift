@@ -27,6 +27,9 @@ let package = Package(
                 .product(name: "BabyTrackerLiveActivities", package: "BabyTrackerLiveActivities"),
                 .product(name: "BabyTrackerPersistence", package: "BabyTrackerPersistence"),
                 .product(name: "BabyTrackerSync", package: "BabyTrackerSync"),
+            ],
+            resources: [
+                .process("Resources"),
             ]
         ),
         .testTarget(

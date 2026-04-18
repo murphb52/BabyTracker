@@ -42,23 +42,10 @@ struct OnboardingNotificationsDemoView: View {
 
     private func notificationCard(_ notification: DemoNotification) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.accentColor,
-                            Color.accentColor.opacity(0.75),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+            Image("AppIcon", bundle: .module)
+                .resizable()
                 .frame(width: 36, height: 36)
-                .overlay {
-                    Image(systemName: "bird.fill")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
