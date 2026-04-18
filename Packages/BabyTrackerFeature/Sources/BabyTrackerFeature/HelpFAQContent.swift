@@ -33,7 +33,7 @@ public enum HelpFAQContent {
                 HelpFAQItem(
                     id: "sleep",
                     title: "How should I read the sleep metrics?",
-                    answer: "Sleep totals, averages, and longest-block values come from completed sleep sessions in the selected period. Active sleep sessions still appear around the app, but they do not affect finished summary totals until they end."
+                    answer: "Today and Trends include sleep that overlaps the selected period, including an active session up to now. In More Information, average and longest-block values use completed sleep sessions."
                 ),
                 HelpFAQItem(
                     id: "nappies",

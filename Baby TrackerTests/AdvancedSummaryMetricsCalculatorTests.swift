@@ -5,6 +5,30 @@ import Testing
 
 struct AdvancedSummaryMetricsCalculatorTests {
     @Test
+    func thirtyDayRangeBuildsThirtyDailyBuckets() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 18, hour: 10)))
+        let viewState = AdvancedSummaryMetricsCalculator.makeViewState(
+            from: [],
+            selection: .range(.thirtyDays),
+            now: now,
+            calendar: calendar
+        )
+
+        #expect(viewState.dailyActivityCounts.count == 30)
+
+        let firstDate = try #require(viewState.dailyActivityCounts.first?.date)
+        let lastDate = try #require(viewState.dailyActivityCounts.last?.date)
+        let expectedFirstDate = try #require(calendar.date(from: DateComponents(year: 2026, month: 3, day: 20)))
+        let expectedLastDate = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 18)))
+
+        #expect(firstDate == expectedFirstDate)
+        #expect(lastDate == expectedLastDate)
+    }
+
+    @Test
     func daySelectionUsesOnlyTheChosenDay() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!

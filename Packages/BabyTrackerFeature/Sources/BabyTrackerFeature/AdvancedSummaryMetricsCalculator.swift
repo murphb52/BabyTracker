@@ -151,7 +151,7 @@ public enum AdvancedSummaryMetricsCalculator {
             case .sevenDays:
                 dates = trailingDates(dayCount: 7, now: now, calendar: calendar)
             case .thirtyDays:
-                dates = trailingDates(dayCount: 7, now: now, calendar: calendar)
+                dates = trailingDates(dayCount: 30, now: now, calendar: calendar)
             case .allTime:
                 if let firstDay = countsByDay.keys.sorted().first {
                     dates = strideDates(from: firstDay, through: calendar.startOfDay(for: now), calendar: calendar)
