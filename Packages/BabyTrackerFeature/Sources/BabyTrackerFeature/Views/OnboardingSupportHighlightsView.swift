@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct OnboardingSupportHighlightsView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var visibleMask = [false, false, false]
+
     private let items: [Highlight] = [
         Highlight(
             title: "Log easily",
@@ -24,7 +27,7 @@ struct OnboardingSupportHighlightsView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            ForEach(items) { item in
+            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: item.symbolName)
                         .font(.headline)
@@ -50,6 +53,30 @@ struct OnboardingSupportHighlightsView: View {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .fill(Color(.secondarySystemGroupedBackground))
                 )
+                .opacity(visibleMask[index] ? 1 : 0)
+                .offset(y: visibleMask[index] ? 0 : 16)
+            }
+        }
+        .onAppear {
+            animateIn()
+        }
+    }
+
+    private func animateIn() {
+        guard !reduceMotion else {
+            visibleMask = [true, true, true]
+            return
+        }
+
+        Task { @MainActor in
+            // Wait for the header title and message to finish animating in.
+            try? await Task.sleep(for: .milliseconds(320))
+            for index in items.indices {
+                withAnimation(.spring(response: 0.48, dampingFraction: 0.78)) {
+                    visibleMask[index] = true
+                }
+                guard index < items.count - 1 else { break }
+                try? await Task.sleep(for: .milliseconds(120))
             }
         }
     }
