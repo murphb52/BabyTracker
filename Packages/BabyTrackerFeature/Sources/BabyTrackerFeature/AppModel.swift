@@ -116,9 +116,10 @@ public final class AppModel {
         self.appReviewPromptStateStore = appReviewPromptStateStore
         self.appReviewRequester = appReviewRequester
         self.isLiveActivityEnabled = liveActivityPreferenceStore.isLiveActivityEnabled
-        self.storedReminderNotificationsEnabled = reminderNotificationPreferenceStore.isReminderNotificationsEnabled
+        let storedReminderNotificationsEnabled = reminderNotificationPreferenceStore.isReminderNotificationsEnabled
+        self.storedReminderNotificationsEnabled = storedReminderNotificationsEnabled
         self.hasReminderNotificationPermission = true
-        self.isReminderNotificationsEnabled = self.storedReminderNotificationsEnabled
+        self.isReminderNotificationsEnabled = storedReminderNotificationsEnabled
     }
 
     public func load(performLaunchSync: Bool = true) {
