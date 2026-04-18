@@ -115,7 +115,7 @@ public struct ChildWorkspaceTabView: View {
                     Button(timelineViewModel.displayMode == .day ? "Week View" : "Day View") {
                         timelineViewModel.toggleDisplayMode()
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.automatic)
                     .accessibilityIdentifier("timeline-display-mode-button")
                 }
             }

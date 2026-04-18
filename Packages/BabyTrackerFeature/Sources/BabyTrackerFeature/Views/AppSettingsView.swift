@@ -52,6 +52,16 @@ public struct AppSettingsView: View {
 
             Section("Advanced") {
                 NavigationLink {
+                    AccentColorPickerView()
+                } label: {
+                    settingsRow(
+                        title: "Accent Colour",
+                        value: nil,
+                        accessibilityIdentifier: "app-settings-accent-color-row"
+                    )
+                }
+
+                NavigationLink {
                     LoggingView(appLogger: AppLogger.shared)
                 } label: {
                     settingsRow(

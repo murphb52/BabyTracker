@@ -165,16 +165,12 @@ public struct TimelineScreenView: View {
                                 Text(page.date.formatted(.dateTime.day()))
                                     .font(.subheadline.weight(.semibold))
                             }
-                            .foregroundStyle(index == viewModel.selectedPageIndex ? Color.white : Color.primary)
+                            .foregroundStyle(index == viewModel.selectedPageIndex ? Color.accentColor : Color.primary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
                             .background(
                                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(
-                                        index == viewModel.selectedPageIndex ?
-                                            Color.accentColor :
-                                            Color(.secondarySystemGroupedBackground)
-                                )
+                                    .fill(Color(.secondarySystemGroupedBackground))
                             )
                         }
                         .buttonStyle(.plain)

@@ -5,6 +5,7 @@ import SwiftUI
 struct AppRootView: View {
     @State private var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage(accentColorHexKey) private var accentColorHex: String = accentColorHexDefault
 
     init(container: AppContainer) {
         _model = State(initialValue: container.appModel)
@@ -78,6 +79,7 @@ struct AppRootView: View {
             .frame(maxWidth: .infinity, alignment: .topTrailing)
             .animation(.spring(response: 0.38, dampingFraction: 0.82), value: model.syncBannerState != nil)
         }
+        .tint(Color(hex: accentColorHex))
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 Task { await model.refreshSyncStatus() }
