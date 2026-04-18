@@ -7,7 +7,6 @@ struct OnboardingAddBabyStepView: View {
     @Binding var includesBirthDate: Bool
     @Binding var birthDate: Date
     let addAction: () -> Void
-    let skipAction: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var appearedMask: [Bool] = [false, false, false, false]
@@ -119,7 +118,6 @@ struct OnboardingAddBabyStepView: View {
         childName: $name,
         includesBirthDate: $includesBirthDate,
         birthDate: $birthDate,
-        addAction: {},
-        skipAction: {}
+        addAction: {}
     )
 }

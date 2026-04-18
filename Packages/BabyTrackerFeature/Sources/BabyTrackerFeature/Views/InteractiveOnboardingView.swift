@@ -260,15 +260,13 @@ public struct InteractiveOnboardingView: View {
                 childName: $childName,
                 includesBirthDate: $includesBirthDate,
                 birthDate: $babyBirthDate,
-                addAction: submitBabySetup,
-                skipAction: dismissOnboarding
+                addAction: submitBabySetup
             )
 
         case .firstEvent:
             OnboardingFirstEventStepView(
                 model: model,
-                onEventSaved: { advance() },
-                skipAction: dismissOnboarding
+                onEventSaved: { advance() }
             )
 
         case .appPreview:
@@ -301,23 +299,14 @@ public struct InteractiveOnboardingView: View {
             )
 
         case .babySetup:
-            VStack(spacing: 12) {
-                OnboardingPrimaryButton(
-                    title: "Add Baby",
-                    action: submitBabySetup,
-                    isDisabled: trimmedChildName.isEmpty
-                )
-
-                Button(action: dismissOnboarding) {
-                    Text("Skip for now")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
+            OnboardingPrimaryButton(
+                title: "Add Baby",
+                action: submitBabySetup,
+                isDisabled: trimmedChildName.isEmpty
+            )
 
         case .firstEvent:
-            Button(action: dismissOnboarding) {
+            Button(action: advance) {
                 Text("Skip for now")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)

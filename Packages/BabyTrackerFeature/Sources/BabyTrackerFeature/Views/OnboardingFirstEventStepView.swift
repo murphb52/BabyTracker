@@ -10,7 +10,6 @@ import SwiftUI
 struct OnboardingFirstEventStepView: View {
     let model: AppModel
     let onEventSaved: () -> Void
-    let skipAction: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -281,7 +280,6 @@ struct OnboardingFirstEventStepView: View {
 #Preview {
     OnboardingFirstEventStepView(
         model: ChildProfilePreviewFactory.makeModel(),
-        onEventSaved: {},
-        skipAction: {}
+        onEventSaved: {}
     )
 }
