@@ -59,6 +59,16 @@ public struct AppSettingsView: View {
                         accessibilityIdentifier: "app-settings-logs-row"
                     )
                 }
+
+                NavigationLink {
+                    DriftNotificationDebugView(model: model)
+                } label: {
+                    settingsRow(
+                        title: "Drift Reminders",
+                        value: nil,
+                        accessibilityIdentifier: "app-settings-drift-reminders-row"
+                    )
+                }
             }
 
             Section("Help") {
