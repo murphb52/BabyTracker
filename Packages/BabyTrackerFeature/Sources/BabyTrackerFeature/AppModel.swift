@@ -212,6 +212,10 @@ public final class AppModel {
         }
     }
 
+    public func fetchPendingDriftNotifications() async -> [PendingDriftNotification] {
+        await localNotificationManager.pendingDriftNotifications()
+    }
+
     public func hardDeleteCurrentChild() {
         guard let currentChild, let currentMembership else { return }
         let childID = currentChild.id

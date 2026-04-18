@@ -15,4 +15,5 @@ public final class NoOpLocalNotificationManager: LocalNotificationManaging {
     public func cancelSleepDriftNotification(childID: UUID) async {}
     public func scheduleInactivityDriftNotification(childID: UUID, childName: String, fireAfter: TimeInterval) async {}
     public func cancelInactivityDriftNotification(childID: UUID) async {}
+    public func pendingDriftNotifications() async -> [PendingDriftNotification] { [] }
 }

@@ -9,4 +9,5 @@ public protocol LocalNotificationManaging: AnyObject {
     func cancelSleepDriftNotification(childID: UUID) async
     func scheduleInactivityDriftNotification(childID: UUID, childName: String, fireAfter: TimeInterval) async
     func cancelInactivityDriftNotification(childID: UUID) async
+    func pendingDriftNotifications() async -> [PendingDriftNotification]
 }
