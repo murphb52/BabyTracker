@@ -7,6 +7,12 @@ struct IdentityOnboardingNameStepView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                AnimatedSymbolSceneView(symbolNames: [
+                    "person.fill",
+                    "heart.fill",
+                    "figure.and.child.holdinghands",
+                ])
+
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Let’s set up your profile")
                         .font(.largeTitle.weight(.bold))

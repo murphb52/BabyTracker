@@ -5,6 +5,7 @@ import SwiftUI
 struct AppRootView: View {
     @State private var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage(accentColorHexKey) private var accentColorHex: String = accentColorHexDefault
 
     init(container: AppContainer) {
         _model = State(initialValue: container.appModel)
@@ -43,6 +44,15 @@ struct AppRootView: View {
         // Reset the stack when the app moves between top-level flows so stale
         // detail screens do not remain visible above a new root route.
         .id("\(String(describing: model.route))-\(model.navigationResetToken)")
+        // The interactive onboarding is presented as a full-screen cover so it
+        // persists across the route changes that occur when the user creates
+        // their profile and first child during setup.
+        .fullScreenCover(isPresented: Binding(
+            get: { model.isInteractiveOnboardingActive },
+            set: { model.isInteractiveOnboardingActive = $0 }
+        )) {
+            InteractiveOnboardingView(model: model)
+        }
         .overlay(alignment: .top) {
             ZStack(alignment: .topTrailing) {
                 if let errorMessage = model.errorMessage {
@@ -69,6 +79,7 @@ struct AppRootView: View {
             .frame(maxWidth: .infinity, alignment: .topTrailing)
             .animation(.spring(response: 0.38, dampingFraction: 0.82), value: model.syncBannerState != nil)
         }
+        .tint(Color(hex: accentColorHex))
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 Task { await model.refreshSyncStatus() }

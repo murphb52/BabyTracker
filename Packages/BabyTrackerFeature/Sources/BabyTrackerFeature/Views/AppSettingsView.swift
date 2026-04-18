@@ -4,6 +4,7 @@ import SwiftUI
 public struct AppSettingsView: View {
     let model: AppModel
     let viewModel: ChildProfileViewModel
+    @State private var demoOnboardingModel: AppModel?
 
     public init(
         model: AppModel,
@@ -51,6 +52,16 @@ public struct AppSettingsView: View {
 
             Section("Advanced") {
                 NavigationLink {
+                    AccentColorPickerView()
+                } label: {
+                    settingsRow(
+                        title: "Accent Colour",
+                        value: nil,
+                        accessibilityIdentifier: "app-settings-accent-color-row"
+                    )
+                }
+
+                NavigationLink {
                     LoggingView(appLogger: AppLogger.shared)
                 } label: {
                     settingsRow(
@@ -69,6 +80,17 @@ public struct AppSettingsView: View {
                         title: "Start Onboarding",
                         value: nil,
                         accessibilityIdentifier: "app-settings-onboarding-row"
+                    )
+                }
+                .foregroundStyle(.primary)
+
+                Button {
+                    demoOnboardingModel = AppModel.makeInMemoryDemoModel()
+                } label: {
+                    settingsRow(
+                        title: "Preview New Onboarding",
+                        value: nil,
+                        accessibilityIdentifier: "app-settings-preview-onboarding-row"
                     )
                 }
                 .foregroundStyle(.primary)
@@ -107,6 +129,14 @@ public struct AppSettingsView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("App Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .fullScreenCover(isPresented: Binding(
+            get: { demoOnboardingModel?.isInteractiveOnboardingActive ?? false },
+            set: { isActive in if !isActive { demoOnboardingModel = nil } }
+        )) {
+            if let dm = demoOnboardingModel {
+                InteractiveOnboardingView(model: dm)
+            }
+        }
     }
 
     private var appVersion: String {
