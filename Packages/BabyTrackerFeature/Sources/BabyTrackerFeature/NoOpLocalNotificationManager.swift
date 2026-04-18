@@ -5,7 +5,8 @@ import Foundation
 public final class NoOpLocalNotificationManager: LocalNotificationManaging {
     public init() {}
 
-    public func requestAuthorizationIfNeeded() async {}
+    public func isAuthorizedForNotifications() async -> Bool { true }
+    public func requestAuthorizationIfNeeded() async -> Bool { true }
 
     public func scheduleRemoteSyncNotification(_ content: RemoteCaregiverNotificationContent) async {
         _ = content

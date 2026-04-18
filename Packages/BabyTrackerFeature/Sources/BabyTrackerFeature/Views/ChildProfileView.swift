@@ -58,6 +58,16 @@ public struct ChildProfileView: View {
                 )
                 .accessibilityIdentifier("live-activities-toggle")
 
+                NavigationLink {
+                    DriftNotificationDebugView(model: model)
+                } label: {
+                    settingsRow(
+                        title: "Reminder Notifications",
+                        value: model.isReminderNotificationsEnabled ? "On" : "Off",
+                        accessibilityIdentifier: "profile-reminder-notifications-row"
+                    )
+                }
+
                 if showsManageChild {
                     NavigationLink {
                         ChildProfileManageView(
