@@ -28,13 +28,11 @@ struct OnboardingQuickLogDemoView: View {
                     demoButton(index: 0)
                     demoButton(index: 1)
                 }
-                .geometryGroup()
 
                 HStack(spacing: 12) {
                     demoButton(index: 2)
                     demoButton(index: 3)
                 }
-                .geometryGroup()
             }
             .padding(.horizontal, 16)
         }
@@ -66,24 +64,40 @@ struct OnboardingQuickLogDemoView: View {
     private func demoButton(index: Int) -> some View {
         let item = buttons[index]
 
-        return Label(item.title, systemImage: BabyEventStyle.systemImage(for: item.kind))
-            .font(.headline)
-            .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
-            .padding(.horizontal, 14)
+        return ZStack {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(BabyEventStyle.buttonFillColor(for: item.kind))
+
+            HStack(spacing: 8) {
+                Image(systemName: BabyEventStyle.systemImage(for: item.kind))
+                    .font(.footnote.weight(.semibold))
+
+                Text(item.title)
+                    .font(.footnote.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+
+                Spacer(minLength: 0)
+            }
             .foregroundStyle(BabyEventStyle.buttonForegroundColor(for: item.kind))
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(BabyEventStyle.buttonFillColor(for: item.kind))
-            )
+            .padding(.horizontal, 14)
+        }
+            .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+            .drawingGroup()
             .opacity(appearedMask[index] ? 1 : 0)
-            .offset(y: appearedMask[index] ? 0 : 22)
+            .offset(y: appearedMask[index] ? 0 : 18)
+            .scaleEffect(appearedMask[index] ? 1 : 0.94)
     }
 
     private func staggerIn() {
-        for index in 0..<buttons.count {
-            let delay = Double(index) * 0.1
-            withAnimation(.spring(response: 0.38, dampingFraction: 0.52).delay(delay)) {
-                appearedMask[index] = true
+        Task { @MainActor in
+            for index in 0..<buttons.count {
+                withAnimation(.spring(response: 0.52, dampingFraction: 0.74)) {
+                    appearedMask[index] = true
+                }
+
+                guard index < buttons.count - 1 else { break }
+                try? await Task.sleep(for: .milliseconds(150))
             }
         }
     }

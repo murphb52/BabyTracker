@@ -205,12 +205,16 @@ public struct InteractiveOnboardingView: View {
 
         case .quickLogDemo:
             OnboardingDemoPageContainer(
-                title: "Log anything in 2 taps",
-                message: "Tap one button, fill in the details, done. No fumbling around."
+                title: "We're here to help",
+                message: "Log quickly, spot patterns, and stay in sync with your partner without carrying it all in your head."
             ) {
-                OnboardingQuickLogDemoView()
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                    .shadow(color: .black.opacity(0.06), radius: 12, y: 4)
+                VStack(spacing: 16) {
+                    OnboardingSupportHighlightsView()
+
+                    OnboardingQuickLogDemoView()
+                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                        .shadow(color: .black.opacity(0.06), radius: 12, y: 4)
+                }
             }
 
         case .timelineDemo:
