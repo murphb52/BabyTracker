@@ -28,7 +28,7 @@ struct OnboardingChartsDemoView: View {
             .opacity(sleepCardVisible ? 1 : 0)
             .offset(y: sleepCardVisible ? 0 : 20)
             .animation(
-                reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.8),
+                reduceMotion ? nil : .spring(response: 0.38, dampingFraction: 0.8),
                 value: sleepCardVisible
             )
 
@@ -43,7 +43,7 @@ struct OnboardingChartsDemoView: View {
             .opacity(bottleCardVisible ? 1 : 0)
             .offset(y: bottleCardVisible ? 0 : 20)
             .animation(
-                reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.8),
+                reduceMotion ? nil : .spring(response: 0.38, dampingFraction: 0.8),
                 value: bottleCardVisible
             )
         }
@@ -57,13 +57,13 @@ struct OnboardingChartsDemoView: View {
             }
             Task { @MainActor in
                 // Wait for the page slide-in to settle
-                try? await Task.sleep(for: .milliseconds(420))
+                try? await Task.sleep(for: .milliseconds(260))
                 sleepCardVisible = true
                 // Stagger the second card in
-                try? await Task.sleep(for: .milliseconds(180))
+                try? await Task.sleep(for: .milliseconds(140))
                 bottleCardVisible = true
                 // Wait for the bottle card spring to land before drawing charts
-                try? await Task.sleep(for: .milliseconds(500))
+                try? await Task.sleep(for: .milliseconds(360))
                 // Draw sleep line left to right
                 withAnimation(.easeInOut(duration: 1.3)) {
                     sleepProgress = 1
