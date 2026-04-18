@@ -70,7 +70,7 @@ struct OnboardingDemoPageContainer<Demo: View>: View {
 
 #Preview {
     OnboardingDemoPageContainer(
-        title: "Log in seconds",
+        title: "Log anything in 2 taps",
         message: "Tap one button, fill in the details, done. No fumbling around."
     ) {
         Color.accentColor.opacity(0.1)

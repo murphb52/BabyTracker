@@ -29,8 +29,8 @@ public struct InteractiveOnboardingView: View {
 
     private static let welcomePage = OnboardingIntroPage(
         id: "welcome",
-        title: "When every hour blurs together",
-        message: "Feeds, nappies, and short stretches of sleep are hard to keep track of when you're running on empty.",
+        title: "When you're tired and remembering is hard",
+        message: "Feeds, nappies, and short stretches of sleep are easy to lose track of when you're exhausted with a baby.",
         symbolNames: [
             "clock.badge.questionmark.fill",
             "drop.fill",
@@ -205,7 +205,7 @@ public struct InteractiveOnboardingView: View {
 
         case .quickLogDemo:
             OnboardingDemoPageContainer(
-                title: "Log in seconds",
+                title: "Log anything in 2 taps",
                 message: "Tap one button, fill in the details, done. No fumbling around."
             ) {
                 OnboardingQuickLogDemoView()
@@ -280,47 +280,29 @@ public struct InteractiveOnboardingView: View {
         case .welcome, .quickLogDemo, .timelineDemo, .chartsDemo, .liveActivityDemo:
             VStack(spacing: 16) {
                 pageIndicator
-                Button(action: advance) {
-                    Text("Continue")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                }
-                .buttonStyle(.borderedProminent)
+                OnboardingPrimaryButton(title: "Continue", action: advance)
             }
 
         case .notificationsDemo:
             VStack(spacing: 16) {
                 pageIndicator
-                Button(action: handleNotificationsDemoContinue) {
-                    Text("Continue")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                }
-                .buttonStyle(.borderedProminent)
+                OnboardingPrimaryButton(title: "Continue", action: handleNotificationsDemoContinue)
             }
 
         case .caregiverName:
-            Button(action: submitCaregiverName) {
-                Text("Get Started")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(trimmedCaregiverName.isEmpty)
+            OnboardingPrimaryButton(
+                title: "Get Started",
+                action: submitCaregiverName,
+                isDisabled: trimmedCaregiverName.isEmpty
+            )
 
         case .babySetup:
             VStack(spacing: 12) {
-                Button(action: submitBabySetup) {
-                    Text("Add Baby")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(trimmedChildName.isEmpty)
+                OnboardingPrimaryButton(
+                    title: "Add Baby",
+                    action: submitBabySetup,
+                    isDisabled: trimmedChildName.isEmpty
+                )
 
                 Button(action: dismissOnboarding) {
                     Text("Skip for now")
@@ -339,13 +321,7 @@ public struct InteractiveOnboardingView: View {
             .buttonStyle(.plain)
 
         case .appPreview:
-            Button(action: dismissOnboarding) {
-                Text("Let's Go")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-            }
-            .buttonStyle(.borderedProminent)
+            OnboardingPrimaryButton(title: "Let's Go", action: dismissOnboarding)
         }
     }
 

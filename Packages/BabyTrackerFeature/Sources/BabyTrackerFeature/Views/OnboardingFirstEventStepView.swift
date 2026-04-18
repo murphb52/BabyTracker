@@ -158,17 +158,17 @@ struct OnboardingFirstEventStepView: View {
     private func animateWiggle(_ index: Int) {
         guard !reduceMotion else { return }
         withAnimation(.spring(response: 0.22, dampingFraction: 0.6)) {
-            wiggleScales[index] = 1.06
+            wiggleScales[index] = 1.03
         }
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(160))
-            let rotationSteps: [Double] = [4, -4, 3, 0]
+            let rotationSteps: [Double] = [2.2, -2.2, 1.4, 0]
             for rot in rotationSteps {
                 guard !Task.isCancelled else { return }
-                withAnimation(.spring(response: 0.14, dampingFraction: 0.6)) {
+                withAnimation(.spring(response: 0.16, dampingFraction: 0.68)) {
                     rotations[index] = rot
                 }
-                try? await Task.sleep(for: .milliseconds(110))
+                try? await Task.sleep(for: .milliseconds(95))
             }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                 wiggleScales[index] = 1.0

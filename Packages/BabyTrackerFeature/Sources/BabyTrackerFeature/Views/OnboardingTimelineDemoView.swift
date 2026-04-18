@@ -3,19 +3,15 @@ import SwiftUI
 
 /// Custom mini-timeline demo for the "See the whole picture" onboarding page.
 ///
-/// Five day-columns of event blocks fade in category by category — sleep first,
-/// then feeds, then nappies — so the viewer can see how a full day fills in.
-/// A legend then pops in item by item below the timeline.
+/// Five day-columns of event blocks cascade in with slight overlap so the
+/// viewer can see how a full day fills in. A legend then pops in item by item
+/// below the timeline.
 struct OnboardingTimelineDemoView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var columnsVisible = false
-    @State private var sleepVisible = false
-    @State private var feedsVisible = false
-    @State private var nappiesVisible = false
-    @State private var sleepOffset: CGFloat = 14
-    @State private var feedsOffset: CGFloat = 14
-    @State private var nappiesOffset: CGFloat = 14
+    @State private var visibleBlockIDs: Set<Int> = []
+    @State private var blockOffsets: [Int: CGFloat] = [:]
     @State private var legendMask: [Bool] = [false, false, false, false]
 
     private let columnHeight: CGFloat = 200
@@ -83,8 +79,8 @@ struct OnboardingTimelineDemoView: View {
                     .fill(BabyEventStyle.timelineFillColor(for: block.kind))
                     .frame(height: max(5, CGFloat(block.end - block.start) * columnHeight))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .offset(y: CGFloat(block.start) * columnHeight + blockOffset(for: block.kind))
-                    .opacity(blockOpacity(for: block.kind))
+                    .offset(y: CGFloat(block.start) * columnHeight + blockOffset(for: block.id))
+                    .opacity(blockOpacity(for: block.id))
             }
         }
         .frame(maxWidth: .infinity)
@@ -92,22 +88,12 @@ struct OnboardingTimelineDemoView: View {
         .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 
-    private func blockOpacity(for kind: BabyEventKind) -> Double {
-        switch kind {
-        case .sleep:                    return sleepVisible   ? 1 : 0
-        case .breastFeed, .bottleFeed:  return feedsVisible   ? 1 : 0
-        case .nappy:                    return nappiesVisible ? 1 : 0
-        default:                        return 0
-        }
+    private func blockOpacity(for id: Int) -> Double {
+        visibleBlockIDs.contains(id) ? 1 : 0
     }
 
-    private func blockOffset(for kind: BabyEventKind) -> CGFloat {
-        switch kind {
-        case .sleep:                    return sleepOffset
-        case .breastFeed, .bottleFeed:  return feedsOffset
-        case .nappy:                    return nappiesOffset
-        default:                        return 0
-        }
+    private func blockOffset(for id: Int) -> CGFloat {
+        blockOffsets[id, default: 14]
     }
 
     // MARK: - Legend cell
@@ -131,12 +117,8 @@ struct OnboardingTimelineDemoView: View {
     private func animate() {
         if reduceMotion {
             columnsVisible = true
-            sleepVisible = true
-            feedsVisible = true
-            nappiesVisible = true
-            sleepOffset = 0
-            feedsOffset = 0
-            nappiesOffset = 0
+            visibleBlockIDs = Set(Self.sampleData.indices)
+            blockOffsets = Dictionary(uniqueKeysWithValues: Self.sampleData.indices.map { ($0, 0) })
             legendMask = [true, true, true, true]
             return
         }
@@ -146,25 +128,17 @@ struct OnboardingTimelineDemoView: View {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                 columnsVisible = true
             }
-            // Sleep blocks — most prominent, reveal first
-            try? await Task.sleep(for: .milliseconds(400))
-            withAnimation(.easeInOut(duration: 0.55)) {
-                sleepVisible = true
-                sleepOffset = 0
+            try? await Task.sleep(for: .milliseconds(300))
+
+            for schedule in Self.blockAnimationSchedule {
+                try? await Task.sleep(for: .milliseconds(schedule.delayMilliseconds))
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    visibleBlockIDs.insert(schedule.id)
+                    blockOffsets[schedule.id] = 0
+                }
             }
-            // Feed blocks
-            try? await Task.sleep(for: .milliseconds(700))
-            withAnimation(.easeInOut(duration: 0.55)) {
-                feedsVisible = true
-                feedsOffset = 0
-            }
-            // Nappy blocks
-            try? await Task.sleep(for: .milliseconds(600))
-            withAnimation(.easeInOut(duration: 0.55)) {
-                nappiesVisible = true
-                nappiesOffset = 0
-            }
-            try? await Task.sleep(for: .milliseconds(820))
+
+            try? await Task.sleep(for: .milliseconds(360))
             // Legend items stagger in
             for i in 0..<legendItems.count {
                 try? await Task.sleep(for: .milliseconds(160))
@@ -198,6 +172,49 @@ struct OnboardingTimelineDemoView: View {
         let start: Double
         let end: Double
         let kind: BabyEventKind
+    }
+
+    private struct BlockAnimationSchedule {
+        let id: Int
+        let delayMilliseconds: UInt64
+    }
+
+    private static let blockAnimationSchedule: [BlockAnimationSchedule] = {
+        let absoluteSchedule = sampleData
+            .enumerated()
+            .map { index, entry in
+                return BlockAnimationSchedule(
+                    id: index,
+                    delayMilliseconds: absoluteRevealDelay(for: entry, index: index)
+                )
+            }
+            .sorted { lhs, rhs in
+                lhs.delayMilliseconds < rhs.delayMilliseconds
+            }
+
+        var previousDelay: UInt64 = 0
+        return absoluteSchedule.map { schedule in
+            let stepDelay = max(18, schedule.delayMilliseconds - previousDelay)
+            previousDelay = schedule.delayMilliseconds
+            return BlockAnimationSchedule(id: schedule.id, delayMilliseconds: stepDelay)
+        }
+    }()
+
+    private static func absoluteRevealDelay(for entry: SampleEntry, index: Int) -> UInt64 {
+        let baseDelay: UInt64
+        switch entry.kind {
+        case .sleep:
+            baseDelay = 0
+        case .breastFeed, .bottleFeed:
+            baseDelay = 130
+        case .nappy:
+            baseDelay = 240
+        }
+
+        let rowDelay = UInt64(entry.start * 170)
+        let columnDelay = UInt64(entry.column * 18)
+        let jitter = UInt64((index * 37) % 55)
+        return 26 + baseDelay + rowDelay + columnDelay + jitter
     }
 
     // start/end expressed as a fraction of the 24-hour day (0.0 = midnight, 1.0 = next midnight).

@@ -20,8 +20,8 @@ public struct IdentityOnboardingView: View {
     private static let introPages: [OnboardingIntroPage] = [
         OnboardingIntroPage(
             id: "pain-points",
-            title: "When every hour blurs together",
-            message: "Feeds, nappies, and short stretches of sleep are hard to keep in your head when you're already running on empty.",
+            title: "When you're tired and remembering is hard",
+            message: "Feeds, nappies, and short stretches of sleep are easy to lose track of when you're exhausted with a baby.",
             symbolNames: [
                 "clock.badge.questionmark.fill",
                 "drop.fill",
@@ -212,25 +212,14 @@ public struct IdentityOnboardingView: View {
     private var footer: some View {
         VStack(spacing: 12) {
             if isShowingNameStep {
-                Button(action: submitName) {
-                    Text("Get Started")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(trimmedName.isEmpty)
+                OnboardingPrimaryButton(
+                    title: "Get Started",
+                    action: submitName,
+                    isDisabled: trimmedName.isEmpty
+                )
                 .accessibilityIdentifier("identity-save-button")
             } else {
-                Button {
-                    advance()
-                } label: {
-                    Text(primaryActionTitle)
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                }
-                .buttonStyle(.borderedProminent)
+                OnboardingPrimaryButton(title: primaryActionTitle, action: advance)
                 .accessibilityIdentifier("identity-onboarding-continue-button")
             }
         }

@@ -12,8 +12,8 @@ struct OnboardingIntroIconSceneView: View {
     OnboardingIntroIconSceneView(
         page: OnboardingIntroPage(
             id: "pain-points",
-            title: "When every hour blurs together",
-            message: "Feeds, nappies, and short naps are hard to keep straight when you're already exhausted.",
+            title: "When you're tired and remembering is hard",
+            message: "Feeds, nappies, and short stretches of sleep are easy to lose track of when you're exhausted with a baby.",
             symbolNames: ["clock.badge.questionmark.fill", "drop.fill", "moon.zzz.fill"],
             highlights: [
                 OnboardingIntroHighlight(title: "Last feed", symbolName: "drop.fill"),
