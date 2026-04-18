@@ -11,7 +11,6 @@ public struct TimelineScreenView: View {
     let cancelDelete: () -> Void
 
     @State private var showingDayPicker = false
-    @State private var dragStartPageIndex: Int = 0
     @State private var dayPickerSheetHeight: CGFloat = 420
 
     public init(
@@ -54,22 +53,6 @@ public struct TimelineScreenView: View {
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .background(Color(.systemGroupedBackground).ignoresSafeArea())
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 20)
-                        .onChanged { _ in
-                            if dragStartPageIndex != viewModel.selectedPageIndex {
-                                dragStartPageIndex = viewModel.selectedPageIndex
-                            }
-                        }
-                        .onEnded { value in
-                            let swipe = value.translation.width
-                            if swipe > 60 && dragStartPageIndex == 0 {
-                                viewModel.showPreviousDay()
-                            } else if swipe < -60 && dragStartPageIndex == viewModel.pages.count - 1 {
-                                viewModel.showNextDay()
-                            }
-                        }
-                )
             } else {
                 TimelineWeekView(
                     columns: viewModel.stripColumns,

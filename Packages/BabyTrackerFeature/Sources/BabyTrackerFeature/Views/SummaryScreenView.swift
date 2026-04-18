@@ -262,7 +262,7 @@ public struct SummaryScreenView: View {
         .padding(4)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(Color(.secondarySystemGroupedBackground))
         )
     }
 
@@ -863,12 +863,7 @@ public struct SummaryScreenView: View {
 
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .fill(.thinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.white.opacity(0.28), lineWidth: 1)
-            )
-            .shadow(color: Color.black.opacity(0.05), radius: 14, y: 8)
+            .fill(Color(.secondarySystemGroupedBackground))
     }
 
 }
