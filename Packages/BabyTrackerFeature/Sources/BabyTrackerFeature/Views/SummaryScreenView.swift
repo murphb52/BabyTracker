@@ -210,6 +210,7 @@ public struct SummaryScreenView: View {
     @State private var selectedBottleFilter: TodayBottleChartFilter = .all
     @State private var selectedTrendsNappyFilter: TrendsNappyChartFilter = .all
     @State private var selectedTrendsBottleFilter: TrendsBottleChartFilter = .all
+    @Namespace private var advancedSummaryNamespace
 
     private var isSelectedDateToday: Bool {
         Calendar.autoupdatingCurrent.isDateInToday(selectedDate)
@@ -819,6 +820,7 @@ public struct SummaryScreenView: View {
                     ? .range(selectedTrendsRange.asSummaryTimeRange)
                     : .day(selectedDate)
             )
+            .navigationTransition(.zoom(sourceID: "advancedSummary", in: advancedSummaryNamespace))
         } label: {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -841,6 +843,7 @@ public struct SummaryScreenView: View {
             .background(cardBackground)
         }
         .buttonStyle(.plain)
+        .matchedTransitionSource(id: "advancedSummary", in: advancedSummaryNamespace)
     }
 
     private func todayFilterPicker<Filter: TodayChartFilter>(
