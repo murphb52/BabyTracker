@@ -15,6 +15,7 @@ public final class AppModel {
     public private(set) var errorMessage: String?
     public private(set) var undoDeleteMessage: String?
     public private(set) var isLiveActivityEnabled: Bool
+    public private(set) var isReminderNotificationsEnabled: Bool
     public private(set) var transientMessage: String?
     public private(set) var navigationResetToken: Int = 0
     public private(set) var shareAcceptanceLoadingState: ShareAcceptanceLoadingState?
@@ -67,6 +68,7 @@ public final class AppModel {
     private let liveActivityManager: any FeedLiveActivityManaging
     private let liveActivitySnapshotCache: any FeedLiveActivitySnapshotCaching
     private let liveActivityPreferenceStore: any LiveActivityPreferenceStore
+    private let reminderNotificationPreferenceStore: any ReminderNotificationPreferenceStore
     private let localNotificationManager: any LocalNotificationManaging
     private let hapticFeedbackProvider: any HapticFeedbackProviding
     private let appReviewPromptStateStore: any AppReviewPromptStateStoring
@@ -75,6 +77,8 @@ public final class AppModel {
     private let buildTimelineDayGridDatasetUseCase = BuildTimelineDayGridDatasetUseCase()
     private let buildRemoteNotificationUseCase = BuildRemoteCaregiverNotificationUseCase()
     private let calendar = Calendar.autoupdatingCurrent
+    private var storedReminderNotificationsEnabled: Bool
+    private var hasReminderNotificationPermission: Bool
     private var timelineChildID: UUID?
     private var pendingUndoDeletedEvent: BabyEvent?
     private var undoDeleteTask: Task<Void, Never>?
@@ -91,6 +95,7 @@ public final class AppModel {
         liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager(),
         liveActivitySnapshotCache: any FeedLiveActivitySnapshotCaching = InMemoryFeedLiveActivitySnapshotCache(),
         liveActivityPreferenceStore: any LiveActivityPreferenceStore = InMemoryLiveActivityPreferenceStore(),
+        reminderNotificationPreferenceStore: any ReminderNotificationPreferenceStore = InMemoryReminderNotificationPreferenceStore(),
         localNotificationManager: any LocalNotificationManaging = NoOpLocalNotificationManager(),
         hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider(),
         appReviewPromptStateStore: any AppReviewPromptStateStoring = NoOpAppReviewPromptStateStore(),
@@ -105,16 +110,24 @@ public final class AppModel {
         self.liveActivityManager = liveActivityManager
         self.liveActivitySnapshotCache = liveActivitySnapshotCache
         self.liveActivityPreferenceStore = liveActivityPreferenceStore
+        self.reminderNotificationPreferenceStore = reminderNotificationPreferenceStore
         self.localNotificationManager = localNotificationManager
         self.hapticFeedbackProvider = hapticFeedbackProvider
         self.appReviewPromptStateStore = appReviewPromptStateStore
         self.appReviewRequester = appReviewRequester
         self.isLiveActivityEnabled = liveActivityPreferenceStore.isLiveActivityEnabled
+        let storedReminderNotificationsEnabled = reminderNotificationPreferenceStore.isReminderNotificationsEnabled
+        self.storedReminderNotificationsEnabled = storedReminderNotificationsEnabled
+        self.hasReminderNotificationPermission = true
+        self.isReminderNotificationsEnabled = storedReminderNotificationsEnabled
     }
 
     public func load(performLaunchSync: Bool = true) {
         refresh(selecting: nil)
         rescheduleAllDriftNotifications()
+        Task { @MainActor in
+            await refreshReminderNotificationAuthorization()
+        }
 
         guard performLaunchSync else {
             return
@@ -175,6 +188,54 @@ public final class AppModel {
         }
     }
 
+    @discardableResult
+    public func setReminderNotificationsEnabled(_ isEnabled: Bool) async -> Bool {
+        if storedReminderNotificationsEnabled == isEnabled {
+            await refreshReminderNotificationAuthorization()
+            return isReminderNotificationsEnabled == isEnabled
+        }
+
+        if isEnabled {
+            let isAuthorized = await localNotificationManager.requestAuthorizationIfNeeded()
+            hasReminderNotificationPermission = isAuthorized
+            guard isAuthorized else {
+                isReminderNotificationsEnabled = false
+                return false
+            }
+        }
+
+        storedReminderNotificationsEnabled = isEnabled
+        reminderNotificationPreferenceStore.setReminderNotificationsEnabled(isEnabled)
+        let isAuthorized = await localNotificationManager.isAuthorizedForNotifications()
+        hasReminderNotificationPermission = isAuthorized
+        isReminderNotificationsEnabled = storedReminderNotificationsEnabled && hasReminderNotificationPermission
+
+        if isEnabled {
+            await rescheduleAllDriftNotificationsAsync()
+        } else {
+            await cancelAllDriftNotificationsAsync()
+        }
+        return isReminderNotificationsEnabled == isEnabled
+    }
+
+    public func refreshReminderNotificationAuthorization() async {
+        let isAuthorized = await localNotificationManager.isAuthorizedForNotifications()
+        let previousValue = isReminderNotificationsEnabled
+
+        hasReminderNotificationPermission = isAuthorized
+        isReminderNotificationsEnabled = storedReminderNotificationsEnabled && hasReminderNotificationPermission
+
+        guard previousValue != isReminderNotificationsEnabled else {
+            return
+        }
+
+        if isReminderNotificationsEnabled {
+            await rescheduleAllDriftNotificationsAsync()
+        } else {
+            await cancelAllDriftNotificationsAsync()
+        }
+    }
+
     public func refreshAfterShareSheet() {
         Task { @MainActor in
             await runSyncRefresh { await self.syncEngine.refreshForeground() }
@@ -208,7 +269,7 @@ public final class AppModel {
 
     public func requestNotificationAuthorizationIfNeeded() {
         Task { @MainActor in
-            await localNotificationManager.requestAuthorizationIfNeeded()
+            _ = await localNotificationManager.requestAuthorizationIfNeeded()
         }
     }
 
@@ -925,6 +986,13 @@ public final class AppModel {
     }
 
     private func scheduleSleepDriftNotificationIfNeeded() {
+        Task { @MainActor in
+            await scheduleSleepDriftNotificationIfNeededAsync()
+        }
+    }
+
+    private func scheduleSleepDriftNotificationIfNeededAsync() async {
+        guard isReminderNotificationsEnabled else { return }
         guard let child = currentChild, let activeSleep else { return }
         let completedSleeps = events
             .compactMap { event -> SleepEvent? in
@@ -932,47 +1000,85 @@ public final class AppModel {
                 return s
             }
             .sorted { ($0.endedAt ?? $0.startedAt) > ($1.endedAt ?? $1.startedAt) }
-        Task { @MainActor in
-            await ScheduleSleepDriftNotificationUseCase.execute(
-                input: .init(
-                    childID: child.id,
-                    childName: child.name,
-                    activeSleepStartedAt: activeSleep.startedAt,
-                    completedSleepEvents: completedSleeps
-                ),
-                notificationManager: localNotificationManager
-            )
-        }
+        await ScheduleSleepDriftNotificationUseCase.execute(
+            input: .init(
+                childID: child.id,
+                childName: child.name,
+                activeSleepStartedAt: activeSleep.startedAt,
+                completedSleepEvents: completedSleeps
+            ),
+            notificationManager: localNotificationManager
+        )
     }
 
     private func scheduleInactivityDriftNotificationIfNeeded() {
+        Task { @MainActor in
+            await scheduleInactivityDriftNotificationIfNeededAsync()
+        }
+    }
+
+    private func scheduleInactivityDriftNotificationIfNeededAsync() async {
+        guard isReminderNotificationsEnabled else { return }
         guard let child = currentChild else { return }
         guard let lastEvent = events.max(by: { $0.metadata.occurredAt < $1.metadata.occurredAt }) else { return }
-        Task { @MainActor in
-            await ScheduleInactivityDriftNotificationUseCase.execute(
-                input: .init(
-                    childID: child.id,
-                    childName: child.name,
-                    lastEventOccurredAt: lastEvent.metadata.occurredAt,
-                    allEvents: events
-                ),
-                notificationManager: localNotificationManager
-            )
-        }
+        await ScheduleInactivityDriftNotificationUseCase.execute(
+            input: .init(
+                childID: child.id,
+                childName: child.name,
+                lastEventOccurredAt: lastEvent.metadata.occurredAt,
+                allEvents: events
+            ),
+            notificationManager: localNotificationManager
+        )
     }
 
     private func cancelSleepDriftNotification() {
-        guard let child = currentChild else { return }
         Task { @MainActor in
-            await localNotificationManager.cancelSleepDriftNotification(childID: child.id)
+            await cancelSleepDriftNotificationAsync()
         }
     }
 
-    private func rescheduleAllDriftNotifications() {
-        if activeSleep != nil {
-            scheduleSleepDriftNotificationIfNeeded()
+    private func cancelSleepDriftNotificationAsync() async {
+        guard let child = currentChild else { return }
+        await localNotificationManager.cancelSleepDriftNotification(childID: child.id)
+    }
+
+    private func cancelInactivityDriftNotification() {
+        Task { @MainActor in
+            await cancelInactivityDriftNotificationAsync()
         }
-        scheduleInactivityDriftNotificationIfNeeded()
+    }
+
+    private func cancelInactivityDriftNotificationAsync() async {
+        guard let child = currentChild else { return }
+        await localNotificationManager.cancelInactivityDriftNotification(childID: child.id)
+    }
+
+    private func cancelAllDriftNotifications() {
+        cancelSleepDriftNotification()
+        cancelInactivityDriftNotification()
+    }
+
+    private func cancelAllDriftNotificationsAsync() async {
+        await cancelSleepDriftNotificationAsync()
+        await cancelInactivityDriftNotificationAsync()
+    }
+
+    private func rescheduleAllDriftNotifications() {
+        Task { @MainActor in
+            await rescheduleAllDriftNotificationsAsync()
+        }
+    }
+
+    private func rescheduleAllDriftNotificationsAsync() async {
+        guard isReminderNotificationsEnabled else {
+            await cancelAllDriftNotificationsAsync()
+            return
+        }
+        if activeSleep != nil {
+            await scheduleSleepDriftNotificationIfNeededAsync()
+        }
+        await scheduleInactivityDriftNotificationIfNeededAsync()
     }
 
     private func refresh(selecting selectedChildID: UUID?) {

@@ -269,7 +269,10 @@ public struct SummaryScreenView: View {
     // MARK: - Today Tab
 
     private var todayTabContent: some View {
-        let data = TodaySummaryCalculator.makeData(from: viewModel.events, now: selectedDate)
+        let data = TodaySummaryCalculator.makeData(
+            from: viewModel.events,
+            day: selectedDate
+        )
 
         return Group {
             if viewModel.events.isEmpty {

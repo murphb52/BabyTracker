@@ -36,6 +36,7 @@ enum ChildProfilePreviewFactory {
             syncEngine: syncEngine,
             liveActivityManager: NoOpFeedLiveActivityManager(),
             liveActivityPreferenceStore: InMemoryLiveActivityPreferenceStore(),
+            reminderNotificationPreferenceStore: InMemoryReminderNotificationPreferenceStore(),
             localNotificationManager: NoOpLocalNotificationManager(),
             hapticFeedbackProvider: NoOpHapticFeedbackProvider()
         )

@@ -28,7 +28,7 @@ public enum ScheduleSleepDriftNotificationUseCase {
     @MainActor
     public static func execute(input: Input, notificationManager: any LocalNotificationManaging) async {
         let threshold = CalculateSleepDriftThresholdUseCase().execute(
-            .init(completedSleepEvents: input.completedSleepEvents)
+            .init(activeSleepStartedAt: input.activeSleepStartedAt)
         )
 
         let elapsed = input.now.timeIntervalSince(input.activeSleepStartedAt)

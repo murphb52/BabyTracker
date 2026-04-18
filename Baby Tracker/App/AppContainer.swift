@@ -23,6 +23,7 @@ struct AppContainer {
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
         let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
         let liveActivityPreferenceStore = UserDefaultsLiveActivityPreferenceStore(userDefaults: userDefaults)
+        let reminderNotificationPreferenceStore = UserDefaultsReminderNotificationPreferenceStore(userDefaults: userDefaults)
         let appReviewPromptStateStore = UserDefaultsAppReviewPromptStateStore(userDefaults: userDefaults)
 
         if let scenario = launchConfiguration.scenario {
@@ -69,6 +70,7 @@ struct AppContainer {
             liveActivityManager: liveActivityManager,
             liveActivitySnapshotCache: liveActivitySnapshotCache,
             liveActivityPreferenceStore: liveActivityPreferenceStore,
+            reminderNotificationPreferenceStore: reminderNotificationPreferenceStore,
             localNotificationManager: localNotificationManager,
             hapticFeedbackProvider: hapticFeedbackProvider,
             appReviewPromptStateStore: appReviewPromptStateStore,
@@ -111,6 +113,7 @@ struct AppContainer {
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
         let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
         let liveActivityPreferenceStore = UserDefaultsLiveActivityPreferenceStore(userDefaults: userDefaults)
+        let reminderNotificationPreferenceStore = UserDefaultsReminderNotificationPreferenceStore(userDefaults: userDefaults)
 
         try? seed(
             scenario: .mixedEventsPreview,
@@ -139,6 +142,7 @@ struct AppContainer {
             syncEngine: syncEngine,
             liveActivityManager: NoOpFeedLiveActivityManager(),
             liveActivityPreferenceStore: liveActivityPreferenceStore,
+            reminderNotificationPreferenceStore: reminderNotificationPreferenceStore,
             localNotificationManager: NoOpLocalNotificationManager(),
             hapticFeedbackProvider: NoOpHapticFeedbackProvider()
         )

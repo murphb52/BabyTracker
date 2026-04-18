@@ -416,6 +416,7 @@ private enum IdentityOnboardingPreviewFactory {
             syncEngine: syncEngine,
             liveActivityManager: NoOpFeedLiveActivityManager(),
             liveActivityPreferenceStore: InMemoryLiveActivityPreferenceStore(),
+            reminderNotificationPreferenceStore: InMemoryReminderNotificationPreferenceStore(),
             localNotificationManager: NoOpLocalNotificationManager(),
             hapticFeedbackProvider: NoOpHapticFeedbackProvider()
         )

@@ -12,6 +12,7 @@ public struct TimelineDayGridView: View {
     private let columnSpacing: CGFloat = 8
     private let slotHeight: CGFloat = 30
     private let itemVerticalInset: CGFloat = 3
+    private let initialScrollBottomOffset: CGFloat = 150
 
     public init(
         day: Date,
@@ -128,6 +129,13 @@ public struct TimelineDayGridView: View {
                         .frame(width: columnWidth, height: slotHeight)
                     }
                 }
+                .overlay(alignment: .topLeading) {
+                    if slotIndex.isMultiple(of: slotsPerHour) {
+                        Color.clear
+                            .frame(width: 1, height: initialScrollBottomOffset)
+                            .id(initialScrollAnchorID(for: slotIndex / slotsPerHour))
+                    }
+                }
             }
         }
     }
@@ -199,6 +207,10 @@ public struct TimelineDayGridView: View {
 
     private func hourAnchorID(for hour: Int) -> String {
         "timeline-day-grid-hour-\(hour)"
+    }
+
+    private func initialScrollAnchorID(for hour: Int) -> String {
+        "timeline-day-grid-hour-offset-\(hour)"
     }
 
     private var isToday: Bool {

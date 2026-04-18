@@ -1,7 +1,10 @@
 import Foundation
 
 public struct CalculateInactivityDriftThresholdUseCase {
-    public static let defaultThreshold: TimeInterval = 4 * 60 * 60
+    public static let daytimeThreshold: TimeInterval = 6 * 60 * 60
+    public static let defaultThreshold: TimeInterval = 12 * 60 * 60
+    private static let daytimeStartHour = 5
+    private static let nighttimeStartHour = 18
 
     public struct Input {
         /// All non-deleted events for the child (any order — sorted internally).
@@ -19,32 +22,15 @@ public struct CalculateInactivityDriftThresholdUseCase {
 
     /// Returns the time interval after the last event at which to fire an inactivity notification.
     public func execute(_ input: Input) -> TimeInterval {
-        let times = input.events
-            .map(\.metadata.occurredAt)
-            .sorted()
-
-        guard times.count >= 4 else {
+        guard let lastEvent = input.events.max(by: { $0.metadata.occurredAt < $1.metadata.occurredAt }) else {
             return Self.defaultThreshold
         }
 
-        var gaps: [TimeInterval] = []
-        for i in 1..<times.count {
-            let gap = times[i].timeIntervalSince(times[i - 1])
-            // Ignore sub-minute duplicates and overnight gaps (>12h) that aren't
-            // representative of normal waking-hours logging cadence
-            guard gap > 60, gap < 12 * 60 * 60 else { continue }
-            gaps.append(gap)
+        let hour = Calendar.autoupdatingCurrent.component(.hour, from: lastEvent.metadata.occurredAt)
+        if hour >= Self.daytimeStartHour, hour < Self.nighttimeStartHour {
+            return Self.daytimeThreshold
         }
 
-        guard gaps.count >= 3 else {
-            return Self.defaultThreshold
-        }
-
-        let recent = Array(gaps.suffix(input.windowSize))
-        let average = recent.reduce(0, +) / Double(recent.count)
-
-        // 2x average gives one full "expected next event window" of grace before nudging
-        let threshold = min(average * 2.0, 8 * 60 * 60)
-        return max(threshold, 60 * 60)
+        return Self.defaultThreshold
     }
 }

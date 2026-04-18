@@ -14,28 +14,33 @@ final class SystemLocalNotificationManager: NSObject, LocalNotificationManaging 
         self.notificationCenter.delegate = self
     }
 
-    func requestAuthorizationIfNeeded() async {
+    func isAuthorizedForNotifications() async -> Bool {
+        await isAuthorized()
+    }
+
+    func requestAuthorizationIfNeeded() async -> Bool {
         let settings = await notificationCenter.notificationSettings()
         switch settings.authorizationStatus {
         case .authorized, .provisional:
             await MainActor.run {
                 UIApplication.shared.registerForRemoteNotifications()
             }
-            return
+            return true
         case .notDetermined:
             break
         default:
-            return
+            return false
         }
 
         let isAuthorized = (try? await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])) == true
         guard isAuthorized else {
-            return
+            return false
         }
 
         await MainActor.run {
             UIApplication.shared.registerForRemoteNotifications()
         }
+        return true
     }
 
     func scheduleRemoteSyncNotification(_ content: RemoteCaregiverNotificationContent) async {
