@@ -32,40 +32,41 @@ public struct EventHistoryView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            if !viewModel.activeFilter.isEmpty {
-                filterPillsBar
-            }
-
-            List {
-                if viewModel.sections.isEmpty {
-                    emptyState
-                        .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                } else {
-                    ForEach(viewModel.sections) { section in
-                        Section {
-                            ForEach(section.events) { event in
-                                eventRow(for: event)
-                                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                                    .listRowSeparator(.hidden)
-                                    .listRowBackground(Color.clear)
-                            }
-                        } header: {
-                            sectionHeader(for: section.date)
+        List {
+            if viewModel.sections.isEmpty {
+                emptyState
+                    .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            } else {
+                ForEach(viewModel.sections) { section in
+                    Section {
+                        ForEach(section.events) { event in
+                            eventRow(for: event)
+                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
                         }
+                    } header: {
+                        sectionHeader(for: section.date)
                     }
                 }
             }
-            .listStyle(.plain)
-            .refreshable {
-                await onRefresh()
-            }
-            .scrollContentBackground(.hidden)
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
         }
+        .listStyle(.plain)
+        .refreshable {
+            await onRefresh()
+        }
+        .scrollContentBackground(.hidden)
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        // Active filter pills live in a safeAreaBar so the list is correctly
+        // inset beneath them rather than hiding under a manually placed overlay.
+        .safeAreaBar(edge: .top) {
+            if !viewModel.activeFilter.isEmpty {
+                filterPillsBar
+                    .background(Color(.secondarySystemGroupedBackground))
+            }
+        }
     }
 
     // MARK: - Filter pills
@@ -80,8 +81,6 @@ public struct EventHistoryView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
         }
-        .background(Color(.secondarySystemGroupedBackground))
-        .overlay(alignment: .bottom) { Divider() }
     }
 
     private func filterPill(_ pill: ActiveFilterPill) -> some View {

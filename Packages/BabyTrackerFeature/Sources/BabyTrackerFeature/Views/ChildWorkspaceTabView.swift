@@ -110,15 +110,8 @@ public struct ChildWorkspaceTabView: View {
                     .accessibilityIdentifier("event-history-filter-button")
                 }
             }
-            if model.selectedWorkspaceTab == .timeline {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(timelineViewModel.displayMode == .day ? "Week View" : "Day View") {
-                        timelineViewModel.toggleDisplayMode()
-                    }
-                    .buttonStyle(.automatic)
-                    .accessibilityIdentifier("timeline-display-mode-button")
-                }
-            }
+            // Timeline toolbar items (prev/next day, calendar, today, display mode)
+            // are owned by TimelineScreenView and merge into the navigation bar automatically.
         }
         .sheet(item: $activeEventSheet, onDismiss: {
             activeEventSheet = nil
