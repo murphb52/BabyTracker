@@ -40,7 +40,8 @@ public struct ChildWorkspaceTabView: View {
                 quickLogSleep: showSleepSheet,
                 quickLogNappy: {
                     activeEventSheet = .quickLogNappy(.mixed)
-                }
+                },
+                openProfile: { model.selectedWorkspaceTab = .profile }
             )
             .tag(ChildWorkspaceTab.home)
             .tabItem {

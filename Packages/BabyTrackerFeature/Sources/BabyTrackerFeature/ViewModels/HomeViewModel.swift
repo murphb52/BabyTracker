@@ -52,4 +52,77 @@ public final class HomeViewModel {
     public var activeSleepSession: ActiveSleepSessionViewState? {
         appModel.activeSleep.map(ActiveSleepSessionViewState.init)
     }
+
+    public var childName: String? {
+        appModel.currentChild?.name
+    }
+
+    /// The time the child woke up (endedAt of most recent completed sleep), shown in the awake hero card.
+    /// Nil when no prior sleep is recorded or an active sleep is in progress.
+    public var awakeHeroCard: HomeAwakeHeroCardViewState? {
+        guard appModel.activeSleep == nil else { return nil }
+        return HomeAwakeHeroCardViewState(awakeStartedAt: currentStatus.lastSleep?.endedAt)
+    }
+
+    /// Time of the most recent feed (breast or bottle), whichever is later.
+    public var heroLastFeedAt: Date? {
+        currentStatus.timeSinceLastFeedAt
+    }
+
+    /// Kind of the most recent feed — used to label the hero sentence when awake.
+    public var heroLastFeedKind: BabyEventKind? {
+        let breastAt = currentStatus.lastBreastFeed?.occurredAt
+        let bottleAt = currentStatus.lastBottleFeed?.occurredAt
+        switch (breastAt, bottleAt) {
+        case (nil, nil):
+            return nil
+        case (.some, nil):
+            return .breastFeed
+        case (nil, .some):
+            return .bottleFeed
+        case let (breast?, bottle?):
+            return breast >= bottle ? .breastFeed : .bottleFeed
+        }
+    }
+
+    /// The six most recent events shaped for the Today timeline on the home screen.
+    public var todayTimelineEvents: [HomeTimelineEventViewState] {
+        guard let child = appModel.currentChild else { return [] }
+        let preferredUnit = child.preferredFeedVolumeUnit
+        let activeSleepID = appModel.activeSleep?.id
+
+        return Array(appModel.events.prefix(6)).compactMap { event -> HomeTimelineEventViewState? in
+            let id: UUID
+            let kind: BabyEventKind
+            let occurredAt: Date
+
+            switch event {
+            case let .breastFeed(feed):
+                id = feed.id
+                kind = .breastFeed
+                occurredAt = feed.metadata.occurredAt
+            case let .bottleFeed(feed):
+                id = feed.id
+                kind = .bottleFeed
+                occurredAt = feed.metadata.occurredAt
+            case let .sleep(sleep):
+                id = sleep.id
+                kind = .sleep
+                occurredAt = sleep.metadata.occurredAt
+            case let .nappy(nappy):
+                id = nappy.id
+                kind = .nappy
+                occurredAt = nappy.metadata.occurredAt
+            }
+
+            return HomeTimelineEventViewState(
+                id: id,
+                kind: kind,
+                title: BabyEventPresentation.title(for: event),
+                detailText: BabyEventPresentation.detailText(for: event, preferredFeedVolumeUnit: preferredUnit) ?? "",
+                timeText: occurredAt.formatted(.dateTime.hour().minute()),
+                isOngoing: activeSleepID.map { $0 == id } ?? false
+            )
+        }
+    }
 }
