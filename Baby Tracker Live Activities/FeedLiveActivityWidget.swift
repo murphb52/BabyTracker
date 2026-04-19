@@ -33,7 +33,7 @@ struct FeedLiveActivityWidget: Widget {
     private func compactLeadingView(for state: FeedLiveActivityAttributes.ContentState) -> some View {
         let compactMetric = compactDynamicIslandMetric(for: state)
         Image(systemName: symbolName(for: compactMetric))
-            .foregroundStyle(eventAccentColor(for: compactMetric.kind))
+            .foregroundStyle(compactMetric.kind.accentColor)
     }
 
     @ViewBuilder
@@ -41,7 +41,7 @@ struct FeedLiveActivityWidget: Widget {
         let compactMetric = compactDynamicIslandMetric(for: state)
         compactTimerText(
             since: compactMetric.date,
-            color: eventAccentColor(for: compactMetric.kind)
+            color: compactMetric.kind.accentColor
         )
     }
 
@@ -49,7 +49,7 @@ struct FeedLiveActivityWidget: Widget {
     private func minimalView(for state: FeedLiveActivityAttributes.ContentState) -> some View {
         let compactMetric = compactDynamicIslandMetric(for: state)
         Image(systemName: symbolName(for: compactMetric))
-            .foregroundStyle(eventAccentColor(for: compactMetric.kind))
+            .foregroundStyle(compactMetric.kind.accentColor)
     }
 
     private func symbolName(for metric: CompactDynamicIslandMetric) -> String {
@@ -62,19 +62,6 @@ struct FeedLiveActivityWidget: Widget {
             metric.isActiveSleep ? "zzz" : "bed.double.fill"
         case .nappy:
             "checklist"
-        }
-    }
-
-    private func eventAccentColor(for kind: BabyEventKind) -> Color {
-        switch kind {
-        case .breastFeed:
-            Color(red: 0.84, green: 0.29, blue: 0.42)
-        case .bottleFeed:
-            Color(red: 0.15, green: 0.56, blue: 0.72)
-        case .sleep:
-            Color(red: 0.29, green: 0.33, blue: 0.73)
-        case .nappy:
-            Color(red: 0.74, green: 0.47, blue: 0.16)
         }
     }
 
