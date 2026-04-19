@@ -1,26 +1,22 @@
 import SwiftUI
-import UIKit
 
 struct HomeAwakeHeroCardView: View {
     let card: HomeAwakeHeroCardViewState
     let startNap: () -> Void
     let logPastSleep: () -> Void
 
-    // Warm amber — distinct from sleep's indigo, reads as awake/daytime energy.
+    @Environment(\.colorScheme) private var colorScheme
+
     private var awakeColor: Color {
-        Color(uiColor: UIColor { traits in
-            traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0.98, green: 0.75, blue: 0.30, alpha: 1.0)
-                : UIColor(red: 0.80, green: 0.46, blue: 0.06, alpha: 1.0)
-        })
+        colorScheme == .dark
+            ? Color(red: 0.45, green: 0.80, blue: 0.50)
+            : Color(red: 0.18, green: 0.58, blue: 0.28)
     }
 
     private var awakeCardFill: Color {
-        Color(uiColor: UIColor { traits in
-            traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0.27, green: 0.19, blue: 0.05, alpha: 1.0)
-                : UIColor(red: 0.99, green: 0.95, blue: 0.88, alpha: 1.0)
-        })
+        colorScheme == .dark
+            ? Color(red: 0.08, green: 0.20, blue: 0.10)
+            : Color(red: 0.90, green: 0.97, blue: 0.91)
     }
 
     var body: some View {

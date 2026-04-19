@@ -13,10 +13,10 @@ public struct ChildHomeView: View {
     let quickLogNappy: () -> Void
     let openProfile: () -> Void
 
-    @AppStorage("home.statusSectionExpanded") private var statusSectionExpanded = true
-    @AppStorage("home.quickLogSectionExpanded") private var quickLogSectionExpanded = true
-    @AppStorage("home.todaySectionExpanded") private var todaySectionExpanded = true
-    @AppStorage("home.syncSectionExpanded") private var syncSectionExpanded = true
+    @State private var statusSectionExpanded: Bool
+    @State private var quickLogSectionExpanded: Bool
+    @State private var todaySectionExpanded: Bool
+    @State private var syncSectionExpanded: Bool
 
     public init(
         model: AppModel,
@@ -40,107 +40,45 @@ public struct ChildHomeView: View {
         self.quickLogSleep = quickLogSleep
         self.quickLogNappy = quickLogNappy
         self.openProfile = openProfile
+
+        let defaults = UserDefaults.standard
+        _statusSectionExpanded = State(initialValue: defaults.object(forKey: "home.statusSectionExpanded") as? Bool ?? true)
+        _quickLogSectionExpanded = State(initialValue: defaults.object(forKey: "home.quickLogSectionExpanded") as? Bool ?? true)
+        _todaySectionExpanded = State(initialValue: defaults.object(forKey: "home.todaySectionExpanded") as? Bool ?? true)
+        _syncSectionExpanded = State(initialValue: defaults.object(forKey: "home.syncSectionExpanded") as? Bool ?? true)
     }
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                HomeGreetingView(childName: viewModel.childName, onAvatarTapped: openProfile)
-
-                heroSentence
-                    .padding(.top, -8)
+                HomeGreetingView(childName: nil, onAvatarTapped: {})
 
                 heroCard
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(.opacity)
 
                 if viewModel.canLogEvents {
                     quickLogSection
                 }
 
                 statusSection
+                    .animation(nil, value: viewModel.currentSleep)
 
                 todaySection
+                    .animation(nil, value: viewModel.currentSleep)
 
                 syncSection
+                    .animation(nil, value: viewModel.currentSleep)
             }
             .animation(.easeInOut(duration: 0.35), value: viewModel.currentSleep)
-            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: statusSectionExpanded)
-            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: quickLogSectionExpanded)
-            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: todaySectionExpanded)
-            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: syncSectionExpanded)
             .padding(.horizontal, 16)
             .padding(.top, 12)
             .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
-    }
-
-    // MARK: - Hero sentence
-
-    @ViewBuilder
-    private var heroSentence: some View {
-        if let sleepSession = viewModel.activeSleepSession {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                sleepingSentence(startedAt: sleepSession.startedAt, now: context.date)
-            }
-        } else if let awakeCard = viewModel.awakeHeroCard {
-            TimelineView(.everyMinute) { context in
-                awakeSentence(awakeStartedAt: awakeCard.awakeStartedAt, now: context.date)
-            }
-        }
-    }
-
-    private func sleepingSentence(startedAt: Date, now: Date) -> some View {
-        let name = viewModel.childName ?? "Baby"
-        let duration = compactDuration(from: startedAt, to: now)
-        let sleepColor = BabyEventStyle.accentColor(for: .sleep)
-
-        return Group {
-            if let feedAt = viewModel.heroLastFeedAt {
-                let feedTimeText = "Last fed at \(feedAt.formatted(.dateTime.hour().minute()))."
-                Text("\(name)'s been asleep \(Text("~\(duration)").fontWeight(.semibold).foregroundStyle(sleepColor)). \(Text(feedTimeText).foregroundStyle(Color.secondary))")
-            } else {
-                Text("\(name)'s been asleep \(Text("~\(duration)").fontWeight(.semibold).foregroundStyle(sleepColor)).")
-            }
-        }
-        .font(.title2.weight(.medium))
-        .foregroundStyle(.primary)
-        .lineSpacing(2)
-    }
-
-    private func awakeSentence(awakeStartedAt: Date?, now: Date) -> some View {
-        let name = viewModel.childName ?? "Baby"
-        let durationText: String = awakeStartedAt.map { compactDuration(from: $0, to: now) } ?? "a while"
-        let feedKind = viewModel.heroLastFeedKind
-        let feedColor: Color = feedKind.map { BabyEventStyle.accentColor(for: $0) } ?? .orange
-
-        return Group {
-            if let feedAt = viewModel.heroLastFeedAt {
-                let feedLabel = feedKind == .breastFeed ? "breast feed" : "bottle"
-                let feedTimeText = "Had a \(feedLabel) at \(feedAt.formatted(.dateTime.hour().minute()))."
-                Text("\(name)'s been awake \(Text(durationText).fontWeight(.semibold).foregroundStyle(feedColor)). \(Text(feedTimeText).foregroundStyle(Color.secondary))")
-            } else {
-                Text("\(name)'s been awake \(Text(durationText).fontWeight(.semibold).foregroundStyle(feedColor)).")
-            }
-        }
-        .font(.title2.weight(.medium))
-        .foregroundStyle(.primary)
-        .lineSpacing(2)
-    }
-
-    /// Produces a compact human-readable duration like "1h 20m" or "45m".
-    private func compactDuration(from start: Date, to end: Date) -> String {
-        let totalMinutes = max(0, Int(end.timeIntervalSince(start)) / 60)
-        let hours = totalMinutes / 60
-        let minutes = totalMinutes % 60
-
-        if hours > 0 && minutes > 0 {
-            return "\(hours)h \(minutes)m"
-        } else if hours > 0 {
-            return "\(hours)h"
-        } else {
-            return "\(minutes)m"
-        }
+        .onChange(of: statusSectionExpanded) { _, v in UserDefaults.standard.set(v, forKey: "home.statusSectionExpanded") }
+        .onChange(of: quickLogSectionExpanded) { _, v in UserDefaults.standard.set(v, forKey: "home.quickLogSectionExpanded") }
+        .onChange(of: todaySectionExpanded) { _, v in UserDefaults.standard.set(v, forKey: "home.todaySectionExpanded") }
+        .onChange(of: syncSectionExpanded) { _, v in UserDefaults.standard.set(v, forKey: "home.syncSectionExpanded") }
     }
 
     // MARK: - Hero card
@@ -167,7 +105,9 @@ public struct ChildHomeView: View {
     private var syncSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                syncSectionExpanded.toggle()
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    syncSectionExpanded.toggle()
+                }
             } label: {
                 HStack {
                     Text("iCloud Sync")
@@ -196,7 +136,6 @@ public struct ChildHomeView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: syncSectionExpanded)
     }
 
     private var syncStatusCard: some View {
@@ -265,7 +204,9 @@ public struct ChildHomeView: View {
     private var statusSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                statusSectionExpanded.toggle()
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    statusSectionExpanded.toggle()
+                }
             } label: {
                 HStack {
                     Text("Since last")
@@ -288,13 +229,14 @@ public struct ChildHomeView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: statusSectionExpanded)
     }
 
     private var todaySection: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                todaySectionExpanded.toggle()
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    todaySectionExpanded.toggle()
+                }
             } label: {
                 HStack {
                     Text("Today")
@@ -317,13 +259,14 @@ public struct ChildHomeView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: todaySectionExpanded)
     }
 
     private var quickLogSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                quickLogSectionExpanded.toggle()
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    quickLogSectionExpanded.toggle()
+                }
             } label: {
                 HStack {
                     Text("Quick Log")
@@ -362,13 +305,7 @@ public struct ChildHomeView: View {
                     .geometryGroup()
 
                     HStack(spacing: 12) {
-                        quickLogButton(
-                            title: sleepQuickLogTitle,
-                            systemImage: BabyEventStyle.systemImage(for: .sleep),
-                            kind: .sleep,
-                            accessibilityIdentifier: "quick-log-sleep-button",
-                            action: quickLogSleep
-                        )
+                        sleepQuickLogButton
 
                         quickLogButton(
                             title: "Nappy",
@@ -384,7 +321,6 @@ public struct ChildHomeView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: quickLogSectionExpanded)
     }
 
     private func quickLogButton(
@@ -409,8 +345,38 @@ public struct ChildHomeView: View {
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
-    private var sleepQuickLogTitle: String {
-        viewModel.activeSleepSession == nil ? "Start Sleep" : "End Sleep"
+    @ViewBuilder
+    private var sleepQuickLogButton: some View {
+        if viewModel.activeSleepSession != nil {
+            Menu {
+                Button(action: quickLogSleep) {
+                    Label("End current sleep", systemImage: "moon.zzz.fill")
+                }
+                Button(action: logPastSleep) {
+                    Label("Log past sleep", systemImage: "clock.arrow.circlepath")
+                }
+            } label: {
+                Label("Sleep", systemImage: BabyEventStyle.systemImage(for: .sleep))
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .foregroundStyle(BabyEventStyle.buttonForegroundColor(for: .sleep))
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(BabyEventStyle.buttonFillColor(for: .sleep))
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("quick-log-sleep-button")
+        } else {
+            quickLogButton(
+                title: "Sleep",
+                systemImage: BabyEventStyle.systemImage(for: .sleep),
+                kind: .sleep,
+                accessibilityIdentifier: "quick-log-sleep-button",
+                action: quickLogSleep
+            )
+        }
     }
 
     private var syncStatusSymbolName: String {

@@ -64,27 +64,6 @@ public final class HomeViewModel {
         return HomeAwakeHeroCardViewState(awakeStartedAt: currentStatus.lastSleep?.endedAt)
     }
 
-    /// Time of the most recent feed (breast or bottle), whichever is later.
-    public var heroLastFeedAt: Date? {
-        currentStatus.timeSinceLastFeedAt
-    }
-
-    /// Kind of the most recent feed — used to label the hero sentence when awake.
-    public var heroLastFeedKind: BabyEventKind? {
-        let breastAt = currentStatus.lastBreastFeed?.occurredAt
-        let bottleAt = currentStatus.lastBottleFeed?.occurredAt
-        switch (breastAt, bottleAt) {
-        case (nil, nil):
-            return nil
-        case (.some, nil):
-            return .breastFeed
-        case (nil, .some):
-            return .bottleFeed
-        case let (breast?, bottle?):
-            return breast >= bottle ? .breastFeed : .bottleFeed
-        }
-    }
-
     /// The six most recent events shaped for the Today timeline on the home screen.
     public var todayTimelineEvents: [HomeTimelineEventViewState] {
         guard let child = appModel.currentChild else { return [] }
