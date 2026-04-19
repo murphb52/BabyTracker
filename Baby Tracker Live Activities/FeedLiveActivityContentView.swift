@@ -25,7 +25,7 @@ struct FeedLiveActivityContentView: View {
                 metricTile(
                     title: "Feed",
                     icon: symbolName(for: state.lastFeedKind),
-                    color: eventAccentColor(for: .bottleFeed)
+                    color: eventAccentColor(for: state.lastFeedKind)
                 ) {
                     Text(state.lastFeedAt, style: .timer).timerStyle()
                 }
