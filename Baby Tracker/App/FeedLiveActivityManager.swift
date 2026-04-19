@@ -7,6 +7,7 @@ import Foundation
 final class FeedLiveActivityManager: FeedLiveActivityManaging {
     private var activeActivityID: String?
     private var synchronizationTask: Task<Void, Never>?
+    private var stateObservationTask: Task<Void, Never>?
 
     var hasRunningActivity: Bool {
         !Activity<FeedLiveActivityAttributes>.activities.isEmpty
@@ -23,6 +24,8 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         let activities = Activity<FeedLiveActivityAttributes>.activities
 
         guard let snapshot else {
+            stateObservationTask?.cancel()
+            stateObservationTask = nil
             await Self.endAllActivities()
             activeActivityID = nil
             return
@@ -32,7 +35,10 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
             activity.attributes.childID == snapshot.childID
         }) {
             activeActivityID = matchingActivity.id
+            observeActivityState(matchingActivity)
         } else if !activities.isEmpty {
+            stateObservationTask?.cancel()
+            stateObservationTask = nil
             await Self.endAllActivities()
             activeActivityID = nil
         } else {
@@ -63,8 +69,22 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
                 pushType: nil
             )
             activeActivityID = activity.id
+            observeActivityState(activity)
         } catch {
             activeActivityID = nil
+        }
+    }
+
+    private func observeActivityState(_ activity: Activity<FeedLiveActivityAttributes>) {
+        stateObservationTask?.cancel()
+        stateObservationTask = Task { @MainActor [weak self] in
+            for await state in activity.activityStateUpdates {
+                if state == .ended || state == .dismissed {
+                    self?.activeActivityID = nil
+                    self?.stateObservationTask = nil
+                    return
+                }
+            }
         }
     }
 
