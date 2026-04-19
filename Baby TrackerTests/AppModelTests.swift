@@ -1961,6 +1961,7 @@ extension AppModelTests {
 
     @MainActor
     private final class LiveActivityManagerSpy: FeedLiveActivityManaging {
+        var hasRunningActivity: Bool = false
         private(set) var snapshots: [FeedLiveActivitySnapshot?] = []
         private var _currentSnapshot: FeedLiveActivitySnapshot?
 

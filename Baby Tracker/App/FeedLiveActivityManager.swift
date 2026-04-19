@@ -8,6 +8,10 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
     private var activeActivityID: String?
     private var synchronizationTask: Task<Void, Never>?
 
+    var hasRunningActivity: Bool {
+        !Activity<FeedLiveActivityAttributes>.activities.isEmpty
+    }
+
     func synchronize(with snapshot: FeedLiveActivitySnapshot?) {
         synchronizationTask?.cancel()
         synchronizationTask = Task { @MainActor [weak self] in
