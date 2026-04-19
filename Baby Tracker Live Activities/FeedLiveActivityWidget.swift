@@ -124,14 +124,14 @@ struct FeedLiveActivityWidget: Widget {
             timerInterval: date...Date.distantFuture,
             pauseTime: nil,
             countsDown: false,
-            showsHours: false
+            showsHours: true
         )
         .font(.caption2.weight(.semibold))
         .monospacedDigit()
         .minimumScaleFactor(0.7)
         .lineLimit(1)
         .foregroundStyle(color)
-        .frame(width: 40, alignment: .trailing)
+        .frame(width: 52, alignment: .trailing)
     }
 }
 
