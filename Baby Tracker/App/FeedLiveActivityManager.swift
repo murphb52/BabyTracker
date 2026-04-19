@@ -77,7 +77,8 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
                 activeSleepStartedAt: snapshot.activeSleepStartedAt,
                 lastNappyAt: snapshot.lastNappyAt
             ),
-            staleDate: nil
+            staleDate: nil,
+            relevanceScore: 50
         )
     }
 
