@@ -93,6 +93,7 @@ struct UpdateFeedLiveActivityUseCaseTests {
 
 @MainActor
 private final class LiveActivityManagerSpy: FeedLiveActivityManaging {
+    var hasRunningActivity: Bool = false
     private(set) var snapshots: [FeedLiveActivitySnapshot?] = []
 
     var latestSnapshot: FeedLiveActivitySnapshot? {

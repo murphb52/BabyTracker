@@ -24,7 +24,11 @@ public enum UpdateFeedLiveActivityUseCase {
             activeSleep: activeSleep
         )
 
-        guard snapshot != snapshotCache.load() else {
+        // Bypass deduplication when no activity is running — the activity may have been
+        // ended by the system (8-hour limit, low battery, user dismissal) while the
+        // cached snapshot still matches, which would prevent a restart.
+        let activityIsDead = !liveActivityManager.hasRunningActivity
+        guard snapshot != snapshotCache.load() || activityIsDead else {
             return
         }
 
