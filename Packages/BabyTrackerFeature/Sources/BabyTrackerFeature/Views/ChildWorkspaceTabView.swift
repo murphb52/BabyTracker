@@ -36,7 +36,7 @@ public struct ChildWorkspaceTabView: View {
                 stopSleep: showSleepSheet,
                 logPastSleep: { activeEventSheet = .logPastSleep(suggestions: model.sleepStartSuggestions()) },
                 quickLogBreastFeed: { activeEventSheet = .quickLogBreastFeed },
-                quickLogBottleFeed: { activeEventSheet = .quickLogBottleFeed },
+                quickLogBottleFeed: { activeEventSheet = .quickLogBottleFeed(smartSuggestions: model.smartBottleAmounts()) },
                 quickLogSleep: showSleepSheet,
                 quickLogNappy: {
                     activeEventSheet = .quickLogNappy(.mixed)
@@ -283,7 +283,7 @@ public struct ChildWorkspaceTabView: View {
                 }
                 return didSave
             }
-        case .quickLogBottleFeed:
+        case let .quickLogBottleFeed(smartSuggestions):
             BottleFeedEditorSheetView(
                 navigationTitle: "Bottle Feed",
                 primaryActionTitle: "Save",
@@ -291,7 +291,10 @@ public struct ChildWorkspaceTabView: View {
                 preferredVolumeUnit: childProfileViewModel.child?.preferredFeedVolumeUnit ?? .milliliters,
                 initialAmountMilliliters: 120,
                 initialOccurredAt: Date(),
-                initialMilkType: .formula
+                initialMilkType: .formula,
+                smartSuggestions: smartSuggestions,
+                customQuickAmountsMilliliters: childProfileViewModel.child?.customBottleAmountsMilliliters,
+                onSaveCustomAmounts: { model.updateBottleQuickAmounts($0) }
             ) { amountMilliliters, occurredAt, milkType in
                 let didSave = model.logBottleFeed(
                     amountMilliliters: amountMilliliters,

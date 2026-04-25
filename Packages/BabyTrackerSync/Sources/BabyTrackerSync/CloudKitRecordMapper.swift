@@ -6,7 +6,7 @@ public enum CloudKitRecordMapper {
     static func mutableFieldKeys(for recordType: CKRecord.RecordType) -> [CKRecord.FieldKey] {
         switch recordType {
         case CloudKitConfiguration.childRecordType:
-            ["name", "birthDate", "createdAt", "createdBy", "isArchived", "preferredFeedVolumeUnit", "imageAsset"]
+            ["name", "birthDate", "createdAt", "createdBy", "isArchived", "preferredFeedVolumeUnit", "imageAsset", "customBottleAmounts"]
         case CloudKitConfiguration.userRecordType:
             ["displayName", "createdAt", "cloudKitUserRecordName"]
         case CloudKitConfiguration.membershipRecordType:
@@ -42,6 +42,13 @@ public enum CloudKitRecordMapper {
         record["createdBy"] = child.createdBy.uuidString
         record["isArchived"] = child.isArchived
         record["preferredFeedVolumeUnit"] = child.preferredFeedVolumeUnit.rawValue
+        if let amounts = child.customBottleAmountsMilliliters,
+           let data = try? JSONEncoder().encode(amounts),
+           let json = String(data: data, encoding: .utf8) {
+            record["customBottleAmounts"] = json
+        } else {
+            record["customBottleAmounts"] = nil
+        }
         if let imageData = child.imageData {
             let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent("child-image-\(child.id.uuidString).jpg")
@@ -121,8 +128,14 @@ public enum CloudKitRecordMapper {
             createdBy: UUID(uuidString: record["createdBy"] as? String ?? "") ?? UUID(),
             isArchived: record["isArchived"] as? Bool ?? false,
             imageData: imageData,
-            preferredFeedVolumeUnit: FeedVolumeUnit(rawValue: record["preferredFeedVolumeUnit"] as? String ?? "") ?? .milliliters
+            preferredFeedVolumeUnit: FeedVolumeUnit(rawValue: record["preferredFeedVolumeUnit"] as? String ?? "") ?? .milliliters,
+            customBottleAmountsMilliliters: decodeCustomBottleAmounts(record["customBottleAmounts"] as? String)
         )
+    }
+
+    private static func decodeCustomBottleAmounts(_ json: String?) -> [Int]? {
+        guard let json, let data = json.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode([Int].self, from: data)
     }
 
     static func membership(from record: CKRecord) -> Membership {

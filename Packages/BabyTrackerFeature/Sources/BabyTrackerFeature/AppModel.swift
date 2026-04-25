@@ -873,6 +873,20 @@ public final class AppModel {
         return suggestions
     }
 
+    public func smartBottleAmounts() -> [Int] {
+        guard let currentChild else { return [] }
+        return (try? FetchSmartBottleAmountsUseCase(eventRepository: eventRepository)
+            .execute(.init(childID: currentChild.id, referenceTime: Date()))) ?? []
+    }
+
+    public func updateBottleQuickAmounts(_ amounts: [Int]?) {
+        perform {
+            guard let currentChild else { return }
+            _ = try SaveBottleQuickAmountsUseCase(childRepository: childRepository)
+                .execute(.init(child: currentChild, amounts: amounts))
+        }
+    }
+
     @discardableResult
     public func updateSleep(
         id: UUID,

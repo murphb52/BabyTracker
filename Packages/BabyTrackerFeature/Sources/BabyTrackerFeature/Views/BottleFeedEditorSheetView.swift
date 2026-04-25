@@ -1,8 +1,9 @@
-import BabyTrackerDomain
+    import BabyTrackerDomain
 import SwiftUI
 
 public struct BottleFeedEditorSheetView: View {
     private static let eventColor = BabyEventStyle.accentColor(for: .bottleFeed)
+    private static let defaultQuickAmountsMilliliters = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
 
     let navigationTitle: String
     let primaryActionTitle: String
@@ -10,6 +11,7 @@ public struct BottleFeedEditorSheetView: View {
     let preferredVolumeUnit: FeedVolumeUnit
     let saveAction: (_ amountMilliliters: Int, _ occurredAt: Date, _ milkType: MilkType?) -> Bool
     let deleteAction: (() -> Void)?
+    let onSaveCustomAmounts: (([Int]) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var amountText: String
@@ -17,9 +19,11 @@ public struct BottleFeedEditorSheetView: View {
     @State private var occurredAt: Date
     @State private var milkType: MilkTypeChoice
     @State private var showCustomAmount: Bool = false
+    @State private var showAmountCustomizer: Bool = false
+    @State private var customQuickAmounts: [Int]?
+    @FocusState private var isCustomAmountFieldFocused: Bool
+    private let smartSuggestions: [Int]
     private let initialTimePreset: QuickTimeSelectorView.TimePreset
-
-    private let quickAmountOptionsMilliliters = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
 
     private let amountColumns = [
         GridItem(.flexible(), spacing: 8),
@@ -38,6 +42,9 @@ public struct BottleFeedEditorSheetView: View {
         initialMilkType: MilkType?,
         initialTimePreset: QuickTimeSelectorView.TimePreset = .now,
         showCustomAmountOnOpen: Bool = false,
+        smartSuggestions: [Int] = [],
+        customQuickAmountsMilliliters: [Int]? = nil,
+        onSaveCustomAmounts: (([Int]) -> Void)? = nil,
         deleteAction: (() -> Void)? = nil,
         saveAction: @escaping (_ amountMilliliters: Int, _ occurredAt: Date, _ milkType: MilkType?) -> Bool
     ) {
@@ -47,6 +54,8 @@ public struct BottleFeedEditorSheetView: View {
         self.preferredVolumeUnit = preferredVolumeUnit
         self.deleteAction = deleteAction
         self.saveAction = saveAction
+        self.onSaveCustomAmounts = onSaveCustomAmounts
+        self.smartSuggestions = smartSuggestions
         _amountText = State(initialValue: Self.initialAmountText(
             for: initialAmountMilliliters,
             unit: preferredVolumeUnit
@@ -54,6 +63,7 @@ public struct BottleFeedEditorSheetView: View {
         _occurredAt = State(initialValue: initialOccurredAt)
         _milkType = State(initialValue: MilkTypeChoice(milkType: initialMilkType))
         _showCustomAmount = State(initialValue: showCustomAmountOnOpen)
+        _customQuickAmounts = State(initialValue: customQuickAmountsMilliliters)
         self.initialTimePreset = initialTimePreset
     }
 
@@ -71,12 +81,19 @@ public struct BottleFeedEditorSheetView: View {
                     milkTypeButtons
                 }
 
-                Section("Amount") {
+                Section {
+                    if !smartSuggestions.isEmpty {
+                        suggestedAmountsRow
+                    }
+
                     LazyVGrid(columns: amountColumns, spacing: 8) {
                         ForEach(quickAmounts, id: \.self) { amount in
                             Button {
-                                showCustomAmount = false
-                                amountText = quickAmountDisplayText(for: amount)
+                                withAnimation(.snappy(duration: 0.2)) {
+                                    showCustomAmount = false
+                                    amountText = quickAmountDisplayText(for: amount)
+                                }
+                                isCustomAmountFieldFocused = false
                             } label: {
                                 Text(FeedVolumeConverter.format(amountMilliliters: amount, in: preferredVolumeUnit))
                                     .font(.subheadline.weight(.semibold))
@@ -93,8 +110,10 @@ public struct BottleFeedEditorSheetView: View {
                         }
 
                         Button {
-                            showCustomAmount = true
-                            amountText = ""
+                            withAnimation(.snappy(duration: 0.2)) {
+                                showCustomAmount = true
+                                amountText = ""
+                            }
                         } label: {
                             Text("Custom")
                                 .font(.subheadline.weight(.semibold))
@@ -113,8 +132,12 @@ public struct BottleFeedEditorSheetView: View {
                     if showCustomAmount {
                         TextField("Custom amount (\(preferredVolumeUnit.shortTitle))", text: $amountText)
                             .keyboardType(preferredVolumeUnit == .milliliters ? .numberPad : .decimalPad)
+                            .focused($isCustomAmountFieldFocused)
                             .accessibilityIdentifier("bottle-feed-amount-field")
+                            .transition(.move(edge: .top).combined(with: .opacity))
                     }
+                } header: {
+                    amountSectionHeader
                 }
 
                 if let validationMessage {
@@ -133,6 +156,17 @@ public struct BottleFeedEditorSheetView: View {
                     }
                 }
             }
+            .animation(.snappy(duration: 0.2), value: showCustomAmount)
+            .sheet(isPresented: $showAmountCustomizer) {
+                BottleAmountCustomizerView(
+                    currentAmountsMilliliters: customQuickAmounts ?? Self.defaultQuickAmountsMilliliters,
+                    preferredVolumeUnit: preferredVolumeUnit
+                ) { newAmounts in
+                    let resolved = newAmounts.isEmpty ? nil : newAmounts
+                    customQuickAmounts = resolved
+                    onSaveCustomAmounts?(resolved ?? [])
+                }
+            }
             .alert("Delete Bottle Feed?", isPresented: $showDeleteConfirmation) {
                 Button("Delete", role: .destructive) {
                     deleteAction?()
@@ -147,6 +181,14 @@ public struct BottleFeedEditorSheetView: View {
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .presentationDetents([.large])
+            .onAppear {
+                if showCustomAmount {
+                    isCustomAmountFieldFocused = true
+                }
+            }
+            .onChange(of: showCustomAmount) { _, isShowingCustomAmount in
+                isCustomAmountFieldFocused = isShowingCustomAmount
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -170,6 +212,65 @@ public struct BottleFeedEditorSheetView: View {
             }
         }
         .tint(Self.eventColor)
+    }
+
+    private var amountSectionHeader: some View {
+        HStack {
+            Text("Amount")
+            Spacer()
+            if onSaveCustomAmounts != nil {
+                Button {
+                    showAmountCustomizer = true
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "slider.horizontal.3")
+                        Text("Edit")
+                    }
+                    .font(.caption.weight(.semibold))
+                }
+                .textCase(nil)
+                .accessibilityLabel("Customise amounts")
+            }
+        }
+    }
+
+    private var suggestedAmountsRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Suggested")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text("Predicted from the amounts you usually log around this time.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 6)
+            HStack(spacing: 8) {
+                ForEach(smartSuggestions, id: \.self) { amount in
+                    Button {
+                        withAnimation(.snappy(duration: 0.2)) {
+                            showCustomAmount = false
+                            amountText = quickAmountDisplayText(for: amount)
+                        }
+                        isCustomAmountFieldFocused = false
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                                .font(.caption2)
+                            Text(FeedVolumeConverter.format(amountMilliliters: amount, in: preferredVolumeUnit))
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(!showCustomAmount && isSelected(amount: amount) ? Self.eventColor : Self.eventColor.opacity(0.12))
+                        )
+                        .foregroundStyle(!showCustomAmount && isSelected(amount: amount) ? Color.white : Self.eventColor)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     private var milkTypeButtons: some View {
@@ -262,11 +363,14 @@ public struct BottleFeedEditorSheetView: View {
     }
 
     private var quickAmounts: [Int] {
+        if let custom = customQuickAmounts, !custom.isEmpty {
+            return custom
+        }
         switch preferredVolumeUnit {
         case .milliliters:
-            quickAmountOptionsMilliliters
+            return Self.defaultQuickAmountsMilliliters
         case .ounces:
-            (1...8).map { FeedVolumeConverter.milliliters(from: Double($0)) }
+            return (1...8).map { FeedVolumeConverter.milliliters(from: Double($0)) }
         }
     }
 
@@ -346,7 +450,7 @@ extension BottleFeedEditorSheetView {
     }
 }
 
-#Preview {
+#Preview("Default amounts") {
     BottleFeedEditorSheetView(
         navigationTitle: "Bottle Feed",
         primaryActionTitle: "Save",
@@ -355,5 +459,33 @@ extension BottleFeedEditorSheetView {
         initialAmountMilliliters: 0,
         initialOccurredAt: Date(),
         initialMilkType: nil
+    ) { _, _, _ in true }
+}
+
+#Preview("With smart suggestions") {
+    BottleFeedEditorSheetView(
+        navigationTitle: "Bottle Feed",
+        primaryActionTitle: "Save",
+        childName: "Robyn",
+        preferredVolumeUnit: .milliliters,
+        initialAmountMilliliters: 0,
+        initialOccurredAt: Date(),
+        initialMilkType: nil,
+        smartSuggestions: [120, 90],
+        onSaveCustomAmounts: { _ in }
+    ) { _, _, _ in true }
+}
+
+#Preview("Custom amounts") {
+    BottleFeedEditorSheetView(
+        navigationTitle: "Bottle Feed",
+        primaryActionTitle: "Save",
+        childName: "Robyn",
+        preferredVolumeUnit: .milliliters,
+        initialAmountMilliliters: 0,
+        initialOccurredAt: Date(),
+        initialMilkType: nil,
+        customQuickAmountsMilliliters: [60, 90, 120, 150, 180],
+        onSaveCustomAmounts: { _ in }
     ) { _, _, _ in true }
 }
