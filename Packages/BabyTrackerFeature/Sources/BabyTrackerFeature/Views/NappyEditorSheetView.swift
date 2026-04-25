@@ -107,7 +107,6 @@ public struct NappyEditorSheetView: View {
             } message: {
                 Text("This event will be permanently removed.")
             }
-            .tint(Self.eventColor)
             .scrollContentBackground(.hidden)
             .background(Self.eventColor.opacity(0.08))
             .navigationTitle(navigationTitle)
@@ -148,6 +147,7 @@ public struct NappyEditorSheetView: View {
                 }
             }
         }
+        .tint(Self.eventColor)
     }
 
     private var typeSelectorButtons: some View {
