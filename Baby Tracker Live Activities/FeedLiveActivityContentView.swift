@@ -27,7 +27,7 @@ struct FeedLiveActivityContentView: View {
                     icon: symbolName(for: state.lastFeedKind),
                     color: state.lastFeedKind.accentColor
                 ) {
-                    Text(state.lastFeedAt, style: .timer).timerStyle()
+                    Text(state.lastFeedAt, style: .timer)
                 }
 
                 metricTile(
@@ -36,9 +36,9 @@ struct FeedLiveActivityContentView: View {
                     color: BabyEventKind.sleep.accentColor
                 ) {
                     if let activeSleepStartedAt = state.activeSleepStartedAt {
-                        Text(activeSleepStartedAt, style: .timer).timerStyle()
+                        Text(activeSleepStartedAt, style: .timer)
                     } else if let lastSleepAt = state.lastSleepAt {
-                        Text(lastSleepAt, style: .timer).timerStyle()
+                        Text(lastSleepAt, style: .timer)
                     } else {
                         Text("—")
                     }
@@ -50,7 +50,7 @@ struct FeedLiveActivityContentView: View {
                     color: BabyEventKind.nappy.accentColor
                 ) {
                     if let lastNappyAt = state.lastNappyAt {
-                        Text(lastNappyAt, style: .timer).timerStyle()
+                        Text(lastNappyAt, style: .timer)
                     } else {
                         Text("—")
                     }
@@ -140,18 +140,4 @@ struct FeedLiveActivityContentView: View {
         state: .previewActiveSleep,
         showsStopSleepAction: false
     )
-}
-
-extension Text {
-    func timerStyle() -> some View {
-        HStack(alignment: .center) {
-            Spacer()
-            Text("00:00:00")
-                .hidden()
-                .overlay {
-                    self
-                }
-            Spacer()
-        }
-    }
 }
