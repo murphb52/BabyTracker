@@ -1,4 +1,4 @@
-import BabyTrackerDomain
+    import BabyTrackerDomain
 import SwiftUI
 
 public struct BottleFeedEditorSheetView: View {
@@ -21,6 +21,7 @@ public struct BottleFeedEditorSheetView: View {
     @State private var showCustomAmount: Bool = false
     @State private var showAmountCustomizer: Bool = false
     @State private var customQuickAmounts: [Int]?
+    @FocusState private var isCustomAmountFieldFocused: Bool
     private let smartSuggestions: [Int]
     private let initialTimePreset: QuickTimeSelectorView.TimePreset
 
@@ -88,8 +89,11 @@ public struct BottleFeedEditorSheetView: View {
                     LazyVGrid(columns: amountColumns, spacing: 8) {
                         ForEach(quickAmounts, id: \.self) { amount in
                             Button {
-                                showCustomAmount = false
-                                amountText = quickAmountDisplayText(for: amount)
+                                withAnimation(.snappy(duration: 0.2)) {
+                                    showCustomAmount = false
+                                    amountText = quickAmountDisplayText(for: amount)
+                                }
+                                isCustomAmountFieldFocused = false
                             } label: {
                                 Text(FeedVolumeConverter.format(amountMilliliters: amount, in: preferredVolumeUnit))
                                     .font(.subheadline.weight(.semibold))
@@ -106,8 +110,10 @@ public struct BottleFeedEditorSheetView: View {
                         }
 
                         Button {
-                            showCustomAmount = true
-                            amountText = ""
+                            withAnimation(.snappy(duration: 0.2)) {
+                                showCustomAmount = true
+                                amountText = ""
+                            }
                         } label: {
                             Text("Custom")
                                 .font(.subheadline.weight(.semibold))
@@ -126,7 +132,9 @@ public struct BottleFeedEditorSheetView: View {
                     if showCustomAmount {
                         TextField("Custom amount (\(preferredVolumeUnit.shortTitle))", text: $amountText)
                             .keyboardType(preferredVolumeUnit == .milliliters ? .numberPad : .decimalPad)
+                            .focused($isCustomAmountFieldFocused)
                             .accessibilityIdentifier("bottle-feed-amount-field")
+                            .transition(.move(edge: .top).combined(with: .opacity))
                     }
                 } header: {
                     amountSectionHeader
@@ -148,6 +156,7 @@ public struct BottleFeedEditorSheetView: View {
                     }
                 }
             }
+            .animation(.snappy(duration: 0.2), value: showCustomAmount)
             .sheet(isPresented: $showAmountCustomizer) {
                 BottleAmountCustomizerView(
                     currentAmountsMilliliters: customQuickAmounts ?? Self.defaultQuickAmountsMilliliters,
@@ -173,6 +182,14 @@ public struct BottleFeedEditorSheetView: View {
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .presentationDetents([.large])
+            .onAppear {
+                if showCustomAmount {
+                    isCustomAmountFieldFocused = true
+                }
+            }
+            .onChange(of: showCustomAmount) { _, isShowingCustomAmount in
+                isCustomAmountFieldFocused = isShowingCustomAmount
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -205,8 +222,11 @@ public struct BottleFeedEditorSheetView: View {
                 Button {
                     showAmountCustomizer = true
                 } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.caption)
+                    HStack(spacing: 3) {
+                        Image(systemName: "slider.horizontal.3")
+                        Text("Edit")
+                    }
+                    .font(.caption.weight(.semibold))
                 }
                 .textCase(nil)
                 .accessibilityLabel("Customise amounts")
@@ -219,11 +239,18 @@ public struct BottleFeedEditorSheetView: View {
             Text("Suggested")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            Text("Predicted from the amounts you usually log around this time.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 6)
             HStack(spacing: 8) {
                 ForEach(smartSuggestions, id: \.self) { amount in
                     Button {
-                        showCustomAmount = false
-                        amountText = quickAmountDisplayText(for: amount)
+                        withAnimation(.snappy(duration: 0.2)) {
+                            showCustomAmount = false
+                            amountText = quickAmountDisplayText(for: amount)
+                        }
+                        isCustomAmountFieldFocused = false
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "sparkles")

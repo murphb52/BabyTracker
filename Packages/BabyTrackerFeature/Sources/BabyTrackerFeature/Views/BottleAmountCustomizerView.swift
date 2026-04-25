@@ -33,13 +33,14 @@ struct BottleAmountCustomizerView: View {
                                 Text(FeedVolumeConverter.format(amountMilliliters: amount, in: preferredVolumeUnit))
                                 Spacer()
                                 Button(role: .destructive) {
-                                    amounts.removeAll { $0 == amount }
+                                    removeAmount(amount)
                                 } label: {
                                     Image(systemName: "minus.circle.fill")
                                         .foregroundStyle(.red)
                                 }
                                 .buttonStyle(.plain)
                             }
+                            .transition(.move(edge: .top).combined(with: .opacity))
                         }
                     }
                 } header: {
@@ -80,6 +81,7 @@ struct BottleAmountCustomizerView: View {
             }
             .navigationTitle("Customise Amounts")
             .navigationBarTitleDisplayMode(.inline)
+            .animation(.snappy(duration: 0.2), value: amounts)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -116,9 +118,17 @@ struct BottleAmountCustomizerView: View {
             return
         }
         showDuplicateWarning = false
-        amounts.append(ml)
-        amounts.sort()
+        withAnimation(.snappy(duration: 0.2)) {
+            amounts.append(ml)
+            amounts.sort()
+        }
         newAmountText = ""
+    }
+
+    private func removeAmount(_ amount: Int) {
+        withAnimation(.snappy(duration: 0.2)) {
+            amounts.removeAll { $0 == amount }
+        }
     }
 }
 
