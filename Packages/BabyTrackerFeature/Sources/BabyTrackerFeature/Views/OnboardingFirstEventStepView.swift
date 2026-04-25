@@ -47,7 +47,7 @@ struct OnboardingFirstEventStepView: View {
                             activeEventSheet = .quickLogBreastFeed
                         }
                         quickLogButton(1, title: "Bottle Feed", kind: .bottleFeed) {
-                            activeEventSheet = .quickLogBottleFeed
+                            activeEventSheet = .quickLogBottleFeed(smartSuggestions: [])
                         }
                     }
                     .geometryGroup()
@@ -203,7 +203,7 @@ struct OnboardingFirstEventStepView: View {
                 return didSave
             }
 
-        case .quickLogBottleFeed:
+        case let .quickLogBottleFeed(smartSuggestions):
             BottleFeedEditorSheetView(
                 navigationTitle: "Bottle Feed",
                 primaryActionTitle: "Save",
@@ -211,7 +211,8 @@ struct OnboardingFirstEventStepView: View {
                 preferredVolumeUnit: model.currentChild?.preferredFeedVolumeUnit ?? .milliliters,
                 initialAmountMilliliters: 120,
                 initialOccurredAt: Date(),
-                initialMilkType: .formula
+                initialMilkType: .formula,
+                smartSuggestions: smartSuggestions
             ) { amountMilliliters, occurredAt, milkType in
                 let didSave = model.logBottleFeed(
                     amountMilliliters: amountMilliliters,

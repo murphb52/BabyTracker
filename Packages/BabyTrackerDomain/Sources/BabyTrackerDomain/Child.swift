@@ -10,6 +10,9 @@ public struct Child: Equatable, Identifiable, Sendable {
     public var isArchived: Bool
     public var imageData: Data?
     public var preferredFeedVolumeUnit: FeedVolumeUnit
+    /// Parent-defined quick-select amounts for the bottle picker, stored in millilitres.
+    /// `nil` means the app defaults are used.
+    public var customBottleAmountsMilliliters: [Int]?
 
     public init(
         id: UUID = UUID(),
@@ -20,7 +23,8 @@ public struct Child: Equatable, Identifiable, Sendable {
         createdBy: UUID,
         isArchived: Bool = false,
         imageData: Data? = nil,
-        preferredFeedVolumeUnit: FeedVolumeUnit = .milliliters
+        preferredFeedVolumeUnit: FeedVolumeUnit = .milliliters,
+        customBottleAmountsMilliliters: [Int]? = nil
     ) throws {
         let normalizedName = name.trimmedForProfileField()
         guard !normalizedName.isEmpty else {
@@ -36,6 +40,7 @@ public struct Child: Equatable, Identifiable, Sendable {
         self.isArchived = isArchived
         self.imageData = imageData
         self.preferredFeedVolumeUnit = preferredFeedVolumeUnit
+        self.customBottleAmountsMilliliters = customBottleAmountsMilliliters
     }
 
     public func updating(
@@ -54,7 +59,15 @@ public struct Child: Equatable, Identifiable, Sendable {
             createdBy: createdBy,
             isArchived: isArchived,
             imageData: imageData,
-            preferredFeedVolumeUnit: preferredFeedVolumeUnit
+            preferredFeedVolumeUnit: preferredFeedVolumeUnit,
+            customBottleAmountsMilliliters: customBottleAmountsMilliliters
         )
+    }
+
+    public func updatingCustomBottleAmounts(_ amounts: [Int]?, updatedAt: Date = Date()) -> Child {
+        var copy = self
+        copy.customBottleAmountsMilliliters = amounts
+        copy.updatedAt = updatedAt
+        return copy
     }
 }

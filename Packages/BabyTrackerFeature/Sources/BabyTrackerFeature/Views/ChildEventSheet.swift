@@ -3,7 +3,7 @@ import Foundation
 
 public enum ChildEventSheet: Identifiable {
     case quickLogBreastFeed
-    case quickLogBottleFeed
+    case quickLogBottleFeed(smartSuggestions: [Int])
     case startSleep(suggestions: [(label: String, date: Date)])
     case endSleep(id: UUID, startedAt: Date)
     case logPastSleep(suggestions: [(label: String, date: Date)])

@@ -13,6 +13,8 @@ final class StoredChild {
     var isArchived: Bool = false
     var imageData: Data?
     var preferredFeedVolumeUnitRawValue: String = FeedVolumeUnit.milliliters.rawValue
+    /// JSON-encoded `[Int]` of custom bottle quick-select amounts in millilitres. `nil` means app defaults.
+    var customBottleAmountsJSON: String?
     var cloudKitZoneName: String?
     var cloudKitZoneOwnerName: String?
     var cloudKitShareRecordName: String?
@@ -31,6 +33,7 @@ final class StoredChild {
         isArchived: Bool,
         imageData: Data? = nil,
         preferredFeedVolumeUnitRawValue: String = FeedVolumeUnit.milliliters.rawValue,
+        customBottleAmountsJSON: String? = nil,
         cloudKitZoneName: String? = nil,
         cloudKitZoneOwnerName: String? = nil,
         cloudKitShareRecordName: String? = nil,
@@ -48,6 +51,7 @@ final class StoredChild {
         self.isArchived = isArchived
         self.imageData = imageData
         self.preferredFeedVolumeUnitRawValue = preferredFeedVolumeUnitRawValue
+        self.customBottleAmountsJSON = customBottleAmountsJSON
         self.cloudKitZoneName = cloudKitZoneName
         self.cloudKitZoneOwnerName = cloudKitZoneOwnerName
         self.cloudKitShareRecordName = cloudKitShareRecordName

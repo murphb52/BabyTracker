@@ -53,6 +53,7 @@ public final class SwiftDataChildRepository: CloudKitChildRepository {
         storedChild.isArchived = child.isArchived
         storedChild.imageData = child.imageData
         storedChild.preferredFeedVolumeUnitRawValue = child.preferredFeedVolumeUnit.rawValue
+        storedChild.customBottleAmountsJSON = encodeBottleAmounts(child.customBottleAmountsMilliliters)
         markPendingSync(storedChild, errorCode: nil)
 
         if existingStoredChild == nil {
@@ -157,8 +158,19 @@ public final class SwiftDataChildRepository: CloudKitChildRepository {
             createdBy: storedChild.createdBy,
             isArchived: storedChild.isArchived,
             imageData: storedChild.imageData,
-            preferredFeedVolumeUnit: FeedVolumeUnit(rawValue: storedChild.preferredFeedVolumeUnitRawValue) ?? .milliliters
+            preferredFeedVolumeUnit: FeedVolumeUnit(rawValue: storedChild.preferredFeedVolumeUnitRawValue) ?? .milliliters,
+            customBottleAmountsMilliliters: decodeBottleAmounts(storedChild.customBottleAmountsJSON)
         )
+    }
+
+    private func encodeBottleAmounts(_ amounts: [Int]?) -> String? {
+        guard let amounts else { return nil }
+        return (try? JSONEncoder().encode(amounts)).flatMap { String(data: $0, encoding: .utf8) }
+    }
+
+    private func decodeBottleAmounts(_ json: String?) -> [Int]? {
+        guard let json, let data = json.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode([Int].self, from: data)
     }
 
     private func saveChanges() throws {
