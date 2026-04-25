@@ -90,7 +90,6 @@ public struct SleepEditorSheetView: View {
             } message: {
                 Text("This event will be permanently removed.")
             }
-            .tint(Self.eventColor)
             .scrollContentBackground(.hidden)
             .background(Self.eventColor.opacity(0.08))
             .navigationTitle(mode.navigationTitle)
@@ -115,6 +114,7 @@ public struct SleepEditorSheetView: View {
                 }
             }
         }
+        .tint(Self.eventColor)
     }
 
     // MARK: - Start Mode
