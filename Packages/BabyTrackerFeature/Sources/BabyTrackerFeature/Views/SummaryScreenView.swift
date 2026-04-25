@@ -42,6 +42,17 @@ private enum TodayNappyChartFilter: String, TodayChartFilter {
         case .pooIncludingMixed: data.nappyPooIncludingMixed
         }
     }
+
+    func filterMarkers(_ markers: [[NappyEventMarker]]) -> [[NappyEventMarker]] {
+        switch self {
+        case .all: markers
+        case .pee: markers.map { $0.filter { $0.type == .wee } }
+        case .poo: markers.map { $0.filter { $0.type == .poo } }
+        case .mixed: markers.map { $0.filter { $0.type == .mixed } }
+        case .peeIncludingMixed: markers.map { $0.filter { $0.type == .wee || $0.type == .mixed } }
+        case .pooIncludingMixed: markers.map { $0.filter { $0.type == .poo || $0.type == .mixed } }
+        }
+    }
 }
 
 private enum TodayBottleChartFilter: String, TodayChartFilter {
@@ -73,6 +84,17 @@ private enum TodayBottleChartFilter: String, TodayChartFilter {
         case .mixed: data.bottleMixed
         case .formulaIncludingMixed: data.bottleFormulaIncludingMixed
         case .breastMilkIncludingMixed: data.bottleBreastMilkIncludingMixed
+        }
+    }
+
+    func filterMarkers(_ markers: [[BottleEventMarker]]) -> [[BottleEventMarker]] {
+        switch self {
+        case .all: markers
+        case .formula: markers.map { $0.filter { $0.milkType == .formula } }
+        case .breastMilk: markers.map { $0.filter { $0.milkType == .breastMilk } }
+        case .mixed: markers.map { $0.filter { $0.milkType == .mixed } }
+        case .formulaIncludingMixed: markers.map { $0.filter { $0.milkType == .formula || $0.milkType == .mixed } }
+        case .breastMilkIncludingMixed: markers.map { $0.filter { $0.milkType == .breastMilk || $0.milkType == .mixed } }
         }
     }
 }
@@ -395,7 +417,8 @@ public struct SummaryScreenView: View {
                 isToday: isSelectedDateToday,
                 valueFormatter: { value in
                     FeedVolumePresentation.amountText(for: value, unit: preferredUnit)
-                }
+                },
+                eventMarkers: bottleEventMarkers(from: data.chartData, unit: preferredUnit)
             )
                 .padding(.top, 4)
         }
@@ -451,7 +474,12 @@ public struct SummaryScreenView: View {
                     .foregroundStyle(.secondary)
             }
 
-            CumulativeLineChartView(series: data.chartData.breast, tint: .pink, isToday: isSelectedDateToday)
+            CumulativeLineChartView(
+                series: data.chartData.breast,
+                tint: .pink,
+                isToday: isSelectedDateToday,
+                eventMarkers: breastEventMarkers(from: data.chartData)
+            )
                 .padding(.top, 4)
         }
     }
@@ -480,7 +508,12 @@ public struct SummaryScreenView: View {
                     .foregroundStyle(.secondary)
             }
 
-            CumulativeLineChartView(series: data.chartData.sleep, tint: .indigo, isToday: isSelectedDateToday)
+            CumulativeLineChartView(
+                series: data.chartData.sleep,
+                tint: .indigo,
+                isToday: isSelectedDateToday,
+                eventMarkers: sleepEventMarkers(from: data.chartData)
+            )
                 .padding(.top, 4)
         }
     }
@@ -533,7 +566,12 @@ public struct SummaryScreenView: View {
                     .foregroundStyle(.secondary)
             }
 
-            CumulativeLineChartView(series: selectedNappyFilter.series(from: data.chartData), tint: .green, isToday: isSelectedDateToday)
+            CumulativeLineChartView(
+                series: selectedNappyFilter.series(from: data.chartData),
+                tint: .green,
+                isToday: isSelectedDateToday,
+                eventMarkers: nappyEventMarkers(from: data.chartData)
+            )
                 .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -552,6 +590,53 @@ public struct SummaryScreenView: View {
         return Text(parts.joined(separator: " • "))
             .font(.caption)
             .foregroundStyle(.secondary)
+    }
+
+    // MARK: - Event marker formatters
+
+    private func bottleEventMarkers(from chartData: TodayChartData, unit: FeedVolumeUnit) -> [[String]] {
+        selectedBottleFilter.filterMarkers(chartData.bottleHourlyMarkers).map { hourMarkers in
+            hourMarkers.map { marker in
+                "\(FeedVolumePresentation.amountText(for: marker.amountMilliliters, unit: unit)) · \(marker.time)"
+            }
+        }
+    }
+
+    private func breastEventMarkers(from chartData: TodayChartData) -> [[String]] {
+        chartData.breastHourlyMarkers.map { hourMarkers in
+            hourMarkers.map { marker in
+                let sideText: String
+                switch marker.side {
+                case .left: sideText = "Left"
+                case .right: sideText = "Right"
+                case .both, nil: sideText = "Both"
+                }
+                return "\(sideText) · \(DurationText.short(minutes: marker.durationMinutes))"
+            }
+        }
+    }
+
+    private func sleepEventMarkers(from chartData: TodayChartData) -> [[String]] {
+        chartData.sleepHourlyMarkers.map { hourMarkers in
+            hourMarkers.map { marker in
+                "Wake \(marker.wakeTime) · \(DurationText.short(minutes: marker.durationMinutes))"
+            }
+        }
+    }
+
+    private func nappyEventMarkers(from chartData: TodayChartData) -> [[String]] {
+        selectedNappyFilter.filterMarkers(chartData.nappyHourlyMarkers).map { hourMarkers in
+            hourMarkers.map { marker in
+                let typeText: String
+                switch marker.type {
+                case .dry: typeText = "Dry"
+                case .wee: typeText = "Wet"
+                case .poo: typeText = "Dirty"
+                case .mixed: typeText = "Mixed"
+                }
+                return "\(typeText) · \(marker.time)"
+            }
+        }
     }
 
     private func loggingStreakRow(data: TodaySummaryData) -> some View {

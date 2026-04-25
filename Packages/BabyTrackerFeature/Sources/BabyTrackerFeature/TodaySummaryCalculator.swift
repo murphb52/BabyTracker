@@ -327,8 +327,82 @@ public enum TodaySummaryCalculator {
                         includes: { $0.type == .poo || $0.type == .mixed }
                     )
                 }
-            )
+            ),
+            bottleHourlyMarkers: makeBottleHourlyMarkers(events: todayEvents, calendar: calendar),
+            breastHourlyMarkers: makeBreastHourlyMarkers(events: todayEvents, calendar: calendar),
+            sleepHourlyMarkers: makeSleepHourlyMarkers(events: todayEvents, calendar: calendar),
+            nappyHourlyMarkers: makeNappyHourlyMarkers(events: todayEvents, calendar: calendar)
         )
+    }
+
+    // MARK: - Hourly event markers
+
+    private static let markerTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .none
+        f.timeStyle = .short
+        return f
+    }()
+
+    private static func makeBottleHourlyMarkers(events: [BabyEvent], calendar: Calendar) -> [[BottleEventMarker]] {
+        var result = [[BottleEventMarker]](repeating: [], count: 24)
+        let sorted = events.sorted { $0.metadata.occurredAt < $1.metadata.occurredAt }
+        for event in sorted {
+            guard case let .bottleFeed(feed) = event else { continue }
+            let h = calendar.component(.hour, from: feed.metadata.occurredAt)
+            result[h].append(BottleEventMarker(
+                amountMilliliters: feed.amountMilliliters,
+                milkType: feed.milkType,
+                time: markerTimeFormatter.string(from: feed.metadata.occurredAt)
+            ))
+        }
+        return result
+    }
+
+    private static func makeBreastHourlyMarkers(events: [BabyEvent], calendar: Calendar) -> [[BreastEventMarker]] {
+        var result = [[BreastEventMarker]](repeating: [], count: 24)
+        let sorted = events.sorted { $0.metadata.occurredAt < $1.metadata.occurredAt }
+        for event in sorted {
+            guard case let .breastFeed(feed) = event else { continue }
+            let h = calendar.component(.hour, from: feed.endedAt)
+            let durationMinutes = max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
+            result[h].append(BreastEventMarker(
+                side: feed.side,
+                durationMinutes: durationMinutes,
+                time: markerTimeFormatter.string(from: feed.endedAt)
+            ))
+        }
+        return result
+    }
+
+    private static func makeSleepHourlyMarkers(events: [BabyEvent], calendar: Calendar) -> [[SleepEventMarker]] {
+        var result = [[SleepEventMarker]](repeating: [], count: 24)
+        let sorted = events.sorted { $0.metadata.occurredAt < $1.metadata.occurredAt }
+        for event in sorted {
+            guard case let .sleep(sleep) = event, let endedAt = sleep.endedAt else { continue }
+            let h = calendar.component(.hour, from: endedAt)
+            guard h < 24 else { continue }
+            let durationMinutes = max(0, Int(endedAt.timeIntervalSince(sleep.startedAt) / 60))
+            result[h].append(SleepEventMarker(
+                durationMinutes: durationMinutes,
+                wakeTime: markerTimeFormatter.string(from: endedAt)
+            ))
+        }
+        return result
+    }
+
+    private static func makeNappyHourlyMarkers(events: [BabyEvent], calendar: Calendar) -> [[NappyEventMarker]] {
+        var result = [[NappyEventMarker]](repeating: [], count: 24)
+        let sorted = events.sorted { $0.metadata.occurredAt < $1.metadata.occurredAt }
+        for event in sorted {
+            guard case let .nappy(nappy) = event else { continue }
+            let h = calendar.component(.hour, from: nappy.metadata.occurredAt)
+            result[h].append(NappyEventMarker(
+                type: nappy.type,
+                time: markerTimeFormatter.string(from: nappy.metadata.occurredAt)
+            ))
+        }
+        return result
     }
 
     /// Builds a `HourlyCumulativeSeries` from per-hour amounts.
