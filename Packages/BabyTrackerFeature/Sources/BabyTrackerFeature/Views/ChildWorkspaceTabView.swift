@@ -40,7 +40,8 @@ public struct ChildWorkspaceTabView: View {
                 quickLogSleep: showSleepSheet,
                 quickLogNappy: {
                     activeEventSheet = .quickLogNappy(.mixed)
-                }
+                },
+                openProfile: { showingEditChildSheet = true }
             )
             .tag(ChildWorkspaceTab.home)
             .tabItem {
@@ -97,6 +98,19 @@ public struct ChildWorkspaceTabView: View {
         .navigationTitle(childProfileViewModel.childName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if model.selectedWorkspaceTab == .home, let initials = childInitials {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: { showingEditChildSheet = true }) {
+                        Text(initials)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.tint)
+                            .frame(width: 34, height: 34)
+                            .background(.tint.opacity(0.12), in: Circle())
+                            .overlay(Circle().stroke(.tint.opacity(0.25), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
             if model.selectedWorkspaceTab == .events {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -169,6 +183,16 @@ public struct ChildWorkspaceTabView: View {
         .onChange(of: model.sleepSheetRequestToken) { _, _ in
             processPendingSleepSheetRequest()
         }
+    }
+
+    private var childInitials: String? {
+        let name = childProfileViewModel.childName
+        guard !name.isEmpty else { return nil }
+        let words = name.split(separator: " ")
+        if words.count >= 2 {
+            return words.prefix(2).compactMap { $0.first.map(String.init) }.joined()
+        }
+        return String(name.prefix(1))
     }
 
     private func processPendingSleepSheetRequest() {

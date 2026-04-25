@@ -11,7 +11,12 @@ public struct ChildHomeView: View {
     let quickLogBottleFeed: () -> Void
     let quickLogSleep: () -> Void
     let quickLogNappy: () -> Void
+    let openProfile: () -> Void
 
+    @State private var statusSectionExpanded: Bool
+    @State private var quickLogSectionExpanded: Bool
+    @State private var todaySectionExpanded: Bool
+    @State private var syncSectionExpanded: Bool
 
     public init(
         model: AppModel,
@@ -22,7 +27,8 @@ public struct ChildHomeView: View {
         quickLogBreastFeed: @escaping () -> Void,
         quickLogBottleFeed: @escaping () -> Void,
         quickLogSleep: @escaping () -> Void,
-        quickLogNappy: @escaping () -> Void
+        quickLogNappy: @escaping () -> Void,
+        openProfile: @escaping () -> Void
     ) {
         self.model = model
         self.viewModel = viewModel
@@ -33,23 +39,35 @@ public struct ChildHomeView: View {
         self.quickLogBottleFeed = quickLogBottleFeed
         self.quickLogSleep = quickLogSleep
         self.quickLogNappy = quickLogNappy
+        self.openProfile = openProfile
+
+        let defaults = UserDefaults.standard
+        _statusSectionExpanded = State(initialValue: defaults.object(forKey: "home.statusSectionExpanded") as? Bool ?? true)
+        _quickLogSectionExpanded = State(initialValue: defaults.object(forKey: "home.quickLogSectionExpanded") as? Bool ?? true)
+        _todaySectionExpanded = State(initialValue: defaults.object(forKey: "home.todaySectionExpanded") as? Bool ?? true)
+        _syncSectionExpanded = State(initialValue: defaults.object(forKey: "home.syncSectionExpanded") as? Bool ?? true)
     }
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                if let currentSleep = viewModel.currentSleep {
-                    currentSleepSection(currentSleep)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
+                HomeGreetingView(childName: nil, onAvatarTapped: {})
 
-                statusSection
+                heroCard
+                    .transition(.opacity)
 
                 if viewModel.canLogEvents {
                     quickLogSection
                 }
 
+                statusSection
+                    .animation(nil, value: viewModel.currentSleep)
+
+                todaySection
+                    .animation(nil, value: viewModel.currentSleep)
+
                 syncSection
+                    .animation(nil, value: viewModel.currentSleep)
             }
             .animation(.easeInOut(duration: 0.35), value: viewModel.currentSleep)
             .padding(.horizontal, 16)
@@ -57,28 +75,66 @@ public struct ChildHomeView: View {
             .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .onChange(of: statusSectionExpanded) { _, v in UserDefaults.standard.set(v, forKey: "home.statusSectionExpanded") }
+        .onChange(of: quickLogSectionExpanded) { _, v in UserDefaults.standard.set(v, forKey: "home.quickLogSectionExpanded") }
+        .onChange(of: todaySectionExpanded) { _, v in UserDefaults.standard.set(v, forKey: "home.todaySectionExpanded") }
+        .onChange(of: syncSectionExpanded) { _, v in UserDefaults.standard.set(v, forKey: "home.syncSectionExpanded") }
     }
 
-    private func currentSleepSection(_ sleep: CurrentSleepCardViewState) -> some View {
-        CurrentSleepCardView(
-            sleep: sleep,
-            stopSleep: stopSleep,
-            logPastSleep: logPastSleep
-        )
+    // MARK: - Hero card
+
+    @ViewBuilder
+    private var heroCard: some View {
+        if let currentSleep = viewModel.currentSleep {
+            CurrentSleepCardView(
+                sleep: currentSleep,
+                stopSleep: stopSleep,
+                logPastSleep: logPastSleep
+            )
+        } else if let awakeCard = viewModel.awakeHeroCard {
+            HomeAwakeHeroCardView(
+                card: awakeCard,
+                startNap: quickLogSleep,
+                logPastSleep: logPastSleep
+            )
+        }
     }
+
+    // MARK: - Existing sections
 
     private var syncSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("iCloud Sync")
-                .font(.headline)
-
-            NavigationLink {
-                ChildProfileSyncView(model: model, viewModel: childProfileViewModel)
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    syncSectionExpanded.toggle()
+                }
             } label: {
-                syncStatusCard
+                HStack {
+                    Text("iCloud Sync")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(syncSectionExpanded ? 90 : 0))
+                }
             }
             .buttonStyle(.plain)
-            .accessibilityIdentifier("home-sync-status-row")
+
+            if syncSectionExpanded {
+                NavigationLink {
+                    ChildProfileSyncView(model: model, viewModel: childProfileViewModel)
+                } label: {
+                    syncStatusCard
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("home-sync-status-row")
+                .padding(.top, 10)
+                .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+            }
         }
     }
 
@@ -146,57 +202,123 @@ public struct ChildHomeView: View {
     }
 
     private var statusSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Current Status")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    statusSectionExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Text("Since last")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
 
-            CurrentStatusCardView(status: viewModel.currentStatus)
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(statusSectionExpanded ? 90 : 0))
+                }
+            }
+            .buttonStyle(.plain)
+
+            if statusSectionExpanded {
+                CurrentStatusCardView(status: viewModel.currentStatus)
+                    .padding(.top, 10)
+                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+            }
+        }
+    }
+
+    private var todaySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    todaySectionExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Text("Today")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(todaySectionExpanded ? 90 : 0))
+                }
+            }
+            .buttonStyle(.plain)
+
+            if todaySectionExpanded {
+                HomeTodayTimelineView(events: viewModel.todayTimelineEvents)
+                    .padding(.top, 10)
+                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+            }
         }
     }
 
     private var quickLogSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Quick Log")
-                .font(.headline)
-
-            VStack(spacing: 12) {
-                HStack(spacing: 12) {
-                    quickLogButton(
-                        title: "Breast Feed",
-                        systemImage: BabyEventStyle.systemImage(for: .breastFeed),
-                        kind: .breastFeed,
-                        accessibilityIdentifier: "quick-log-breast-feed-button",
-                        action: quickLogBreastFeed
-                    )
-
-                    quickLogButton(
-                        title: "Bottle Feed",
-                        systemImage: BabyEventStyle.systemImage(for: .bottleFeed),
-                        kind: .bottleFeed,
-                        accessibilityIdentifier: "quick-log-bottle-feed-button",
-                        action: quickLogBottleFeed
-                    )
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    quickLogSectionExpanded.toggle()
                 }
-                .geometryGroup()
+            } label: {
+                HStack {
+                    Text("Quick Log")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
 
-                HStack(spacing: 12) {
-                    quickLogButton(
-                        title: sleepQuickLogTitle,
-                        systemImage: BabyEventStyle.systemImage(for: .sleep),
-                        kind: .sleep,
-                        accessibilityIdentifier: "quick-log-sleep-button",
-                        action: quickLogSleep
-                    )
+                    Spacer()
 
-                    quickLogButton(
-                        title: "Nappy",
-                        systemImage: BabyEventStyle.systemImage(for: .nappy),
-                        kind: .nappy,
-                        accessibilityIdentifier: "quick-log-nappy-button",
-                        action: quickLogNappy
-                    )
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(quickLogSectionExpanded ? 90 : 0))
                 }
-                .geometryGroup()
+            }
+            .buttonStyle(.plain)
+
+            if quickLogSectionExpanded {
+                VStack(spacing: 12) {
+                    HStack(spacing: 12) {
+                        quickLogButton(
+                            title: "Breast Feed",
+                            systemImage: BabyEventStyle.systemImage(for: .breastFeed),
+                            kind: .breastFeed,
+                            accessibilityIdentifier: "quick-log-breast-feed-button",
+                            action: quickLogBreastFeed
+                        )
+
+                        quickLogButton(
+                            title: "Bottle Feed",
+                            systemImage: BabyEventStyle.systemImage(for: .bottleFeed),
+                            kind: .bottleFeed,
+                            accessibilityIdentifier: "quick-log-bottle-feed-button",
+                            action: quickLogBottleFeed
+                        )
+                    }
+                    .geometryGroup()
+
+                    HStack(spacing: 12) {
+                        sleepQuickLogButton
+
+                        quickLogButton(
+                            title: "Nappy",
+                            systemImage: BabyEventStyle.systemImage(for: .nappy),
+                            kind: .nappy,
+                            accessibilityIdentifier: "quick-log-nappy-button",
+                            action: quickLogNappy
+                        )
+                    }
+                    .geometryGroup()
+                }
+                .padding(.top, 12)
+                .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
             }
         }
     }
@@ -223,8 +345,38 @@ public struct ChildHomeView: View {
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
-    private var sleepQuickLogTitle: String {
-        viewModel.activeSleepSession == nil ? "Start Sleep" : "End Sleep"
+    @ViewBuilder
+    private var sleepQuickLogButton: some View {
+        if viewModel.activeSleepSession != nil {
+            Menu {
+                Button(action: quickLogSleep) {
+                    Label("End current sleep", systemImage: "moon.zzz.fill")
+                }
+                Button(action: logPastSleep) {
+                    Label("Log past sleep", systemImage: "clock.arrow.circlepath")
+                }
+            } label: {
+                Label("Sleep", systemImage: BabyEventStyle.systemImage(for: .sleep))
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .foregroundStyle(BabyEventStyle.buttonForegroundColor(for: .sleep))
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(BabyEventStyle.buttonFillColor(for: .sleep))
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("quick-log-sleep-button")
+        } else {
+            quickLogButton(
+                title: "Sleep",
+                systemImage: BabyEventStyle.systemImage(for: .sleep),
+                kind: .sleep,
+                accessibilityIdentifier: "quick-log-sleep-button",
+                action: quickLogSleep
+            )
+        }
     }
 
     private var syncStatusSymbolName: String {
@@ -265,9 +417,11 @@ public struct ChildHomeView: View {
     }
 }
 
-#Preview {
+// MARK: - Previews
+
+@MainActor
+private func makeHomeView(from model: AppModel) -> some View {
     NavigationStack {
-        let model = ChildProfilePreviewFactory.makeModel()
         ChildHomeView(
             model: model,
             viewModel: HomeViewModel(appModel: model),
@@ -277,7 +431,55 @@ public struct ChildHomeView: View {
             quickLogBreastFeed: {},
             quickLogBottleFeed: {},
             quickLogSleep: {},
-            quickLogNappy: {}
+            quickLogNappy: {},
+            openProfile: {}
         )
     }
+}
+
+/// Active overnight sleep with a feed and nappy logged earlier in the day.
+@MainActor
+private func makeSleepingModel() -> AppModel {
+    let model = ChildProfilePreviewFactory.makeModel()
+    model.logNappy(type: .wee, occurredAt: Date().addingTimeInterval(-6 * 3600), peeVolume: .medium)
+    model.logBottleFeed(amountMilliliters: 90, occurredAt: Date().addingTimeInterval(-5 * 3600 - 34 * 60), milkType: .formula)
+    model.logBreastFeed(durationMinutes: 10, endTime: Date().addingTimeInterval(-5 * 3600), side: .left)
+    model.startSleep(startedAt: Date().addingTimeInterval(-4 * 3600 - 45 * 60))
+    return model
+}
+
+/// Awake after a completed nap, with a bottle feed logged since waking.
+@MainActor
+private func makeAwakeWithHistoryModel() -> AppModel {
+    let model = ChildProfilePreviewFactory.makeModel()
+    model.logNappy(type: .mixed, occurredAt: Date().addingTimeInterval(-3 * 3600), peeVolume: .light, pooVolume: .medium)
+    model.logBreastFeed(durationMinutes: 15, endTime: Date().addingTimeInterval(-2 * 3600 - 40 * 60), side: .right)
+    model.logSleep(startedAt: Date().addingTimeInterval(-2 * 3600 - 30 * 60), endedAt: Date().addingTimeInterval(-80 * 60))
+    model.logBottleFeed(amountMilliliters: 60, occurredAt: Date().addingTimeInterval(-45 * 60), milkType: .breastMilk)
+    return model
+}
+
+/// Awake a long time — no sleep logged today, only a nappy.
+@MainActor
+private func makeAwakeLongWindowModel() -> AppModel {
+    let model = ChildProfilePreviewFactory.makeModel()
+    model.logNappy(type: .poo, occurredAt: Date().addingTimeInterval(-2 * 3600), pooVolume: .medium)
+    model.logBottleFeed(amountMilliliters: 120, occurredAt: Date().addingTimeInterval(-3600), milkType: .formula)
+    return model
+}
+
+#Preview("Sleeping — 4h 45m in") {
+    makeHomeView(from: makeSleepingModel())
+}
+
+#Preview("Awake after nap — 1h 20m awake") {
+    makeHomeView(from: makeAwakeWithHistoryModel())
+}
+
+#Preview("Awake — long window, no sleep today") {
+    makeHomeView(from: makeAwakeLongWindowModel())
+}
+
+#Preview("Fresh — no events logged yet") {
+    makeHomeView(from: ChildProfilePreviewFactory.makeModel())
 }

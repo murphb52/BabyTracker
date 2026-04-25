@@ -52,4 +52,56 @@ public final class HomeViewModel {
     public var activeSleepSession: ActiveSleepSessionViewState? {
         appModel.activeSleep.map(ActiveSleepSessionViewState.init)
     }
+
+    public var childName: String? {
+        appModel.currentChild?.name
+    }
+
+    /// The time the child woke up (endedAt of most recent completed sleep), shown in the awake hero card.
+    /// Nil when no prior sleep is recorded or an active sleep is in progress.
+    public var awakeHeroCard: HomeAwakeHeroCardViewState? {
+        guard appModel.activeSleep == nil else { return nil }
+        return HomeAwakeHeroCardViewState(awakeStartedAt: currentStatus.lastSleep?.endedAt)
+    }
+
+    /// The six most recent events shaped for the Today timeline on the home screen.
+    public var todayTimelineEvents: [HomeTimelineEventViewState] {
+        guard let child = appModel.currentChild else { return [] }
+        let preferredUnit = child.preferredFeedVolumeUnit
+        let activeSleepID = appModel.activeSleep?.id
+
+        return Array(appModel.events.prefix(6)).compactMap { event -> HomeTimelineEventViewState? in
+            let id: UUID
+            let kind: BabyEventKind
+            let occurredAt: Date
+
+            switch event {
+            case let .breastFeed(feed):
+                id = feed.id
+                kind = .breastFeed
+                occurredAt = feed.metadata.occurredAt
+            case let .bottleFeed(feed):
+                id = feed.id
+                kind = .bottleFeed
+                occurredAt = feed.metadata.occurredAt
+            case let .sleep(sleep):
+                id = sleep.id
+                kind = .sleep
+                occurredAt = sleep.metadata.occurredAt
+            case let .nappy(nappy):
+                id = nappy.id
+                kind = .nappy
+                occurredAt = nappy.metadata.occurredAt
+            }
+
+            return HomeTimelineEventViewState(
+                id: id,
+                kind: kind,
+                title: BabyEventPresentation.title(for: event),
+                detailText: BabyEventPresentation.detailText(for: event, preferredFeedVolumeUnit: preferredUnit) ?? "",
+                timeText: occurredAt.formatted(.dateTime.hour().minute()),
+                isOngoing: activeSleepID.map { $0 == id } ?? false
+            )
+        }
+    }
 }

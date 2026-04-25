@@ -16,91 +16,160 @@ public struct CurrentSleepCardView: View {
         self.logPastSleep = logPastSleep
     }
 
+    private var sleepColor: Color { BabyEventStyle.accentColor(for: .sleep) }
+    private var sleepCardFill: Color { BabyEventStyle.cardFillColor(for: .sleep) }
+
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 14) {
-                sleepIcon
+        VStack(alignment: .leading, spacing: 14) {
+            // Label row with pulsing dot
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(sleepColor)
+                    .frame(width: 7, height: 7)
+                    .symbolEffect(.pulse)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    TimelineView(.periodic(from: .now, by: 1)) { context in
-                        Text(durationText(from: sleep.startedAt, to: context.date))
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                            .foregroundStyle(BabyEventStyle.accentColor(for: .sleep))
-                            .accessibilityIdentifier("current-sleep-duration")
-                    }
+                Text("Sleeping · since \(sleep.startedAt, format: .dateTime.hour().minute())")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(sleepColor)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+                    .accessibilityIdentifier("current-sleep-started-at")
+            }
 
-                    Text("Went to sleep \(sleep.startedAt, format: .dateTime.hour().minute())")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("current-sleep-started-at")
+            // Large timer
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                timerDisplay(from: sleep.startedAt, to: context.date)
+                    .accessibilityIdentifier("current-sleep-duration")
+            }
+
+            // Actions
+            HStack(spacing: 10) {
+                Button(action: stopSleep) {
+                    Label("Stop", systemImage: "stop.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(sleepColor, in: Capsule())
+                        .foregroundStyle(.white)
                 }
-
-                Spacer(minLength: 8)
-
-                Button("Stop") {
-                    stopSleep()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(BabyEventStyle.accentColor(for: .sleep))
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("current-sleep-stop-button")
-            }
 
-            Button(action: logPastSleep) {
-                Label("Log a past sleep", systemImage: "plus.circle")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(BabyEventStyle.accentColor(for: .sleep))
+                Button(action: logPastSleep) {
+                    Text("Log past sleep")
+                        .font(.subheadline.weight(.medium))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(sleepColor.opacity(0.12), in: Capsule())
+                        .overlay(Capsule().stroke(sleepColor.opacity(0.3), lineWidth: 1))
+                        .foregroundStyle(sleepColor)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("log-past-sleep-button")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("log-past-sleep-button")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(BabyEventStyle.backgroundColor(for: .sleep))
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(sleepCardFill)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(BabyEventStyle.accentColor(for: .sleep).opacity(0.35), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(sleepColor.opacity(0.3), lineWidth: 1)
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("current-sleep-card")
     }
 
-    private var sleepIcon: some View {
-        ZStack {
-            Circle()
-                .fill(BabyEventStyle.backgroundColor(for: .sleep))
-                .frame(width: 44, height: 44)
+    @ViewBuilder
+    private func timerDisplay(from startedAt: Date, to currentDate: Date) -> some View {
+        let seconds = max(0, Int(currentDate.timeIntervalSince(startedAt)))
+        let h = seconds / 3_600
+        let m = (seconds % 3_600) / 60
+        let s = seconds % 60
 
-            Image(systemName: BabyEventStyle.systemImage(for: .sleep))
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(BabyEventStyle.accentColor(for: .sleep))
+        HStack(alignment: .firstTextBaseline, spacing: 2) {
+            numberPair(value: h, unit: "h")
+            numberPair(value: m, unit: "m")
+            secondsPair(value: s)
         }
-        .accessibilityHidden(true)
     }
 
-    private func durationText(from startedAt: Date, to currentDate: Date) -> String {
-        let seconds = max(0, Int(currentDate.timeIntervalSince(startedAt)))
-        let hours = seconds / 3_600
-        let minutes = (seconds % 3_600) / 60
-        let remainingSeconds = seconds % 60
+    private func numberPair(value: Int, unit: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 1) {
+            Text("\(value)")
+                .font(.system(size: 48, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+            Text(unit)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .padding(.trailing, 6)
+        }
+    }
 
-        return String(format: "%02dh %02dm %02ds", hours, minutes, remainingSeconds)
+    private func secondsPair(value: Int) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 1) {
+            Text("\(value)")
+                .font(.system(size: 22, weight: .medium, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.tertiary)
+            Text("s")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.tertiary)
+        }
     }
 }
 
-#Preview {
+#Preview("Short nap — 45 min") {
     CurrentSleepCardView(
         sleep: CurrentSleepCardViewState(
             sleepEventID: UUID(),
-            startedAt: Date(timeIntervalSinceNow: -4_500)
+            startedAt: Date(timeIntervalSinceNow: -2_700)
         ),
         stopSleep: {},
         logPastSleep: {}
     )
     .padding()
+    .background(Color(.systemGroupedBackground))
+}
+
+#Preview("Medium sleep — 4h 45m") {
+    CurrentSleepCardView(
+        sleep: CurrentSleepCardViewState(
+            sleepEventID: UUID(),
+            startedAt: Date(timeIntervalSinceNow: -17_100)
+        ),
+        stopSleep: {},
+        logPastSleep: {}
+    )
+    .padding()
+    .background(Color(.systemGroupedBackground))
+}
+
+#Preview("Long overnight — 9h") {
+    CurrentSleepCardView(
+        sleep: CurrentSleepCardViewState(
+            sleepEventID: UUID(),
+            startedAt: Date(timeIntervalSinceNow: -32_400)
+        ),
+        stopSleep: {},
+        logPastSleep: {}
+    )
+    .padding()
+    .background(Color(.systemGroupedBackground))
+}
+
+#Preview("Just started — <1 min") {
+    CurrentSleepCardView(
+        sleep: CurrentSleepCardViewState(
+            sleepEventID: UUID(),
+            startedAt: Date(timeIntervalSinceNow: -30)
+        ),
+        stopSleep: {},
+        logPastSleep: {}
+    )
+    .padding()
+    .background(Color(.systemGroupedBackground))
 }
