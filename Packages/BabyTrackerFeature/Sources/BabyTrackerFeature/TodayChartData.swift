@@ -44,6 +44,18 @@ public struct TodayChartData: Equatable, Sendable {
     /// Cumulative poo-inclusive nappy count per hour (poo + mixed).
     public let nappyPooIncludingMixed: HourlyCumulativeSeries
 
+    /// Individual bottle feed events per hour for the selected day.
+    public let bottleHourlyMarkers: [[BottleEventMarker]]
+
+    /// Individual breast feed events per hour for the selected day.
+    public let breastHourlyMarkers: [[BreastEventMarker]]
+
+    /// Completed sleep end events per hour for the selected day.
+    public let sleepHourlyMarkers: [[SleepEventMarker]]
+
+    /// Individual nappy change events per hour for the selected day.
+    public let nappyHourlyMarkers: [[NappyEventMarker]]
+
     public init(
         bottle: HourlyCumulativeSeries,
         bottleFormula: HourlyCumulativeSeries,
@@ -58,7 +70,11 @@ public struct TodayChartData: Equatable, Sendable {
         nappyPoo: HourlyCumulativeSeries,
         nappyMixed: HourlyCumulativeSeries,
         nappyPeeIncludingMixed: HourlyCumulativeSeries,
-        nappyPooIncludingMixed: HourlyCumulativeSeries
+        nappyPooIncludingMixed: HourlyCumulativeSeries,
+        bottleHourlyMarkers: [[BottleEventMarker]],
+        breastHourlyMarkers: [[BreastEventMarker]],
+        sleepHourlyMarkers: [[SleepEventMarker]],
+        nappyHourlyMarkers: [[NappyEventMarker]]
     ) {
         self.bottle = bottle
         self.bottleFormula = bottleFormula
@@ -74,5 +90,9 @@ public struct TodayChartData: Equatable, Sendable {
         self.nappyMixed = nappyMixed
         self.nappyPeeIncludingMixed = nappyPeeIncludingMixed
         self.nappyPooIncludingMixed = nappyPooIncludingMixed
+        self.bottleHourlyMarkers = bottleHourlyMarkers
+        self.breastHourlyMarkers = breastHourlyMarkers
+        self.sleepHourlyMarkers = sleepHourlyMarkers
+        self.nappyHourlyMarkers = nappyHourlyMarkers
     }
 }

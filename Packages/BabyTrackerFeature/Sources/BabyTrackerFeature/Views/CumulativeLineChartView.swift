@@ -13,6 +13,10 @@ struct CumulativeLineChartView: View {
     let tint: Color
     let isToday: Bool
     let valueFormatter: (Int) -> String
+    /// Pre-formatted event descriptions per hour (24 arrays). Hours with at least
+    /// one string get a small marker dot on the cumulative line; tapping that hour
+    /// shows the event list in the selection callout.
+    let eventMarkers: [[String]]
 
     @State private var selectedHour: Int?
 
@@ -20,12 +24,14 @@ struct CumulativeLineChartView: View {
         series: HourlyCumulativeSeries,
         tint: Color,
         isToday: Bool = true,
-        valueFormatter: @escaping (Int) -> String = { "\($0)" }
+        valueFormatter: @escaping (Int) -> String = { "\($0)" },
+        eventMarkers: [[String]] = Array(repeating: [], count: 24)
     ) {
         self.series = series
         self.tint = tint
         self.isToday = isToday
         self.valueFormatter = valueFormatter
+        self.eventMarkers = eventMarkers
     }
 
     var body: some View {
@@ -54,6 +60,16 @@ struct CumulativeLineChartView: View {
                 .interpolationMethod(.monotone)
                 .foregroundStyle(tint)
                 .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            }
+
+            // Event markers — small dots on the cumulative line at hours where events occurred.
+            ForEach(eventMarkerPoints) { point in
+                PointMark(
+                    x: .value("Hour", point.hour),
+                    y: .value("Event", point.value)
+                )
+                .symbolSize(40)
+                .foregroundStyle(tint)
             }
 
             // "Now" indicator — only shown for today; selection callout renders on top due to mark order.
@@ -135,6 +151,13 @@ struct CumulativeLineChartView: View {
         series.averageCumulative.enumerated().map { HourPoint(id: $0, hour: $0, value: $1) }
     }
 
+    private var eventMarkerPoints: [HourPoint] {
+        let hourLimit = isToday ? currentHour + 1 : 24
+        return (0..<min(eventMarkers.count, 24))
+            .filter { $0 < hourLimit && !eventMarkers[$0].isEmpty }
+            .map { HourPoint(id: $0, hour: $0, value: series.todayCumulative[$0]) }
+    }
+
     private var maxValue: Int {
         max(1, (series.todayCumulative + series.averageCumulative).max() ?? 1)
     }
@@ -142,11 +165,19 @@ struct CumulativeLineChartView: View {
     private func selectionCallout(for hour: Int) -> some View {
         let todayVal = series.todayCumulative[hour]
         let avgVal = series.averageCumulative[hour]
+        let events = hour < eventMarkers.count ? eventMarkers[hour] : []
         return VStack(alignment: .leading, spacing: 2) {
             if !isToday || hour <= currentHour {
                 Text("Today: \(valueFormatter(todayVal))").foregroundStyle(tint)
             }
             Text("Avg: \(valueFormatter(avgVal))").foregroundStyle(.secondary)
+            if !events.isEmpty {
+                Divider()
+                    .padding(.vertical, 1)
+                ForEach(events.indices, id: \.self) { i in
+                    Text("· \(events[i])").foregroundStyle(.primary)
+                }
+            }
         }
         .font(.caption2.weight(.medium))
         .padding(.horizontal, 8)
@@ -173,7 +204,14 @@ private struct HourPoint: Identifiable {
     CumulativeLineChartView(
         series: HourlyCumulativeSeries(todayCumulative: rising, averageCumulative: avg),
         tint: .blue,
-        valueFormatter: { "\($0)" }
+        valueFormatter: { "\($0)" },
+        eventMarkers: {
+            var m = Array(repeating: [String](), count: 24)
+            m[7] = ["100ml · 7:00 AM"]
+            m[10] = ["150ml · 10:30 AM"]
+            m[14] = ["100ml · 2:00 PM"]
+            return m
+        }()
     )
     .padding()
 }
