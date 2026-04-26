@@ -84,6 +84,8 @@ struct AppRootView: View {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 Task { await model.refreshSyncStatus() }
+            } else if newPhase == .background {
+                model.appDidEnterBackground()
             }
         }
         .onOpenURL { url in

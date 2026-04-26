@@ -68,6 +68,7 @@ struct AppModelTests {
         )
 
         harness.model.load(performLaunchSync: false)
+        harness.model.appDidEnterBackground()
 
         let child = try #require(harness.model.currentChild)
         let recentEvents = Array(BuildEventCardsUseCase.execute(events: harness.model.events, preferredFeedVolumeUnit: child.preferredFeedVolumeUnit).prefix(6))
@@ -101,6 +102,7 @@ struct AppModelTests {
         )
 
         harness.model.load(performLaunchSync: false)
+        harness.model.appDidEnterBackground()
 
         let child = try #require(harness.model.currentChild)
         let eventCards = BuildEventCardsUseCase.execute(events: harness.model.events, preferredFeedVolumeUnit: child.preferredFeedVolumeUnit)
@@ -128,6 +130,7 @@ struct AppModelTests {
         }
 
         harness.model.load(performLaunchSync: false)
+        harness.model.appDidEnterBackground()
 
         let child = try #require(harness.model.currentChild)
         let allEventCards = BuildEventCardsUseCase.execute(events: harness.model.events, preferredFeedVolumeUnit: child.preferredFeedVolumeUnit)
@@ -588,6 +591,7 @@ struct AppModelTests {
         )
 
         harness.model.load(performLaunchSync: false)
+        harness.model.appDidEnterBackground()
 
         let child = try #require(harness.model.currentChild)
         #expect(harness.model.activeSleep == nil)
@@ -1006,6 +1010,7 @@ struct AppModelTests {
         )
 
         harness.model.load(performLaunchSync: false)
+        harness.model.appDidEnterBackground()
 
         let originalSnapshot = try #require(liveActivityManager.latestSnapshot)
         #expect(originalSnapshot.lastFeedAt == feed.metadata.occurredAt)
@@ -1013,6 +1018,7 @@ struct AppModelTests {
         #expect(
             harness.model.startSleep(startedAt: Date(timeIntervalSince1970: 11_500))
         )
+        harness.model.appDidEnterBackground()
         #expect(liveActivityManager.latestSnapshot?.childID == originalSnapshot.childID)
         #expect(liveActivityManager.latestSnapshot?.lastFeedKind == originalSnapshot.lastFeedKind)
         #expect(liveActivityManager.latestSnapshot?.lastFeedAt == originalSnapshot.lastFeedAt)
@@ -1028,6 +1034,7 @@ struct AppModelTests {
                 endedAt: Date(timeIntervalSince1970: 12_100)
             )
         )
+        harness.model.appDidEnterBackground()
         #expect(liveActivityManager.latestSnapshot?.lastFeedAt == originalSnapshot.lastFeedAt)
         #expect(liveActivityManager.latestSnapshot?.activeSleepStartedAt == nil)
         #expect(liveActivityManager.latestSnapshot?.lastSleepAt == Date(timeIntervalSince1970: 12_100))
@@ -1039,11 +1046,13 @@ struct AppModelTests {
                 endedAt: Date(timeIntervalSince1970: 12_300)
             )
         )
+        harness.model.appDidEnterBackground()
         #expect(liveActivityManager.latestSnapshot?.lastFeedAt == originalSnapshot.lastFeedAt)
         #expect(liveActivityManager.latestSnapshot?.activeSleepStartedAt == nil)
         #expect(liveActivityManager.latestSnapshot?.lastSleepAt == Date(timeIntervalSince1970: 12_300))
 
         #expect(harness.model.deleteEvent(id: activeSleep.id))
+        harness.model.appDidEnterBackground()
         #expect(liveActivityManager.latestSnapshot?.lastFeedAt == originalSnapshot.lastFeedAt)
         #expect(liveActivityManager.latestSnapshot?.activeSleepStartedAt == nil)
         #expect(liveActivityManager.latestSnapshot?.lastSleepAt == nil)
@@ -1123,6 +1132,7 @@ struct AppModelTests {
         let seed = try harness.seedOwnerProfile()
 
         harness.model.load(performLaunchSync: false)
+        harness.model.appDidEnterBackground()
         #expect(liveActivityManager.latestSnapshot == nil)
 
         #expect(
@@ -1132,6 +1142,7 @@ struct AppModelTests {
                 milkType: nil
             )
         )
+        harness.model.appDidEnterBackground()
 
         let loggedFeed = try #require(
             try harness.eventRepository.loadTimeline(
@@ -1156,12 +1167,15 @@ struct AppModelTests {
                 milkType: .formula
             )
         )
+        harness.model.appDidEnterBackground()
         #expect(liveActivityManager.latestSnapshot?.lastFeedAt == Date(timeIntervalSince1970: 4_600))
 
         #expect(harness.model.deleteEvent(id: loggedFeed.id))
+        harness.model.appDidEnterBackground()
         #expect(liveActivityManager.latestSnapshot == nil)
 
         harness.model.undoLastDeletedEvent()
+        harness.model.appDidEnterBackground()
         #expect(liveActivityManager.latestSnapshot?.childID == seed.child.id)
         #expect(liveActivityManager.latestSnapshot?.lastFeedAt == Date(timeIntervalSince1970: 4_600))
     }
@@ -1295,6 +1309,7 @@ struct AppModelTests {
         )
 
         harness.model.load(performLaunchSync: false)
+        harness.model.appDidEnterBackground()
 
         let originalSnapshot = try #require(liveActivityManager.latestSnapshot)
         #expect(originalSnapshot.lastFeedAt == feed.metadata.occurredAt)
@@ -1307,6 +1322,7 @@ struct AppModelTests {
                 pooColor: .brown
             )
         )
+        harness.model.appDidEnterBackground()
         #expect(liveActivityManager.latestSnapshot?.childID == originalSnapshot.childID)
         #expect(liveActivityManager.latestSnapshot?.lastFeedKind == originalSnapshot.lastFeedKind)
         #expect(liveActivityManager.latestSnapshot?.lastFeedAt == originalSnapshot.lastFeedAt)
@@ -1334,10 +1350,12 @@ struct AppModelTests {
                 pooColor: .green
             )
         )
+        harness.model.appDidEnterBackground()
         #expect(liveActivityManager.latestSnapshot?.lastFeedAt == originalSnapshot.lastFeedAt)
         #expect(liveActivityManager.latestSnapshot?.lastNappyAt == Date(timeIntervalSince1970: 7_800))
 
         #expect(harness.model.deleteEvent(id: loggedNappy.id))
+        harness.model.appDidEnterBackground()
         #expect(liveActivityManager.latestSnapshot?.lastFeedAt == originalSnapshot.lastFeedAt)
         #expect(liveActivityManager.latestSnapshot?.lastNappyAt == nil)
     }
@@ -1370,9 +1388,11 @@ struct AppModelTests {
         )
 
         harness.model.load(performLaunchSync: false)
+        harness.model.appDidEnterBackground()
         #expect(liveActivityManager.latestSnapshot?.childID == seed.child.id)
 
         harness.model.selectChild(id: secondChild.id)
+        harness.model.appDidEnterBackground()
         #expect(liveActivityManager.latestSnapshot?.childID == secondChild.id)
         #expect(liveActivityManager.latestSnapshot?.lastFeedKind == .breastFeed)
     }
@@ -1396,6 +1416,7 @@ struct AppModelTests {
             milkType: nil
         )
         harness.model.load(performLaunchSync: false)
+        harness.model.appDidEnterBackground()
         #expect(liveActivityManager.latestSnapshot != nil)
 
         harness.model.setLiveActivitiesEnabled(false)
@@ -1406,7 +1427,7 @@ struct AppModelTests {
     }
 
     @Test
-    func disabledLiveActivitiesPreventNewSnapshotsDuringRefresh() throws {
+    func disabledLiveActivitiesPreventNewSnapshotsDuringBackgroundSync() throws {
         let liveActivityManager = LiveActivityManagerSpy()
         let preferenceStore = InMemoryLiveActivityPreferenceStore(isLiveActivityEnabled: false)
         let harness = try Harness(
@@ -1417,10 +1438,58 @@ struct AppModelTests {
 
         _ = try harness.seedOwnerProfile()
         harness.model.load(performLaunchSync: false)
+        harness.model.appDidEnterBackground()
 
         #expect(harness.model.isLiveActivityEnabled == false)
         #expect(liveActivityManager.latestSnapshot == nil)
         #expect(liveActivityManager.snapshots.count == 1)
+    }
+
+    @Test
+    func remoteNotificationSyncInBackgroundUpdatesLiveActivity() async throws {
+        let liveActivityManager = LiveActivityManagerSpy()
+        let harness = try Harness(liveActivityManager: liveActivityManager)
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        _ = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 90,
+            occurredAt: Date(timeIntervalSince1970: 9_000),
+            milkType: nil
+        )
+        harness.model.load(performLaunchSync: false)
+
+        #expect(liveActivityManager.latestSnapshot == nil)
+
+        _ = await harness.model.refreshAfterRemoteNotification(isAppInBackground: true)
+
+        #expect(liveActivityManager.latestSnapshot?.childID == seed.child.id)
+    }
+
+    @Test
+    func remoteNotificationSyncInForegroundDoesNotUpdateLiveActivity() async throws {
+        let liveActivityManager = LiveActivityManagerSpy()
+        let harness = try Harness(liveActivityManager: liveActivityManager)
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        _ = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 90,
+            occurredAt: Date(timeIntervalSince1970: 9_500),
+            milkType: nil
+        )
+        harness.model.load(performLaunchSync: false)
+
+        #expect(liveActivityManager.latestSnapshot == nil)
+
+        _ = await harness.model.refreshAfterRemoteNotification(isAppInBackground: false)
+
+        #expect(liveActivityManager.latestSnapshot == nil)
+        #expect(liveActivityManager.snapshots.isEmpty)
     }
 
     @Test
