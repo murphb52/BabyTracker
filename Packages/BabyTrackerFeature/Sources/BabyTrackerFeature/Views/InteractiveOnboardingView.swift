@@ -51,6 +51,7 @@ public struct InteractiveOnboardingView: View {
         case notificationsDemo
         case caregiverName
         case babySetup
+        case customizeEvents
         case firstEvent
         case appPreview
 
@@ -263,6 +264,9 @@ public struct InteractiveOnboardingView: View {
                 addAction: submitBabySetup
             )
 
+        case .customizeEvents:
+            OnboardingCustomizeEventsStepView(model: model)
+
         case .firstEvent:
             OnboardingFirstEventStepView(
                 model: model,
@@ -304,6 +308,9 @@ public struct InteractiveOnboardingView: View {
                 action: submitBabySetup,
                 isDisabled: trimmedChildName.isEmpty
             )
+
+        case .customizeEvents:
+            OnboardingPrimaryButton(title: "Continue", action: advance)
 
         case .firstEvent:
             Button(action: advance) {
@@ -470,17 +477,24 @@ public struct InteractiveOnboardingView: View {
     )
 }
 
-#Preview("First Event") {
+#Preview("Customize Events") {
     InteractiveOnboardingView(
         model: ChildProfilePreviewFactory.makeModel(),
         previewStepIndex: 8
     )
 }
 
-#Preview("App Preview") {
+#Preview("First Event") {
     InteractiveOnboardingView(
         model: ChildProfilePreviewFactory.makeModel(),
         previewStepIndex: 9
+    )
+}
+
+#Preview("App Preview") {
+    InteractiveOnboardingView(
+        model: ChildProfilePreviewFactory.makeModel(),
+        previewStepIndex: 10
     )
 }
 
