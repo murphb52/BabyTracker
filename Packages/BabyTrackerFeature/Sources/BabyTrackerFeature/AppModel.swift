@@ -1361,26 +1361,28 @@ public final class AppModel {
     ) -> TimelineDayGridViewState? {
         let eventsByID = Dictionary(uniqueKeysWithValues: events.map { ($0.id, $0) })
 
-        let columns = dataset.columns.map { column in
-            TimelineDayGridColumnViewState(
-                kind: column.kind,
-                title: timelineColumnTitle(for: column.kind),
-                items: column.placements.compactMap { placement in
-                    let groupedEvents = placement.eventIDs.compactMap { eventsByID[$0] }
-                    guard !groupedEvents.isEmpty else {
-                        return nil
-                    }
+        let columns = dataset.columns
+            .filter { enabledEventKinds.contains(eventKind(for: $0.kind)) }
+            .map { column in
+                TimelineDayGridColumnViewState(
+                    kind: column.kind,
+                    title: timelineColumnTitle(for: column.kind),
+                    items: column.placements.compactMap { placement in
+                        let groupedEvents = placement.eventIDs.compactMap { eventsByID[$0] }
+                        guard !groupedEvents.isEmpty else {
+                            return nil
+                        }
 
-                    return makeTimelineDayGridItem(
-                        placement: placement,
-                        events: groupedEvents,
-                        child: child,
-                        day: day,
-                        slotMinutes: dataset.slotMinutes
-                    )
-                }
-            )
-        }
+                        return makeTimelineDayGridItem(
+                            placement: placement,
+                            events: groupedEvents,
+                            child: child,
+                            day: day,
+                            slotMinutes: dataset.slotMinutes
+                        )
+                    }
+                )
+            }
 
         let hasItems = columns.contains { !$0.items.isEmpty }
         guard hasItems else {
@@ -1485,6 +1487,15 @@ public final class AppModel {
             return "Bottle"
         case .breastFeed:
             return "Breast"
+        }
+    }
+
+    private func eventKind(for columnKind: TimelineDayGridColumnKind) -> BabyEventKind {
+        switch columnKind {
+        case .sleep: return .sleep
+        case .nappy: return .nappy
+        case .bottleFeed: return .bottleFeed
+        case .breastFeed: return .breastFeed
         }
     }
 

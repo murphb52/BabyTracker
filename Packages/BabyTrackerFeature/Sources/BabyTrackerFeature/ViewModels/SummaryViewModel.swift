@@ -39,6 +39,10 @@ public final class SummaryViewModel {
             ?? .milliliters
     }
 
+    public var enabledEventKinds: Set<BabyEventKind> {
+        appModel?.enabledEventKinds ?? Set(BabyEventKind.allCases)
+    }
+
     public var emptyStateTitle: String { "No summary data yet" }
     public var emptyStateMessage: String { "Add events and your key trends will appear here." }
 }
