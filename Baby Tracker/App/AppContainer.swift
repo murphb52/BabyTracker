@@ -24,6 +24,7 @@ struct AppContainer {
         let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
         let liveActivityPreferenceStore = UserDefaultsLiveActivityPreferenceStore(userDefaults: userDefaults)
         let reminderNotificationPreferenceStore = UserDefaultsReminderNotificationPreferenceStore(userDefaults: userDefaults)
+        let eventVisibilityPreferenceStore = UserDefaultsEventVisibilityPreferenceStore(userDefaults: userDefaults)
         let appReviewPromptStateStore = UserDefaultsAppReviewPromptStateStore(userDefaults: userDefaults)
 
         if let scenario = launchConfiguration.scenario {
@@ -71,6 +72,7 @@ struct AppContainer {
             liveActivitySnapshotCache: liveActivitySnapshotCache,
             liveActivityPreferenceStore: liveActivityPreferenceStore,
             reminderNotificationPreferenceStore: reminderNotificationPreferenceStore,
+            eventVisibilityPreferenceStore: eventVisibilityPreferenceStore,
             localNotificationManager: localNotificationManager,
             hapticFeedbackProvider: hapticFeedbackProvider,
             appReviewPromptStateStore: appReviewPromptStateStore,
@@ -114,6 +116,7 @@ struct AppContainer {
         let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
         let liveActivityPreferenceStore = UserDefaultsLiveActivityPreferenceStore(userDefaults: userDefaults)
         let reminderNotificationPreferenceStore = UserDefaultsReminderNotificationPreferenceStore(userDefaults: userDefaults)
+        let eventVisibilityPreferenceStore = UserDefaultsEventVisibilityPreferenceStore(userDefaults: userDefaults)
 
         try? seed(
             scenario: .mixedEventsPreview,
@@ -143,6 +146,7 @@ struct AppContainer {
             liveActivityManager: NoOpFeedLiveActivityManager(),
             liveActivityPreferenceStore: liveActivityPreferenceStore,
             reminderNotificationPreferenceStore: reminderNotificationPreferenceStore,
+            eventVisibilityPreferenceStore: eventVisibilityPreferenceStore,
             localNotificationManager: NoOpLocalNotificationManager(),
             hapticFeedbackProvider: NoOpHapticFeedbackProvider()
         )

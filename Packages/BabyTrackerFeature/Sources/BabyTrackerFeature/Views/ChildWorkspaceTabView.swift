@@ -152,7 +152,10 @@ public struct ChildWorkspaceTabView: View {
             )
         }
         .sheet(isPresented: $showingEventFilter) {
-            EventFilterView(currentFilter: eventHistoryViewModel.activeFilter) { newFilter in
+            EventFilterView(
+                currentFilter: eventHistoryViewModel.activeFilter,
+                enabledEventKinds: model.enabledEventKinds
+            ) { newFilter in
                 eventHistoryViewModel.updateFilter(newFilter)
             }
         }

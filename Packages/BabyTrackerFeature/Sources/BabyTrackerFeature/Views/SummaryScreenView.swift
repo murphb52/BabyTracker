@@ -303,12 +303,13 @@ public struct SummaryScreenView: View {
                     message: viewModel.emptyStateMessage
                 )
             } else {
+                let enabled = viewModel.enabledEventKinds
                 VStack(alignment: .leading, spacing: 12) {
                     dateNavigationRow
-                    sleepSectionCard(data: data)
-                    bottleSectionCard(data: data)
-                    breastSectionCard(data: data)
-                    nappySectionCard(data: data)
+                    if enabled.contains(.sleep) { sleepSectionCard(data: data) }
+                    if enabled.contains(.bottleFeed) { bottleSectionCard(data: data) }
+                    if enabled.contains(.breastFeed) { breastSectionCard(data: data) }
+                    if enabled.contains(.nappy) { nappySectionCard(data: data) }
                     advancedSummaryLink
                     loggingStreakRow(data: data)
                 }
@@ -689,6 +690,7 @@ public struct SummaryScreenView: View {
             || data.dailySleep.contains { $0.totalMinutes > 0 }
             || data.dailyNappy.contains { $0.totalCount > 0 }
 
+        let enabled = viewModel.enabledEventKinds
         return VStack(alignment: .leading, spacing: 12) {
             trendsRangePicker
 
@@ -698,10 +700,10 @@ public struct SummaryScreenView: View {
                     message: "Try a broader range to see feeding, sleep, and nappy trends."
                 )
             } else {
-                sleepChartCard(data: data)
-                bottleChartCard(data: data)
-                breastChartCard(data: data)
-                nappyChartCard(data: data)
+                if enabled.contains(.sleep) { sleepChartCard(data: data) }
+                if enabled.contains(.bottleFeed) { bottleChartCard(data: data) }
+                if enabled.contains(.breastFeed) { breastChartCard(data: data) }
+                if enabled.contains(.nappy) { nappyChartCard(data: data) }
             }
         }
     }
