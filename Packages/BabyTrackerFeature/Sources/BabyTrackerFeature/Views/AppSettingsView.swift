@@ -62,6 +62,15 @@ public struct AppSettingsView: View {
                     )
                 }
 
+                NavigationLink {
+                    EventVisibilitySettingsView(model: model)
+                } label: {
+                    settingsRow(
+                        title: "Customize Events",
+                        value: nil,
+                        accessibilityIdentifier: "app-settings-customize-events-row"
+                    )
+                }
             }
 
             if areDebugOptionsVisible {
