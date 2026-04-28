@@ -288,27 +288,9 @@ public struct ChildHomeView: View {
 
             if quickLogSectionExpanded {
                 VStack(spacing: 12) {
-                    let firstRow = visibleQuickLogRow(
-                        first: .breastFeed,
-                        second: .bottleFeed
-                    )
-                    let secondRow = visibleQuickLogRow(
-                        first: .sleep,
-                        second: .nappy
-                    )
-
-                    if !firstRow.isEmpty {
+                    ForEach(Array(quickLogRows.enumerated()), id: \.offset) { _, row in
                         HStack(spacing: 12) {
-                            ForEach(firstRow, id: \.self) { kind in
-                                quickLogButton(for: kind)
-                            }
-                        }
-                        .geometryGroup()
-                    }
-
-                    if !secondRow.isEmpty {
-                        HStack(spacing: 12) {
-                            ForEach(secondRow, id: \.self) { kind in
+                            ForEach(row, id: \.self) { kind in
                                 quickLogButton(for: kind)
                             }
                         }
@@ -343,11 +325,11 @@ public struct ChildHomeView: View {
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
-    private func visibleQuickLogRow(
-        first: BabyEventKind,
-        second: BabyEventKind
-    ) -> [BabyEventKind] {
-        [first, second].filter { model.isEventKindEnabled($0) }
+    private var quickLogRows: [[BabyEventKind]] {
+        let kinds = BabyEventKind.allCases.filter { model.isEventKindEnabled($0) }
+        return stride(from: 0, to: kinds.count, by: 2).map { i in
+            Array(kinds[i..<min(i + 2, kinds.count)])
+        }
     }
 
     @ViewBuilder
