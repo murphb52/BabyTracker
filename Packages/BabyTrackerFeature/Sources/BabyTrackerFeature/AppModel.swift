@@ -16,6 +16,7 @@ public final class AppModel {
     public private(set) var undoDeleteMessage: String?
     public private(set) var isLiveActivityEnabled: Bool
     public private(set) var isReminderNotificationsEnabled: Bool
+    public private(set) var enabledEventKinds: Set<BabyEventKind>
     public private(set) var transientMessage: String?
     public private(set) var navigationResetToken: Int = 0
     public private(set) var shareAcceptanceLoadingState: ShareAcceptanceLoadingState?
@@ -73,6 +74,7 @@ public final class AppModel {
     private let liveActivitySnapshotCache: any FeedLiveActivitySnapshotCaching
     private let liveActivityPreferenceStore: any LiveActivityPreferenceStore
     private let reminderNotificationPreferenceStore: any ReminderNotificationPreferenceStore
+    private let eventVisibilityPreferenceStore: any EventVisibilityPreferenceStore
     private let localNotificationManager: any LocalNotificationManaging
     private let hapticFeedbackProvider: any HapticFeedbackProviding
     private let appReviewPromptStateStore: any AppReviewPromptStateStoring
@@ -100,6 +102,7 @@ public final class AppModel {
         liveActivitySnapshotCache: any FeedLiveActivitySnapshotCaching = InMemoryFeedLiveActivitySnapshotCache(),
         liveActivityPreferenceStore: any LiveActivityPreferenceStore = InMemoryLiveActivityPreferenceStore(),
         reminderNotificationPreferenceStore: any ReminderNotificationPreferenceStore = InMemoryReminderNotificationPreferenceStore(),
+        eventVisibilityPreferenceStore: any EventVisibilityPreferenceStore = InMemoryEventVisibilityPreferenceStore(),
         localNotificationManager: any LocalNotificationManaging = NoOpLocalNotificationManager(),
         hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider(),
         appReviewPromptStateStore: any AppReviewPromptStateStoring = NoOpAppReviewPromptStateStore(),
@@ -115,6 +118,7 @@ public final class AppModel {
         self.liveActivitySnapshotCache = liveActivitySnapshotCache
         self.liveActivityPreferenceStore = liveActivityPreferenceStore
         self.reminderNotificationPreferenceStore = reminderNotificationPreferenceStore
+        self.eventVisibilityPreferenceStore = eventVisibilityPreferenceStore
         self.localNotificationManager = localNotificationManager
         self.hapticFeedbackProvider = hapticFeedbackProvider
         self.appReviewPromptStateStore = appReviewPromptStateStore
@@ -124,6 +128,8 @@ public final class AppModel {
         self.storedReminderNotificationsEnabled = storedReminderNotificationsEnabled
         self.hasReminderNotificationPermission = true
         self.isReminderNotificationsEnabled = storedReminderNotificationsEnabled
+        let storedEnabledEventKinds = eventVisibilityPreferenceStore.enabledEventKinds
+        self.enabledEventKinds = storedEnabledEventKinds.isEmpty ? Set(BabyEventKind.allCases) : storedEnabledEventKinds
     }
 
     public func load(performLaunchSync: Bool = true) {
@@ -190,6 +196,31 @@ public final class AppModel {
         } else {
             stopLiveActivity()
         }
+    }
+
+    public func isEventKindEnabled(_ kind: BabyEventKind) -> Bool {
+        enabledEventKinds.contains(kind)
+    }
+
+    public func setEventKindEnabled(_ kind: BabyEventKind, isEnabled: Bool) {
+        var updated = enabledEventKinds
+        if isEnabled {
+            updated.insert(kind)
+        } else {
+            // Refuse to disable the last enabled kind so the UI never has zero options.
+            guard updated.count > 1, updated.contains(kind) else {
+                return
+            }
+            updated.remove(kind)
+        }
+
+        guard updated != enabledEventKinds else {
+            return
+        }
+
+        enabledEventKinds = updated
+        eventVisibilityPreferenceStore.setEnabledEventKinds(updated)
+        refresh(selecting: childSelectionStore.loadSelectedChildID())
     }
 
     @discardableResult
@@ -1298,7 +1329,8 @@ public final class AppModel {
     }
 
     private func loadVisibleEvents(for childID: UUID) throws -> [BabyEvent] {
-        try eventRepository.loadTimeline(for: childID, includingDeleted: false)
+        let events = try eventRepository.loadTimeline(for: childID, includingDeleted: false)
+        return events.filter { enabledEventKinds.contains($0.kind) }
     }
 
     private func loadTimelinePages(
@@ -1313,7 +1345,7 @@ public final class AppModel {
                 on: day,
                 calendar: calendar,
                 includingDeleted: false
-            )
+            ).filter { enabledEventKinds.contains($0.kind) }
             let gridDataset = buildTimelineDayGridDatasetUseCase.execute(
                 events: events,
                 day: dayStart,
@@ -1346,26 +1378,28 @@ public final class AppModel {
     ) -> TimelineDayGridViewState? {
         let eventsByID = Dictionary(uniqueKeysWithValues: events.map { ($0.id, $0) })
 
-        let columns = dataset.columns.map { column in
-            TimelineDayGridColumnViewState(
-                kind: column.kind,
-                title: timelineColumnTitle(for: column.kind),
-                items: column.placements.compactMap { placement in
-                    let groupedEvents = placement.eventIDs.compactMap { eventsByID[$0] }
-                    guard !groupedEvents.isEmpty else {
-                        return nil
-                    }
+        let columns = dataset.columns
+            .filter { enabledEventKinds.contains(eventKind(for: $0.kind)) }
+            .map { column in
+                TimelineDayGridColumnViewState(
+                    kind: column.kind,
+                    title: timelineColumnTitle(for: column.kind),
+                    items: column.placements.compactMap { placement in
+                        let groupedEvents = placement.eventIDs.compactMap { eventsByID[$0] }
+                        guard !groupedEvents.isEmpty else {
+                            return nil
+                        }
 
-                    return makeTimelineDayGridItem(
-                        placement: placement,
-                        events: groupedEvents,
-                        child: child,
-                        day: day,
-                        slotMinutes: dataset.slotMinutes
-                    )
-                }
-            )
-        }
+                        return makeTimelineDayGridItem(
+                            placement: placement,
+                            events: groupedEvents,
+                            child: child,
+                            day: day,
+                            slotMinutes: dataset.slotMinutes
+                        )
+                    }
+                )
+            }
 
         let hasItems = columns.contains { !$0.items.isEmpty }
         guard hasItems else {
@@ -1470,6 +1504,15 @@ public final class AppModel {
             return "Bottle"
         case .breastFeed:
             return "Breast"
+        }
+    }
+
+    private func eventKind(for columnKind: TimelineDayGridColumnKind) -> BabyEventKind {
+        switch columnKind {
+        case .sleep: return .sleep
+        case .nappy: return .nappy
+        case .bottleFeed: return .bottleFeed
+        case .breastFeed: return .breastFeed
         }
     }
 

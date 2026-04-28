@@ -3,6 +3,7 @@ import SwiftUI
 
 public struct EventFilterView: View {
     let currentFilter: EventFilter
+    let enabledEventKinds: Set<BabyEventKind>
     let onApply: (EventFilter) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -10,9 +11,11 @@ public struct EventFilterView: View {
 
     public init(
         currentFilter: EventFilter,
+        enabledEventKinds: Set<BabyEventKind> = Set(BabyEventKind.allCases),
         onApply: @escaping (EventFilter) -> Void
     ) {
         self.currentFilter = currentFilter
+        self.enabledEventKinds = enabledEventKinds
         self.onApply = onApply
         self._draft = State(initialValue: currentFilter)
     }
@@ -57,7 +60,7 @@ public struct EventFilterView: View {
 
     private var eventTypeSection: some View {
         filterCard("Event Type") {
-            let kinds: [BabyEventKind] = [.breastFeed, .bottleFeed, .sleep, .nappy]
+            let kinds = BabyEventKind.allCases.filter { enabledEventKinds.contains($0) }
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                 ForEach(kinds, id: \.self) { kind in
                     eventKindChip(kind)
@@ -324,19 +327,23 @@ public struct EventFilterView: View {
     // MARK: - Visibility
 
     private var shouldShowNappySection: Bool {
-        draft.eventTypes.isEmpty || draft.eventTypes.contains(.nappy)
+        enabledEventKinds.contains(.nappy) &&
+            (draft.eventTypes.isEmpty || draft.eventTypes.contains(.nappy))
     }
 
     private var shouldShowMilkSection: Bool {
-        draft.eventTypes.isEmpty || draft.eventTypes.contains(.bottleFeed)
+        enabledEventKinds.contains(.bottleFeed) &&
+            (draft.eventTypes.isEmpty || draft.eventTypes.contains(.bottleFeed))
     }
 
     private var shouldShowBreastSection: Bool {
-        draft.eventTypes.isEmpty || draft.eventTypes.contains(.breastFeed)
+        enabledEventKinds.contains(.breastFeed) &&
+            (draft.eventTypes.isEmpty || draft.eventTypes.contains(.breastFeed))
     }
 
     private var shouldShowSleepSection: Bool {
-        draft.eventTypes.isEmpty || draft.eventTypes.contains(.sleep)
+        enabledEventKinds.contains(.sleep) &&
+            (draft.eventTypes.isEmpty || draft.eventTypes.contains(.sleep))
     }
 
     // MARK: - Mutation

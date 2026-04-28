@@ -1427,6 +1427,63 @@ struct AppModelTests {
     }
 
     @Test
+    func disablingEventKindHidesEventsFromTimelineAndPersistsPreference() throws {
+        let visibilityStore = InMemoryEventVisibilityPreferenceStore()
+        let harness = try Harness(eventVisibilityPreferenceStore: visibilityStore)
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let breastFeed = try harness.saveBreastFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            start: Date(timeIntervalSince1970: 5_000),
+            end: Date(timeIntervalSince1970: 5_900),
+            side: .left
+        )
+        let bottleFeed = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 120,
+            occurredAt: Date(timeIntervalSince1970: 9_000),
+            milkType: .formula
+        )
+
+        harness.model.load(performLaunchSync: false)
+        #expect(harness.model.events.contains(where: { $0.id == breastFeed.id }))
+        #expect(harness.model.events.contains(where: { $0.id == bottleFeed.id }))
+        #expect(harness.model.isEventKindEnabled(.breastFeed))
+
+        harness.model.setEventKindEnabled(.breastFeed, isEnabled: false)
+
+        #expect(!harness.model.isEventKindEnabled(.breastFeed))
+        #expect(visibilityStore.enabledEventKinds == [.bottleFeed, .sleep, .nappy])
+        #expect(!harness.model.events.contains(where: { $0.id == breastFeed.id }))
+        #expect(harness.model.events.contains(where: { $0.id == bottleFeed.id }))
+
+        harness.model.setEventKindEnabled(.breastFeed, isEnabled: true)
+
+        #expect(harness.model.isEventKindEnabled(.breastFeed))
+        #expect(harness.model.events.contains(where: { $0.id == breastFeed.id }))
+    }
+
+    @Test
+    func disablingTheLastEnabledEventKindIsRefused() throws {
+        let visibilityStore = InMemoryEventVisibilityPreferenceStore(enabledEventKinds: [.bottleFeed])
+        let harness = try Harness(eventVisibilityPreferenceStore: visibilityStore)
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+
+        #expect(harness.model.enabledEventKinds == [.bottleFeed])
+
+        harness.model.setEventKindEnabled(.bottleFeed, isEnabled: false)
+
+        #expect(harness.model.enabledEventKinds == [.bottleFeed])
+        #expect(visibilityStore.enabledEventKinds == [.bottleFeed])
+    }
+
+    @Test
     func disabledLiveActivitiesPreventNewSnapshotsDuringBackgroundSync() throws {
         let liveActivityManager = LiveActivityManagerSpy()
         let preferenceStore = InMemoryLiveActivityPreferenceStore(isLiveActivityEnabled: false)
@@ -1829,6 +1886,7 @@ extension AppModelTests {
             liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager(),
             liveActivityPreferenceStore: any LiveActivityPreferenceStore = InMemoryLiveActivityPreferenceStore(),
             reminderNotificationPreferenceStore: any ReminderNotificationPreferenceStore = InMemoryReminderNotificationPreferenceStore(),
+            eventVisibilityPreferenceStore: any EventVisibilityPreferenceStore = InMemoryEventVisibilityPreferenceStore(),
             localNotificationManager: any LocalNotificationManaging = NoOpLocalNotificationManager(),
             hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
         ) throws {
@@ -1849,6 +1907,7 @@ extension AppModelTests {
                 liveActivityManager: liveActivityManager,
                 liveActivityPreferenceStore: liveActivityPreferenceStore,
                 reminderNotificationPreferenceStore: reminderNotificationPreferenceStore,
+                eventVisibilityPreferenceStore: eventVisibilityPreferenceStore,
                 localNotificationManager: localNotificationManager,
                 hapticFeedbackProvider: hapticFeedbackProvider
             )

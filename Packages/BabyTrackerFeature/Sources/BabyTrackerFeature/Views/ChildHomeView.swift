@@ -56,7 +56,7 @@ public struct ChildHomeView: View {
                 heroCard
                     .transition(.opacity)
 
-                if viewModel.canLogEvents {
+                if viewModel.canLogEvents, !model.enabledEventKinds.isEmpty {
                     quickLogSection
                 }
 
@@ -224,9 +224,12 @@ public struct ChildHomeView: View {
             .buttonStyle(.plain)
 
             if statusSectionExpanded {
-                CurrentStatusCardView(status: viewModel.currentStatus)
-                    .padding(.top, 10)
-                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+                CurrentStatusCardView(
+                    status: viewModel.currentStatus,
+                    enabledEventKinds: model.enabledEventKinds
+                )
+                .padding(.top, 10)
+                .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
             }
         }
     }
@@ -285,37 +288,14 @@ public struct ChildHomeView: View {
 
             if quickLogSectionExpanded {
                 VStack(spacing: 12) {
-                    HStack(spacing: 12) {
-                        quickLogButton(
-                            title: "Breast Feed",
-                            systemImage: BabyEventStyle.systemImage(for: .breastFeed),
-                            kind: .breastFeed,
-                            accessibilityIdentifier: "quick-log-breast-feed-button",
-                            action: quickLogBreastFeed
-                        )
-
-                        quickLogButton(
-                            title: "Bottle Feed",
-                            systemImage: BabyEventStyle.systemImage(for: .bottleFeed),
-                            kind: .bottleFeed,
-                            accessibilityIdentifier: "quick-log-bottle-feed-button",
-                            action: quickLogBottleFeed
-                        )
+                    ForEach(Array(quickLogRows.enumerated()), id: \.offset) { _, row in
+                        HStack(spacing: 12) {
+                            ForEach(row, id: \.self) { kind in
+                                quickLogButton(for: kind)
+                            }
+                        }
+                        .geometryGroup()
                     }
-                    .geometryGroup()
-
-                    HStack(spacing: 12) {
-                        sleepQuickLogButton
-
-                        quickLogButton(
-                            title: "Nappy",
-                            systemImage: BabyEventStyle.systemImage(for: .nappy),
-                            kind: .nappy,
-                            accessibilityIdentifier: "quick-log-nappy-button",
-                            action: quickLogNappy
-                        )
-                    }
-                    .geometryGroup()
                 }
                 .padding(.top, 12)
                 .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
@@ -343,6 +323,45 @@ public struct ChildHomeView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private var quickLogRows: [[BabyEventKind]] {
+        let kinds = BabyEventKind.allCases.filter { model.isEventKindEnabled($0) }
+        return stride(from: 0, to: kinds.count, by: 2).map { i in
+            Array(kinds[i..<min(i + 2, kinds.count)])
+        }
+    }
+
+    @ViewBuilder
+    private func quickLogButton(for kind: BabyEventKind) -> some View {
+        switch kind {
+        case .breastFeed:
+            quickLogButton(
+                title: "Breast Feed",
+                systemImage: BabyEventStyle.systemImage(for: .breastFeed),
+                kind: .breastFeed,
+                accessibilityIdentifier: "quick-log-breast-feed-button",
+                action: quickLogBreastFeed
+            )
+        case .bottleFeed:
+            quickLogButton(
+                title: "Bottle Feed",
+                systemImage: BabyEventStyle.systemImage(for: .bottleFeed),
+                kind: .bottleFeed,
+                accessibilityIdentifier: "quick-log-bottle-feed-button",
+                action: quickLogBottleFeed
+            )
+        case .sleep:
+            sleepQuickLogButton
+        case .nappy:
+            quickLogButton(
+                title: "Nappy",
+                systemImage: BabyEventStyle.systemImage(for: .nappy),
+                kind: .nappy,
+                accessibilityIdentifier: "quick-log-nappy-button",
+                action: quickLogNappy
+            )
+        }
     }
 
     @ViewBuilder

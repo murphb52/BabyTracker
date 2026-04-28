@@ -15,10 +15,14 @@ struct OnboardingFirstEventStepView: View {
 
     @State private var activeEventSheet: ChildEventSheet?
     @State private var firstEventSaved = false
-    @State private var appearedMask: [Bool] = [false, false, false, false, false, false]
+    @State private var appearedMask: [Bool] = Array(repeating: false, count: 6)
     @State private var highlightedIndex = 0
-    @State private var wiggleScales: [Double] = [1.0, 1.0, 1.0, 1.0]
-    @State private var rotations: [Double] = [0, 0, 0, 0]
+    @State private var wiggleScales: [Double] = Array(repeating: 1.0, count: 4)
+    @State private var rotations: [Double] = Array(repeating: 0, count: 4)
+
+    private var visibleKinds: [BabyEventKind] {
+        BabyEventKind.allCases.filter { model.isEventKindEnabled($0) }
+    }
 
     private var childName: String {
         model.currentChild?.name ?? "your baby"
@@ -42,25 +46,20 @@ struct OnboardingFirstEventStepView: View {
                 }
 
                 VStack(spacing: 12) {
-                    HStack(spacing: 12) {
-                        quickLogButton(0, title: "Breast Feed", kind: .breastFeed) {
-                            activeEventSheet = .quickLogBreastFeed
-                        }
-                        quickLogButton(1, title: "Bottle Feed", kind: .bottleFeed) {
-                            activeEventSheet = .quickLogBottleFeed(smartSuggestions: [])
-                        }
+                    let rows = stride(from: 0, to: visibleKinds.count, by: 2).map { i in
+                        Array(visibleKinds[i..<min(i + 2, visibleKinds.count)])
                     }
-                    .geometryGroup()
-
-                    HStack(spacing: 12) {
-                        quickLogButton(2, title: "Start Sleep", kind: .sleep) {
-                            activeEventSheet = .startSleep(suggestions: [])
+                    ForEach(Array(rows.enumerated()), id: \.offset) { rowIndex, row in
+                        HStack(spacing: 12) {
+                            ForEach(Array(row.enumerated()), id: \.element) { colIndex, kind in
+                                let buttonIndex = rowIndex * 2 + colIndex
+                                quickLogButton(buttonIndex, title: buttonTitle(for: kind), kind: kind) {
+                                    activeEventSheet = eventSheet(for: kind)
+                                }
+                            }
                         }
-                        quickLogButton(3, title: "Nappy", kind: .nappy) {
-                            activeEventSheet = .quickLogNappy(.mixed)
-                        }
+                        .geometryGroup()
                     }
-                    .geometryGroup()
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -74,13 +73,15 @@ struct OnboardingFirstEventStepView: View {
         }
         .task(id: reduceMotion) {
             guard !reduceMotion else { return }
+            let count = visibleKinds.count
+            guard count > 0 else { return }
             // Wait for page slide-in + full stagger to settle before first wiggle
             try? await Task.sleep(for: .milliseconds(1200))
             animateWiggle(0)
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(2.4))
                 guard !Task.isCancelled else { break }
-                let next = (highlightedIndex + 1) % 4
+                let next = (highlightedIndex + 1) % count
                 withAnimation(.spring(response: 0.38, dampingFraction: 0.62)) {
                     highlightedIndex = next
                 }
@@ -92,6 +93,26 @@ struct OnboardingFirstEventStepView: View {
         }
         .onChange(of: firstEventSaved) { _, saved in
             if saved { onEventSaved() }
+        }
+    }
+
+    // MARK: - Kind helpers
+
+    private func buttonTitle(for kind: BabyEventKind) -> String {
+        switch kind {
+        case .breastFeed: "Breast Feed"
+        case .bottleFeed: "Bottle Feed"
+        case .sleep: "Start Sleep"
+        case .nappy: "Nappy"
+        }
+    }
+
+    private func eventSheet(for kind: BabyEventKind) -> ChildEventSheet {
+        switch kind {
+        case .breastFeed: .quickLogBreastFeed
+        case .bottleFeed: .quickLogBottleFeed(smartSuggestions: [])
+        case .sleep: .startSleep(suggestions: [])
+        case .nappy: .quickLogNappy(.mixed)
         }
     }
 
@@ -144,7 +165,7 @@ struct OnboardingFirstEventStepView: View {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.82).delay(0.08)) {
                 appearedMask[1] = true
             }
-            for index in 2..<appearedMask.count {
+            for index in 2..<(2 + visibleKinds.count) {
                 let delay = Double(index - 2) * 0.1
                 withAnimation(.spring(response: 0.38, dampingFraction: 0.52).delay(delay)) {
                     appearedMask[index] = true

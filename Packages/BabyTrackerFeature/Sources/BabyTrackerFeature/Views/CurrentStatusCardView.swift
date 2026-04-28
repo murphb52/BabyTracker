@@ -3,13 +3,22 @@ import SwiftUI
 
 public struct CurrentStatusCardView: View {
     let status: CurrentStatusCardViewState
+    let enabledEventKinds: Set<BabyEventKind>
 
-    public init(status: CurrentStatusCardViewState) {
+    public init(
+        status: CurrentStatusCardViewState,
+        enabledEventKinds: Set<BabyEventKind> = Set(BabyEventKind.allCases)
+    ) {
         self.status = status
+        self.enabledEventKinds = enabledEventKinds
     }
 
     private var showSleepRow: Bool {
-        status.lastSleep?.isActive != true
+        enabledEventKinds.contains(.sleep) && status.lastSleep?.isActive != true
+    }
+
+    private var showFeedsToday: Bool {
+        enabledEventKinds.contains(.breastFeed) || enabledEventKinds.contains(.bottleFeed)
     }
 
     public var body: some View {
@@ -30,61 +39,71 @@ public struct CurrentStatusCardView: View {
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
-            statusRow(
-                title: "Last breast feed",
-                subtitle: status.lastBreastFeed?.detailText,
-                systemImage: BabyEventStyle.systemImage(for: .breastFeed),
-                iconTint: BabyEventStyle.accentColor(for: .breastFeed),
-                identifier: "current-status-last-breast-feed"
-            ) {
-                if let lastBreastFeed = status.lastBreastFeed {
-                    relativeTimeText(for: lastBreastFeed.occurredAt)
-                } else {
-                    Text("No feeds yet")
+            if enabledEventKinds.contains(.breastFeed) {
+                statusRow(
+                    title: "Last breast feed",
+                    subtitle: status.lastBreastFeed?.detailText,
+                    systemImage: BabyEventStyle.systemImage(for: .breastFeed),
+                    iconTint: BabyEventStyle.accentColor(for: .breastFeed),
+                    identifier: "current-status-last-breast-feed"
+                ) {
+                    if let lastBreastFeed = status.lastBreastFeed {
+                        relativeTimeText(for: lastBreastFeed.occurredAt)
+                    } else {
+                        Text("No feeds yet")
+                    }
+                }
+
+                Divider()
+            }
+
+            if enabledEventKinds.contains(.bottleFeed) {
+                statusRow(
+                    title: "Last bottle feed",
+                    subtitle: status.lastBottleFeed?.detailText,
+                    systemImage: BabyEventStyle.systemImage(for: .bottleFeed),
+                    iconTint: BabyEventStyle.accentColor(for: .bottleFeed),
+                    identifier: "current-status-last-bottle-feed"
+                ) {
+                    if let lastBottleFeed = status.lastBottleFeed {
+                        relativeTimeText(for: lastBottleFeed.occurredAt)
+                    } else {
+                        Text("No feeds yet")
+                    }
+                }
+
+                Divider()
+            }
+
+            if enabledEventKinds.contains(.nappy) {
+                statusRow(
+                    title: "Last nappy",
+                    subtitle: status.lastNappy?.detailText,
+                    systemImage: BabyEventStyle.systemImage(for: .nappy),
+                    iconTint: BabyEventStyle.accentColor(for: .nappy),
+                    identifier: "current-status-last-nappy"
+                ) {
+                    if let lastNappy = status.lastNappy {
+                        relativeTimeText(for: lastNappy.occurredAt)
+                    } else {
+                        Text("No nappies yet")
+                    }
+                }
+
+                if showFeedsToday {
+                    Divider()
                 }
             }
 
-            Divider()
-
-            statusRow(
-                title: "Last bottle feed",
-                subtitle: status.lastBottleFeed?.detailText,
-                systemImage: BabyEventStyle.systemImage(for: .bottleFeed),
-                iconTint: BabyEventStyle.accentColor(for: .bottleFeed),
-                identifier: "current-status-last-bottle-feed"
-            ) {
-                if let lastBottleFeed = status.lastBottleFeed {
-                    relativeTimeText(for: lastBottleFeed.occurredAt)
-                } else {
-                    Text("No feeds yet")
+            if showFeedsToday {
+                statusRow(
+                    title: "Feeds today",
+                    systemImage: "list.number",
+                    iconTint: BabyEventStyle.accentColor(for: .breastFeed),
+                    identifier: "current-status-feeds-today"
+                ) {
+                    Text("\(status.feedsTodayCount)")
                 }
-            }
-
-            Divider()
-
-            statusRow(
-                title: "Last nappy",
-                subtitle: status.lastNappy?.detailText,
-                systemImage: BabyEventStyle.systemImage(for: .nappy),
-                iconTint: BabyEventStyle.accentColor(for: .nappy),
-                identifier: "current-status-last-nappy"
-            ) {
-                if let lastNappy = status.lastNappy {
-                    relativeTimeText(for: lastNappy.occurredAt)
-                } else {
-                    Text("No nappies yet")
-                }
-            }
-
-            Divider()
-
-            statusRow(
-                title: "Feeds today",
-                systemImage: "list.number",
-                iconTint: BabyEventStyle.accentColor(for: .breastFeed),
-                identifier: "current-status-feeds-today"
-            ) {
-                Text("\(status.feedsTodayCount)")
             }
         }
         .padding(20)
@@ -98,6 +117,7 @@ public struct CurrentStatusCardView: View {
                 .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
         )
         .animation(.easeInOut(duration: 0.35), value: showSleepRow)
+        .animation(.easeInOut(duration: 0.35), value: enabledEventKinds)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("current-status-card")
     }
@@ -194,5 +214,19 @@ public struct CurrentStatusCardView: View {
         feedsTodayCount: 0,
         lastNappy: nil
     ))
+    .padding()
+}
+
+#Preview("Bottle only (breast feed hidden)") {
+    CurrentStatusCardView(
+        status: CurrentStatusCardViewState(
+            lastSleep: LastSleepSummaryViewState(isActive: false, startedAt: Date().addingTimeInterval(-18_000), endedAt: Date().addingTimeInterval(-10_800)),
+            lastBreastFeed: nil,
+            lastBottleFeed: LastEventSummaryViewState(kind: .bottleFeed, title: "Bottle Feed", detailText: "120 mL • Formula", occurredAt: Date().addingTimeInterval(-3_600)),
+            feedsTodayCount: 3,
+            lastNappy: LastNappySummaryViewState(title: "Nappy", detailText: "Pee • Light", occurredAt: Date().addingTimeInterval(-5_400))
+        ),
+        enabledEventKinds: [.sleep, .bottleFeed, .nappy]
+    )
     .padding()
 }
