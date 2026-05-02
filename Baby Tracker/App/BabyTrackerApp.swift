@@ -13,7 +13,10 @@ struct BabyTrackerApp: App {
         self.container = container
         CloudKitShareAcceptanceBridge.shared.handler = container.shareAcceptanceHandler
         CloudKitRemoteNotificationBridge.shared.handler = {
-            let summary = await container.appModel.refreshAfterRemoteNotification()
+            let isAppInBackground = UIApplication.shared.applicationState == .background
+            let summary = await container.appModel.refreshAfterRemoteNotification(
+                isAppInBackground: isAppInBackground
+            )
             return summary.state == .failed ? .failed : .newData
         }
     }

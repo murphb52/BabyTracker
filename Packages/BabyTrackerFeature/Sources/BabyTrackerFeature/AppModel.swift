@@ -296,10 +296,21 @@ public final class AppModel {
     }
 
     public func refreshAfterRemoteNotification() async -> SyncStatusSummary {
+        await refreshAfterRemoteNotification(isAppInBackground: false)
+    }
+
+    public func refreshAfterRemoteNotification(isAppInBackground: Bool) async -> SyncStatusSummary {
         let summary = await syncEngine.refreshAfterRemoteNotification()
         await scheduleRemoteSyncNotificationIfNeeded()
-        refresh(selecting: childSelectionStore.loadSelectedChildID())
+        refresh(
+            selecting: childSelectionStore.loadSelectedChildID(),
+            synchronizeLiveActivity: isAppInBackground
+        )
         return summary
+    }
+
+    public func appDidEnterBackground() {
+        synchronizeFeedLiveActivity()
     }
 
     public func requestNotificationAuthorizationIfNeeded() {
@@ -1130,7 +1141,7 @@ public final class AppModel {
         await scheduleInactivityDriftNotificationIfNeededAsync()
     }
 
-    private func refresh(selecting selectedChildID: UUID?) {
+    private func refresh(selecting selectedChildID: UUID?, synchronizeLiveActivity: Bool = false) {
         do {
             localUser = try userIdentityRepository.loadLocalUser()
 
@@ -1236,14 +1247,9 @@ public final class AppModel {
             pendingShareInvites = builtPendingInvites
 
             route = .childProfile
-            UpdateFeedLiveActivityUseCase.execute(
-                events: visibleEvents,
-                child: currentSummary.child,
-                activeSleep: currentActiveSleep,
-                isLiveActivityEnabled: isLiveActivityEnabled,
-                liveActivityManager: liveActivityManager,
-                snapshotCache: liveActivitySnapshotCache
-            )
+            if synchronizeLiveActivity {
+                synchronizeFeedLiveActivity()
+            }
         } catch {
             AppLogger.shared.log(.error, category: "AppModel", "refresh failed: \(error)")
             setErrorMessage(resolveErrorMessage(for: error))
@@ -1259,6 +1265,17 @@ public final class AppModel {
 
     private func stopLiveActivity() {
         ResetFeedLiveActivityUseCase.execute(
+            liveActivityManager: liveActivityManager,
+            snapshotCache: liveActivitySnapshotCache
+        )
+    }
+
+    private func synchronizeFeedLiveActivity() {
+        UpdateFeedLiveActivityUseCase.execute(
+            events: events,
+            child: currentChild,
+            activeSleep: activeSleep,
+            isLiveActivityEnabled: isLiveActivityEnabled,
             liveActivityManager: liveActivityManager,
             snapshotCache: liveActivitySnapshotCache
         )
