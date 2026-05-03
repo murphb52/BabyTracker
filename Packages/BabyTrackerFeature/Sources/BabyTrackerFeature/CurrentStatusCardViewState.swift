@@ -1,40 +1,33 @@
+import BabyTrackerDomain
 import Foundation
 
 public struct CurrentStatusCardViewState: Equatable, Sendable {
+    public let visibleEventKinds: [BabyEventKind]
+    public let rows: [CurrentStatusRowViewState]
     public let lastSleep: LastSleepSummaryViewState?
-    public let lastBreastFeed: LastEventSummaryViewState?
-    public let lastBottleFeed: LastEventSummaryViewState?
-    public let feedsTodayCount: Int
-    public let lastNappy: LastNappySummaryViewState?
 
     public var timeSinceLastFeedAt: Date? {
-        switch (lastBreastFeed?.occurredAt, lastBottleFeed?.occurredAt) {
-        case let (left?, right?):
-            return max(left, right)
-        case let (left?, nil):
-            return left
-        case let (nil, right?):
-            return right
-        case (nil, nil):
-            return nil
-        }
+        rows
+            .filter { $0.kind == .breastFeed || $0.kind == .bottleFeed }
+            .map(\.elapsedSinceDate)
+            .max()
     }
 
     public var timeSinceLastNappyAt: Date? {
-        lastNappy?.occurredAt
+        row(for: .nappy)?.elapsedSinceDate
     }
 
     public init(
-        lastSleep: LastSleepSummaryViewState?,
-        lastBreastFeed: LastEventSummaryViewState?,
-        lastBottleFeed: LastEventSummaryViewState?,
-        feedsTodayCount: Int,
-        lastNappy: LastNappySummaryViewState?
+        visibleEventKinds: [BabyEventKind],
+        rows: [CurrentStatusRowViewState],
+        lastSleep: LastSleepSummaryViewState?
     ) {
+        self.visibleEventKinds = visibleEventKinds
+        self.rows = rows
         self.lastSleep = lastSleep
-        self.lastBreastFeed = lastBreastFeed
-        self.lastBottleFeed = lastBottleFeed
-        self.feedsTodayCount = feedsTodayCount
-        self.lastNappy = lastNappy
+    }
+
+    public func row(for kind: BabyEventKind) -> CurrentStatusRowViewState? {
+        rows.first { $0.kind == kind }
     }
 }
