@@ -227,10 +227,7 @@ public struct ChildHomeView: View {
             .buttonStyle(.plain)
 
             if statusSectionExpanded {
-                CurrentStatusCardView(
-                    status: viewModel.currentStatus,
-                    enabledEventKinds: model.enabledEventKinds
-                )
+                CurrentStatusCardView(status: viewModel.currentStatus)
                 .padding(.top, 10)
                 .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
             }

@@ -595,7 +595,11 @@ struct AppModelTests {
 
         let child = try #require(harness.model.currentChild)
         #expect(harness.model.activeSleep == nil)
-        let currentStatus = BuildCurrentStatusViewStateUseCase.execute(events: harness.model.events, child: child)
+        let currentStatus = BuildCurrentStatusViewStateUseCase.execute(
+            events: harness.model.events,
+            child: child,
+            enabledEventKinds: harness.model.enabledEventKinds
+        )
         #expect(currentStatus.timeSinceLastFeedAt == feed.metadata.occurredAt)
         #expect(currentStatus.timeSinceLastNappyAt == nil)
         let recentEvents = Array(BuildEventCardsUseCase.execute(events: harness.model.events, preferredFeedVolumeUnit: child.preferredFeedVolumeUnit).prefix(6))
@@ -614,7 +618,7 @@ struct AppModelTests {
     }
 
     @Test
-    func homeStatusUsesLatestFeedAndNappyAndCountsTodayFeeds() throws {
+    func homeStatusUsesLatestFeedAndNappyRows() throws {
         let harness = try Harness()
         defer { harness.cleanUp() }
 
@@ -651,10 +655,15 @@ struct AppModelTests {
         harness.model.load(performLaunchSync: false)
 
         let child = try #require(harness.model.currentChild)
-        let currentStatus = BuildCurrentStatusViewStateUseCase.execute(events: harness.model.events, child: child)
+        let currentStatus = BuildCurrentStatusViewStateUseCase.execute(
+            events: harness.model.events,
+            child: child,
+            enabledEventKinds: harness.model.enabledEventKinds
+        )
         #expect(currentStatus.timeSinceLastFeedAt == latestFeed.metadata.occurredAt)
-        #expect(currentStatus.feedsTodayCount == 2)
         #expect(currentStatus.timeSinceLastNappyAt == latestNappy.metadata.occurredAt)
+        #expect(currentStatus.row(for: .bottleFeed)?.elapsedSinceDate == latestFeed.metadata.occurredAt)
+        #expect(currentStatus.row(for: .nappy)?.elapsedSinceDate == latestNappy.metadata.occurredAt)
     }
 
     @Test
@@ -1452,6 +1461,7 @@ struct AppModelTests {
         #expect(harness.model.events.contains(where: { $0.id == breastFeed.id }))
         #expect(harness.model.events.contains(where: { $0.id == bottleFeed.id }))
         #expect(harness.model.isEventKindEnabled(.breastFeed))
+        #expect(HomeViewModel(appModel: harness.model).currentStatus.row(for: .breastFeed) != nil)
 
         harness.model.setEventKindEnabled(.breastFeed, isEnabled: false)
 
@@ -1459,11 +1469,35 @@ struct AppModelTests {
         #expect(visibilityStore.enabledEventKinds == [.bath, .bottleFeed, .sleep, .nappy])
         #expect(!harness.model.events.contains(where: { $0.id == breastFeed.id }))
         #expect(harness.model.events.contains(where: { $0.id == bottleFeed.id }))
+        #expect(HomeViewModel(appModel: harness.model).currentStatus.row(for: .breastFeed) == nil)
+        #expect(HomeViewModel(appModel: harness.model).currentStatus.visibleEventKinds == [.bath, .bottleFeed, .sleep, .nappy])
 
         harness.model.setEventKindEnabled(.breastFeed, isEnabled: true)
 
         #expect(harness.model.isEventKindEnabled(.breastFeed))
         #expect(harness.model.events.contains(where: { $0.id == breastFeed.id }))
+        #expect(HomeViewModel(appModel: harness.model).currentStatus.row(for: .breastFeed) != nil)
+    }
+
+    @Test
+    func homeStatusIncludesBathWhenBathEventsAreEnabled() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let bath = try harness.saveBath(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            occurredAt: Date(timeIntervalSince1970: 12_000),
+            usedShampoo: true,
+            usedSoap: true
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        let status = HomeViewModel(appModel: harness.model).currentStatus
+        #expect(status.row(for: .bath)?.elapsedSinceDate == bath.metadata.occurredAt)
+        #expect(status.row(for: .bath)?.detailText == "Shampoo • Soap")
     }
 
     @Test
@@ -2026,6 +2060,27 @@ extension AppModelTests {
                 milkType: milkType
             )
             try eventRepository.saveEvent(.bottleFeed(event))
+            return event
+        }
+
+        func saveBath(
+            childID: UUID,
+            userID: UUID,
+            occurredAt: Date,
+            usedShampoo: Bool,
+            usedSoap: Bool
+        ) throws -> BathEvent {
+            let event = BathEvent(
+                metadata: EventMetadata(
+                    childID: childID,
+                    occurredAt: occurredAt,
+                    createdAt: occurredAt,
+                    createdBy: userID
+                ),
+                usedShampoo: usedShampoo,
+                usedSoap: usedSoap
+            )
+            try eventRepository.saveEvent(.bath(event))
             return event
         }
 
