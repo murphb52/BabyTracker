@@ -86,6 +86,7 @@ struct AppRootView: View {
                 Task { await model.refreshSyncStatus() }
             } else if newPhase == .background {
                 model.appDidEnterBackground()
+                BackgroundAppRefreshScheduler.shared.scheduleNext()
             }
         }
         .onOpenURL { url in

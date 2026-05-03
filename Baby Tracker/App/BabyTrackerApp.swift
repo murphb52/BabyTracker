@@ -19,6 +19,13 @@ struct BabyTrackerApp: App {
             )
             return summary.state == .failed ? .failed : .newData
         }
+        BackgroundAppRefreshScheduler.shared.handler = {
+            let summary = await container.appModel.refreshAfterRemoteNotification(
+                isAppInBackground: true
+            )
+            return summary.state != .failed
+        }
+        BackgroundAppRefreshScheduler.shared.registerLaunchHandler()
     }
 
     var body: some Scene {
