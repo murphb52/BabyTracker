@@ -509,8 +509,8 @@ final class Baby_TrackerUITests: XCTestCase {
 
         openTimelineTab(in: app)
 
-        let timelineScrollView = app.scrollViews["timeline-scroll-view"]
-        XCTAssertTrue(timelineScrollView.waitForExistence(timeout: 5))
+        let timelineVerticalScrollView = app.scrollViews["timeline-vertical-scroll-view"]
+        XCTAssertTrue(timelineVerticalScrollView.waitForExistence(timeout: 5))
 
         let todayTitle = app.staticTexts["timeline-day-title"]
         XCTAssertTrue(todayTitle.waitForExistence(timeout: 5))
@@ -523,18 +523,18 @@ final class Baby_TrackerUITests: XCTestCase {
         let sundayButton = app.buttons["timeline-weekday-0"]
         XCTAssertTrue(sundayButton.waitForExistence(timeout: 5))
 
-        timelineScrollView.swipeRight()
+        app.buttons["timeline-previous-day-button"].tap()
 
         XCTAssertTrue(app.staticTexts["timeline-empty-state"].waitForExistence(timeout: 5))
         XCTAssertTrue(jumpToTodayButton.isEnabled)
 
-        timelineScrollView.swipeLeft()
+        jumpToTodayButton.tap()
 
         XCTAssertEqual(app.staticTexts["timeline-day-title"].label, "Today")
         XCTAssertFalse(jumpToTodayButton.isEnabled)
         XCTAssertTrue(
             app.buttons.matching(
-                NSPredicate(format: "identifier BEGINSWITH %@", "timeline-event-")
+                NSPredicate(format: "identifier BEGINSWITH %@", "timeline-day-grid-item-")
             ).firstMatch.waitForExistence(timeout: 5)
         )
     }
@@ -546,9 +546,8 @@ final class Baby_TrackerUITests: XCTestCase {
 
         openTimelineTab(in: app)
 
-        let timelineScrollView = app.scrollViews["timeline-scroll-view"]
-        XCTAssertTrue(timelineScrollView.waitForExistence(timeout: 5))
-        timelineScrollView.swipeRight()
+        XCTAssertTrue(app.scrollViews["timeline-vertical-scroll-view"].waitForExistence(timeout: 5))
+        app.buttons["timeline-previous-day-button"].tap()
 
         XCTAssertTrue(app.buttons["timeline-jump-to-today-button"].waitForExistence(timeout: 5))
 
@@ -574,7 +573,7 @@ final class Baby_TrackerUITests: XCTestCase {
         openTimelineTab(in: app)
 
         let timelineEvent = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "timeline-event-")
+            NSPredicate(format: "identifier BEGINSWITH %@", "timeline-day-grid-item-")
         ).firstMatch
         XCTAssertTrue(timelineEvent.waitForExistence(timeout: 5))
         timelineEvent.tap()
@@ -596,12 +595,24 @@ final class Baby_TrackerUITests: XCTestCase {
         openTimelineTab(in: app)
 
         let activeSleepEvent = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "timeline-event-")
+            NSPredicate(format: "identifier BEGINSWITH %@", "timeline-day-grid-item-")
         ).firstMatch
         XCTAssertTrue(activeSleepEvent.waitForExistence(timeout: 5))
         activeSleepEvent.tap()
 
         XCTAssertTrue(app.buttons["save-sleep-button"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testTimelineDayModeShowsStickyHeaderAndHorizontalScrollArea() throws {
+        let app = makeApp(scenario: "mixedEventsPreview")
+        app.launch()
+
+        openTimelineTab(in: app)
+
+        XCTAssertTrue(app.scrollViews["timeline-horizontal-scroll-view"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.scrollViews["timeline-sticky-header"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.scrollViews["timeline-vertical-scroll-view"].waitForExistence(timeout: 5))
     }
 
     @MainActor

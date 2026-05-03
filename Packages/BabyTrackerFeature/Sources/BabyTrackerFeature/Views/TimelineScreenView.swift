@@ -11,8 +11,8 @@ public struct TimelineScreenView: View {
     let cancelDelete: () -> Void
 
     @State private var showingDayPicker = false
-    @State private var dragStartPageIndex: Int = 0
     @State private var dayPickerSheetHeight: CGFloat = 420
+    @State private var timelineHorizontalScrollOffset: CGFloat = 0
 
     public init(
         viewModel: TimelineViewModel,
@@ -41,35 +41,14 @@ public struct TimelineScreenView: View {
             }
 
             if viewModel.displayMode == .day {
-                TabView(selection: timelinePageBinding) {
-                    ForEach(Array(viewModel.pages.enumerated()), id: \.offset) { index, page in
-                        TimelineDayGridPageView(
-                            page: page,
-                            canManageEvents: viewModel.canManageEvents,
-                            openItem: openEvent,
-                            deleteItem: deleteEvent
-                        )
-                        .tag(index)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .background(Color(.systemGroupedBackground).ignoresSafeArea())
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 20)
-                        .onChanged { _ in
-                            if dragStartPageIndex != viewModel.selectedPageIndex {
-                                dragStartPageIndex = viewModel.selectedPageIndex
-                            }
-                        }
-                        .onEnded { value in
-                            let swipe = value.translation.width
-                            if swipe > 60 && dragStartPageIndex == 0 {
-                                viewModel.showPreviousDay()
-                            } else if swipe < -60 && dragStartPageIndex == viewModel.pages.count - 1 {
-                                viewModel.showNextDay()
-                            }
-                        }
+                TimelineDayGridPageView(
+                    page: selectedPage,
+                    canManageEvents: viewModel.canManageEvents,
+                    horizontalScrollOffset: $timelineHorizontalScrollOffset,
+                    openItem: openEvent,
+                    deleteItem: deleteEvent
                 )
+                .background(Color(.systemGroupedBackground).ignoresSafeArea())
             } else {
                 TimelineWeekView(
                     columns: viewModel.stripColumns,
@@ -99,6 +78,22 @@ public struct TimelineScreenView: View {
                 Text(event.timestampText)
             }
         }
+    }
+
+    private var selectedPage: TimelineDayGridPageState {
+        guard viewModel.pages.indices.contains(viewModel.selectedPageIndex) else {
+            return TimelineDayGridPageState(
+                date: viewModel.selectedDay,
+                dayTitle: viewModel.selectedDayTitle,
+                shortWeekdayTitle: viewModel.selectedDay.formatted(.dateTime.weekday(.abbreviated)),
+                isToday: Calendar.autoupdatingCurrent.isDateInToday(viewModel.selectedDay),
+                grid: nil,
+                emptyStateTitle: "No events for this day",
+                emptyStateMessage: "Try another day or use Quick Log to add the next event."
+            )
+        }
+
+        return viewModel.pages[viewModel.selectedPageIndex]
     }
 
     private var pinnedDayNavigationHeader: some View {
@@ -251,19 +246,6 @@ public struct TimelineScreenView: View {
                     .fill(Color(.tertiarySystemGroupedBackground))
             )
             .accessibilityIdentifier("timeline-sync-message")
-    }
-
-    private var timelinePageBinding: Binding<Int> {
-        Binding(
-            get: { viewModel.selectedPageIndex },
-            set: { index in
-                guard viewModel.pages.indices.contains(index) else {
-                    return
-                }
-
-                viewModel.showDay(viewModel.pages[index].date)
-            }
-        )
     }
 
     private var timelineDayBinding: Binding<Date> {

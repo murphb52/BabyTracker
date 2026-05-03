@@ -3,53 +3,79 @@ import SwiftUI
 public struct TimelineDayGridPageView: View {
     let page: TimelineDayGridPageState
     let canManageEvents: Bool
+    @Binding var horizontalScrollOffset: CGFloat
     let openItem: (TimelineDayGridItemViewState) -> Void
     let deleteItem: (TimelineDayGridItemViewState) -> Void
 
     public init(
         page: TimelineDayGridPageState,
         canManageEvents: Bool,
+        horizontalScrollOffset: Binding<CGFloat>,
         openItem: @escaping (TimelineDayGridItemViewState) -> Void,
         deleteItem: @escaping (TimelineDayGridItemViewState) -> Void
     ) {
         self.page = page
         self.canManageEvents = canManageEvents
+        self._horizontalScrollOffset = horizontalScrollOffset
         self.openItem = openItem
         self.deleteItem = deleteItem
     }
 
     public var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    if page.grid == nil {
-                        emptyState(
-                            title: page.emptyStateTitle,
-                            message: page.emptyStateMessage
-                        )
-                    }
+        GeometryReader { geometry in
+            let contentWidth = max(0, geometry.size.width - 24)
 
-                    if let grid = page.grid {
-                        TimelineDayGridView(
-                            day: page.date,
-                            grid: grid,
-                            canManageEvents: canManageEvents,
-                            openItem: openItem,
-                            deleteItem: deleteItem
-                        )
+            VStack(spacing: 0) {
+                if let grid = page.grid {
+                    TimelineDayGridHeaderView(
+                        grid: grid,
+                        availableWidth: contentWidth,
+                        horizontalScrollOffset: $horizontalScrollOffset
+                    )
+                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .background(.regularMaterial)
+                    .overlay(alignment: .bottom) {
+                        Divider()
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
-                .padding(.bottom, 14)
-            }
-            .accessibilityIdentifier("timeline-scroll-view")
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            .onAppear {
-                scrollToVisibleHour(using: proxy)
-            }
-            .onChange(of: page.date) { _, _ in
-                scrollToVisibleHour(using: proxy)
+
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            if page.grid == nil {
+                                emptyState(
+                                    title: page.emptyStateTitle,
+                                    message: page.emptyStateMessage
+                                )
+                            }
+
+                            if let grid = page.grid {
+                                TimelineDayGridView(
+                                    day: page.date,
+                                    grid: grid,
+                                    availableWidth: contentWidth,
+                                    canManageEvents: canManageEvents,
+                                    horizontalScrollOffset: $horizontalScrollOffset,
+                                    openItem: openItem,
+                                    deleteItem: deleteItem
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                        .padding(.bottom, 14)
+                    }
+                    .accessibilityIdentifier("timeline-vertical-scroll-view")
+                    .background(Color(.systemGroupedBackground).ignoresSafeArea())
+                    .onAppear {
+                        scrollToVisibleHour(using: proxy)
+                    }
+                    .onChange(of: page.date) { _, _ in
+                        scrollToVisibleHour(using: proxy)
+                    }
+                }
             }
         }
     }
@@ -97,6 +123,7 @@ public struct TimelineDayGridPageView: View {
             emptyStateMessage: "Try another day or use Quick Log to add the next event."
         ),
         canManageEvents: true,
+        horizontalScrollOffset: .constant(0),
         openItem: { _ in },
         deleteItem: { _ in }
     )
@@ -184,6 +211,7 @@ public struct TimelineDayGridPageView: View {
             emptyStateMessage: "Try another day or use Quick Log to add the next event."
         ),
         canManageEvents: true,
+        horizontalScrollOffset: .constant(0),
         openItem: { _ in },
         deleteItem: { _ in }
     )

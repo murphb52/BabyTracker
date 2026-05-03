@@ -4,49 +4,45 @@ import SwiftUI
 public struct TimelineDayGridView: View {
     let day: Date
     let grid: TimelineDayGridViewState
+    let availableWidth: CGFloat
     let canManageEvents: Bool
+    @Binding var horizontalScrollOffset: CGFloat
     let openItem: (TimelineDayGridItemViewState) -> Void
     let deleteItem: (TimelineDayGridItemViewState) -> Void
 
-    private let timeColumnWidth: CGFloat = 20
-    private let columnSpacing: CGFloat = 8
-    private let slotHeight: CGFloat = 30
-    private let itemVerticalInset: CGFloat = 3
-    private let initialScrollBottomOffset: CGFloat = 150
+    @State private var bodyScrollPosition = ScrollPosition()
 
     public init(
         day: Date,
         grid: TimelineDayGridViewState,
+        availableWidth: CGFloat,
         canManageEvents: Bool,
+        horizontalScrollOffset: Binding<CGFloat>,
         openItem: @escaping (TimelineDayGridItemViewState) -> Void,
         deleteItem: @escaping (TimelineDayGridItemViewState) -> Void
     ) {
         self.day = day
         self.grid = grid
+        self.availableWidth = availableWidth
         self.canManageEvents = canManageEvents
+        self._horizontalScrollOffset = horizontalScrollOffset
         self.openItem = openItem
         self.deleteItem = deleteItem
     }
 
     public var body: some View {
-        VStack(spacing: 12) {
-            headerRow
+        let layout = TimelineDayGridLayout(
+            availableWidth: availableWidth,
+            columnCount: grid.columns.count
+        )
 
-            GeometryReader { geometry in
-                let columnWidth = max(
-                    72,
-                    (
-                        geometry.size.width
-                        - timeColumnWidth
-                        - (columnSpacing * CGFloat(grid.columns.count))
-                    ) / CGFloat(max(1, grid.columns.count))
-                )
-
+        ZStack(alignment: .topLeading) {
+            ScrollView(.horizontal) {
                 ZStack(alignment: .topLeading) {
-                    slotGrid(columnWidth: columnWidth)
+                    slotGrid(layout: layout)
 
                     if isToday {
-                        currentTimeIndicator(columnWidth: columnWidth)
+                        currentTimeIndicator(layout: layout)
                     }
 
                     ForEach(Array(grid.columns.enumerated()), id: \.element.kind) { index, column in
@@ -58,81 +54,67 @@ public struct TimelineDayGridView: View {
                                 openItem: openItem,
                                 deleteItem: deleteItem
                             )
-                        .frame(width: columnWidth, height: itemHeight(for: item))
-                        .offset(
-                            x: xOffset(for: index, columnWidth: columnWidth),
-                            y: CGFloat(item.startSlotIndex) * slotHeight + itemVerticalInset
-                        )
-                    }
+                            .frame(width: layout.columnWidth, height: itemHeight(for: item))
+                            .offset(
+                                x: xOffset(for: index, layout: layout),
+                                y: CGFloat(item.startSlotIndex) * layout.slotHeight + layout.itemVerticalInset
+                            )
+                        }
                     }
                 }
+                .frame(width: layout.contentWidth, alignment: .leading)
             }
-            .frame(height: CGFloat(slotCount) * slotHeight)
-        }
-    }
-
-    private var headerRow: some View {
-        HStack(alignment: .bottom, spacing: columnSpacing) {
-            Color.clear
-                .frame(width: timeColumnWidth, height: 1)
-
-            ForEach(grid.columns, id: \.kind) { column in
-                let kind = eventKind(for: column.kind)
-
-                HStack(spacing: 6) {
-                    Image(systemName: BabyEventStyle.systemImage(for: kind))
-                        .font(.caption.weight(.semibold))
-
-                    Text(column.title)
-                        .font(.caption.weight(.semibold))
-                        .lineLimit(1)
+            .scrollPosition($bodyScrollPosition)
+            .defaultScrollAnchor(.leading)
+            .accessibilityIdentifier("timeline-horizontal-scroll-view")
+            .onAppear {
+                bodyScrollPosition.scrollTo(x: horizontalScrollOffset)
+            }
+            .onChange(of: horizontalScrollOffset) { _, newValue in
+                bodyScrollPosition.scrollTo(x: newValue)
+            }
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentOffset.x
+            } action: { _, newValue in
+                guard abs(horizontalScrollOffset - newValue) > 0.5 else {
+                    return
                 }
-                .foregroundStyle(BabyEventStyle.accentColor(for: kind))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(BabyEventStyle.backgroundColor(for: kind))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(
-                            BabyEventStyle.accentColor(for: kind).opacity(0.35),
-                            lineWidth: 1
-                        )
-                )
+
+                horizontalScrollOffset = newValue
             }
+            .padding(.leading, layout.timeColumnWidth + layout.columnSpacing)
+
+            timeColumn(layout: layout)
+                .background(Color(.systemGroupedBackground))
         }
+        .frame(height: CGFloat(slotCount) * layout.slotHeight)
     }
 
-    private func slotGrid(columnWidth: CGFloat) -> some View {
+    private func timeColumn(layout: TimelineDayGridLayout) -> some View {
         VStack(spacing: 0) {
             ForEach(0..<slotCount, id: \.self) { slotIndex in
-                HStack(spacing: columnSpacing) {
+                ZStack(alignment: .topTrailing) {
+                    Rectangle()
+                        .fill(Color(.systemGroupedBackground))
+
                     if slotIndex.isMultiple(of: slotsPerHour) {
                         Text(hourLabel(for: slotIndex / slotsPerHour))
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.secondary)
-                            .frame(width: timeColumnWidth, alignment: .trailing)
+                            .frame(width: layout.timeColumnWidth, alignment: .trailing)
                             .id(hourAnchorID(for: slotIndex / slotsPerHour))
-                    } else {
-                        Color.clear
-                            .frame(width: timeColumnWidth)
                     }
-
-                    ForEach(Array(grid.columns.enumerated()), id: \.offset) { index, column in
-                        slotCell(
-                            column: column,
-                            slotIndex: slotIndex,
-                            isHourBoundary: slotIndex.isMultiple(of: slotsPerHour)
-                        )
-                        .frame(width: columnWidth, height: slotHeight)
-                    }
+                }
+                .frame(width: layout.timeColumnWidth, height: layout.slotHeight)
+                .overlay(alignment: .topTrailing) {
+                    Rectangle()
+                        .fill(slotIndex.isMultiple(of: slotsPerHour) ? Color(.separator) : Color(.separator).opacity(0.25))
+                        .frame(height: 1)
                 }
                 .overlay(alignment: .topLeading) {
                     if slotIndex.isMultiple(of: slotsPerHour) {
                         Color.clear
-                            .frame(width: 1, height: initialScrollBottomOffset)
+                            .frame(width: 1, height: layout.initialScrollBottomOffset)
                             .id(initialScrollAnchorID(for: slotIndex / slotsPerHour))
                     }
                 }
@@ -140,8 +122,24 @@ public struct TimelineDayGridView: View {
         }
     }
 
+    private func slotGrid(layout: TimelineDayGridLayout) -> some View {
+        VStack(spacing: 0) {
+            ForEach(0..<slotCount, id: \.self) { slotIndex in
+                HStack(spacing: layout.columnSpacing) {
+                    ForEach(grid.columns, id: \.kind) { column in
+                        slotCell(
+                            slotIndex: slotIndex,
+                            isHourBoundary: slotIndex.isMultiple(of: slotsPerHour)
+                        )
+                        .frame(width: layout.columnWidth, height: layout.slotHeight)
+                        .id("\(column.kind.rawValue)-slot-\(slotIndex)")
+                    }
+                }
+            }
+        }
+    }
+
     private func slotCell(
-        column: TimelineDayGridColumnViewState,
         slotIndex: Int,
         isHourBoundary: Bool
     ) -> some View {
@@ -155,13 +153,13 @@ public struct TimelineDayGridView: View {
         }
     }
 
-    private func currentTimeIndicator(columnWidth: CGFloat) -> some View {
+    private func currentTimeIndicator(layout: TimelineDayGridLayout) -> some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             Rectangle()
                 .fill(Color.red)
-                .frame(width: indicatorWidth(for: columnWidth), height: 1)
+                .frame(width: indicatorWidth(layout: layout), height: 1)
                 .offset(
-                    x: timeColumnWidth + columnSpacing,
+                    x: 0,
                     y: yOffsetForCurrentTime(at: context.date)
                 )
                 .accessibilityHidden(true)
@@ -176,12 +174,12 @@ public struct TimelineDayGridView: View {
         max(1, 60 / grid.slotMinutes)
     }
 
-    private func xOffset(for columnIndex: Int, columnWidth: CGFloat) -> CGFloat {
-        timeColumnWidth + columnSpacing + CGFloat(columnIndex) * (columnWidth + columnSpacing)
+    private func xOffset(for columnIndex: Int, layout: TimelineDayGridLayout) -> CGFloat {
+        CGFloat(columnIndex) * (layout.columnWidth + layout.columnSpacing)
     }
 
-    private func indicatorWidth(for columnWidth: CGFloat) -> CGFloat {
-        (columnWidth * CGFloat(grid.columns.count)) + (columnSpacing * CGFloat(max(0, grid.columns.count - 1)))
+    private func indicatorWidth(layout: TimelineDayGridLayout) -> CGFloat {
+        (layout.columnWidth * CGFloat(grid.columns.count)) + (layout.columnSpacing * CGFloat(max(0, grid.columns.count - 1)))
     }
 
     private func yOffsetForCurrentTime(at date: Date) -> CGFloat {
@@ -190,13 +188,16 @@ public struct TimelineDayGridView: View {
         let currentMinutes = max(0, (components.hour ?? 0) * 60 + (components.minute ?? 0))
         let clampedMinutes = min(24 * 60, currentMinutes)
         let slotsFromStart = CGFloat(clampedMinutes) / CGFloat(grid.slotMinutes)
-        return min(CGFloat(slotCount) * slotHeight, slotsFromStart * slotHeight)
+        return min(
+            CGFloat(slotCount) * TimelineDayGridLayout.slotHeight,
+            slotsFromStart * TimelineDayGridLayout.slotHeight
+        )
     }
 
     private func itemHeight(for item: TimelineDayGridItemViewState) -> CGFloat {
         max(
-            slotHeight - (itemVerticalInset * 2),
-            (CGFloat(item.endSlotIndex - item.startSlotIndex) * slotHeight) - (itemVerticalInset * 2)
+            TimelineDayGridLayout.slotHeight - (TimelineDayGridLayout.itemVerticalInset * 2),
+            (CGFloat(item.endSlotIndex - item.startSlotIndex) * TimelineDayGridLayout.slotHeight) - (TimelineDayGridLayout.itemVerticalInset * 2)
         )
     }
 
@@ -216,6 +217,67 @@ public struct TimelineDayGridView: View {
     private var isToday: Bool {
         Calendar.autoupdatingCurrent.isDateInToday(day)
     }
+}
+
+struct TimelineDayGridHeaderView: View {
+    let grid: TimelineDayGridViewState
+    let availableWidth: CGFloat
+    @Binding var horizontalScrollOffset: CGFloat
+
+    @State private var scrollPosition = ScrollPosition()
+
+    var body: some View {
+        let layout = TimelineDayGridLayout(
+            availableWidth: availableWidth,
+            columnCount: grid.columns.count
+        )
+
+        HStack(alignment: .bottom, spacing: layout.columnSpacing) {
+            Color.clear
+                .frame(width: layout.timeColumnWidth, height: 1)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: layout.columnSpacing) {
+                    ForEach(grid.columns, id: \.kind) { column in
+                        let kind = eventKind(for: column.kind)
+
+                        HStack(spacing: 6) {
+                            Image(systemName: BabyEventStyle.systemImage(for: kind))
+                                .font(.caption.weight(.semibold))
+
+                            Text(column.title)
+                                .font(.caption.weight(.semibold))
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(BabyEventStyle.accentColor(for: kind))
+                        .frame(width: layout.columnWidth)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(BabyEventStyle.backgroundColor(for: kind))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(
+                                    BabyEventStyle.accentColor(for: kind).opacity(0.35),
+                                    lineWidth: 1
+                                )
+                        )
+                    }
+                }
+                .frame(width: layout.contentWidth, alignment: .leading)
+            }
+            .scrollPosition($scrollPosition)
+            .defaultScrollAnchor(.leading)
+            .accessibilityIdentifier("timeline-sticky-header")
+            .onAppear {
+                scrollPosition.scrollTo(x: horizontalScrollOffset)
+            }
+            .onChange(of: horizontalScrollOffset) { _, newValue in
+                scrollPosition.scrollTo(x: newValue)
+            }
+        }
+    }
 
     private func eventKind(for columnKind: TimelineDayGridColumnKind) -> BabyEventKind {
         switch columnKind {
@@ -233,12 +295,45 @@ public struct TimelineDayGridView: View {
     }
 }
 
+private struct TimelineDayGridLayout {
+    static let timeColumnWidth: CGFloat = 20
+    static let columnSpacing: CGFloat = 8
+    static let slotHeight: CGFloat = 30
+    static let itemVerticalInset: CGFloat = 3
+    static let initialScrollBottomOffset: CGFloat = 150
+    static let minimumColumnWidth: CGFloat = 96
+
+    let availableWidth: CGFloat
+    let columnCount: Int
+
+    var timeColumnWidth: CGFloat { Self.timeColumnWidth }
+    var columnSpacing: CGFloat { Self.columnSpacing }
+    var slotHeight: CGFloat { Self.slotHeight }
+    var itemVerticalInset: CGFloat { Self.itemVerticalInset }
+    var initialScrollBottomOffset: CGFloat { Self.initialScrollBottomOffset }
+
+    var columnWidth: CGFloat {
+        let visibleColumnCount = CGFloat(max(1, min(columnCount, 4)))
+        let fittedWidth = (
+            max(0, availableWidth - timeColumnWidth - columnSpacing)
+            - (columnSpacing * CGFloat(max(0, columnCount - 1)))
+        ) / visibleColumnCount
+        return max(Self.minimumColumnWidth, fittedWidth)
+    }
+
+    var contentWidth: CGFloat {
+        (columnWidth * CGFloat(columnCount)) + (columnSpacing * CGFloat(max(0, columnCount - 1)))
+    }
+}
+
 #Preview("Empty Columns") {
     ScrollView {
         TimelineDayGridView(
             day: TimelineDayGridPreviewFactory.day,
             grid: TimelineDayGridPreviewFactory.emptyGrid,
+            availableWidth: 360,
             canManageEvents: false,
+            horizontalScrollOffset: .constant(0),
             openItem: { _ in },
             deleteItem: { _ in }
         )
@@ -252,7 +347,9 @@ public struct TimelineDayGridView: View {
         TimelineDayGridView(
             day: TimelineDayGridPreviewFactory.day,
             grid: TimelineDayGridPreviewFactory.mixedGrid,
+            availableWidth: 360,
             canManageEvents: true,
+            horizontalScrollOffset: .constant(0),
             openItem: { _ in },
             deleteItem: { _ in }
         )
@@ -266,7 +363,9 @@ public struct TimelineDayGridView: View {
         TimelineDayGridView(
             day: TimelineDayGridPreviewFactory.day,
             grid: TimelineDayGridPreviewFactory.groupedGrid,
+            availableWidth: 360,
             canManageEvents: true,
+            horizontalScrollOffset: .constant(0),
             openItem: { _ in },
             deleteItem: { _ in }
         )
@@ -280,7 +379,25 @@ public struct TimelineDayGridView: View {
         TimelineDayGridView(
             day: TimelineDayGridPreviewFactory.previousDay,
             grid: TimelineDayGridPreviewFactory.mixedGrid,
+            availableWidth: 360,
             canManageEvents: true,
+            horizontalScrollOffset: .constant(0),
+            openItem: { _ in },
+            deleteItem: { _ in }
+        )
+        .padding()
+    }
+    .background(Color(.systemGroupedBackground))
+}
+
+#Preview("Narrow Width Overflow") {
+    ScrollView {
+        TimelineDayGridView(
+            day: TimelineDayGridPreviewFactory.day,
+            grid: TimelineDayGridPreviewFactory.mixedGrid,
+            availableWidth: 300,
+            canManageEvents: true,
+            horizontalScrollOffset: .constant(0),
             openItem: { _ in },
             deleteItem: { _ in }
         )
