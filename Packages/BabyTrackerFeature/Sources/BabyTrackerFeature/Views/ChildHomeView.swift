@@ -290,16 +290,12 @@ public struct ChildHomeView: View {
             .buttonStyle(.plain)
 
             if quickLogSectionExpanded {
-                VStack(spacing: 12) {
-                    ForEach(Array(quickLogRows.enumerated()), id: \.offset) { _, row in
-                        HStack(spacing: 12) {
-                            ForEach(row, id: \.self) { kind in
-                                quickLogButton(for: kind)
-                            }
-                        }
-                        .geometryGroup()
+                LazyVGrid(columns: quickLogGridColumns, spacing: 12) {
+                    ForEach(BabyEventKind.allCases.filter(model.isEventKindEnabled), id: \.self) { kind in
+                        quickLogButton(for: kind)
                     }
                 }
+                .geometryGroup()
                 .padding(.top, 12)
                 .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
             }
@@ -328,11 +324,8 @@ public struct ChildHomeView: View {
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
-    private var quickLogRows: [[BabyEventKind]] {
-        let kinds = BabyEventKind.allCases.filter { model.isEventKindEnabled($0) }
-        return stride(from: 0, to: kinds.count, by: 2).map { i in
-            Array(kinds[i..<min(i + 2, kinds.count)])
-        }
+    private var quickLogGridColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 12), count: 2)
     }
 
     @ViewBuilder
