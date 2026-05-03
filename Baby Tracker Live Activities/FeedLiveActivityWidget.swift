@@ -54,6 +54,8 @@ struct FeedLiveActivityWidget: Widget {
 
     private func symbolName(for metric: CompactDynamicIslandMetric) -> String {
         switch metric.kind {
+        case .bath:
+            "drop.fill"
         case .breastFeed:
             "heart.text.square"
         case .bottleFeed:

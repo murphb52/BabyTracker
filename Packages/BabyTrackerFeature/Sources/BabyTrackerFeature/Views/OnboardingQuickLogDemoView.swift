@@ -8,9 +8,10 @@ struct OnboardingQuickLogDemoView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var cardVisible = false
-    @State private var appearedMask: [Bool] = [false, false, false, false]
+    @State private var appearedMask: [Bool] = [false, false, false, false, false]
 
     private let buttons: [(title: String, kind: BabyEventKind)] = [
+        ("Bath", .bath),
         ("Breast Feed", .breastFeed),
         ("Bottle Feed", .bottleFeed),
         ("Start Sleep", .sleep),
@@ -33,6 +34,12 @@ struct OnboardingQuickLogDemoView: View {
                     demoButton(index: 2)
                     demoButton(index: 3)
                 }
+
+                HStack(spacing: 12) {
+                    demoButton(index: 4)
+                    Color.clear
+                        .frame(maxWidth: .infinity, minHeight: 56)
+                }
             }
             .padding(.horizontal, 16)
         }
@@ -47,7 +54,7 @@ struct OnboardingQuickLogDemoView: View {
         .onAppear {
             if reduceMotion {
                 cardVisible = true
-                appearedMask = [true, true, true, true]
+                appearedMask = [true, true, true, true, true]
                 return
             }
             Task { @MainActor in

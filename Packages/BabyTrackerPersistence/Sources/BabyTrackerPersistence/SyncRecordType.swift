@@ -8,4 +8,5 @@ public enum SyncRecordType: String, Equatable, Sendable {
     case bottleFeedEvent
     case sleepEvent
     case nappyEvent
+    case bathEvent
 }

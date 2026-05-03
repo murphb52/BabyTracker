@@ -127,6 +127,8 @@ public struct BuildTimelineStripDatasetUseCase {
             return 4
         case .breastFeed:
             return 3
+        case .bath:
+            return 3
         case .bottleFeed:
             return 2
         case .nappy:
@@ -146,6 +148,8 @@ public struct BuildTimelineStripDatasetUseCase {
 
     private func timelineStartDate(for event: BabyEvent) -> Date {
         switch event {
+        case let .bath(bath):
+            return bath.metadata.occurredAt
         case let .breastFeed(feed):
             return feed.startedAt
         case let .bottleFeed(feed):
@@ -162,6 +166,8 @@ public struct BuildTimelineStripDatasetUseCase {
         now: Date
     ) -> Date {
         switch event {
+        case let .bath(bath):
+            return bath.metadata.occurredAt.addingTimeInterval(TimeInterval(slotMinutes * 60))
         case let .breastFeed(feed):
             return feed.endedAt
         case let .bottleFeed(feed):

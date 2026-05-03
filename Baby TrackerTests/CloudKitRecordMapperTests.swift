@@ -133,6 +133,46 @@ struct CloudKitRecordMapperTests {
     }
 
     @Test
+    func bathMapperRoundTripsShampooAndSoapFields() throws {
+        let childID = UUID()
+        let userID = UUID()
+        let occurredAt = Date(timeIntervalSince1970: 3_500)
+        let zoneID = CloudKitRecordNames.zoneID(
+            for: childID,
+            ownerName: "probe-owner"
+        )
+        let bath = BathEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: occurredAt,
+                createdAt: occurredAt,
+                createdBy: userID
+            ),
+            usedShampoo: true,
+            usedSoap: false
+        )
+
+        let record = CloudKitRecordMapper.eventRecord(
+            from: .bath(bath),
+            zoneID: zoneID
+        )
+
+        #expect(record.recordType == CloudKitConfiguration.bathRecordType)
+        #expect(record["shampooUsed"] as? Int64 == 1)
+        #expect(record["soapUsed"] as? Int64 == 0)
+
+        let mappedEvent = try CloudKitRecordMapper.event(from: record)
+
+        switch mappedEvent {
+        case let .bath(event):
+            #expect(event.usedShampoo == true)
+            #expect(event.usedSoap == false)
+        default:
+            Issue.record("Expected a bath event")
+        }
+    }
+
+    @Test
     func sleepMapperRoundTripsOpenEndedAndCompletedSessions() throws {
         let childID = UUID()
         let userID = UUID()

@@ -55,6 +55,7 @@ public struct ChildProfileNestImportView: View {
             }
 
             Section("What gets imported") {
+                importableRow(icon: "drop.fill", title: "Baths (shampoo & soap details)", color: .teal)
                 importableRow(icon: "moon.zzz.fill", title: "Sleep sessions", color: .indigo)
                 importableRow(icon: "waterbottle.fill", title: "Bottle feeds (amount & milk type)", color: .blue)
                 importableRow(icon: "figure.seated.side.air.upper", title: "Breast feeds (side & duration)", color: .pink)
@@ -126,11 +127,15 @@ public struct ChildProfileNestImportView: View {
             }
 
             Section("Summary") {
+                let bathCount = state.taggedEvents.filter { if case .bath = $0.event { true } else { false } }.count
                 let sleepCount = state.taggedEvents.filter { if case .sleep = $0.event { true } else { false } }.count
                 let bottleCount = state.taggedEvents.filter { if case .bottleFeed = $0.event { true } else { false } }.count
                 let breastCount = state.taggedEvents.filter { if case .breastFeed = $0.event { true } else { false } }.count
                 let nappyCount = state.taggedEvents.filter { if case .nappy = $0.event { true } else { false } }.count
 
+                if bathCount > 0 {
+                    eventCountRow(icon: "drop.fill", label: "Baths", count: bathCount, color: .teal)
+                }
                 if sleepCount > 0 {
                     eventCountRow(icon: "moon.zzz.fill", label: "Sleep sessions", count: sleepCount, color: .indigo)
                 }
@@ -409,6 +414,7 @@ private struct NestImportEventRow: View {
 
     private var iconName: String {
         switch tagged.event {
+        case .bath: return "drop.fill"
         case .sleep: return "moon.zzz.fill"
         case .bottleFeed: return "waterbottle.fill"
         case .breastFeed: return "figure.seated.side.air.upper"
@@ -418,6 +424,7 @@ private struct NestImportEventRow: View {
 
     private var iconColor: Color {
         switch tagged.event {
+        case .bath: return .teal
         case .sleep: return .indigo
         case .bottleFeed: return .blue
         case .breastFeed: return .pink

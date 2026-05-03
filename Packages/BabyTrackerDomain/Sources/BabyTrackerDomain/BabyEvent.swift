@@ -1,6 +1,7 @@
 import Foundation
 
 public enum BabyEvent: Equatable, Identifiable, Sendable {
+    case bath(BathEvent)
     case breastFeed(BreastFeedEvent)
     case bottleFeed(BottleFeedEvent)
     case sleep(SleepEvent)
@@ -12,6 +13,8 @@ public enum BabyEvent: Equatable, Identifiable, Sendable {
 
     public var metadata: EventMetadata {
         switch self {
+        case let .bath(event):
+            event.metadata
         case let .breastFeed(event):
             event.metadata
         case let .bottleFeed(event):
@@ -25,6 +28,8 @@ public enum BabyEvent: Equatable, Identifiable, Sendable {
 
     public var kind: BabyEventKind {
         switch self {
+        case .bath:
+            .bath
         case .breastFeed:
             .breastFeed
         case .bottleFeed:

@@ -307,6 +307,8 @@ struct OnboardingLiveActivityDemoView: View {
 
     private func symbolName(for kind: BabyEventKind) -> String {
         switch kind {
+        case .bath:
+            "drop.fill"
         case .breastFeed:
             "heart.text.square"
         case .bottleFeed:
@@ -320,6 +322,8 @@ struct OnboardingLiveActivityDemoView: View {
 
     private func accentColor(for kind: BabyEventKind) -> Color {
         switch kind {
+        case .bath:
+            Color(red: 0.08, green: 0.68, blue: 0.72)
         case .breastFeed:
             Color(red: 0.84, green: 0.29, blue: 0.42)
         case .bottleFeed:

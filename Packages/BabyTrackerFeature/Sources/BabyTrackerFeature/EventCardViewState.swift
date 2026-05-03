@@ -31,6 +31,23 @@ public struct EventCardViewState: Equatable, Identifiable, Sendable {
         timestampText: String? = nil
     ) {
         switch event {
+        case let .bath(bath):
+            id = bath.id
+            kind = .bath
+            title = BabyEventPresentation.title(for: event)
+            detailText = BabyEventPresentation.detailText(
+                for: event,
+                preferredFeedVolumeUnit: preferredFeedVolumeUnit
+            ) ?? ""
+            self.timestampText = timestampText ?? bath.metadata.occurredAt.formatted(
+                date: .abbreviated,
+                time: .shortened
+            )
+            actionPayload = .editBath(
+                occurredAt: bath.metadata.occurredAt,
+                usedShampoo: bath.usedShampoo,
+                usedSoap: bath.usedSoap
+            )
         case let .breastFeed(feed):
             let durationMinutes = max(
                 1,

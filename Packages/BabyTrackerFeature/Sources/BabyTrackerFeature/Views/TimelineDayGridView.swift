@@ -223,6 +223,8 @@ public struct TimelineDayGridView: View {
             .sleep
         case .nappy:
             .nappy
+        case .bath:
+            .bath
         case .bottleFeed:
             .bottleFeed
         case .breastFeed:
@@ -296,6 +298,7 @@ private enum TimelineDayGridPreviewFactory {
         columns: [
             TimelineDayGridColumnViewState(kind: .sleep, title: "Sleep", items: []),
             TimelineDayGridColumnViewState(kind: .nappy, title: "Nappy", items: []),
+            TimelineDayGridColumnViewState(kind: .bath, title: "Bath", items: []),
             TimelineDayGridColumnViewState(kind: .bottleFeed, title: "Bottle", items: []),
             TimelineDayGridColumnViewState(kind: .breastFeed, title: "Breast", items: [])
         ]
@@ -339,6 +342,28 @@ private enum TimelineDayGridPreviewFactory {
                                 peeVolume: nil,
                                 pooVolume: nil,
                                 pooColor: nil
+                            )
+                        ]
+                    )
+                ]
+            ),
+            TimelineDayGridColumnViewState(
+                kind: .bath,
+                title: "Bath",
+                items: [
+                    item(
+                        id: "bath-1",
+                        kind: TimelineDayGridColumnKind.bath,
+                        startSlotIndex: 32,
+                        endSlotIndex: 33,
+                        title: "Bath",
+                        detailText: "Shampoo",
+                        timeText: "",
+                        payloads: [
+                            EventActionPayload.editBath(
+                                occurredAt: day,
+                                usedShampoo: true,
+                                usedSoap: false
                             )
                         ]
                     )
@@ -418,6 +443,7 @@ private enum TimelineDayGridPreviewFactory {
                 ]
             ),
             TimelineDayGridColumnViewState(kind: .nappy, title: "Nappy", items: []),
+            TimelineDayGridColumnViewState(kind: .bath, title: "Bath", items: []),
             TimelineDayGridColumnViewState(kind: .bottleFeed, title: "Bottle", items: []),
             TimelineDayGridColumnViewState(
                 kind: .breastFeed,

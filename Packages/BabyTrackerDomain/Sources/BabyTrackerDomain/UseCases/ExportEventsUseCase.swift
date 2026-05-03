@@ -53,6 +53,14 @@ public struct ExportEventsUseCase: UseCase {
 
     private func nestEvent(from event: BabyEvent) -> NestEventExport? {
         switch event {
+        case .bath(let e):
+            return .bath(NestBathExport(
+                id: e.metadata.id,
+                occurredAt: e.metadata.occurredAt,
+                notes: e.metadata.notes,
+                usedShampoo: e.usedShampoo,
+                usedSoap: e.usedSoap
+            ))
         case .breastFeed(let e):
             return .breastFeed(NestBreastFeedExport(
                 id: e.metadata.id,

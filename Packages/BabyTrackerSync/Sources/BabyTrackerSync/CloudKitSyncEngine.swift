@@ -1013,7 +1013,8 @@ public final class CloudKitSyncEngine {
         case CloudKitConfiguration.breastFeedRecordType,
              CloudKitConfiguration.bottleFeedRecordType,
              CloudKitConfiguration.sleepRecordType,
-             CloudKitConfiguration.nappyRecordType:
+             CloudKitConfiguration.nappyRecordType,
+             CloudKitConfiguration.bathRecordType:
             let event = try CloudKitRecordMapper.event(from: record)
             if let localEvent = try eventRepository.loadEvent(id: event.id),
                LastWriteWinsResolver.prefersLocal(localEvent.metadata, over: event.metadata) {
@@ -1248,6 +1249,8 @@ public final class CloudKitSyncEngine {
             .sleepEvent
         case .nappy:
             .nappyEvent
+        case .bath:
+            .bathEvent
         }
     }
 
@@ -1349,7 +1352,7 @@ public final class CloudKitSyncEngine {
                     databaseScope: context.databaseScope
                 )
             )
-        case .breastFeedEvent, .bottleFeedEvent, .sleepEvent, .nappyEvent:
+        case .breastFeedEvent, .bottleFeedEvent, .sleepEvent, .nappyEvent, .bathEvent:
             guard let event = try eventRepository.loadEvent(id: reference.recordID) else {
                 return nil
             }

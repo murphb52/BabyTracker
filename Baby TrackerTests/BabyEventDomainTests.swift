@@ -200,6 +200,38 @@ struct BabyEventDomainTests {
     }
 
     @Test
+    func bathEventsSupportCreateAndUpdate() throws {
+        let childID = UUID()
+        let userID = UUID()
+        let occurredAt = Date(timeIntervalSince1970: 4_250)
+
+        let original = BathEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: occurredAt,
+                createdAt: occurredAt,
+                createdBy: userID
+            ),
+            usedShampoo: false,
+            usedSoap: true
+        )
+
+        let updated = original.updating(
+            occurredAt: occurredAt.addingTimeInterval(600),
+            usedShampoo: true,
+            usedSoap: false,
+            updatedBy: userID
+        )
+
+        #expect(original.usedShampoo == false)
+        #expect(original.usedSoap == true)
+        #expect(updated.usedShampoo == true)
+        #expect(updated.usedSoap == false)
+        #expect(updated.metadata.occurredAt == occurredAt.addingTimeInterval(600))
+        #expect(updated.metadata.updatedBy == userID)
+    }
+
+    @Test
     func updatingNappySupportsValidEditsAndRejectsInvalidPooColor() throws {
         let childID = UUID()
         let userID = UUID()

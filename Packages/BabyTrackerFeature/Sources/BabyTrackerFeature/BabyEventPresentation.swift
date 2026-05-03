@@ -8,6 +8,8 @@ public enum BabyEventPresentation {
 
     static func title(for kind: BabyEventKind) -> String {
         switch kind {
+        case .bath:
+            "Bath"
         case .breastFeed:
             "Breast Feed"
         case .bottleFeed:
@@ -24,6 +26,8 @@ public enum BabyEventPresentation {
         preferredFeedVolumeUnit: FeedVolumeUnit = .milliliters
     ) -> String? {
         switch event {
+        case let .bath(event):
+            bathDetailText(for: event)
         case let .breastFeed(feed):
             breastFeedDetailText(for: feed)
         case let .bottleFeed(feed):
@@ -50,6 +54,8 @@ public enum BabyEventPresentation {
 
     public static func systemImage(for kind: BabyEventKind) -> String {
         switch kind {
+        case .bath:
+            "drop.fill"
         case .breastFeed:
             "figure.seated.side.air.upper"
         case .bottleFeed:
@@ -59,6 +65,22 @@ public enum BabyEventPresentation {
         case .nappy:
             "checklist.checked"
         }
+    }
+
+    private static func bathDetailText(
+        for event: BathEvent
+    ) -> String {
+        var parts: [String] = []
+
+        if event.usedShampoo {
+            parts.append("Shampoo")
+        }
+
+        if event.usedSoap {
+            parts.append("Soap")
+        }
+
+        return parts.isEmpty ? "Bath only" : parts.joined(separator: " • ")
     }
 
     private static func breastFeedDetailText(

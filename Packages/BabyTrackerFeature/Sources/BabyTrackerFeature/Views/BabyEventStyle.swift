@@ -49,6 +49,17 @@ public enum BabyEventStyle {
 
     private static func palette(for kind: BabyEventKind) -> EventPalette {
         switch kind {
+        case .bath:
+            EventPalette(
+                accent: adaptiveColor(light: rgb(0.09, 0.63, 0.67), dark: rgb(0.45, 0.89, 0.91)),
+                badgeFill: adaptiveColor(light: rgba(0.09, 0.63, 0.67, 0.14), dark: rgba(0.09, 0.63, 0.67, 0.28)),
+                cardFill: adaptiveColor(light: rgb(0.91, 0.98, 0.98), dark: rgb(0.07, 0.24, 0.25)),
+                cardForeground: adaptiveColor(light: rgb(0.03, 0.34, 0.36), dark: rgb(0.93, 0.99, 0.99)),
+                cardSecondaryForeground: adaptiveColor(light: rgb(0.12, 0.45, 0.47), dark: rgb(0.77, 0.93, 0.94)),
+                prominentFill: adaptiveColor(light: rgb(0.04, 0.50, 0.53), dark: rgb(0.08, 0.43, 0.45)),
+                prominentForeground: adaptiveColor(light: rgb(1.00, 1.00, 1.00), dark: rgb(0.94, 0.99, 1.00)),
+                prominentBorder: adaptiveColor(light: rgba(0.09, 0.63, 0.67, 0.82), dark: rgba(0.45, 0.89, 0.91, 0.72))
+            )
         case .breastFeed:
             EventPalette(
                 accent: adaptiveColor(light: rgb(0.84, 0.29, 0.42), dark: rgb(1.00, 0.61, 0.72)),

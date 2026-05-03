@@ -103,6 +103,8 @@ struct OnboardingAppPreviewStepView: View {
     @ViewBuilder
     private func eventDetailView(for event: BabyEvent) -> some View {
         switch event {
+        case let .bath(e):
+            Text(bathDetail(e))
         case let .breastFeed(e):
             Text(breastFeedDetail(e))
 
@@ -249,6 +251,19 @@ struct OnboardingAppPreviewStepView: View {
         return ["\(e.amountMilliliters) mL", milkLabel].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
+    private func bathDetail(_ e: BathEvent) -> String {
+        if e.usedShampoo && e.usedSoap {
+            return "Shampoo · Soap"
+        }
+        if e.usedShampoo {
+            return "Shampoo"
+        }
+        if e.usedSoap {
+            return "Soap"
+        }
+        return "Bath only"
+    }
+
     private func completedSleepDetail(_ e: SleepEvent) -> String {
         guard let endedAt = e.endedAt else { return "" }
         let duration = Int(endedAt.timeIntervalSince(e.startedAt) / 60)
@@ -266,6 +281,7 @@ struct OnboardingAppPreviewStepView: View {
 
     private func eventTypeName(for event: BabyEvent) -> String {
         switch event.kind {
+        case .bath: return "Bath"
         case .breastFeed: return "Breast feed"
         case .bottleFeed: return "Bottle feed"
         case .sleep:      return "Sleep"

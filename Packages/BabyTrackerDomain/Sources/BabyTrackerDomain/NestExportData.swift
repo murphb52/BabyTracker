@@ -38,6 +38,7 @@ public struct NestChildExport: Codable, Sendable {
 /// A single exported event. Encoded as a flat JSON object with a `"type"` discriminator key.
 /// All serialisation is handled manually here so associated-value structs remain plain `Sendable` types.
 public enum NestEventExport: Codable, Sendable {
+    case bath(NestBathExport)
     case breastFeed(NestBreastFeedExport)
     case bottleFeed(NestBottleFeedExport)
     case sleep(NestSleepExport)
@@ -46,6 +47,8 @@ public enum NestEventExport: Codable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case type
         case id, occurredAt, notes
+        // bath
+        case usedShampoo, usedSoap
         // breastFeed
         case side, startedAt, endedAt, leftDurationSeconds, rightDurationSeconds
         // bottleFeed
@@ -62,6 +65,14 @@ public enum NestEventExport: Codable, Sendable {
         let notes = try c.decodeIfPresent(String.self, forKey: .notes) ?? ""
 
         switch type {
+        case "bath":
+            self = .bath(NestBathExport(
+                id: id,
+                occurredAt: occurredAt,
+                notes: notes,
+                usedShampoo: try c.decodeIfPresent(Bool.self, forKey: .usedShampoo) ?? false,
+                usedSoap: try c.decodeIfPresent(Bool.self, forKey: .usedSoap) ?? false
+            ))
         case "breastFeed":
             self = .breastFeed(NestBreastFeedExport(
                 id: id,
@@ -114,6 +125,14 @@ public enum NestEventExport: Codable, Sendable {
         var c = encoder.container(keyedBy: CodingKeys.self)
 
         switch self {
+        case .bath(let e):
+            try c.encode("bath", forKey: .type)
+            try c.encode(e.id, forKey: .id)
+            try c.encode(e.occurredAt, forKey: .occurredAt)
+            try c.encode(e.notes, forKey: .notes)
+            try c.encode(e.usedShampoo, forKey: .usedShampoo)
+            try c.encode(e.usedSoap, forKey: .usedSoap)
+
         case .breastFeed(let e):
             try c.encode("breastFeed", forKey: .type)
             try c.encode(e.id, forKey: .id)
@@ -155,6 +174,28 @@ public enum NestEventExport: Codable, Sendable {
 }
 
 // MARK: - Per-event structs (plain data carriers — not Codable)
+
+public struct NestBathExport: Sendable {
+    public let id: UUID
+    public let occurredAt: Date
+    public let notes: String
+    public let usedShampoo: Bool
+    public let usedSoap: Bool
+
+    public init(
+        id: UUID,
+        occurredAt: Date,
+        notes: String,
+        usedShampoo: Bool,
+        usedSoap: Bool
+    ) {
+        self.id = id
+        self.occurredAt = occurredAt
+        self.notes = notes
+        self.usedShampoo = usedShampoo
+        self.usedSoap = usedSoap
+    }
+}
 
 public struct NestBreastFeedExport: Sendable {
     public let id: UUID

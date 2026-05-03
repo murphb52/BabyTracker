@@ -76,6 +76,10 @@ public final class HomeViewModel {
             let occurredAt: Date
 
             switch event {
+            case let .bath(bath):
+                id = bath.id
+                kind = .bath
+                occurredAt = bath.metadata.occurredAt
             case let .breastFeed(feed):
                 id = feed.id
                 kind = .breastFeed

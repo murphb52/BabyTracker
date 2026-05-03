@@ -230,4 +230,23 @@ private enum TimelineDayGridItemPreviewFactory {
             milkType: .formula
         )
     )
+
+    static let bathItem = TimelineDayGridItemViewState(
+        id: "bath-preview",
+        columnKind: .bath,
+        startSlotIndex: 32,
+        endSlotIndex: 33,
+        eventIDs: [UUID()],
+        count: 1,
+        title: "Bath",
+        detailText: "Shampoo",
+        timeText: "",
+        actionPayloads: [
+            EventActionPayload.editBath(
+                occurredAt: .now,
+                usedShampoo: true,
+                usedSoap: false
+            )
+        ]
+    )
 }

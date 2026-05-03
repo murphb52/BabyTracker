@@ -4,6 +4,8 @@ import SwiftUI
 extension BabyEventKind {
     var accentColor: Color {
         switch self {
+        case .bath:
+            Color(red: 0.09, green: 0.63, blue: 0.67)
         case .breastFeed:
             Color(red: 0.84, green: 0.29, blue: 0.42)
         case .bottleFeed:

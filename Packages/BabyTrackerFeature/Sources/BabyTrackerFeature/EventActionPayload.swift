@@ -2,6 +2,11 @@ import BabyTrackerDomain
 import Foundation
 
 public enum EventActionPayload: Equatable, Sendable {
+    case editBath(
+        occurredAt: Date,
+        usedShampoo: Bool,
+        usedSoap: Bool
+    )
     case editBreastFeed(
         durationMinutes: Int,
         endTime: Date,

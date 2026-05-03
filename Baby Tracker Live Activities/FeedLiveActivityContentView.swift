@@ -110,6 +110,8 @@ struct FeedLiveActivityContentView: View {
 
     private func symbolName(for kind: BabyEventKind) -> String {
         switch kind {
+        case .bath:
+            "drop.fill"
         case .breastFeed:
             "heart.text.square"
         case .bottleFeed:

@@ -234,6 +234,54 @@ struct EventRepositoryTests {
     }
 
     @Test
+    func bathEventsRoundTripAndSortByOccurredAt() throws {
+        let harness = try RepositoryHarness()
+        defer { harness.cleanUp() }
+
+        let childID = UUID()
+        let userID = UUID()
+        let earlierTime = Date(timeIntervalSince1970: 8_000)
+        let laterTime = Date(timeIntervalSince1970: 9_000)
+
+        let earlierBath = BathEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: earlierTime,
+                createdAt: earlierTime,
+                createdBy: userID
+            ),
+            usedShampoo: true,
+            usedSoap: false
+        )
+        let laterBath = BathEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: laterTime,
+                createdAt: laterTime,
+                createdBy: userID
+            ),
+            usedShampoo: true,
+            usedSoap: true
+        )
+
+        try harness.repository.saveEvent(.bath(earlierBath))
+        try harness.repository.saveEvent(.bath(laterBath))
+
+        let timeline = try harness.repository.loadTimeline(for: childID, includingDeleted: false)
+        let reloadedBath = try #require(try harness.repository.loadEvent(id: laterBath.id))
+
+        #expect(timeline.map(\.kind) == [.bath, .bath])
+
+        switch reloadedBath {
+        case let .bath(event):
+            #expect(event.usedShampoo == true)
+            #expect(event.usedSoap == true)
+        default:
+            Issue.record("Expected a bath event")
+        }
+    }
+
+    @Test
     func savingEditedEventUpdatesExistingRecordInPlace() throws {
         let harness = try RepositoryHarness()
         defer { harness.cleanUp() }

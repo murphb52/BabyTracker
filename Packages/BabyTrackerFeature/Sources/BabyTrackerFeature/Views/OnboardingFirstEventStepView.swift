@@ -15,10 +15,10 @@ struct OnboardingFirstEventStepView: View {
 
     @State private var activeEventSheet: ChildEventSheet?
     @State private var firstEventSaved = false
-    @State private var appearedMask: [Bool] = Array(repeating: false, count: 6)
+    @State private var appearedMask: [Bool] = Array(repeating: false, count: 2 + BabyEventKind.allCases.count)
     @State private var highlightedIndex = 0
-    @State private var wiggleScales: [Double] = Array(repeating: 1.0, count: 4)
-    @State private var rotations: [Double] = Array(repeating: 0, count: 4)
+    @State private var wiggleScales: [Double] = Array(repeating: 1.0, count: BabyEventKind.allCases.count)
+    @State private var rotations: [Double] = Array(repeating: 0, count: BabyEventKind.allCases.count)
 
     private var visibleKinds: [BabyEventKind] {
         BabyEventKind.allCases.filter { model.isEventKindEnabled($0) }
@@ -100,6 +100,7 @@ struct OnboardingFirstEventStepView: View {
 
     private func buttonTitle(for kind: BabyEventKind) -> String {
         switch kind {
+        case .bath: "Bath"
         case .breastFeed: "Breast Feed"
         case .bottleFeed: "Bottle Feed"
         case .sleep: "Start Sleep"
@@ -109,6 +110,7 @@ struct OnboardingFirstEventStepView: View {
 
     private func eventSheet(for kind: BabyEventKind) -> ChildEventSheet {
         switch kind {
+        case .bath: .quickLogBath
         case .breastFeed: .quickLogBreastFeed
         case .bottleFeed: .quickLogBottleFeed(smartSuggestions: [])
         case .sleep: .startSleep(suggestions: [])
@@ -216,6 +218,27 @@ struct OnboardingFirstEventStepView: View {
                     side: side,
                     leftDurationSeconds: leftDurationSeconds,
                     rightDurationSeconds: rightDurationSeconds
+                )
+                if didSave {
+                    activeEventSheet = nil
+                    firstEventSaved = true
+                }
+                return didSave
+            }
+
+        case .quickLogBath:
+            BathEditorSheetView(
+                navigationTitle: "Bath",
+                primaryActionTitle: "Save",
+                childName: childName,
+                initialOccurredAt: Date(),
+                initialUsedShampoo: false,
+                initialUsedSoap: false
+            ) { occurredAt, usedShampoo, usedSoap in
+                let didSave = model.logBath(
+                    occurredAt: occurredAt,
+                    usedShampoo: usedShampoo,
+                    usedSoap: usedSoap
                 )
                 if didSave {
                     activeEventSheet = nil

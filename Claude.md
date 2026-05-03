@@ -236,6 +236,43 @@ Check:
 
 For requested features, tweaks, and bug fixes, default to planning first. Create or update the plan before implementing the work. If the change is large enough to be worth documenting, create the GitHub issue before writing code.
 
+### Adding a new event type
+When adding a new first-class event type, do not stop at the obvious enum and UI updates. Treat event types as a cross-cutting feature and check all of the existing event system touch points.
+
+At minimum, review and update the relevant places in:
+
+- Domain models and enums
+  - event entities such as `BabyEvent`, `BabyEventKind`, event-specific structs, import/export DTOs, filters, timeline dataset builders, notification/suggestion use cases, restore/delete flows, and any event-specific validation or create/update use cases
+- Persistence
+  - SwiftData models, model container schema, repositories, soft-delete handling, timeline/day queries, and sync-state record references
+- CloudKit sync
+  - record type names, field mappings, mutable field lists, save/load decoding, sync engine event-type switches, and any code that enumerates syncable record types
+- Presentation and interaction
+  - event presentation helpers, titles, detail text, icons, colors, cards, timeline items, edit payloads, quick log buttons, sheets, filters, visibility settings, summaries, onboarding/demo content, previews, sample data, and accessibility identifiers/labels
+- Summary and charts
+  - trend aggregations, chart cards, summary calculators, and explicit decisions about whether the new event belongs in Today, Trends, both, or neither
+- Import and export
+  - Huckleberry/Nest import mapping, JSON/CSV parsing, import preview rows, import summaries, export payload mapping, export screen copy, and full child restore/import flows
+- Tests
+  - domain behavior, repository round-trips, CloudKit mapping, filters, timeline ordering, summary/trend calculations, import/export coverage, and any existing app-model or presentation tests affected by the new event
+
+If the event syncs with CloudKit, also assume the schema may need to change:
+
+- add the new record type and fields in code
+- run the app against the development CloudKit environment so the schema appears in the dashboard
+- verify the new record type and fields in CloudKit Dashboard
+- deploy the schema to production before shipping builds that create or sync the new event type
+
+For event-type work, explicitly search the codebase for places where event types are:
+
+- declared
+- switched over
+- serialized or deserialized
+- filtered
+- color-coded or icon-coded
+- displayed in lists, cards, timelines, summaries, or charts
+- imported, exported, restored, or synced
+
 ### While making changes
 Keep edits narrow and intentional.
 

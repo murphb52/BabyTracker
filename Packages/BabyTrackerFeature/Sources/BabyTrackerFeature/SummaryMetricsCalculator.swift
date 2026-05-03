@@ -147,7 +147,7 @@ public enum SummaryMetricsCalculator {
             switch event {
             case .breastFeed, .bottleFeed:
                 event
-            case .sleep, .nappy:
+            case .bath, .sleep, .nappy:
                 nil
             }
         }
@@ -252,7 +252,7 @@ public enum SummaryMetricsCalculator {
             return max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
         case .bottleFeed:
             return nil
-        case .sleep, .nappy:
+        case .bath, .sleep, .nappy:
             return nil
         }
     }

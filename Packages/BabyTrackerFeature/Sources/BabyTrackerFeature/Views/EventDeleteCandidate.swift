@@ -23,6 +23,8 @@ public struct EventDeleteCandidate: Identifiable {
 
     public var dialogTitle: String {
         switch kind {
+        case .bath:
+            return "Delete Bath?"
         case .breastFeed, .bottleFeed:
             return "Delete Feed?"
         case .sleep:
@@ -34,6 +36,8 @@ public struct EventDeleteCandidate: Identifiable {
 
     public var confirmButtonTitle: String {
         switch kind {
+        case .bath:
+            return "Delete Bath"
         case .breastFeed, .bottleFeed:
             return "Delete Feed"
         case .sleep:

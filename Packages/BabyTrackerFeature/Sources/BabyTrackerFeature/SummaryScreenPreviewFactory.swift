@@ -106,6 +106,20 @@ enum SummaryScreenPreviewFactory {
             ))
         }
 
+        let bathTimes: [(Int, Int, Bool, Bool)] = [
+            (16, 0, true, true),
+        ]
+        for (hour, minute, usedShampoo, usedSoap) in bathTimes {
+            let time = dateToday(hour: hour, minute: minute)
+            events.append(.bath(
+                BathEvent(
+                    metadata: EventMetadata(childID: childID, occurredAt: time, createdAt: time, createdBy: userID),
+                    usedShampoo: usedShampoo,
+                    usedSoap: usedSoap
+                )
+            ))
+        }
+
         // MARK: Historical events (past 7 days) for average line
 
         for dayOffset in 1...7 {
@@ -152,6 +166,17 @@ enum SummaryScreenPreviewFactory {
                         metadata: EventMetadata(childID: childID, occurredAt: t, createdAt: t, createdBy: userID),
                         type: .wee,
                         peeVolume: .medium
+                    )
+                ))
+            }
+
+            if dayOffset.isMultiple(of: 2) {
+                let bathTime = dateOffset(days: neg, hour: 16)
+                events.append(.bath(
+                    BathEvent(
+                        metadata: EventMetadata(childID: childID, occurredAt: bathTime, createdAt: bathTime, createdBy: userID),
+                        usedShampoo: dayOffset.isMultiple(of: 4),
+                        usedSoap: true
                     )
                 ))
             }

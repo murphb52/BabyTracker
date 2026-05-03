@@ -171,6 +171,8 @@ public struct BuildTimelineDayGridDatasetUseCase {
             return .sleep
         case .nappy:
             return .nappy
+        case .bath:
+            return .bath
         case .bottleFeed:
             return .bottleFeed
         case .breastFeed:
@@ -180,7 +182,7 @@ public struct BuildTimelineDayGridDatasetUseCase {
 
     private func occupiesSingleSlot(_ event: BabyEvent) -> Bool {
         switch event {
-        case .bottleFeed, .nappy:
+        case .bath, .bottleFeed, .nappy:
             true
         case .breastFeed, .sleep:
             false
@@ -189,6 +191,8 @@ public struct BuildTimelineDayGridDatasetUseCase {
 
     private func eventStart(for event: BabyEvent) -> Date {
         switch event {
+        case let .bath(bath):
+            bath.metadata.occurredAt
         case let .breastFeed(feed):
             feed.startedAt
         case let .bottleFeed(feed):
@@ -205,6 +209,8 @@ public struct BuildTimelineDayGridDatasetUseCase {
         now: Date
     ) -> Date {
         switch event {
+        case let .bath(bath):
+            bath.metadata.occurredAt.addingTimeInterval(TimeInterval(slotMinutes * 60))
         case let .breastFeed(feed):
             feed.endedAt
         case let .bottleFeed(feed):

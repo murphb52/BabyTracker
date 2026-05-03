@@ -8,7 +8,7 @@ import UIKit
 struct BabyEventStyleTests {
     @Test
     func prominentEventSurfacesMaintainReadableContrastAcrossAppearances() {
-        for kind in [BabyEventKind.breastFeed, .bottleFeed, .sleep, .nappy] {
+        for kind in [BabyEventKind.bath, .breastFeed, .bottleFeed, .sleep, .nappy] {
             let fill = UIColor(BabyEventStyle.buttonFillColor(for: kind))
             let foreground = UIColor(BabyEventStyle.buttonForegroundColor(for: kind))
 
@@ -19,7 +19,7 @@ struct BabyEventStyleTests {
 
     @Test
     func eventCardsMaintainReadableContrastAcrossAppearances() {
-        for kind in [BabyEventKind.breastFeed, .bottleFeed, .sleep, .nappy] {
+        for kind in [BabyEventKind.bath, .breastFeed, .bottleFeed, .sleep, .nappy] {
             let fill = UIColor(BabyEventStyle.cardFillColor(for: kind))
             let foreground = UIColor(BabyEventStyle.cardForegroundColor(for: kind))
             let secondaryForeground = UIColor(BabyEventStyle.cardSecondaryForegroundColor(for: kind))
