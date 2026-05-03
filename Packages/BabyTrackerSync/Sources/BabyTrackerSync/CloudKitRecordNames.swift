@@ -96,4 +96,14 @@ public enum CloudKitRecordNames {
             zoneID: zoneID
         )
     }
+
+    static func bathRecordID(
+        eventID: UUID,
+        zoneID: CKRecordZone.ID
+    ) -> CKRecord.ID {
+        CKRecord.ID(
+            recordName: "bath.\(eventID.uuidString)",
+            zoneID: zoneID
+        )
+    }
 }

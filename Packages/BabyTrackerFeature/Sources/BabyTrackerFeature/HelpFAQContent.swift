@@ -23,7 +23,7 @@ public enum HelpFAQContent {
             ]
         ),
         HelpFAQSection(
-            title: "Feed, Sleep, and Nappy Trends",
+            title: "Feed, Sleep, Nappy, and Bath Trends",
             items: [
                 HelpFAQItem(
                     id: "feeds",
@@ -39,6 +39,11 @@ public enum HelpFAQContent {
                     id: "nappies",
                     title: "How are nappy trends grouped?",
                     answer: "Nappy trends are grouped by the type you log: wet, dirty, mixed, or dry. The Summary view is meant to help you review what was recorded, not to interpret whether a pattern is normal."
+                ),
+                HelpFAQItem(
+                    id: "baths",
+                    title: "What does the bath trend chart show?",
+                    answer: "Bath trends show how many bath events were logged in each grouped period. Shampoo and soap details stay attached to the event itself, while the trend chart focuses on the number of baths over time."
                 ),
             ]
         ),

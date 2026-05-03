@@ -62,6 +62,22 @@ struct EventFilterTests {
         #expect(!filter.matches(.bottleFeed(bottle)))
     }
 
+    @Test
+    func eventTypeFilterIncludesBathAndBathIgnoresOtherTypedFilters() throws {
+        let bath = BathEvent(metadata: metadata(), usedShampoo: true, usedSoap: false)
+        let filter = EventFilter(
+            eventTypes: [.bath],
+            nappyTypes: [.poo],
+            milkTypes: [.formula],
+            breastSides: [.left],
+            sleepMinDurationMinutes: 30,
+            sleepMaxDurationMinutes: 60,
+            occurredOnOrAfter: nil,
+            occurredOnOrBefore: nil
+        )
+        #expect(filter.matches(.bath(bath)))
+    }
+
     // MARK: - Nappy type filter
 
     @Test

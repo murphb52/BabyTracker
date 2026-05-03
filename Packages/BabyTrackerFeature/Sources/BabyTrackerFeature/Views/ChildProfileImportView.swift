@@ -408,6 +408,7 @@ private struct ImportEventRow: View {
 
     private var iconName: String {
         switch tagged.event {
+        case .bath: return "drop.fill"
         case .sleep: return "moon.zzz.fill"
         case .bottleFeed: return "waterbottle.fill"
         case .breastFeed: return "figure.seated.side.air.upper"
@@ -417,6 +418,7 @@ private struct ImportEventRow: View {
 
     private var iconColor: Color {
         switch tagged.event {
+        case .bath: return .teal
         case .sleep: return .indigo
         case .bottleFeed: return .blue
         case .breastFeed: return .pink
@@ -430,4 +432,3 @@ private struct ImportEventRow: View {
         ChildProfileImportView(appModel: ChildProfilePreviewFactory.makeModel())
     }
 }
-

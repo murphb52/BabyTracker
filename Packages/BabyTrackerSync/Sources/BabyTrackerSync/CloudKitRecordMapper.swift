@@ -19,6 +19,8 @@ public enum CloudKitRecordMapper {
             metadataFieldKeys + ["startedAt", "endedAt"]
         case CloudKitConfiguration.nappyRecordType:
             metadataFieldKeys + ["type", "peeVolume", "pooVolume", "pooColor"]
+        case CloudKitConfiguration.bathRecordType:
+            metadataFieldKeys + ["shampooUsed", "soapUsed"]
         default:
             []
         }
@@ -102,6 +104,8 @@ public enum CloudKitRecordMapper {
         zoneID: CKRecordZone.ID
     ) -> CKRecord {
         switch event {
+        case let .bath(value):
+            return bathRecord(from: value, zoneID: zoneID)
         case let .breastFeed(value):
             return breastFeedRecord(from: value, zoneID: zoneID)
         case let .bottleFeed(value):
@@ -161,6 +165,8 @@ public enum CloudKitRecordMapper {
 
     public static func event(from record: CKRecord) throws -> BabyEvent {
         switch record.recordType {
+        case CloudKitConfiguration.bathRecordType:
+            return .bath(bath(from: record))
         case CloudKitConfiguration.breastFeedRecordType:
             return .breastFeed(try breastFeed(from: record))
         case CloudKitConfiguration.bottleFeedRecordType:
@@ -253,6 +259,23 @@ public enum CloudKitRecordMapper {
         return record
     }
 
+    private static func bathRecord(
+        from event: BathEvent,
+        zoneID: CKRecordZone.ID
+    ) -> CKRecord {
+        let record = CKRecord(
+            recordType: CloudKitConfiguration.bathRecordType,
+            recordID: CloudKitRecordNames.bathRecordID(
+                eventID: event.id,
+                zoneID: zoneID
+            )
+        )
+        applyMetadata(event.metadata, to: record)
+        record["shampooUsed"] = event.usedShampoo
+        record["soapUsed"] = event.usedSoap
+        return record
+    }
+
     private static func breastFeed(from record: CKRecord) throws -> BreastFeedEvent {
         try BreastFeedEvent(
             metadata: metadata(from: record, prefix: "breastFeed."),
@@ -287,6 +310,14 @@ public enum CloudKitRecordMapper {
             peeVolume: (record["peeVolume"] as? String).flatMap(NappyVolume.init(rawValue:)),
             pooVolume: (record["pooVolume"] as? String).flatMap(NappyVolume.init(rawValue:)),
             pooColor: (record["pooColor"] as? String).flatMap(PooColor.init(rawValue:))
+        )
+    }
+
+    private static func bath(from record: CKRecord) -> BathEvent {
+        BathEvent(
+            metadata: metadata(from: record, prefix: "bath."),
+            usedShampoo: record["shampooUsed"] as? Bool ?? false,
+            usedSoap: record["soapUsed"] as? Bool ?? false
         )
     }
 

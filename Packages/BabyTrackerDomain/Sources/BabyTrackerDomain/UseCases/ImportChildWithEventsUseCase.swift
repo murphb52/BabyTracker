@@ -96,6 +96,12 @@ public struct ImportChildWithEventsUseCase {
 
     private func importableEvent(from nestEvent: NestEventExport) -> ImportableEvent? {
         switch nestEvent {
+        case .bath(let e):
+            return .bath(BathImport(
+                metadata: ImportEventMetadata(occurredAt: e.occurredAt, notes: e.notes.isEmpty ? nil : e.notes),
+                usedShampoo: e.usedShampoo,
+                usedSoap: e.usedSoap
+            ))
         case .breastFeed(let e):
             let durationMinutes = Int(e.endedAt.timeIntervalSince(e.startedAt) / 60)
             return .breastFeed(BreastFeedImport(

@@ -12,12 +12,13 @@ struct OnboardingTimelineDemoView: View {
     @State private var columnsVisible = false
     @State private var visibleBlockIDs: Set<Int> = []
     @State private var blockOffsets: [Int: CGFloat] = [:]
-    @State private var legendMask: [Bool] = [false, false, false, false]
+    @State private var legendMask: [Bool] = [false, false, false, false, false]
 
     private let columnHeight: CGFloat = 200
 
     private let legendItems: [(kind: BabyEventKind, label: String)] = [
         (.sleep, "Sleep"),
+        (.bath, "Bath"),
         (.breastFeed, "Breast Feed"),
         (.bottleFeed, "Bottle Feed"),
         (.nappy, "Nappy"),
@@ -119,7 +120,7 @@ struct OnboardingTimelineDemoView: View {
             columnsVisible = true
             visibleBlockIDs = Set(Self.sampleData.indices)
             blockOffsets = Dictionary(uniqueKeysWithValues: Self.sampleData.indices.map { ($0, 0) })
-            legendMask = [true, true, true, true]
+            legendMask = [true, true, true, true, true]
             return
         }
         Task { @MainActor in
@@ -205,6 +206,8 @@ struct OnboardingTimelineDemoView: View {
         switch entry.kind {
         case .sleep:
             baseDelay = 0
+        case .bath:
+            baseDelay = 210
         case .breastFeed, .bottleFeed:
             baseDelay = 130
         case .nappy:
@@ -254,6 +257,9 @@ struct OnboardingTimelineDemoView: View {
             s(0, 0.62, 0.66, .bottleFeed),  s(1, 0.63, 0.67, .breastFeed),
             s(2, 0.61, 0.65, .bottleFeed),  s(3, 0.62, 0.66, .breastFeed),
             s(4, 0.64, 0.68, .bottleFeed),
+
+            // ── Baths (~4pm) ───────────────────────────────────────────
+            s(0, 0.67, 0.71, .bath), s(2, 0.68, 0.72, .bath), s(4, 0.69, 0.73, .bath),
 
             // ── Evening feeds (~5:30pm) ───────────────────────────────
             s(0, 0.72, 0.76, .breastFeed),  s(1, 0.71, 0.75, .bottleFeed),

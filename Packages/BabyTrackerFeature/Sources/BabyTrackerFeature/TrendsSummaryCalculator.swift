@@ -88,15 +88,30 @@ public enum TrendsSummaryCalculator {
             )
         }
 
+        let dailyBath = dates.map { date -> DailyBathData in
+            let dayEvents = eventsByDay[date] ?? []
+            let baths = dayEvents.compactMap { event -> BathEvent? in
+                guard case let .bath(bath) = event else { return nil }
+                return bath
+            }
+            return DailyBathData(
+                date: date,
+                label: formatter(date),
+                count: baths.count
+            )
+        }
+
         return TrendsSummaryData(
             dailyBottle: dailyBottle,
             dailyBreastFeed: dailyBreastFeed,
             dailySleep: dailySleep,
             dailyNappy: dailyNappy,
+            dailyBath: dailyBath,
             avgDailyBottleMilliliters: average(of: dailyBottle.filter { $0.count > 0 }.map(\.totalMilliliters)),
             avgDailyBreastFeedSessions: average(of: dailyBreastFeed.filter { $0.sessionCount > 0 }.map(\.sessionCount)),
             avgDailySleepMinutes: average(of: dailySleep.filter { $0.totalMinutes > 0 }.map(\.totalMinutes)),
-            avgDailyNappies: average(of: dailyNappy.filter { $0.totalCount > 0 }.map(\.totalCount))
+            avgDailyNappies: average(of: dailyNappy.filter { $0.totalCount > 0 }.map(\.totalCount)),
+            avgDailyBaths: average(of: dailyBath.filter { $0.count > 0 }.map(\.count))
         )
     }
 

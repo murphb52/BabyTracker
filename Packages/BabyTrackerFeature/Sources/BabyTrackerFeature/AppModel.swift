@@ -690,6 +690,30 @@ public final class AppModel {
     }
 
     @discardableResult
+    public func logBath(
+        occurredAt: Date,
+        usedShampoo: Bool,
+        usedSoap: Bool
+    ) -> Bool {
+        perform(onSuccess: handleSuccessfulEventLog) {
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            _ = try LogBathUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
+                .execute(.init(
+                    childID: currentChild.id,
+                    localUserID: localUser.id,
+                    occurredAt: occurredAt,
+                    usedShampoo: usedShampoo,
+                    usedSoap: usedSoap,
+                    membership: currentMembership
+                ))
+        }
+    }
+
+    @discardableResult
     public func logBottleFeed(
         amountMilliliters: Int,
         occurredAt: Date,
@@ -834,6 +858,31 @@ public final class AppModel {
                     side: side,
                     leftDurationSeconds: leftDurationSeconds,
                     rightDurationSeconds: rightDurationSeconds,
+                    membership: currentMembership
+                ))
+        }
+    }
+
+    @discardableResult
+    public func updateBath(
+        id: UUID,
+        occurredAt: Date,
+        usedShampoo: Bool,
+        usedSoap: Bool
+    ) -> Bool {
+        perform {
+            guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            try UpdateBathUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
+                .execute(.init(
+                    eventID: id,
+                    localUserID: localUser.id,
+                    occurredAt: occurredAt,
+                    usedShampoo: usedShampoo,
+                    usedSoap: usedSoap,
                     membership: currentMembership
                 ))
         }
@@ -1211,6 +1260,7 @@ public final class AppModel {
             let status = CloudKitStatusViewState(summary: syncEngine.statusSummary)
             let pendingCounts = (try? syncEngine.loadPendingChangeCounts()) ?? [:]
             let builtPendingChanges: [PendingChangeSummaryItem] = [
+                (.bathEvent,        "drop.fill",                   "Baths"),
                 (.breastFeedEvent, "figure.seated.side.air.upper", "Breast feeds"),
                 (.bottleFeedEvent, "waterbottle.fill",             "Bottle feeds"),
                 (.sleepEvent,      "moon.zzz.fill",                "Sleep sessions"),
@@ -1500,6 +1550,8 @@ public final class AppModel {
             return "Sleep"
         case .nappy:
             return "Nappy"
+        case .bath:
+            return "Bath"
         case .bottleFeed:
             return "Bottle"
         case .breastFeed:
@@ -1511,6 +1563,7 @@ public final class AppModel {
         switch columnKind {
         case .sleep: return .sleep
         case .nappy: return .nappy
+        case .bath: return .bath
         case .bottleFeed: return .bottleFeed
         case .breastFeed: return .breastFeed
         }
@@ -1518,6 +1571,8 @@ public final class AppModel {
 
     private func timelineTimeText(for event: BabyEvent) -> String {
         switch event {
+        case let .bath(bath):
+            return shortTimeText(for: bath.metadata.occurredAt)
         case let .breastFeed(feed):
             return "\(shortTimeText(for: feed.startedAt))-\(shortTimeText(for: feed.endedAt))"
         case let .bottleFeed(feed):
@@ -1551,6 +1606,12 @@ public final class AppModel {
             return (
                 title: timelineNappyTypeText(for: nappy.type),
                 detailText: "",
+                timeText: ""
+            )
+        case let .bath(bath):
+            return (
+                title: "Bath",
+                detailText: BabyEventPresentation.detailText(for: .bath(bath)) ?? "",
                 timeText: ""
             )
         case let .bottleFeed(feed):
@@ -1593,6 +1654,12 @@ public final class AppModel {
 
     private func eventActionPayload(for event: BabyEvent) -> EventActionPayload {
         switch event {
+        case let .bath(bath):
+            return .editBath(
+                occurredAt: bath.metadata.occurredAt,
+                usedShampoo: bath.usedShampoo,
+                usedSoap: bath.usedSoap
+            )
         case let .breastFeed(feed):
             let durationMinutes = max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
             return .editBreastFeed(

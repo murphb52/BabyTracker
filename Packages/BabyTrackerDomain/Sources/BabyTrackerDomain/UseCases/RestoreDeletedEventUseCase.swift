@@ -32,6 +32,9 @@ public struct RestoreDeletedEventUseCase: UseCase {
 
     private func restoreDeleted(_ event: BabyEvent, by userID: UUID) -> BabyEvent {
         switch event {
+        case var .bath(feed):
+            feed.metadata.restoreDeleted(by: userID)
+            return .bath(feed)
         case var .breastFeed(feed):
             feed.metadata.restoreDeleted(by: userID)
             return .breastFeed(feed)

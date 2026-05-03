@@ -689,6 +689,7 @@ public struct SummaryScreenView: View {
             || data.dailyBreastFeed.contains { $0.sessionCount > 0 }
             || data.dailySleep.contains { $0.totalMinutes > 0 }
             || data.dailyNappy.contains { $0.totalCount > 0 }
+            || data.dailyBath.contains { $0.count > 0 }
 
         let enabled = viewModel.enabledEventKinds
         return VStack(alignment: .leading, spacing: 12) {
@@ -701,6 +702,7 @@ public struct SummaryScreenView: View {
                 )
             } else {
                 if enabled.contains(.sleep) { sleepChartCard(data: data) }
+                if enabled.contains(.bath) { bathChartCard(data: data) }
                 if enabled.contains(.bottleFeed) { bottleChartCard(data: data) }
                 if enabled.contains(.breastFeed) { breastChartCard(data: data) }
                 if enabled.contains(.nappy) { nappyChartCard(data: data) }
@@ -779,6 +781,24 @@ public struct SummaryScreenView: View {
                 tint: .indigo,
                 valueFormatter: { DurationText.short(minutes: $0) },
                 averageValue: data.avgDailySleepMinutes
+            )
+        }
+    }
+
+    private func bathChartCard(data: TrendsSummaryData) -> some View {
+        let points = data.dailyBath.map { ($0.label, $0.count) }
+        let avgText = data.avgDailyBaths.map { "Avg \($0) bath\($0 == 1 ? "" : "s")/day" }
+
+        return chartCard(
+            title: "Baths",
+            symbol: BabyEventStyle.systemImage(for: .bath),
+            tint: BabyEventStyle.accentColor(for: .bath),
+            subtitle: avgText ?? "No baths in this period"
+        ) {
+            TrendsBarChartView(
+                points: points,
+                tint: BabyEventStyle.accentColor(for: .bath),
+                averageValue: data.avgDailyBaths
             )
         }
     }

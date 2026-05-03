@@ -64,6 +64,9 @@ final class InMemoryEventRepository: EventRepository {
     func softDeleteEvent(id: UUID, deletedAt: Date, deletedBy: UUID) throws {
         guard let event = store.events[id] else { return }
         switch event {
+        case var .bath(e):
+            e.metadata.markDeleted(at: deletedAt, by: deletedBy)
+            store.events[id] = .bath(e)
         case var .breastFeed(e):
             e.metadata.markDeleted(at: deletedAt, by: deletedBy)
             store.events[id] = .breastFeed(e)
@@ -82,6 +85,7 @@ final class InMemoryEventRepository: EventRepository {
 
     private func syncRecordType(for event: BabyEvent) -> SyncRecordType {
         switch event {
+        case .bath: return .bathEvent
         case .breastFeed: return .breastFeedEvent
         case .bottleFeed: return .bottleFeedEvent
         case .sleep: return .sleepEvent

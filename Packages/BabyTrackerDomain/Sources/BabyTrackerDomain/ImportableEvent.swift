@@ -2,6 +2,7 @@ import Foundation
 
 /// Represents a fully-parsed CSV row, typed and ready to be saved as a domain event.
 public enum ImportableEvent: Equatable, Sendable, Identifiable {
+    case bath(BathImport)
     case bottleFeed(BottleFeedImport)
     case breastFeed(BreastFeedImport)
     case sleep(SleepImport)
@@ -11,6 +12,7 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
 
     public var metadata: ImportEventMetadata {
         switch self {
+        case .bath(let e): return e.metadata
         case .bottleFeed(let e): return e.metadata
         case .breastFeed(let e): return e.metadata
         case .sleep(let e): return e.metadata
@@ -22,6 +24,7 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
 
     public var kind: BabyEventKind {
         switch self {
+        case .bath: return .bath
         case .bottleFeed: return .bottleFeed
         case .breastFeed: return .breastFeed
         case .sleep: return .sleep
@@ -31,6 +34,17 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
 
     public var displayTitle: String {
         switch self {
+        case .bath(let e):
+            if e.usedShampoo && e.usedSoap {
+                return "Shampoo · Soap"
+            }
+            if e.usedShampoo {
+                return "Shampoo"
+            }
+            if e.usedSoap {
+                return "Soap"
+            }
+            return "Bath only"
         case .bottleFeed(let e):
             var parts = ["\(e.amountMilliliters)ml"]
             if let milkType = e.milkType {
@@ -53,6 +67,7 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
 
     public var eventKindLabel: String {
         switch self {
+        case .bath: return "Bath"
         case .bottleFeed: return "Bottle Feed"
         case .breastFeed: return "Breast Feed"
         case .sleep: return "Sleep"
@@ -84,6 +99,22 @@ public struct BottleFeedImport: Equatable, Sendable {
         self.metadata = metadata
         self.amountMilliliters = amountMilliliters
         self.milkType = milkType
+    }
+}
+
+public struct BathImport: Equatable, Sendable {
+    public let metadata: ImportEventMetadata
+    public let usedShampoo: Bool
+    public let usedSoap: Bool
+
+    public init(
+        metadata: ImportEventMetadata,
+        usedShampoo: Bool,
+        usedSoap: Bool
+    ) {
+        self.metadata = metadata
+        self.usedShampoo = usedShampoo
+        self.usedSoap = usedSoap
     }
 }
 

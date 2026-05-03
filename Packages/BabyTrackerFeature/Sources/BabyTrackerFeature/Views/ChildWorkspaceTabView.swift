@@ -41,6 +41,7 @@ public struct ChildWorkspaceTabView: View {
                 quickLogNappy: {
                     activeEventSheet = .quickLogNappy(.mixed)
                 },
+                quickLogBath: { activeEventSheet = .quickLogBath },
                 openProfile: { showingEditChildSheet = true }
             )
             .tag(ChildWorkspaceTab.home)
@@ -265,6 +266,25 @@ public struct ChildWorkspaceTabView: View {
     @ViewBuilder
     private func eventSheet(for sheet: ChildEventSheet) -> some View {
         switch sheet {
+        case .quickLogBath:
+            BathEditorSheetView(
+                navigationTitle: "Bath",
+                primaryActionTitle: "Save",
+                childName: childProfileViewModel.childName,
+                initialOccurredAt: Date(),
+                initialUsedShampoo: false,
+                initialUsedSoap: false
+            ) { occurredAt, usedShampoo, usedSoap in
+                let didSave = model.logBath(
+                    occurredAt: occurredAt,
+                    usedShampoo: usedShampoo,
+                    usedSoap: usedSoap
+                )
+                if didSave {
+                    activeEventSheet = nil
+                }
+                return didSave
+            }
         case .quickLogBreastFeed:
             BreastFeedEditorSheetView(
                 navigationTitle: "Breast Feed",
@@ -511,6 +531,32 @@ public struct ChildWorkspaceTabView: View {
                     peeVolume: updatedPeeVolume,
                     pooVolume: updatedPooVolume,
                     pooColor: updatedPooColor
+                )
+                if didSave {
+                    activeEventSheet = nil
+                }
+                return didSave
+            }
+        case let .editBath(id, occurredAt, usedShampoo, usedSoap):
+            BathEditorSheetView(
+                navigationTitle: "Edit Bath",
+                primaryActionTitle: "Update",
+                childName: childProfileViewModel.childName,
+                initialOccurredAt: occurredAt,
+                initialUsedShampoo: usedShampoo,
+                initialUsedSoap: usedSoap,
+                initialTimePreset: .custom,
+                deleteAction: childProfileViewModel.canManageEvents ? {
+                    if model.deleteEvent(id: id) {
+                        activeEventSheet = nil
+                    }
+                } : nil
+            ) { updatedOccurredAt, updatedUsedShampoo, updatedUsedSoap in
+                let didSave = model.updateBath(
+                    id: id,
+                    occurredAt: updatedOccurredAt,
+                    usedShampoo: updatedUsedShampoo,
+                    usedSoap: updatedUsedSoap
                 )
                 if didSave {
                     activeEventSheet = nil

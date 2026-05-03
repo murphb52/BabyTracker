@@ -135,6 +135,30 @@ final class BuildRemoteCaregiverNotificationUseCaseTests: XCTestCase {
         XCTAssertEqual(content?.body, "Jordan deleted a bottle feed log.")
     }
 
+    func testSingleBathBuildsSpecificMessage() throws {
+        let caregiver = try UserIdentity(displayName: "Jordan")
+        let child = try Child(name: "Robin", birthDate: nil, createdBy: caregiver.id)
+        let bath = BathEvent(
+            metadata: EventMetadata(
+                childID: child.id,
+                occurredAt: Date(timeIntervalSince1970: 100),
+                createdAt: Date(timeIntervalSince1970: 100),
+                createdBy: caregiver.id,
+                updatedAt: Date(timeIntervalSince1970: 100),
+                updatedBy: caregiver.id
+            ),
+            usedShampoo: true,
+            usedSoap: true
+        )
+
+        let useCase = BuildRemoteCaregiverNotificationUseCase(formatTime: { _ in "7:15 PM" })
+        let content = useCase.execute(.init(changes: [
+            .init(actorDisplayName: caregiver.displayName, event: .bath(bath), isDeleted: false),
+        ]))
+
+        XCTAssertEqual(content?.body, "Jordan logged a bath at 7:15 PM.")
+    }
+
     func testSingleDeletedBreastFeedBuildsDeletedMessage() throws {
         let caregiver = try UserIdentity(displayName: "Morgan")
         let child = try Child(name: "Robin", birthDate: nil, createdBy: caregiver.id)

@@ -66,6 +66,8 @@ public struct TimelineDayGridItemViewState: Equatable, Identifiable, Sendable {
             .sleep
         case .nappy:
             .nappy
+        case .bath:
+            .bath
         case .bottleFeed:
             .bottleFeed
         case .breastFeed:

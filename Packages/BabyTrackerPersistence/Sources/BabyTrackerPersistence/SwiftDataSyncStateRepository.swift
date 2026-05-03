@@ -28,6 +28,7 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
         records.append(contentsOf: try pendingBottleFeeds())
         records.append(contentsOf: try pendingSleepEvents())
         records.append(contentsOf: try pendingNappyEvents())
+        records.append(contentsOf: try pendingBathEvents())
 
         return records
     }
@@ -65,6 +66,10 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
             }
         case .nappyEvent:
             if let model = try fetchNappy(id: record.recordID) {
+                apply(state: state, lastSyncedAt: lastSyncedAt, lastSyncErrorCode: lastSyncErrorCode, to: model)
+            }
+        case .bathEvent:
+            if let model = try fetchBath(id: record.recordID) {
                 apply(state: state, lastSyncedAt: lastSyncedAt, lastSyncErrorCode: lastSyncErrorCode, to: model)
             }
         }
@@ -201,6 +206,12 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
             .map { SyncRecordReference(recordType: .nappyEvent, recordID: $0.id, childID: $0.childID) }
     }
 
+    private func pendingBathEvents() throws -> [SyncRecordReference] {
+        try modelContext.fetch(FetchDescriptor<StoredBathEvent>())
+            .filter { $0.syncStateRawValue == SyncState.pendingSync.rawValue }
+            .map { SyncRecordReference(recordType: .bathEvent, recordID: $0.id, childID: $0.childID) }
+    }
+
     private func fetchChild(id: UUID) throws -> StoredChild? {
         try modelContext.fetch(FetchDescriptor<StoredChild>()).first { $0.id == id }
     }
@@ -229,6 +240,10 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
         try modelContext.fetch(FetchDescriptor<StoredNappyEvent>()).first { $0.id == id }
     }
 
+    private func fetchBath(id: UUID) throws -> StoredBathEvent? {
+        try modelContext.fetch(FetchDescriptor<StoredBathEvent>()).first { $0.id == id }
+    }
+
     private func fetchAnchor(
         databaseScope: String,
         zoneName: String?,
@@ -252,6 +267,7 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
         rawValues.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredBottleFeedEvent>()).map(\.syncStateRawValue))
         rawValues.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredSleepEvent>()).map(\.syncStateRawValue))
         rawValues.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredNappyEvent>()).map(\.syncStateRawValue))
+        rawValues.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredBathEvent>()).map(\.syncStateRawValue))
 
         return rawValues.compactMap(SyncState.init(rawValue:))
     }
@@ -263,7 +279,8 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
             modelContext.fetch(FetchDescriptor<StoredBreastFeedEvent>()).map(\.lastSyncedAt) +
             modelContext.fetch(FetchDescriptor<StoredBottleFeedEvent>()).map(\.lastSyncedAt) +
             modelContext.fetch(FetchDescriptor<StoredSleepEvent>()).map(\.lastSyncedAt) +
-            modelContext.fetch(FetchDescriptor<StoredNappyEvent>()).map(\.lastSyncedAt)
+            modelContext.fetch(FetchDescriptor<StoredNappyEvent>()).map(\.lastSyncedAt) +
+            modelContext.fetch(FetchDescriptor<StoredBathEvent>()).map(\.lastSyncedAt)
     }
 
     private func allLastErrorCodes() throws -> [String?] {
@@ -273,7 +290,8 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
             modelContext.fetch(FetchDescriptor<StoredBreastFeedEvent>()).map(\.lastSyncErrorCode) +
             modelContext.fetch(FetchDescriptor<StoredBottleFeedEvent>()).map(\.lastSyncErrorCode) +
             modelContext.fetch(FetchDescriptor<StoredSleepEvent>()).map(\.lastSyncErrorCode) +
-            modelContext.fetch(FetchDescriptor<StoredNappyEvent>()).map(\.lastSyncErrorCode)
+            modelContext.fetch(FetchDescriptor<StoredNappyEvent>()).map(\.lastSyncErrorCode) +
+            modelContext.fetch(FetchDescriptor<StoredBathEvent>()).map(\.lastSyncErrorCode)
     }
 
     private func apply(
@@ -347,6 +365,17 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
         lastSyncedAt: Date?,
         lastSyncErrorCode: String?,
         to model: StoredNappyEvent
+    ) {
+        model.syncStateRawValue = state.rawValue
+        model.lastSyncedAt = lastSyncedAt
+        model.lastSyncErrorCode = lastSyncErrorCode
+    }
+
+    private func apply(
+        state: SyncState,
+        lastSyncedAt: Date?,
+        lastSyncErrorCode: String?,
+        to model: StoredBathEvent
     ) {
         model.syncStateRawValue = state.rawValue
         model.lastSyncedAt = lastSyncedAt

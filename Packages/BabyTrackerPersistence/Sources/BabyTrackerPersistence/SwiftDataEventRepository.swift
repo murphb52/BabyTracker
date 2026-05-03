@@ -19,6 +19,8 @@ public final class SwiftDataEventRepository: EventRepository {
 
     public func saveEvent(_ event: BabyEvent) throws {
         switch event {
+        case let .bath(value):
+            try saveBath(value)
         case let .breastFeed(value):
             try saveBreastFeed(value)
         case let .bottleFeed(value):
@@ -33,6 +35,10 @@ public final class SwiftDataEventRepository: EventRepository {
     }
 
     public func loadEvent(id: UUID) throws -> BabyEvent? {
+        if let storedEvent = try fetchStoredBathEvent(id: id) {
+            return .bath(mapBath(storedEvent))
+        }
+
         if let storedEvent = try fetchStoredBreastFeedEvent(id: id) {
             return .breastFeed(try mapBreastFeed(storedEvent))
         }
@@ -58,6 +64,18 @@ public final class SwiftDataEventRepository: EventRepository {
     ) throws -> [BabyEvent] {
         var timeline: [BabyEvent] = []
 
+        timeline.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredBathEvent>())
+            .filter { storedEvent in
+                storedEvent.childID == childID &&
+                (
+                    includingDeleted ||
+                    !isSoftDeleted(
+                        isDeleted: storedEvent.isDeleted,
+                        deletedAt: storedEvent.deletedAt
+                    )
+                )
+            }
+            .map { .bath(mapBath($0)) })
         timeline.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredBreastFeedEvent>())
             .filter { storedEvent in
                 storedEvent.childID == childID &&
@@ -141,6 +159,8 @@ public final class SwiftDataEventRepository: EventRepository {
             return sleep.startedAt < endOfDay && end > startOfDay
         case let .breastFeed(feed):
             return feed.startedAt < endOfDay && feed.endedAt > startOfDay
+        case let .bath(bath):
+            return bath.metadata.occurredAt >= startOfDay && bath.metadata.occurredAt < endOfDay
         case let .bottleFeed(feed):
             return feed.metadata.occurredAt >= startOfDay && feed.metadata.occurredAt < endOfDay
         case let .nappy(nappy):
@@ -168,7 +188,9 @@ public final class SwiftDataEventRepository: EventRepository {
         deletedAt: Date,
         deletedBy: UUID
     ) throws {
-        if let storedEvent = try fetchStoredBreastFeedEvent(id: id) {
+        if let storedEvent = try fetchStoredBathEvent(id: id) {
+            markDeleted(storedEvent, deletedAt: deletedAt, deletedBy: deletedBy)
+        } else if let storedEvent = try fetchStoredBreastFeedEvent(id: id) {
             markDeleted(storedEvent, deletedAt: deletedAt, deletedBy: deletedBy)
         } else if let storedEvent = try fetchStoredBottleFeedEvent(id: id) {
             markDeleted(storedEvent, deletedAt: deletedAt, deletedBy: deletedBy)
@@ -183,6 +205,36 @@ public final class SwiftDataEventRepository: EventRepository {
 
     private var modelContext: ModelContext {
         store.modelContainer.mainContext
+    }
+
+    private func saveBath(_ event: BathEvent) throws {
+        let existingEvent = try fetchStoredBathEvent(id: event.id)
+        let storedEvent = existingEvent ?? StoredBathEvent(
+            id: event.id,
+            childID: event.metadata.childID,
+            occurredAt: event.metadata.occurredAt,
+            createdAt: event.metadata.createdAt,
+            createdBy: event.metadata.createdBy,
+            updatedAt: event.metadata.updatedAt,
+            updatedBy: event.metadata.updatedBy,
+            notes: event.metadata.notes,
+            isDeleted: event.metadata.isDeleted,
+            deletedAt: event.metadata.deletedAt,
+            usedShampoo: event.usedShampoo,
+            usedSoap: event.usedSoap,
+            syncStateRawValue: SyncState.pendingSync.rawValue,
+            lastSyncedAt: nil,
+            lastSyncErrorCode: nil
+        )
+
+        applyMetadata(event.metadata, to: storedEvent)
+        storedEvent.usedShampoo = event.usedShampoo
+        storedEvent.usedSoap = event.usedSoap
+        markPending(storedEvent)
+
+        if existingEvent == nil {
+            modelContext.insert(storedEvent)
+        }
     }
 
     private func saveBreastFeed(_ event: BreastFeedEvent) throws {
@@ -316,6 +368,11 @@ public final class SwiftDataEventRepository: EventRepository {
         }
     }
 
+    private func fetchStoredBathEvent(id: UUID) throws -> StoredBathEvent? {
+        try modelContext.fetch(FetchDescriptor<StoredBathEvent>())
+            .first { $0.id == id }
+    }
+
     private func fetchStoredBreastFeedEvent(id: UUID) throws -> StoredBreastFeedEvent? {
         try modelContext.fetch(FetchDescriptor<StoredBreastFeedEvent>())
             .first { $0.id == id }
@@ -334,6 +391,25 @@ public final class SwiftDataEventRepository: EventRepository {
     private func fetchStoredNappyEvent(id: UUID) throws -> StoredNappyEvent? {
         try modelContext.fetch(FetchDescriptor<StoredNappyEvent>())
             .first { $0.id == id }
+    }
+
+    private func mapBath(_ storedEvent: StoredBathEvent) -> BathEvent {
+        BathEvent(
+            metadata: makeMetadata(
+                id: storedEvent.id,
+                childID: storedEvent.childID,
+                occurredAt: storedEvent.occurredAt,
+                createdAt: storedEvent.createdAt,
+                createdBy: storedEvent.createdBy,
+                updatedAt: storedEvent.updatedAt,
+                updatedBy: storedEvent.updatedBy,
+                notes: storedEvent.notes,
+                isDeleted: storedEvent.isDeleted,
+                deletedAt: storedEvent.deletedAt
+            ),
+            usedShampoo: storedEvent.usedShampoo,
+            usedSoap: storedEvent.usedSoap
+        )
     }
 
     private func mapBreastFeed(_ storedEvent: StoredBreastFeedEvent) throws -> BreastFeedEvent {
@@ -466,6 +542,18 @@ public final class SwiftDataEventRepository: EventRepository {
         isDeleted || deletedAt != nil
     }
 
+    private func applyMetadata(_ metadata: EventMetadata, to storedEvent: StoredBathEvent) {
+        storedEvent.childID = metadata.childID
+        storedEvent.occurredAt = metadata.occurredAt
+        storedEvent.createdAt = metadata.createdAt
+        storedEvent.createdBy = metadata.createdBy
+        storedEvent.updatedAt = metadata.updatedAt
+        storedEvent.updatedBy = metadata.updatedBy
+        storedEvent.notes = metadata.notes
+        storedEvent.isDeleted = metadata.isDeleted
+        storedEvent.deletedAt = metadata.deletedAt
+    }
+
     private func applyMetadata(_ metadata: EventMetadata, to storedEvent: StoredBreastFeedEvent) {
         storedEvent.childID = metadata.childID
         storedEvent.occurredAt = metadata.occurredAt
@@ -515,6 +603,18 @@ public final class SwiftDataEventRepository: EventRepository {
     }
 
     private func markDeleted(
+        _ storedEvent: StoredBathEvent,
+        deletedAt: Date,
+        deletedBy: UUID
+    ) {
+        storedEvent.isDeleted = true
+        storedEvent.deletedAt = deletedAt
+        storedEvent.updatedAt = deletedAt
+        storedEvent.updatedBy = deletedBy
+        markPending(storedEvent)
+    }
+
+    private func markDeleted(
         _ storedEvent: StoredBreastFeedEvent,
         deletedAt: Date,
         deletedBy: UUID
@@ -560,6 +660,11 @@ public final class SwiftDataEventRepository: EventRepository {
         storedEvent.updatedAt = deletedAt
         storedEvent.updatedBy = deletedBy
         markPending(storedEvent)
+    }
+
+    private func markPending(_ storedEvent: StoredBathEvent) {
+        storedEvent.syncStateRawValue = SyncState.pendingSync.rawValue
+        storedEvent.lastSyncErrorCode = nil
     }
 
     private func markPending(_ storedEvent: StoredBreastFeedEvent) {

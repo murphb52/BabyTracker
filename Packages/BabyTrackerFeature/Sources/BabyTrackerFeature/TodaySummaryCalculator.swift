@@ -64,7 +64,7 @@ public enum TodaySummaryCalculator {
         let allFeedEvents = todayEvents.filter {
             switch $0 {
             case .breastFeed, .bottleFeed: true
-            case .sleep, .nappy: false
+            case .bath, .sleep, .nappy: false
             }
         }
         let averageFeedInterval = averageFeedIntervalMinutes(for: allFeedEvents)

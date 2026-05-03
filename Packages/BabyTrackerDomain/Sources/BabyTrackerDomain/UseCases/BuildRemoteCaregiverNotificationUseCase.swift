@@ -62,6 +62,8 @@ public struct BuildRemoteCaregiverNotificationUseCase: Sendable {
 
     private func addedMessage(for change: RemoteCaregiverEventChange) -> String {
         switch change.event {
+        case let .bath(event):
+            return "\(change.actorDisplayName) logged a bath at \(formatTime(event.metadata.occurredAt))."
         case let .sleep(event):
             if event.endedAt == nil {
                 return "\(change.actorDisplayName) started a sleep timer."
@@ -79,6 +81,8 @@ public struct BuildRemoteCaregiverNotificationUseCase: Sendable {
 
     private func deletedMessage(for change: RemoteCaregiverEventChange) -> String {
         switch change.event {
+        case .bath:
+            return "\(change.actorDisplayName) deleted a bath log."
         case .sleep:
             return "\(change.actorDisplayName) deleted a sleep log."
         case let .nappy(event):

@@ -140,6 +140,7 @@ struct OnboardingCustomizeEventsStepView: View {
 
     private func kindTitle(_ kind: BabyEventKind) -> String {
         switch kind {
+        case .bath: "Bath"
         case .breastFeed: "Breast feed"
         case .bottleFeed: "Bottle feed"
         case .sleep: "Sleep"
@@ -149,6 +150,7 @@ struct OnboardingCustomizeEventsStepView: View {
 
     private func kindDescription(_ kind: BabyEventKind) -> String {
         switch kind {
+        case .bath: "Baths with shampoo and soap details"
         case .breastFeed: "Nursing sessions and duration"
         case .bottleFeed: "Formula and expressed milk"
         case .sleep: "Naps and overnight sleeps"

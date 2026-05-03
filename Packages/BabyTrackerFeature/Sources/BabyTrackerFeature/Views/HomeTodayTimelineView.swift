@@ -154,6 +154,11 @@ private let previewEventsFull: [HomeTimelineEventViewState] = [
         timeText: "5:34 PM", isOngoing: false
     ),
     HomeTimelineEventViewState(
+        id: UUID(), kind: .bath,
+        title: "Bath", detailText: "Shampoo • Soap",
+        timeText: "4:55 PM", isOngoing: false
+    ),
+    HomeTimelineEventViewState(
         id: UUID(), kind: .nappy,
         title: "Nappy", detailText: "Poo · medium · yellow",
         timeText: "4:15 PM", isOngoing: false
@@ -185,6 +190,11 @@ private let previewEventsAwake: [HomeTimelineEventViewState] = [
         id: UUID(), kind: .sleep,
         title: "Nap ended", detailText: "1h 30m",
         timeText: "1:40 PM", isOngoing: false
+    ),
+    HomeTimelineEventViewState(
+        id: UUID(), kind: .bath,
+        title: "Bath", detailText: "Soap",
+        timeText: "12:20 PM", isOngoing: false
     ),
     HomeTimelineEventViewState(
         id: UUID(), kind: .nappy,

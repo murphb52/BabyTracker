@@ -1456,7 +1456,7 @@ struct AppModelTests {
         harness.model.setEventKindEnabled(.breastFeed, isEnabled: false)
 
         #expect(!harness.model.isEventKindEnabled(.breastFeed))
-        #expect(visibilityStore.enabledEventKinds == [.bottleFeed, .sleep, .nappy])
+        #expect(visibilityStore.enabledEventKinds == [.bath, .bottleFeed, .sleep, .nappy])
         #expect(!harness.model.events.contains(where: { $0.id == breastFeed.id }))
         #expect(harness.model.events.contains(where: { $0.id == bottleFeed.id }))
 

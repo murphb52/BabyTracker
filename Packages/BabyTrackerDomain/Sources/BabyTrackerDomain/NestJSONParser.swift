@@ -33,6 +33,13 @@ public struct NestJSONParser {
 
     private func importableEvent(from nestEvent: NestEventExport, skippedReasons: inout [String]) -> ImportableEvent? {
         switch nestEvent {
+        case .bath(let e):
+            let metadata = ImportEventMetadata(occurredAt: e.occurredAt, notes: e.notes.isEmpty ? nil : e.notes)
+            return .bath(BathImport(
+                metadata: metadata,
+                usedShampoo: e.usedShampoo,
+                usedSoap: e.usedSoap
+            ))
         case .breastFeed(let e):
             let durationMinutes = Int(e.endedAt.timeIntervalSince(e.startedAt) / 60)
             let metadata = ImportEventMetadata(occurredAt: e.occurredAt, notes: e.notes.isEmpty ? nil : e.notes)

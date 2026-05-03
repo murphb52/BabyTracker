@@ -71,6 +71,9 @@ public struct EventFilter: Equatable, Sendable {
                 return false
             }
 
+        case .bath:
+            break
+
         case let .bottleFeed(bottle):
             if !milkTypes.isEmpty {
                 guard let milkType = bottle.milkType, milkTypes.contains(milkType) else {

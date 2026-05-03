@@ -81,33 +81,51 @@ public struct DailyNappyData: Equatable, Sendable {
     }
 }
 
+public struct DailyBathData: Equatable, Sendable {
+    public let date: Date
+    public let label: String
+    public let count: Int
+
+    public init(date: Date, label: String, count: Int) {
+        self.date = date
+        self.label = label
+        self.count = count
+    }
+}
+
 public struct TrendsSummaryData: Equatable, Sendable {
     public let dailyBottle: [DailyBottleData]
     public let dailyBreastFeed: [DailyBreastFeedData]
     public let dailySleep: [DailySleepData]
     public let dailyNappy: [DailyNappyData]
+    public let dailyBath: [DailyBathData]
     public let avgDailyBottleMilliliters: Int?
     public let avgDailyBreastFeedSessions: Int?
     public let avgDailySleepMinutes: Int?
     public let avgDailyNappies: Int?
+    public let avgDailyBaths: Int?
 
     public init(
         dailyBottle: [DailyBottleData],
         dailyBreastFeed: [DailyBreastFeedData],
         dailySleep: [DailySleepData],
         dailyNappy: [DailyNappyData],
+        dailyBath: [DailyBathData],
         avgDailyBottleMilliliters: Int?,
         avgDailyBreastFeedSessions: Int?,
         avgDailySleepMinutes: Int?,
-        avgDailyNappies: Int?
+        avgDailyNappies: Int?,
+        avgDailyBaths: Int?
     ) {
         self.dailyBottle = dailyBottle
         self.dailyBreastFeed = dailyBreastFeed
         self.dailySleep = dailySleep
         self.dailyNappy = dailyNappy
+        self.dailyBath = dailyBath
         self.avgDailyBottleMilliliters = avgDailyBottleMilliliters
         self.avgDailyBreastFeedSessions = avgDailyBreastFeedSessions
         self.avgDailySleepMinutes = avgDailySleepMinutes
         self.avgDailyNappies = avgDailyNappies
+        self.avgDailyBaths = avgDailyBaths
     }
 }

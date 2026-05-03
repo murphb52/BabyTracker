@@ -44,6 +44,7 @@ public struct ChildProfileExportView: View {
 
             Section("What gets exported") {
                 exportableRow(icon: "person.crop.circle", title: "Child name & birth date", color: .purple)
+                exportableRow(icon: "drop.fill", title: "Baths (shampoo & soap details)", color: .teal)
                 exportableRow(icon: "moon.zzz.fill", title: "Sleep sessions", color: .indigo)
                 exportableRow(icon: "waterbottle.fill", title: "Bottle feeds (amount & milk type)", color: .blue)
                 exportableRow(icon: "figure.seated.side.air.upper", title: "Breast feeds (side & duration)", color: .pink)

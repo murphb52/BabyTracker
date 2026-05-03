@@ -2,6 +2,7 @@ import BabyTrackerDomain
 import Foundation
 
 public enum ChildEventSheet: Identifiable {
+    case quickLogBath
     case quickLogBreastFeed
     case quickLogBottleFeed(smartSuggestions: [Int])
     case startSleep(suggestions: [(label: String, date: Date)])
@@ -35,9 +36,22 @@ public enum ChildEventSheet: Identifiable {
         pooVolume: NappyVolume?,
         pooColor: PooColor?
     )
+    case editBath(
+        id: UUID,
+        occurredAt: Date,
+        usedShampoo: Bool,
+        usedSoap: Bool
+    )
 
     public init(id: UUID, actionPayload: EventActionPayload) {
         switch actionPayload {
+        case let .editBath(occurredAt, usedShampoo, usedSoap):
+            self = .editBath(
+                id: id,
+                occurredAt: occurredAt,
+                usedShampoo: usedShampoo,
+                usedSoap: usedSoap
+            )
         case let .editBreastFeed(durationMinutes, endTime, side, leftDurationSeconds, rightDurationSeconds):
             self = .editBreastFeed(
                 id: id,
@@ -76,6 +90,8 @@ public enum ChildEventSheet: Identifiable {
 
     public var id: String {
         switch self {
+        case .quickLogBath:
+            "quick-log-bath"
         case .quickLogBreastFeed:
             "quick-log-breast-feed"
         case .quickLogBottleFeed:
@@ -96,6 +112,8 @@ public enum ChildEventSheet: Identifiable {
             "edit-sleep-\(id.uuidString)"
         case let .editNappy(id, _, _, _, _, _):
             "edit-nappy-\(id.uuidString)"
+        case let .editBath(id, _, _, _):
+            "edit-bath-\(id.uuidString)"
         }
     }
 }
