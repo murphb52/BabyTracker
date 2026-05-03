@@ -1,1 +1,5 @@
 SWIFT_COMPILATION_MODE = wholemodule
+
+// No suffix in Release: production bundle identifier remains exactly as
+// shipped on the App Store.
+BUNDLE_ID_SUFFIX =

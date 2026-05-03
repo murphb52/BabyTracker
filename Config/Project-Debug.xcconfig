@@ -1,2 +1,7 @@
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG $(inherited)
 SWIFT_OPTIMIZATION_LEVEL = -Onone
+
+// Suffix appended to bundle identifiers in Debug builds so the dev build
+// can install side-by-side with the App Store build while still pointing
+// at the same iCloud container.
+BUNDLE_ID_SUFFIX = .dev
