@@ -1,4 +1,3 @@
-import BabyTrackerDomain
 import SwiftUI
 
 public struct EventVisibilitySettingsView: View {
@@ -9,37 +8,32 @@ public struct EventVisibilitySettingsView: View {
     }
 
     public var body: some View {
-        List {
-            Section {
-                ForEach(BabyEventKind.allCases, id: \.self) { kind in
-                    eventToggleRow(for: kind)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Choose what you'd like to track")
+                        .font(.title2.weight(.bold))
+
+                    Text("Turn event types on or off across the app. Your existing data stays safe, and you can re-enable any event again whenever you need it.")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-            } footer: {
-                Text("Disabled events stay hidden across the app, but your existing data is never deleted. Re-enable an event at any time to see it again.")
+
+                EventTypeChecklistCardView(
+                    model: model,
+                    animateOnAppear: false
+                )
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.top, 24)
+            .padding(.bottom, 12)
         }
-        .listStyle(.insetGrouped)
+        .background(Color(.systemGroupedBackground))
+        .scrollBounceBehavior(.basedOnSize)
         .navigationTitle("Customize Events")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func eventToggleRow(for kind: BabyEventKind) -> some View {
-        let isEnabled = model.isEventKindEnabled(kind)
-        let isOnlyEnabled = isEnabled && model.enabledEventKinds.count == 1
-
-        return Toggle(isOn: Binding(
-            get: { model.isEventKindEnabled(kind) },
-            set: { model.setEventKindEnabled(kind, isEnabled: $0) }
-        )) {
-            HStack(spacing: 12) {
-                Image(systemName: BabyEventStyle.systemImage(for: kind))
-                    .foregroundStyle(BabyEventStyle.accentColor(for: kind))
-                    .frame(width: 24)
-                Text(BabyEventPresentation.title(for: kind))
-            }
-        }
-        .disabled(isOnlyEnabled)
-        .accessibilityIdentifier("event-visibility-toggle-\(kind.rawValue)")
     }
 }
 
