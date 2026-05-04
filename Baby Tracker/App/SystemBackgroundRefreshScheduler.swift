@@ -1,35 +1,33 @@
 import BabyTrackerDomain
+import BabyTrackerFeature
 import BackgroundTasks
 import Foundation
 
-/// Schedules and runs an opportunistic background refresh on top of CloudKit
-/// silent push. Push delivery is best-effort, so this gives the app a second
-/// independent chance to pull caregiver changes while suspended.
+/// `BGTaskScheduler`-backed implementation of `BackgroundRefreshScheduling`.
+/// Lives in the app target so the `BackgroundTasks` import stays out of
+/// feature/preview code.
 ///
-/// iOS treats the requested cadence as a hint, not a guarantee — the system
+/// iOS treats the scheduling cadence as a hint, not a guarantee — the system
 /// decides when (and whether) to actually run the task based on usage,
 /// battery, and Low Power Mode.
 @MainActor
-final class BackgroundAppRefreshScheduler {
-    static let shared = BackgroundAppRefreshScheduler()
-
+final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
     /// Must match the identifier listed in Info.plist under
     /// `BGTaskSchedulerPermittedIdentifiers`.
     static let taskIdentifier = "com.adappt.BabyTracker.backgroundRefresh"
 
     private static let earliestRefreshInterval: TimeInterval = 60 * 60
 
-    /// Set by the composition root to perform the actual refresh. Returns
-    /// whether the refresh succeeded so the system can adapt scheduling.
-    var handler: (() async -> Bool)?
-
+    private var handler: (() async -> Bool)?
     private var didRegisterLaunchHandler = false
 
-    private init() {}
+    init() {}
 
-    func registerLaunchHandler() {
+    func registerLaunchHandler(_ handler: @escaping () async -> Bool) {
+        self.handler = handler
+
         // BGTaskScheduler must only be registered once per identifier per
-        // process and must be wired before didFinishLaunchingWithOptions
+        // process, and must be wired before didFinishLaunchingWithOptions
         // returns.
         guard !didRegisterLaunchHandler else { return }
         didRegisterLaunchHandler = true
