@@ -18,12 +18,12 @@ final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
 
     private static let earliestRefreshInterval: TimeInterval = 60 * 60
 
-    private var handler: (() async -> Bool)?
+    private var handler: (@MainActor () async -> Bool)?
     private var didRegisterLaunchHandler = false
 
     init() {}
 
-    func registerLaunchHandler(_ handler: @escaping () async -> Bool) {
+    func registerLaunchHandler(_ handler: @escaping @MainActor () async -> Bool) {
         self.handler = handler
 
         // BGTaskScheduler must only be registered once per identifier per

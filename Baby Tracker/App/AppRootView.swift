@@ -4,14 +4,15 @@ import SwiftUI
 
 struct AppRootView: View {
     @State private var model: AppModel
-    private let backgroundRefreshScheduler: any BackgroundRefreshScheduling
+    private let scheduleBackgroundRefresh: @MainActor () -> Void
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage(accentColorHexKey) private var accentColorHex: String = accentColorHexDefault
     @AppStorage(debugOptionsUnlockedKey) private var areDebugOptionsVisible = false
 
     init(container: AppContainer) {
         _model = State(initialValue: container.appModel)
-        backgroundRefreshScheduler = container.backgroundRefreshScheduler
+        let scheduler = container.backgroundRefreshScheduler
+        scheduleBackgroundRefresh = { scheduler.scheduleNext() }
     }
 
     var body: some View {
@@ -88,7 +89,7 @@ struct AppRootView: View {
                 Task { await model.refreshSyncStatus() }
             } else if newPhase == .background {
                 model.appDidEnterBackground()
-                backgroundRefreshScheduler.scheduleNext()
+                scheduleBackgroundRefresh()
             }
         }
         .onOpenURL { url in
