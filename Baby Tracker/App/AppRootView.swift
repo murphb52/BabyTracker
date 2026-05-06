@@ -1,3 +1,4 @@
+import BabyTrackerDomain
 import BabyTrackerFeature
 import BabyTrackerLiveActivities
 import SwiftUI
@@ -82,10 +83,15 @@ struct AppRootView: View {
         }
         .tint(Color(hex: accentColorHex))
         .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active {
+            AppLogger.shared.log(.debug, category: "LiveActivity", "[scenePhase] → \(newPhase)")
+            switch newPhase {
+            case .active:
                 Task { await model.refreshSyncStatus() }
-            } else if newPhase == .background {
+                model.appDidBecomeActive()
+            case .background:
                 model.appDidEnterBackground()
+            default:
+                break
             }
         }
         .onOpenURL { url in

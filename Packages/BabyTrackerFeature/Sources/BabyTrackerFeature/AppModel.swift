@@ -185,14 +185,21 @@ public final class AppModel {
 
     public func setLiveActivitiesEnabled(_ isEnabled: Bool) {
         guard isLiveActivityEnabled != isEnabled else {
+            AppLogger.shared.log(.debug, category: "LiveActivity", "[toggle] no-op (already \(isEnabled))")
             return
         }
 
+        AppLogger.shared.log(.info, category: "LiveActivity", "[toggle] \(isLiveActivityEnabled) → \(isEnabled)")
         isLiveActivityEnabled = isEnabled
         liveActivityPreferenceStore.setLiveActivityEnabled(isEnabled)
 
         if isEnabled {
-            refresh(selecting: childSelectionStore.loadSelectedChildID())
+            // synchronizeLiveActivity must be true here — toggling the setting on
+            // is the explicit user signal to start the activity now.
+            refresh(
+                selecting: childSelectionStore.loadSelectedChildID(),
+                synchronizeLiveActivity: true
+            )
         } else {
             stopLiveActivity()
         }
@@ -310,7 +317,53 @@ public final class AppModel {
     }
 
     public func appDidEnterBackground() {
+        AppLogger.shared.log(.info, category: "LiveActivity", "[appDidEnterBackground] syncing")
         synchronizeFeedLiveActivity()
+    }
+
+    /// Called when the scene returns to `.active`. Re-syncs the live activity so
+    /// activities the system ended while the app was suspended (8h cap, low
+    /// battery, reboot, user dismissal) get rebuilt on the next launch.
+    public func appDidBecomeActive() {
+        AppLogger.shared.log(
+            .info,
+            category: "LiveActivity",
+            "[appDidBecomeActive] re-syncing — enabled=\(isLiveActivityEnabled) hasRunningActivity=\(liveActivityManager.hasRunningActivity)"
+        )
+        synchronizeFeedLiveActivity()
+    }
+
+    /// Diagnostic reset called from the in-app Debug Options screen. Logs the
+    /// pre-reset state so the user can inspect it in the log viewer, then
+    /// unconditionally tears down any activity (cached or leaked) and forces a
+    /// fresh sync from the current in-memory profile.
+    public func debugResetLiveActivity() {
+        let diagnostic = liveActivityManager.currentDiagnostic()
+        let cached = liveActivitySnapshotCache.load()
+        AppLogger.shared.log(.info, category: "LiveActivity", "[debug-reset] requested")
+        AppLogger.shared.log(
+            .info,
+            category: "LiveActivity",
+            "[debug-reset] state enabled=\(isLiveActivityEnabled) auth=\(diagnostic.systemAuthorizationGranted) hasRunningActivity=\(diagnostic.hasRunningActivity) activeID=\(diagnostic.activeActivityID ?? "nil")"
+        )
+        AppLogger.shared.log(
+            .info,
+            category: "LiveActivity",
+            "[debug-reset] runningActivityIDs=\(diagnostic.runningActivityIDs.isEmpty ? "[]" : diagnostic.runningActivityIDs.joined(separator: ","))"
+        )
+        AppLogger.shared.log(
+            .info,
+            category: "LiveActivity",
+            "[debug-reset] lastSync=\(diagnostic.lastSyncSummary ?? "nil") cachedSnapshot=\(cached == nil ? "nil" : "present(child=\(cached!.childID.uuidString.prefix(8)))")"
+        )
+
+        ResetFeedLiveActivityUseCase.execute(
+            liveActivityManager: liveActivityManager,
+            snapshotCache: liveActivitySnapshotCache
+        )
+        synchronizeFeedLiveActivity()
+
+        AppLogger.shared.log(.info, category: "LiveActivity", "[debug-reset] complete — re-sync attempted")
     }
 
     public func requestNotificationAuthorizationIfNeeded() {

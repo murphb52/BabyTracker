@@ -4,6 +4,8 @@ import Foundation
 /// Builds the `FeedLiveActivitySnapshot` used to update the lock-screen
 /// Live Activity widget. Returns `nil` when there is no feed data yet.
 public enum BuildFeedLiveActivitySnapshotUseCase {
+    private static let category = "LiveActivity"
+
     public static func execute(
         events: [BabyEvent],
         child: Child,
@@ -13,6 +15,11 @@ public enum BuildFeedLiveActivitySnapshotUseCase {
             from: events,
             preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
         ) else {
+            AppLogger.shared.log(
+                .info,
+                category: category,
+                "[buildSnapshot] nil — no feed events yet for child=\(child.id.uuidString.prefix(8))"
+            )
             return nil
         }
 
@@ -22,7 +29,7 @@ public enum BuildFeedLiveActivitySnapshotUseCase {
         )
         let lastNappy = LastNappySummaryCalculator.makeSummary(from: events)
 
-        return FeedLiveActivitySnapshot(
+        let snapshot = FeedLiveActivitySnapshot(
             childID: child.id,
             childName: child.name,
             lastFeedKind: summary.lastFeedKind,
@@ -31,5 +38,11 @@ public enum BuildFeedLiveActivitySnapshotUseCase {
             activeSleepStartedAt: lastSleep?.isActive == true ? lastSleep?.startedAt : nil,
             lastNappyAt: lastNappy?.occurredAt
         )
+        AppLogger.shared.log(
+            .debug,
+            category: category,
+            "[buildSnapshot] built feed=\(summary.lastFeedKind.rawValue) sleep=\(lastSleep != nil) activeSleep=\(snapshot.activeSleepStartedAt != nil) nappy=\(lastNappy != nil)"
+        )
+        return snapshot
     }
 }

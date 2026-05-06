@@ -103,4 +103,14 @@ private final class LiveActivityManagerSpy: FeedLiveActivityManaging {
     func synchronize(with snapshot: FeedLiveActivitySnapshot?) {
         snapshots.append(snapshot)
     }
+
+    func currentDiagnostic() -> FeedLiveActivityDiagnostic {
+        FeedLiveActivityDiagnostic(
+            hasRunningActivity: hasRunningActivity,
+            activeActivityID: nil,
+            runningActivityIDs: [],
+            systemAuthorizationGranted: true,
+            lastSyncSummary: nil
+        )
+    }
 }

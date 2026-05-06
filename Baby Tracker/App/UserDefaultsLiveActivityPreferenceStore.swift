@@ -1,3 +1,4 @@
+import BabyTrackerDomain
 import BabyTrackerFeature
 import Foundation
 
@@ -6,6 +7,8 @@ final class UserDefaultsLiveActivityPreferenceStore: LiveActivityPreferenceStore
     private enum DefaultsKey {
         static let isLiveActivityEnabled = "liveActivity.isEnabled"
     }
+
+    private static let category = "LiveActivity"
 
     private let userDefaults: UserDefaults
 
@@ -22,6 +25,12 @@ final class UserDefaultsLiveActivityPreferenceStore: LiveActivityPreferenceStore
     }
 
     func setLiveActivityEnabled(_ isEnabled: Bool) {
+        let previous = userDefaults.object(forKey: DefaultsKey.isLiveActivityEnabled) as? Bool
         userDefaults.set(isEnabled, forKey: DefaultsKey.isLiveActivityEnabled)
+        AppLogger.shared.log(
+            .info,
+            category: Self.category,
+            "[preference] setLiveActivityEnabled \(previous.map(String.init) ?? "unset") → \(isEnabled)"
+        )
     }
 }

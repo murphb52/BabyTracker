@@ -2156,6 +2156,16 @@ extension AppModelTests {
             snapshots.append(snapshot)
             _currentSnapshot = snapshot
         }
+
+        func currentDiagnostic() -> FeedLiveActivityDiagnostic {
+            FeedLiveActivityDiagnostic(
+                hasRunningActivity: hasRunningActivity,
+                activeActivityID: nil,
+                runningActivityIDs: [],
+                systemAuthorizationGranted: true,
+                lastSyncSummary: nil
+            )
+        }
     }
 
     @MainActor
