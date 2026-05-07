@@ -2291,6 +2291,8 @@ public final class AppModel {
     }
 }
 
+extension AppModel: BackgroundRefreshing {}
+
 // MARK: - In-memory demo factory
 
 public extension AppModel {
