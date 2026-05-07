@@ -6,6 +6,7 @@ import Foundation
 public enum BuildFeedLiveActivitySnapshotUseCase {
     private static let category = "LiveActivity"
 
+    @MainActor
     public static func execute(
         events: [BabyEvent],
         child: Child,
