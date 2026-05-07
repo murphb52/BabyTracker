@@ -11,6 +11,12 @@ import Foundation
 /// `activeActivityID` is treated as a hint, never authoritative — so a system
 /// dismissal between reconciles cannot leave us out of sync.
 ///
+/// All ActivityKit entry points (`request`, `update`, `end`) are funneled
+/// through `nonisolated static` helpers that take only `Sendable` values
+/// (ids, attributes, content). The instance itself stays `@MainActor` for
+/// state and logging; this layout avoids "sending non-Sendable Activity
+/// across actor boundaries" warnings under Swift 6 strict concurrency.
+///
 /// Every public entry point and every ActivityKit call is logged through
 /// `AppLogger.shared` under category `LiveActivity` so the in-app log viewer
 /// can be used to follow each step end-to-end.
@@ -50,7 +56,7 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         return FeedLiveActivityDiagnostic(
             hasRunningActivity: !activities.isEmpty,
             activeActivityID: activeActivityID,
-            runningActivityIDs: activities.map { "\($0.id)(\($0.activityState))" },
+            runningActivityIDs: activities.map { "\($0.id)(\(String(describing: $0.activityState)))" },
             systemAuthorizationGranted: ActivityAuthorizationInfo().areActivitiesEnabled,
             lastSyncSummary: lastSyncSummary
         )
@@ -65,7 +71,10 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         log(.debug, "[reconcile] start running=\(activities.count) activeID=\(activeActivityID ?? "nil")")
 
         guard let snapshot else {
-            await endAll(activities, reason: "snapshot=nil")
+            if !activities.isEmpty {
+                log(.info, "[end] ending \(activities.count) activities — reason=snapshot=nil")
+                await Self.endAll()
+            }
             activeActivityID = nil
             stateObservationTask?.cancel()
             stateObservationTask = nil
@@ -74,37 +83,42 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         }
 
         // Drop stale activities for OTHER children (we only track one at a time).
-        let mismatched = activities.filter { $0.attributes.childID != snapshot.childID }
-        if !mismatched.isEmpty {
-            log(.info, "[reconcile] ending \(mismatched.count) stale activities for other children")
-            await endAll(mismatched, reason: "stale child")
+        let mismatchedIDs = activities
+            .filter { $0.attributes.childID != snapshot.childID }
+            .map(\.id)
+        if !mismatchedIDs.isEmpty {
+            log(.info, "[end] ending \(mismatchedIDs.count) stale activities for other children")
+            await Self.end(ids: mismatchedIDs)
         }
 
         // Match: an activity already exists for this child — try to update it.
         if let matching = activities.first(where: { $0.attributes.childID == snapshot.childID }) {
-            activeActivityID = matching.id
+            let matchingID = matching.id
+            activeActivityID = matchingID
             observeActivityState(matching)
 
-            let didUpdate = await update(activity: matching, snapshot: snapshot)
+            log(.info, "[update] id=\(matchingID)")
+            let didUpdate = await Self.update(id: matchingID, content: content(for: snapshot))
             guard !Task.isCancelled else { return }
             if didUpdate {
+                log(.info, "[update] succeeded id=\(matchingID)")
                 lastSyncSummary = "updated \(Self.summarize(snapshot))"
                 return
             }
 
             // Update failed — fall through and request a fresh activity.
-            log(.warning, "[reconcile] update failed for id=\(matching.id), falling back to request")
+            log(.warning, "[update] activity disappeared from system before update id=\(matchingID), falling back to request")
             activeActivityID = nil
         }
 
         guard !Task.isCancelled else { return }
 
-        await request(snapshot: snapshot)
+        requestNewActivity(snapshot: snapshot)
     }
 
-    // MARK: - ActivityKit calls
+    // MARK: - Request
 
-    private func request(snapshot: FeedLiveActivitySnapshot) async {
+    private func requestNewActivity(snapshot: FeedLiveActivitySnapshot) {
         let auth = ActivityAuthorizationInfo()
         guard auth.areActivitiesEnabled else {
             log(.warning, "[request] aborted: system authorization denied — Live Activities disabled in iOS Settings")
@@ -130,46 +144,48 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         }
     }
 
-    private func update(
-        activity: Activity<FeedLiveActivityAttributes>,
-        snapshot: FeedLiveActivitySnapshot
-    ) async -> Bool {
-        log(.info, "[update] id=\(activity.id) state=\(activity.activityState)")
-        // Re-fetch the current activity to avoid acting on a reference that
-        // was already ended by the system between our enumeration and now.
-        guard Activity<FeedLiveActivityAttributes>.activities.contains(where: { $0.id == activity.id }) else {
-            log(.warning, "[update] activity disappeared from system before update id=\(activity.id)")
-            return false
-        }
-        await activity.update(content(for: snapshot))
-        log(.info, "[update] succeeded id=\(activity.id)")
-        return true
-    }
-
-    private func endAll(
-        _ activities: [Activity<FeedLiveActivityAttributes>],
-        reason: String
-    ) async {
-        guard !activities.isEmpty else { return }
-        log(.info, "[end] ending \(activities.count) activities — reason=\(reason)")
-        for activity in activities {
-            log(.debug, "[end] id=\(activity.id) state=\(activity.activityState)")
-            await activity.end(nil, dismissalPolicy: .immediate)
-        }
-    }
+    // MARK: - State observation
 
     private func observeActivityState(_ activity: Activity<FeedLiveActivityAttributes>) {
         stateObservationTask?.cancel()
         let id = activity.id
         stateObservationTask = Task { @MainActor [weak self] in
             for await state in activity.activityStateUpdates {
-                self?.log(.info, "[observe] id=\(id) → \(state)")
+                self?.log(.info, "[observe] id=\(id) → \(String(describing: state))")
                 if state == .ended || state == .dismissed || state == .stale {
                     self?.activeActivityID = nil
                     self?.stateObservationTask = nil
                     return
                 }
             }
+        }
+    }
+
+    // MARK: - ActivityKit nonisolated wrappers
+
+    /// All ActivityKit `await` calls live here so the non-Sendable
+    /// `Activity<...>` reference never crosses an actor boundary.
+    private nonisolated static func update(
+        id: String,
+        content: ActivityContent<FeedLiveActivityAttributes.ContentState>
+    ) async -> Bool {
+        guard let activity = Activity<FeedLiveActivityAttributes>.activities.first(where: { $0.id == id }) else {
+            return false
+        }
+        await activity.update(content)
+        return true
+    }
+
+    private nonisolated static func end(ids: [String]) async {
+        let idSet = Set(ids)
+        for activity in Activity<FeedLiveActivityAttributes>.activities where idSet.contains(activity.id) {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+    }
+
+    private nonisolated static func endAll() async {
+        for activity in Activity<FeedLiveActivityAttributes>.activities {
+            await activity.end(nil, dismissalPolicy: .immediate)
         }
     }
 
