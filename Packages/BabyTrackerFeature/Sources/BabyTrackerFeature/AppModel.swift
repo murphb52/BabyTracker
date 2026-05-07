@@ -185,14 +185,21 @@ public final class AppModel {
 
     public func setLiveActivitiesEnabled(_ isEnabled: Bool) {
         guard isLiveActivityEnabled != isEnabled else {
+            AppLogger.shared.log(.debug, category: "LiveActivity", "[toggle] no-op (already \(isEnabled))")
             return
         }
 
+        AppLogger.shared.log(.info, category: "LiveActivity", "[toggle] \(isLiveActivityEnabled) → \(isEnabled)")
         isLiveActivityEnabled = isEnabled
         liveActivityPreferenceStore.setLiveActivityEnabled(isEnabled)
 
         if isEnabled {
-            refresh(selecting: childSelectionStore.loadSelectedChildID())
+            // synchronizeLiveActivity must be true here — toggling the setting on
+            // is the explicit user signal to start the activity now.
+            refresh(
+                selecting: childSelectionStore.loadSelectedChildID(),
+                synchronizeLiveActivity: true
+            )
         } else {
             stopLiveActivity()
         }
@@ -310,7 +317,53 @@ public final class AppModel {
     }
 
     public func appDidEnterBackground() {
+        AppLogger.shared.log(.info, category: "LiveActivity", "[appDidEnterBackground] syncing")
         synchronizeFeedLiveActivity()
+    }
+
+    /// Called when the scene returns to `.active`. Re-syncs the live activity so
+    /// activities the system ended while the app was suspended (8h cap, low
+    /// battery, reboot, user dismissal) get rebuilt on the next launch.
+    public func appDidBecomeActive() {
+        AppLogger.shared.log(
+            .info,
+            category: "LiveActivity",
+            "[appDidBecomeActive] re-syncing — enabled=\(isLiveActivityEnabled) hasRunningActivity=\(liveActivityManager.hasRunningActivity)"
+        )
+        synchronizeFeedLiveActivity()
+    }
+
+    /// Diagnostic reset called from the in-app Debug Options screen. Logs the
+    /// pre-reset state so the user can inspect it in the log viewer, then
+    /// unconditionally tears down any activity (cached or leaked) and forces a
+    /// fresh sync from the current in-memory profile.
+    public func debugResetLiveActivity() {
+        let diagnostic = liveActivityManager.currentDiagnostic()
+        let cached = liveActivitySnapshotCache.load()
+        AppLogger.shared.log(.info, category: "LiveActivity", "[debug-reset] requested")
+        AppLogger.shared.log(
+            .info,
+            category: "LiveActivity",
+            "[debug-reset] state enabled=\(isLiveActivityEnabled) auth=\(diagnostic.systemAuthorizationGranted) hasRunningActivity=\(diagnostic.hasRunningActivity) activeID=\(diagnostic.activeActivityID ?? "nil")"
+        )
+        AppLogger.shared.log(
+            .info,
+            category: "LiveActivity",
+            "[debug-reset] runningActivityIDs=\(diagnostic.runningActivityIDs.isEmpty ? "[]" : diagnostic.runningActivityIDs.joined(separator: ","))"
+        )
+        AppLogger.shared.log(
+            .info,
+            category: "LiveActivity",
+            "[debug-reset] lastSync=\(diagnostic.lastSyncSummary ?? "nil") cachedSnapshot=\(cached == nil ? "nil" : "present(child=\(cached!.childID.uuidString.prefix(8)))")"
+        )
+
+        ResetFeedLiveActivityUseCase.execute(
+            liveActivityManager: liveActivityManager,
+            snapshotCache: liveActivitySnapshotCache
+        )
+        synchronizeFeedLiveActivity()
+
+        AppLogger.shared.log(.info, category: "LiveActivity", "[debug-reset] complete — re-sync attempted")
     }
 
     public func requestNotificationAuthorizationIfNeeded() {
@@ -1068,7 +1121,14 @@ public final class AppModel {
         do {
             try operation()
             onSuccess?()
-            refresh(selecting: childSelectionStore.loadSelectedChildID())
+            // Local writes must propagate to the Live Activity immediately —
+            // local Activity.update() calls are not subject to the push-update
+            // budget, so syncing on every event log is safe and prevents the
+            // widget from drifting while the app is in the foreground.
+            refresh(
+                selecting: childSelectionStore.loadSelectedChildID(),
+                synchronizeLiveActivity: true
+            )
             Task { @MainActor in
                 await runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
             }
@@ -2114,11 +2174,28 @@ public final class AppModel {
 
     private func scheduleRemoteSyncNotificationIfNeeded() async {
         let changes = syncEngine.consumeRemoteCaregiverEventChanges()
+        AppLogger.shared.log(
+            .debug,
+            category: "RemoteSync",
+            "[caregiverNotification] consumed \(changes.count) remote caregiver change(s)"
+        )
         let input = BuildRemoteCaregiverNotificationUseCase.Input(changes: changes)
         guard let content = buildRemoteNotificationUseCase.execute(input) else {
+            if !changes.isEmpty {
+                AppLogger.shared.log(
+                    .warning,
+                    category: "RemoteSync",
+                    "[caregiverNotification] skipped — build use case returned nil despite \(changes.count) change(s)"
+                )
+            }
             return
         }
 
+        AppLogger.shared.log(
+            .info,
+            category: "RemoteSync",
+            "[caregiverNotification] posting — title=\(content.title) body=\(content.body)"
+        )
         await localNotificationManager.scheduleRemoteSyncNotification(content)
     }
 
@@ -2127,7 +2204,13 @@ public final class AppModel {
     ) async {
         setSyncIndicator(.syncing)
         let summary = await operation()
-        refresh(selecting: childSelectionStore.loadSelectedChildID())
+        // CloudKit pulls can bring in events logged on a co-parent's device.
+        // Those need to flow into the Live Activity too — otherwise the widget
+        // shows stale data until the next scene-phase transition.
+        refresh(
+            selecting: childSelectionStore.loadSelectedChildID(),
+            synchronizeLiveActivity: true
+        )
         await rescheduleAllDriftNotificationsAsync()
         updateSyncIndicator(using: summary)
     }
@@ -2224,6 +2307,8 @@ public final class AppModel {
         hapticFeedbackProvider.play(event)
     }
 }
+
+extension AppModel: BackgroundRefreshing {}
 
 // MARK: - In-memory demo factory
 

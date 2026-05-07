@@ -106,6 +106,17 @@ public struct AppSettingsView: View {
                         )
                     }
                     .foregroundStyle(.primary)
+
+                    Button {
+                        model.debugResetLiveActivity()
+                    } label: {
+                        settingsRow(
+                            title: "Reset Live Activity",
+                            value: nil,
+                            accessibilityIdentifier: "app-settings-reset-live-activity-row"
+                        )
+                    }
+                    .foregroundStyle(.primary)
                 }
             }
 

@@ -1,15 +1,19 @@
+import BabyTrackerDomain
 import BabyTrackerFeature
 import BabyTrackerLiveActivities
 import SwiftUI
 
 struct AppRootView: View {
     @State private var model: AppModel
+    private let scheduleBackgroundRefresh: @MainActor () -> Void
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage(accentColorHexKey) private var accentColorHex: String = accentColorHexDefault
     @AppStorage(debugOptionsUnlockedKey) private var areDebugOptionsVisible = false
 
     init(container: AppContainer) {
         _model = State(initialValue: container.appModel)
+        let scheduler = container.backgroundRefreshScheduler
+        scheduleBackgroundRefresh = { scheduler.scheduleNext() }
     }
 
     var body: some View {
@@ -82,10 +86,16 @@ struct AppRootView: View {
         }
         .tint(Color(hex: accentColorHex))
         .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active {
+            AppLogger.shared.log(.debug, category: "LiveActivity", "[scenePhase] → \(newPhase)")
+            switch newPhase {
+            case .active:
                 Task { await model.refreshSyncStatus() }
-            } else if newPhase == .background {
+                model.appDidBecomeActive()
+            case .background:
                 model.appDidEnterBackground()
+                scheduleBackgroundRefresh()
+            default:
+                break
             }
         }
         .onOpenURL { url in

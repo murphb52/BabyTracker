@@ -1,17 +1,24 @@
-/// Ends the live activity and clears the snapshot cache, but only if the
-/// cache contains data (i.e. a live activity is actually running).
-/// Call this to force a full restart — the next UpdateFeedLiveActivityUseCase
-/// call will start a fresh activity regardless of previously cached state.
+import BabyTrackerDomain
+
+/// Ends any live activity and clears the snapshot cache. Always tells the
+/// manager to synchronize with `nil` so leaked or stale system activities
+/// are reaped even if our cache thinks nothing is running.
 public enum ResetFeedLiveActivityUseCase {
+    private static let category = "LiveActivity"
+
     @MainActor
     public static func execute(
         liveActivityManager: any FeedLiveActivityManaging,
         snapshotCache: any FeedLiveActivitySnapshotCaching
     ) {
-        guard snapshotCache.load() != nil else {
-            return
-        }
+        let cacheHadValue = snapshotCache.load() != nil
+        AppLogger.shared.log(
+            .info,
+            category: category,
+            "[reset] entering — cacheHadValue=\(cacheHadValue) hasRunningActivity=\(liveActivityManager.hasRunningActivity)"
+        )
         liveActivityManager.synchronize(with: nil)
         snapshotCache.save(nil)
+        AppLogger.shared.log(.info, category: category, "[reset] complete")
     }
 }

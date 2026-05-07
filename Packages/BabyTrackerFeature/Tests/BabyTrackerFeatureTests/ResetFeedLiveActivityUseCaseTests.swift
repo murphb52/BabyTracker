@@ -47,13 +47,18 @@ struct ResetFeedLiveActivityUseCaseTests {
     // MARK: - Cache is empty
 
     @Test
-    func doesNothingWhenCacheIsEmpty() {
+    func stillSynchronizesNilWhenCacheIsEmpty() {
+        // Reset has to be unconditional so leaked or stale system activities
+        // get ended even when our cache is already empty (e.g. user taps the
+        // debug Reset Live Activity button to recover from an out-of-sync state).
         let manager = SpyFeedLiveActivityManager()
         let cache = InMemoryFeedLiveActivitySnapshotCache()
 
         ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager, snapshotCache: cache)
 
-        #expect(manager.synchronizeCalls.isEmpty)
+        #expect(manager.synchronizeCalls.count == 1)
+        #expect(manager.synchronizeCalls.first == .some(nil))
+        #expect(cache.load() == nil)
     }
 
     // MARK: - Integration with UpdateFeedLiveActivityUseCase
