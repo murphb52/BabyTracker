@@ -2174,11 +2174,28 @@ public final class AppModel {
 
     private func scheduleRemoteSyncNotificationIfNeeded() async {
         let changes = syncEngine.consumeRemoteCaregiverEventChanges()
+        AppLogger.shared.log(
+            .debug,
+            category: "RemoteSync",
+            "[caregiverNotification] consumed \(changes.count) remote caregiver change(s)"
+        )
         let input = BuildRemoteCaregiverNotificationUseCase.Input(changes: changes)
         guard let content = buildRemoteNotificationUseCase.execute(input) else {
+            if !changes.isEmpty {
+                AppLogger.shared.log(
+                    .warning,
+                    category: "RemoteSync",
+                    "[caregiverNotification] skipped — build use case returned nil despite \(changes.count) change(s)"
+                )
+            }
             return
         }
 
+        AppLogger.shared.log(
+            .info,
+            category: "RemoteSync",
+            "[caregiverNotification] posting — title=\(content.title) body=\(content.body)"
+        )
         await localNotificationManager.scheduleRemoteSyncNotification(content)
     }
 

@@ -29,7 +29,14 @@ final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
         // BGTaskScheduler must only be registered once per identifier per
         // process, and must be wired before didFinishLaunchingWithOptions
         // returns.
-        guard !didRegisterLaunchHandler else { return }
+        guard !didRegisterLaunchHandler else {
+            AppLogger.shared.log(
+                .debug,
+                category: "BackgroundRefresh",
+                "registerLaunchHandler — handler replaced (already registered with BGTaskScheduler)"
+            )
+            return
+        }
         didRegisterLaunchHandler = true
 
         BGTaskScheduler.shared.register(
@@ -37,6 +44,11 @@ final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
             using: nil
         ) { [weak self] task in
             guard let appRefreshTask = task as? BGAppRefreshTask else {
+                AppLogger.shared.log(
+                    .error,
+                    category: "BackgroundRefresh",
+                    "BGTaskScheduler delivered unexpected task type \(type(of: task)) — completing as failed"
+                )
                 task.setTaskCompleted(success: false)
                 return
             }
@@ -44,6 +56,11 @@ final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
                 self?.handle(task: appRefreshTask)
             }
         }
+        AppLogger.shared.log(
+            .info,
+            category: "BackgroundRefresh",
+            "Registered launch handler with BGTaskScheduler — identifier=\(Self.taskIdentifier)"
+        )
     }
 
     func scheduleNext() {
@@ -66,6 +83,12 @@ final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
     }
 
     private func handle(task: BGAppRefreshTask) {
+        AppLogger.shared.log(
+            .info,
+            category: "BackgroundRefresh",
+            "iOS launched background refresh task — identifier=\(task.identifier)"
+        )
+
         // Queue the next request before doing work so a crash or expiration
         // in this run still leaves a future refresh pending.
         scheduleNext()
@@ -84,6 +107,9 @@ final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
         // Expiration runs on a system queue, so we can only do Sendable work
         // here. Cancelling the task lets the work block log the outcome itself.
         task.expirationHandler = {
+            // We can't touch AppLogger from this Sendable context (it's
+            // @MainActor); hop back inside the work task on cancel and the
+            // existing "finished — expired: true" log line will fire.
             work.cancel()
         }
     }
