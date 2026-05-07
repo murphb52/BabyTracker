@@ -1121,7 +1121,14 @@ public final class AppModel {
         do {
             try operation()
             onSuccess?()
-            refresh(selecting: childSelectionStore.loadSelectedChildID())
+            // Local writes must propagate to the Live Activity immediately —
+            // local Activity.update() calls are not subject to the push-update
+            // budget, so syncing on every event log is safe and prevents the
+            // widget from drifting while the app is in the foreground.
+            refresh(
+                selecting: childSelectionStore.loadSelectedChildID(),
+                synchronizeLiveActivity: true
+            )
             Task { @MainActor in
                 await runSyncRefresh { await self.syncEngine.refreshAfterLocalWrite() }
             }
@@ -2180,7 +2187,13 @@ public final class AppModel {
     ) async {
         setSyncIndicator(.syncing)
         let summary = await operation()
-        refresh(selecting: childSelectionStore.loadSelectedChildID())
+        // CloudKit pulls can bring in events logged on a co-parent's device.
+        // Those need to flow into the Live Activity too — otherwise the widget
+        // shows stale data until the next scene-phase transition.
+        refresh(
+            selecting: childSelectionStore.loadSelectedChildID(),
+            synchronizeLiveActivity: true
+        )
         await rescheduleAllDriftNotificationsAsync()
         updateSyncIndicator(using: summary)
     }

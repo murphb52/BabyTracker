@@ -42,7 +42,7 @@ public enum BuildFeedLiveActivitySnapshotUseCase {
         AppLogger.shared.log(
             .debug,
             category: category,
-            "[buildSnapshot] built feed=\(summary.lastFeedKind.rawValue) sleep=\(lastSleep != nil) activeSleep=\(snapshot.activeSleepStartedAt != nil) nappy=\(lastNappy != nil)"
+            "[buildSnapshot] built feed=\(summary.lastFeedKind.rawValue)@\(Int(snapshot.lastFeedAt.timeIntervalSince1970)) sleep=\(snapshot.lastSleepAt.map { "@\(Int($0.timeIntervalSince1970))" } ?? "nil") activeSleep=\(snapshot.activeSleepStartedAt.map { "@\(Int($0.timeIntervalSince1970))" } ?? "nil") nappy=\(snapshot.lastNappyAt.map { "@\(Int($0.timeIntervalSince1970))" } ?? "nil")"
         )
         return snapshot
     }

@@ -36,7 +36,11 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
     private var stateObservationTask: Task<Void, Never>?
 
     var hasRunningActivity: Bool {
-        !Activity<FeedLiveActivityAttributes>.activities.isEmpty
+        // A `.stale`, `.ended`, or `.dismissed` activity is still in the array
+        // until iOS sweeps it. Treating it as "running" deadlocks the use-case
+        // dedup (cache matches, hasRunningActivity=true → skip forever) so we
+        // only count `.active` here. Anything else is dead from our POV.
+        Activity<FeedLiveActivityAttributes>.activities.contains { $0.activityState == .active }
     }
 
     func synchronize(with snapshot: FeedLiveActivitySnapshot?) {
@@ -91,24 +95,36 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
             await Self.end(ids: mismatchedIDs)
         }
 
-        // Match: an activity already exists for this child — try to update it.
+        // Match: an activity already exists for this child.
         if let matching = activities.first(where: { $0.attributes.childID == snapshot.childID }) {
             let matchingID = matching.id
-            activeActivityID = matchingID
-            observeActivityState(matching)
+            let matchingState = matching.activityState
 
-            log(.info, "[update] id=\(matchingID)")
-            let didUpdate = await Self.update(id: matchingID, content: content(for: snapshot))
-            guard !Task.isCancelled else { return }
-            if didUpdate {
-                log(.info, "[update] succeeded id=\(matchingID)")
-                lastSyncSummary = "updated \(Self.summarize(snapshot))"
-                return
+            if matchingState == .active {
+                activeActivityID = matchingID
+                observeActivityState(matching)
+
+                log(.info, "[update] id=\(matchingID)")
+                let didUpdate = await Self.update(id: matchingID, content: content(for: snapshot))
+                guard !Task.isCancelled else { return }
+                if didUpdate {
+                    log(.info, "[update] succeeded id=\(matchingID)")
+                    lastSyncSummary = "updated \(Self.summarize(snapshot))"
+                    return
+                }
+
+                log(.warning, "[update] activity disappeared from system before update id=\(matchingID), falling back to request")
+                activeActivityID = nil
+            } else {
+                // iOS marked the activity stale / ended / dismissed but it is
+                // still in the array. We cannot resurrect it — end it and
+                // request a fresh one, otherwise updates are dropped silently.
+                log(.warning, "[reconcile] matching activity id=\(matchingID) state=\(String(describing: matchingState)) — ending and re-requesting")
+                await Self.end(ids: [matchingID])
+                activeActivityID = nil
+                stateObservationTask?.cancel()
+                stateObservationTask = nil
             }
-
-            // Update failed — fall through and request a fresh activity.
-            log(.warning, "[update] activity disappeared from system before update id=\(matchingID), falling back to request")
-            activeActivityID = nil
         }
 
         guard !Task.isCancelled else { return }
