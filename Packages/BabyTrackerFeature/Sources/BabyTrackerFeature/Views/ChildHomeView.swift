@@ -54,7 +54,27 @@ public struct ChildHomeView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                HomeGreetingView(childName: nil, onAvatarTapped: {})
+                VStack(alignment: .leading, spacing: 12) {
+                    HomeGreetingView(
+                        childName: nil,
+                        syncBannerState: model.syncBannerState,
+                        onAvatarTapped: {}
+                    )
+
+                    if let errorMessage = model.errorMessage {
+                        ErrorBannerView(
+                            message: errorMessage,
+                            dismissAction: model.dismissError
+                        )
+                        .transition(
+                            .asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .top)),
+                                removal: .opacity
+                            )
+                        )
+                    }
+                }
+                .animation(.spring(response: 0.38, dampingFraction: 0.85), value: model.errorMessage)
 
                 heroCard
                     .transition(.opacity)
