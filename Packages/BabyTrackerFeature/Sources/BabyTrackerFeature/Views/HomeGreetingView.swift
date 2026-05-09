@@ -118,3 +118,88 @@ struct HomeGreetingView: View {
     )
     .padding()
 }
+
+private struct HomeHeaderPreviewHost: View {
+    @State private var syncState: SyncBannerState? = .syncing
+    @State private var errorMessage: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                controls
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    HomeGreetingView(
+                        childName: nil,
+                        syncBannerState: syncState,
+                        onAvatarTapped: {}
+                    )
+
+                    if let errorMessage {
+                        ErrorBannerView(
+                            message: errorMessage,
+                            dismissAction: { self.errorMessage = nil }
+                        )
+                        .transition(
+                            .asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .top)),
+                                removal: .opacity
+                            )
+                        )
+                    }
+                }
+                .animation(.spring(response: 0.38, dampingFraction: 0.85), value: errorMessage)
+            }
+            .padding(16)
+        }
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+    }
+
+    private var controls: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Sync state")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    syncButton(label: "Hidden", state: nil)
+                    syncButton(label: "Syncing", state: .syncing)
+                    syncButton(label: "Synced", state: .synced)
+                    syncButton(label: "Failed", state: .lastSyncFailed("Sync failed. Local changes are still saved."))
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Error banner")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                Button(errorMessage == nil ? "Show error" : "Hide error") {
+                    errorMessage = errorMessage == nil
+                        ? "We couldn't reach iCloud. We'll keep trying."
+                        : nil
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
+
+    private func syncButton(label: String, state: SyncBannerState?) -> some View {
+        Button(label) { syncState = state }
+            .buttonStyle(.bordered)
+            .tint(syncState == state ? .accentColor : .secondary)
+    }
+}
+
+#Preview("Interactive controls") {
+    HomeHeaderPreviewHost()
+}

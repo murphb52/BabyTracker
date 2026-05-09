@@ -54,17 +54,6 @@ struct AppRootView: View {
         )) {
             InteractiveOnboardingView(model: model)
         }
-        .overlay(alignment: .top) {
-            if let errorMessage = model.errorMessage {
-                ErrorBannerView(
-                    message: errorMessage,
-                    dismissAction: model.dismissError
-                )
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .frame(maxWidth: .infinity, alignment: .topTrailing)
-            }
-        }
         .tint(Color(hex: accentColorHex))
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
