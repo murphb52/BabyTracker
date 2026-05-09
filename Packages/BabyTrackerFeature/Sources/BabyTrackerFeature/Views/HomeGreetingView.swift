@@ -2,11 +2,22 @@ import SwiftUI
 
 struct HomeGreetingView: View {
     let childName: String?
+    let syncBannerState: SyncBannerState?
     let onAvatarTapped: () -> Void
+
+    init(
+        childName: String?,
+        syncBannerState: SyncBannerState? = nil,
+        onAvatarTapped: @escaping () -> Void
+    ) {
+        self.childName = childName
+        self.syncBannerState = syncBannerState
+        self.onAvatarTapped = onAvatarTapped
+    }
 
     var body: some View {
         TimelineView(.everyMinute) { context in
-            HStack(alignment: .bottom) {
+            HStack(alignment: .bottom, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(dateLabel(for: context.date))
                         .font(.subheadline)
@@ -17,7 +28,17 @@ struct HomeGreetingView: View {
                         .foregroundStyle(.primary)
                 }
 
-                Spacer(minLength: 12)
+                Spacer(minLength: 0)
+
+                if let syncBannerState {
+                    SyncIndicatorView(state: syncBannerState)
+                        .transition(
+                            .asymmetric(
+                                insertion: .scale(scale: 0.8).combined(with: .opacity),
+                                removal: .opacity
+                            )
+                        )
+                }
 
                 if let initials = childInitials {
                     Button(action: onAvatarTapped) {
@@ -31,6 +52,7 @@ struct HomeGreetingView: View {
                     .buttonStyle(.plain)
                 }
             }
+            .animation(.spring(response: 0.38, dampingFraction: 0.82), value: syncBannerState)
         }
     }
 
@@ -76,4 +98,23 @@ struct HomeGreetingView: View {
 #Preview("Long name truncation") {
     HomeGreetingView(childName: "Alexandria", onAvatarTapped: {})
         .padding()
+}
+
+#Preview("Syncing") {
+    HomeGreetingView(childName: nil, syncBannerState: .syncing, onAvatarTapped: {})
+        .padding()
+}
+
+#Preview("Synced") {
+    HomeGreetingView(childName: nil, syncBannerState: .synced, onAvatarTapped: {})
+        .padding()
+}
+
+#Preview("Sync failed") {
+    HomeGreetingView(
+        childName: nil,
+        syncBannerState: .lastSyncFailed("Sync failed."),
+        onAvatarTapped: {}
+    )
+    .padding()
 }

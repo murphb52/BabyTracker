@@ -55,30 +55,15 @@ struct AppRootView: View {
             InteractiveOnboardingView(model: model)
         }
         .overlay(alignment: .top) {
-            ZStack(alignment: .topTrailing) {
-                if let errorMessage = model.errorMessage {
-                    ErrorBannerView(
-                        message: errorMessage,
-                        dismissAction: model.dismissError
-                    )
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                }
-
-                if let syncBannerState = model.syncBannerState {
-                    SyncIndicatorView(state: syncBannerState)
-                        .padding(.top, 8)
-                        .padding(.trailing, 16)
-                        .transition(
-                            .asymmetric(
-                                insertion: .opacity.combined(with: .move(edge: .bottom)),
-                                removal: .opacity.combined(with: .move(edge: .bottom))
-                            )
-                        )
-                }
+            if let errorMessage = model.errorMessage {
+                ErrorBannerView(
+                    message: errorMessage,
+                    dismissAction: model.dismissError
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .frame(maxWidth: .infinity, alignment: .topTrailing)
             }
-            .frame(maxWidth: .infinity, alignment: .topTrailing)
-            .animation(.spring(response: 0.38, dampingFraction: 0.82), value: model.syncBannerState != nil)
         }
         .tint(Color(hex: accentColorHex))
         .onChange(of: scenePhase) { _, newPhase in
