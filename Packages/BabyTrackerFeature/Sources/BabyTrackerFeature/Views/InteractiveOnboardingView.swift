@@ -116,12 +116,11 @@ public struct InteractiveOnboardingView: View {
 
                 stepContent
                     .id(currentStepIndex)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .transition(reduceMotion ? .opacity : .asymmetric(
                         insertion: .move(edge: isGoingBack ? .leading : .trailing).combined(with: .opacity),
                         removal: .move(edge: isGoingBack ? .trailing : .leading).combined(with: .opacity)
                     ))
-
-                Spacer(minLength: 24)
 
                 footer
                     .padding(.horizontal, 24)
@@ -207,7 +206,8 @@ public struct InteractiveOnboardingView: View {
         case .quickLogDemo:
             OnboardingDemoPageContainer(
                 title: "We're here to help",
-                message: "Log quickly, spot patterns, and stay in sync with your partner without carrying it all in your head."
+                message: "Log quickly, spot patterns, and stay in sync with your partner without carrying it all in your head.",
+                characterScene: .quickLog
             ) {
                 VStack(spacing: 10) {
                     OnboardingSupportHighlightsView()
@@ -221,7 +221,8 @@ public struct InteractiveOnboardingView: View {
         case .timelineDemo:
             OnboardingDemoPageContainer(
                 title: "See the whole picture",
-                message: "The timeline fills in as you log, so you can see the rhythm of any day at a glance."
+                message: "The timeline fills in as you log, so you can see the rhythm of any day at a glance.",
+                characterScene: .timeline
             ) {
                 OnboardingTimelineDemoView()
             }
@@ -229,7 +230,8 @@ public struct InteractiveOnboardingView: View {
         case .chartsDemo:
             OnboardingDemoPageContainer(
                 title: "Spot the patterns",
-                message: "The Summary tab turns raw events into charts so you can see what's changing week by week."
+                message: "The Summary tab turns raw events into charts so you can see what's changing week by week.",
+                characterScene: .charts
             ) {
                 OnboardingChartsDemoView()
             }
@@ -237,7 +239,8 @@ public struct InteractiveOnboardingView: View {
         case .liveActivityDemo:
             OnboardingDemoPageContainer(
                 title: "Stay updated from your Lock Screen",
-                message: "See the latest feed, sleep, and nappy timings without unlocking your phone."
+                message: "See the latest feed, sleep, and nappy timings without unlocking your phone.",
+                characterScene: .liveActivity
             ) {
                 OnboardingLiveActivityDemoView()
             }
@@ -245,7 +248,8 @@ public struct InteractiveOnboardingView: View {
         case .notificationsDemo:
             OnboardingDemoPageContainer(
                 title: "Get helpful alerts",
-                message: "Know when feeds, sleep, and changes are logged, even when you're away from the app."
+                message: "Know when feeds, sleep, and changes are logged, even when you're away from the app.",
+                characterScene: .notifications
             ) {
                 OnboardingNotificationsDemoView()
             }

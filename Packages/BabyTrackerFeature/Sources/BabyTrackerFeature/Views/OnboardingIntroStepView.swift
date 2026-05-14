@@ -8,7 +8,7 @@ struct OnboardingIntroStepView: View {
         VStack(alignment: .leading, spacing: 24) {
             Spacer(minLength: 24)
 
-            OnboardingIntroIconSceneView(page: page)
+            OnboardingCharacterSceneView(scene: OnboardingCharacterScene(introPageID: page.id))
 
             VStack(alignment: .leading, spacing: 12) {
                 Text(page.title)
