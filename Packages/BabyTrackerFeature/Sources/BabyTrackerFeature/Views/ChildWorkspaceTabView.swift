@@ -1,5 +1,6 @@
 import BabyTrackerDomain
 import SwiftUI
+import TipKit
 
 public struct ChildWorkspaceTabView: View {
     let model: AppModel
@@ -8,6 +9,7 @@ public struct ChildWorkspaceTabView: View {
     @State private var activeGroupedTimelineSheet: TimelineDayGridItemViewState?
     @State private var deleteCandidate: EventDeleteCandidate?
     @State private var showingEditChildSheet = false
+    @State private var quickSwapTip = ChildQuickSwapTip()
     @State private var showingEventFilter = false
     @State private var handledSleepSheetRequestToken = 0
     @State private var summaryViewModel: SummaryViewModel
@@ -99,17 +101,24 @@ public struct ChildWorkspaceTabView: View {
         .navigationTitle(childProfileViewModel.childName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if model.selectedWorkspaceTab == .home, let initials = childInitials {
+            if model.selectedWorkspaceTab == .home, let currentChild = model.currentChild {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { showingEditChildSheet = true }) {
-                        Text(initials)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.tint)
-                            .frame(width: 34, height: 34)
-                            .background(.tint.opacity(0.12), in: Circle())
-                            .overlay(Circle().stroke(.tint.opacity(0.25), lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
+                    ChildQuickSwapMenu(
+                        currentChild: currentChild,
+                        children: model.activeChildren,
+                        quickSwapTip: quickSwapTip,
+                        viewChild: { childID in
+                            if childID == model.currentChild?.id {
+                                model.selectedWorkspaceTab = .profile
+                            } else {
+                                model.selectChild(id: childID)
+                            }
+                        },
+                        setActiveChild: { childID in
+                            model.quickSwitchChild(id: childID)
+                        },
+                        showNextChild: model.quickSwitchToNextChild
+                    )
                 }
             }
             if model.selectedWorkspaceTab == .events {
@@ -187,16 +196,6 @@ public struct ChildWorkspaceTabView: View {
         .onChange(of: model.sleepSheetRequestToken) { _, _ in
             processPendingSleepSheetRequest()
         }
-    }
-
-    private var childInitials: String? {
-        let name = childProfileViewModel.childName
-        guard !name.isEmpty else { return nil }
-        let words = name.split(separator: " ")
-        if words.count >= 2 {
-            return words.prefix(2).compactMap { $0.first.map(String.init) }.joined()
-        }
-        return String(name.prefix(1))
     }
 
     private func processPendingSleepSheetRequest() {
