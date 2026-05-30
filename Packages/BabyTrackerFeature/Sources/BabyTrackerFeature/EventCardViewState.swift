@@ -129,6 +129,25 @@ public struct EventCardViewState: Equatable, Identifiable, Sendable {
                 pooVolume: nappy.pooVolume,
                 pooColor: nappy.pooColor
             )
+        case let .medication(medication):
+            id = medication.id
+            kind = .medication
+            title = BabyEventPresentation.title(for: event)
+            detailText = BabyEventPresentation.detailText(
+                for: event,
+                preferredFeedVolumeUnit: preferredFeedVolumeUnit
+            ) ?? ""
+            self.timestampText = timestampText ?? medication.metadata.occurredAt.formatted(
+                date: .abbreviated,
+                time: .shortened
+            )
+            actionPayload = .editMedication(
+                occurredAt: medication.metadata.occurredAt,
+                medicineName: medication.medicineName,
+                amount: medication.amount,
+                unit: medication.unit,
+                customUnitLabel: medication.customUnitLabel
+            )
         }
     }
 }

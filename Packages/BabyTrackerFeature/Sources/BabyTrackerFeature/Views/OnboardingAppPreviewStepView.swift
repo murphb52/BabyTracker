@@ -128,6 +128,9 @@ struct OnboardingAppPreviewStepView: View {
 
         case let .nappy(e):
             Text(nappyDetail(e))
+
+        case let .medication(e):
+            Text("\(e.medicineName) · \(e.formattedAmount) \(e.displayUnit)")
         }
     }
 
@@ -286,6 +289,7 @@ struct OnboardingAppPreviewStepView: View {
         case .bottleFeed: return "Bottle feed"
         case .sleep:      return "Sleep"
         case .nappy:      return "Nappy"
+        case .medication: return "Medication"
         }
     }
 

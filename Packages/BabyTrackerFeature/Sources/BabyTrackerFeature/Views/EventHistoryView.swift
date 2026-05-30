@@ -175,7 +175,7 @@ public struct EventHistoryView: View {
         switch event.actionPayload {
         case .endSleep:
             "End"
-        case .editBath, .editBreastFeed, .editBottleFeed, .editNappy, .editSleep:
+        case .editBath, .editBreastFeed, .editBottleFeed, .editNappy, .editSleep, .editMedication:
             "Edit"
         }
     }
@@ -265,7 +265,7 @@ struct ActiveFilterPill: Identifiable {
     static func pills(for filter: EventFilter) -> [ActiveFilterPill] {
         var pills: [ActiveFilterPill] = []
 
-        for kind in [BabyEventKind.bath, .breastFeed, .bottleFeed, .sleep, .nappy]
+        for kind in [BabyEventKind.bath, .breastFeed, .bottleFeed, .sleep, .nappy, .medication]
             where filter.eventTypes.contains(kind) {
             pills.append(ActiveFilterPill(
                 id: "eventType_\(kind.rawValue)",
