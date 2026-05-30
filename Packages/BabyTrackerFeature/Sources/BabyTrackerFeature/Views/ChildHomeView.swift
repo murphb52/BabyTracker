@@ -1,6 +1,5 @@
 import BabyTrackerDomain
 import SwiftUI
-import TipKit
 
 public struct ChildHomeView: View {
     let model: AppModel
@@ -13,13 +12,11 @@ public struct ChildHomeView: View {
     let quickLogSleep: () -> Void
     let quickLogNappy: () -> Void
     let quickLogBath: () -> Void
-    let openProfile: () -> Void
 
     @State private var statusSectionExpanded: Bool
     @State private var quickLogSectionExpanded: Bool
     @State private var todaySectionExpanded: Bool
     @State private var syncSectionExpanded: Bool
-    @State private var quickSwapTip = ChildQuickSwapTip()
 
     public init(
         model: AppModel,
@@ -31,8 +28,7 @@ public struct ChildHomeView: View {
         quickLogBottleFeed: @escaping () -> Void,
         quickLogSleep: @escaping () -> Void,
         quickLogNappy: @escaping () -> Void,
-        quickLogBath: @escaping () -> Void,
-        openProfile: @escaping () -> Void
+        quickLogBath: @escaping () -> Void
     ) {
         self.model = model
         self.viewModel = viewModel
@@ -44,7 +40,6 @@ public struct ChildHomeView: View {
         self.quickLogSleep = quickLogSleep
         self.quickLogNappy = quickLogNappy
         self.quickLogBath = quickLogBath
-        self.openProfile = openProfile
 
         let defaults = UserDefaults.standard
         _statusSectionExpanded = State(initialValue: defaults.object(forKey: "home.statusSectionExpanded") as? Bool ?? true)
@@ -56,18 +51,7 @@ public struct ChildHomeView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                HomeGreetingView {
-                    if let currentChild = model.currentChild {
-                        ChildQuickSwapMenu(
-                            currentChild: currentChild,
-                            children: model.activeChildren,
-                            quickSwapTip: quickSwapTip,
-                            viewChild: viewChildProfile(childID:),
-                            setActiveChild: model.quickSwitchChild(id:),
-                            showNextChild: model.quickSwitchToNextChild
-                        )
-                    }
-                }
+                HomeGreetingView()
 
                 heroCard
                     .transition(.opacity)
@@ -95,14 +79,6 @@ public struct ChildHomeView: View {
         .onChange(of: quickLogSectionExpanded) { _, v in UserDefaults.standard.set(v, forKey: "home.quickLogSectionExpanded") }
         .onChange(of: todaySectionExpanded) { _, v in UserDefaults.standard.set(v, forKey: "home.todaySectionExpanded") }
         .onChange(of: syncSectionExpanded) { _, v in UserDefaults.standard.set(v, forKey: "home.syncSectionExpanded") }
-    }
-
-    private func viewChildProfile(childID: UUID) {
-        if childID == model.currentChild?.id {
-            openProfile()
-        } else {
-            model.selectChild(id: childID)
-        }
     }
 
     // MARK: - Hero card
@@ -473,8 +449,7 @@ private func makeHomeView(from model: AppModel) -> some View {
             quickLogBottleFeed: {},
             quickLogSleep: {},
             quickLogNappy: {},
-            quickLogBath: {},
-            openProfile: {}
+            quickLogBath: {}
         )
     }
 }

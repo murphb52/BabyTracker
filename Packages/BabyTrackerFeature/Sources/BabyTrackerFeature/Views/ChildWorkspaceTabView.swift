@@ -15,6 +15,7 @@ public struct ChildWorkspaceTabView: View {
     @State private var homeViewModel: HomeViewModel
     @State private var timelineViewModel: TimelineViewModel
     @State private var childProfileViewModel: ChildProfileViewModel
+    @State private var quickSwapTip = ChildQuickSwapTip()
 
     public init(model: AppModel) {
         self.model = model
@@ -42,7 +43,6 @@ public struct ChildWorkspaceTabView: View {
                     activeEventSheet = .quickLogNappy(.mixed)
                 },
                 quickLogBath: { activeEventSheet = .quickLogBath },
-                openProfile: { showingEditChildSheet = true }
             )
             .tag(ChildWorkspaceTab.home)
             .tabItem {
@@ -99,6 +99,19 @@ public struct ChildWorkspaceTabView: View {
         .navigationTitle(childProfileViewModel.childName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if model.selectedWorkspaceTab == .home,
+               let currentChild = model.currentChild {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ChildQuickSwapMenu(
+                        currentChild: currentChild,
+                        children: model.activeChildren,
+                        quickSwapTip: quickSwapTip,
+                        viewChild: viewChildProfile(childID:),
+                        setActiveChild: model.quickSwitchChild(id:),
+                        showNextChild: model.quickSwitchToNextChild
+                    )
+                }
+            }
             if model.selectedWorkspaceTab == .events {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -193,6 +206,14 @@ public struct ChildWorkspaceTabView: View {
             )
         } else {
             activeEventSheet = .startSleep(suggestions: model.sleepStartSuggestions())
+        }
+    }
+
+    private func viewChildProfile(childID: UUID) {
+        if childID == model.currentChild?.id {
+            showingEditChildSheet = true
+        } else {
+            model.selectChild(id: childID)
         }
     }
 

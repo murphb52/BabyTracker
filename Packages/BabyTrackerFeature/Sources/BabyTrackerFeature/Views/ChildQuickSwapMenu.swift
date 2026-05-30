@@ -55,6 +55,7 @@ struct ChildQuickSwapMenu: View {
             )
         }
         .buttonStyle(.plain)
+        .frame(minWidth: 44, minHeight: 44)
         .accessibilityLabel(hasMultipleChildren ? "Child quick swap" : "View child profile")
         .accessibilityHint(
             hasMultipleChildren
@@ -99,20 +100,20 @@ private struct ChildAvatarStackView: View {
                     .zIndex(Double(visibleChildren.count - index))
             }
         }
-        .frame(width: stackWidth, height: 48, alignment: .leading)
+        .frame(width: stackWidth, height: 38, alignment: .leading)
         .contentShape(Capsule())
     }
 
     private var avatarSize: CGFloat {
-        34
+        28
     }
 
     private var avatarSpacing: CGFloat {
-        18
+        16
     }
 
     private var horizontalPadding: CGFloat {
-        7
+        5
     }
 
     private var stackWidth: CGFloat {

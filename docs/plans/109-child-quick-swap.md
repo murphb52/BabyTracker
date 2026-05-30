@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make it faster to move between children when more than one active child is available, using a GitHub-style stacked avatar affordance in the top-right Home header.
+Make it faster to move between children when more than one active child is available, using a GitHub-style stacked avatar affordance in the Home top navigation bar.
 
 ## Approach
 
@@ -14,7 +14,8 @@ Make it faster to move between children when more than one active child is avail
 4. Add a first-run TipKit tip when multiple children are available so users learn the swipe gesture.
 5. Keep the selection logic in `AppModel` simple by allowing callers to choose whether a child switch should navigate to the profile tab.
 6. Add focused model tests for quick swaps that should stay on the current tab.
-7. Move the quick swap affordance out of the navigation toolbar and into the custom Home header so the stacked avatar pill is not clipped by toolbar button sizing.
+7. Keep the quick swap affordance in the Home top navigation bar so it does not scroll away.
+8. Size the custom avatar pill to fit the inline toolbar while preserving a 44-point tap target and the centered child-name title.
 
 ## Completion
 

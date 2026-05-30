@@ -1,29 +1,16 @@
 import SwiftUI
 
-struct HomeGreetingView<Accessory: View>: View {
-    let accessory: Accessory
-
-    init(@ViewBuilder accessory: () -> Accessory) {
-        self.accessory = accessory()
-    }
-
+struct HomeGreetingView: View {
     var body: some View {
         TimelineView(.everyMinute) { context in
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(dateLabel(for: context.date))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(dateLabel(for: context.date))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
 
-                    Text(greeting(for: context.date))
-                        .font(.largeTitle.bold())
-                        .foregroundStyle(.primary)
-                }
-
-                Spacer(minLength: 12)
-
-                accessory
-                    .padding(.top, 2)
+                Text(greeting(for: context.date))
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(.primary)
             }
         }
     }
@@ -43,23 +30,7 @@ struct HomeGreetingView<Accessory: View>: View {
     }
 }
 
-extension HomeGreetingView where Accessory == EmptyView {
-    init() {
-        self.accessory = EmptyView()
-    }
-}
-
 #Preview("Default") {
     HomeGreetingView()
         .padding()
-}
-
-#Preview("With accessory") {
-    HomeGreetingView {
-        Image(systemName: "person.crop.circle")
-            .font(.title2)
-            .frame(width: 44, height: 44)
-            .background(.thinMaterial, in: Circle())
-    }
-    .padding()
 }
