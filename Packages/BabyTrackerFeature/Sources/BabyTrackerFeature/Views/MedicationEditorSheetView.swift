@@ -62,103 +62,11 @@ public struct MedicationEditorSheetView: View {
         NavigationStack {
             Form {
                 LoggingSummaryView(sentence: summarySentence)
-
-                Section {
-                    if !medicineSuggestions.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(medicineSuggestions, id: \.self) { name in
-                                    Button {
-                                        medicineName = name
-                                    } label: {
-                                        Text(name)
-                                            .font(.subheadline.weight(.semibold))
-                                            .padding(.horizontal, 14)
-                                            .padding(.vertical, 8)
-                                            .background(
-                                                Capsule()
-                                                    .fill(isSelectedName(name) ? Self.eventColor : Color(.tertiarySystemGroupedBackground))
-                                            )
-                                            .foregroundStyle(isSelectedName(name) ? Color.white : Color.primary)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityIdentifier("medication-name-suggestion-\(name)")
-                                }
-                            }
-                            .padding(.vertical, 2)
-                        }
-                        .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
-                    }
-
-                    TextField("Type a medicine name", text: $medicineName)
-                        .accessibilityIdentifier("medication-name-field")
-                } header: {
-                    Text("Which medicine?")
-                } footer: {
-                    Text(medicineSuggestions.isEmpty
-                        ? "Type the name of the medicine."
-                        : "Tap a recent medicine above, or type a new one.")
-                }
-
-                Section("How much?") {
-                    unitPicker
-
-                    if !amountPresets.isEmpty {
-                        LazyVGrid(columns: amountColumns, spacing: 8) {
-                            ForEach(amountPresets, id: \.self) { amount in
-                                Button {
-                                    amountText = Self.amountText(for: amount)
-                                } label: {
-                                    Text(Self.amountText(for: amount))
-                                        .font(.subheadline.weight(.semibold))
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 10)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                                .fill(isSelectedAmount(amount) ? Self.eventColor : Color(.tertiarySystemGroupedBackground))
-                                        )
-                                        .foregroundStyle(isSelectedAmount(amount) ? Color.white : Color.primary)
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityIdentifier("medication-amount-preset-\(Self.amountText(for: amount))")
-                            }
-                        }
-                    }
-
-                    HStack {
-                        TextField("Amount", text: $amountText)
-                            .keyboardType(.decimalPad)
-                            .accessibilityIdentifier("medication-amount-field")
-                        Text(unitDisplay)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if unit == .custom {
-                        TextField("Unit (e.g. puff, sachet)", text: $customUnitLabel)
-                            .accessibilityIdentifier("medication-custom-unit-field")
-                    }
-                }
-
-                if let validationMessage {
-                    Section {
-                        Text(validationMessage)
-                            .foregroundStyle(.red)
-                    }
-                }
-
-                Section("When?") {
-                    QuickTimeSelectorView(selection: $occurredAt, initialPreset: initialTimePreset, buttonColor: Self.eventColor)
-                        .accessibilityIdentifier("medication-time-selector")
-                }
-
-                if deleteAction != nil {
-                    Section {
-                        Button("Delete Medication", role: .destructive) {
-                            showDeleteConfirmation = true
-                        }
-                        .accessibilityIdentifier("delete-medication-button")
-                    }
-                }
+                medicineSection
+                amountSection
+                validationSection
+                whenSection
+                deleteSection
             }
             .alert("Delete Medication?", isPresented: $showDeleteConfirmation) {
                 Button("Delete", role: .destructive) {
@@ -174,33 +82,158 @@ public struct MedicationEditorSheetView: View {
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .presentationDetents([.large])
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(primaryActionTitle) {
-                        guard let amount = parsedAmount, isValid else { return }
-                        let didSave = saveAction(
-                            occurredAt,
-                            medicineName.trimmingCharacters(in: .whitespacesAndNewlines),
-                            amount,
-                            unit,
-                            unit == .custom ? customUnitLabel.trimmingCharacters(in: .whitespacesAndNewlines) : nil
-                        )
-                        if didSave {
-                            dismiss()
-                        }
-                    }
-                    .disabled(!isValid)
-                    .accessibilityIdentifier("save-medication-button")
-                }
-            }
+            .toolbar { toolbarContent }
         }
         .tint(Self.eventColor)
+    }
+
+    @ViewBuilder
+    private var medicineSection: some View {
+        Section {
+            if !medicineSuggestions.isEmpty {
+                medicineSuggestionsRow
+            }
+            TextField("Type a medicine name", text: $medicineName)
+                .accessibilityIdentifier("medication-name-field")
+        } header: {
+            Text("Which medicine?")
+        } footer: {
+            Text(medicineSuggestions.isEmpty
+                ? "Type the name of the medicine."
+                : "Tap a recent medicine above, or type a new one.")
+        }
+    }
+
+    private var medicineSuggestionsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(medicineSuggestions, id: \.self) { name in
+                    Button {
+                        medicineName = name
+                    } label: {
+                        chipLabel(name, isSelected: isSelectedName(name), shape: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("medication-name-suggestion-\(name)")
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+    }
+
+    @ViewBuilder
+    private var amountSection: some View {
+        Section("How much?") {
+            unitPicker
+
+            if !amountPresets.isEmpty {
+                amountPresetGrid
+            }
+
+            HStack {
+                TextField("Amount", text: $amountText)
+                    .keyboardType(.decimalPad)
+                    .accessibilityIdentifier("medication-amount-field")
+                Text(unitDisplay)
+                    .foregroundStyle(.secondary)
+            }
+
+            if unit == .custom {
+                TextField("Unit (e.g. puff, sachet)", text: $customUnitLabel)
+                    .accessibilityIdentifier("medication-custom-unit-field")
+            }
+        }
+    }
+
+    private var amountPresetGrid: some View {
+        LazyVGrid(columns: amountColumns, spacing: 8) {
+            ForEach(amountPresets, id: \.self) { amount in
+                Button {
+                    amountText = Self.amountText(for: amount)
+                } label: {
+                    chipLabel(
+                        Self.amountText(for: amount),
+                        isSelected: isSelectedAmount(amount),
+                        shape: RoundedRectangle(cornerRadius: 12, style: .continuous),
+                        fillWidth: true
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("medication-amount-preset-\(Self.amountText(for: amount))")
+            }
+        }
+    }
+
+    private func chipLabel(
+        _ text: String,
+        isSelected: Bool,
+        shape: some Shape,
+        fillWidth: Bool = false
+    ) -> some View {
+        Text(text)
+            .font(.subheadline.weight(.semibold))
+            .frame(maxWidth: fillWidth ? .infinity : nil)
+            .padding(.horizontal, fillWidth ? 0 : 14)
+            .padding(.vertical, fillWidth ? 10 : 8)
+            .background(shape.fill(isSelected ? Self.eventColor : Color(.tertiarySystemGroupedBackground)))
+            .foregroundStyle(isSelected ? Color.white : Color.primary)
+    }
+
+    @ViewBuilder
+    private var validationSection: some View {
+        if let validationMessage {
+            Section {
+                Text(validationMessage)
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+
+    private var whenSection: some View {
+        Section("When?") {
+            QuickTimeSelectorView(selection: $occurredAt, initialPreset: initialTimePreset, buttonColor: Self.eventColor)
+                .accessibilityIdentifier("medication-time-selector")
+        }
+    }
+
+    @ViewBuilder
+    private var deleteSection: some View {
+        if deleteAction != nil {
+            Section {
+                Button("Delete Medication", role: .destructive) {
+                    showDeleteConfirmation = true
+                }
+                .accessibilityIdentifier("delete-medication-button")
+            }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") {
+                dismiss()
+            }
+        }
+
+        ToolbarItem(placement: .confirmationAction) {
+            Button(primaryActionTitle) {
+                guard let amount = parsedAmount, isValid else { return }
+                let didSave = saveAction(
+                    occurredAt,
+                    medicineName.trimmingCharacters(in: .whitespacesAndNewlines),
+                    amount,
+                    unit,
+                    unit == .custom ? customUnitLabel.trimmingCharacters(in: .whitespacesAndNewlines) : nil
+                )
+                if didSave {
+                    dismiss()
+                }
+            }
+            .disabled(!isValid)
+            .accessibilityIdentifier("save-medication-button")
+        }
     }
 
     private var unitPicker: some View {
