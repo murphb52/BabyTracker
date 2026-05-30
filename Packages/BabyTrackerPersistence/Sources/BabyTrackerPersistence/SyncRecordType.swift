@@ -9,4 +9,5 @@ public enum SyncRecordType: String, Equatable, Sendable {
     case sleepEvent
     case nappyEvent
     case bathEvent
+    case medicationEvent
 }

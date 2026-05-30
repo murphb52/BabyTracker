@@ -118,6 +118,10 @@ public final class SwiftDataChildRepository: CloudKitChildRepository {
             modelContext.delete(event)
         }
 
+        for event in try modelContext.fetch(FetchDescriptor<StoredMedicationEvent>()) where event.childID == id {
+            modelContext.delete(event)
+        }
+
         if let child = try fetchStoredChild(id: id) {
             modelContext.delete(child)
         }
