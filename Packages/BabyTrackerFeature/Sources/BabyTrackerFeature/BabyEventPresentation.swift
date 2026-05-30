@@ -18,6 +18,8 @@ public enum BabyEventPresentation {
             "Sleep"
         case .nappy:
             "Nappy"
+        case .medication:
+            "Medication"
         }
     }
 
@@ -36,6 +38,8 @@ public enum BabyEventPresentation {
             sleepDetailText(for: event)
         case let .nappy(event):
             nappyDetailText(for: event)
+        case let .medication(event):
+            medicationDetailText(for: event)
         }
     }
 
@@ -64,6 +68,8 @@ public enum BabyEventPresentation {
             "moon.zzz.fill"
         case .nappy:
             "checklist.checked"
+        case .medication:
+            "pills.fill"
         }
     }
 
@@ -81,6 +87,12 @@ public enum BabyEventPresentation {
         }
 
         return parts.isEmpty ? "Bath only" : parts.joined(separator: " • ")
+    }
+
+    private static func medicationDetailText(
+        for event: MedicationEvent
+    ) -> String {
+        "\(event.medicineName) • \(event.formattedAmount) \(event.displayUnit)"
     }
 
     private static func breastFeedDetailText(

@@ -12,6 +12,7 @@ public struct ChildHomeView: View {
     let quickLogSleep: () -> Void
     let quickLogNappy: () -> Void
     let quickLogBath: () -> Void
+    let quickLogMedication: () -> Void
     let openProfile: () -> Void
 
     @State private var statusSectionExpanded: Bool
@@ -30,6 +31,7 @@ public struct ChildHomeView: View {
         quickLogSleep: @escaping () -> Void,
         quickLogNappy: @escaping () -> Void,
         quickLogBath: @escaping () -> Void,
+        quickLogMedication: @escaping () -> Void,
         openProfile: @escaping () -> Void
     ) {
         self.model = model
@@ -42,6 +44,7 @@ public struct ChildHomeView: View {
         self.quickLogSleep = quickLogSleep
         self.quickLogNappy = quickLogNappy
         self.quickLogBath = quickLogBath
+        self.quickLogMedication = quickLogMedication
         self.openProfile = openProfile
 
         let defaults = UserDefaults.standard
@@ -362,6 +365,14 @@ public struct ChildHomeView: View {
                 accessibilityIdentifier: "quick-log-bath-button",
                 action: quickLogBath
             )
+        case .medication:
+            quickLogButton(
+                title: "Medication",
+                systemImage: BabyEventStyle.systemImage(for: .medication),
+                kind: .medication,
+                accessibilityIdentifier: "quick-log-medication-button",
+                action: quickLogMedication
+            )
         }
     }
 
@@ -453,6 +464,7 @@ private func makeHomeView(from model: AppModel) -> some View {
             quickLogSleep: {},
             quickLogNappy: {},
             quickLogBath: {},
+            quickLogMedication: {},
             openProfile: {}
         )
     }

@@ -3,6 +3,7 @@ import Foundation
 
 public enum ChildEventSheet: Identifiable {
     case quickLogBath
+    case quickLogMedication(recentNames: [String], millilitreAmounts: [Double])
     case quickLogBreastFeed
     case quickLogBottleFeed(smartSuggestions: [Int])
     case startSleep(suggestions: [(label: String, date: Date)])
@@ -42,6 +43,14 @@ public enum ChildEventSheet: Identifiable {
         usedShampoo: Bool,
         usedSoap: Bool
     )
+    case editMedication(
+        id: UUID,
+        occurredAt: Date,
+        medicineName: String,
+        amount: Double,
+        unit: MedicationUnit,
+        customUnitLabel: String?
+    )
 
     public init(id: UUID, actionPayload: EventActionPayload) {
         switch actionPayload {
@@ -51,6 +60,15 @@ public enum ChildEventSheet: Identifiable {
                 occurredAt: occurredAt,
                 usedShampoo: usedShampoo,
                 usedSoap: usedSoap
+            )
+        case let .editMedication(occurredAt, medicineName, amount, unit, customUnitLabel):
+            self = .editMedication(
+                id: id,
+                occurredAt: occurredAt,
+                medicineName: medicineName,
+                amount: amount,
+                unit: unit,
+                customUnitLabel: customUnitLabel
             )
         case let .editBreastFeed(durationMinutes, endTime, side, leftDurationSeconds, rightDurationSeconds):
             self = .editBreastFeed(
@@ -92,6 +110,8 @@ public enum ChildEventSheet: Identifiable {
         switch self {
         case .quickLogBath:
             "quick-log-bath"
+        case .quickLogMedication:
+            "quick-log-medication"
         case .quickLogBreastFeed:
             "quick-log-breast-feed"
         case .quickLogBottleFeed:
@@ -114,6 +134,8 @@ public enum ChildEventSheet: Identifiable {
             "edit-nappy-\(id.uuidString)"
         case let .editBath(id, _, _, _):
             "edit-bath-\(id.uuidString)"
+        case let .editMedication(id, _, _, _, _, _):
+            "edit-medication-\(id.uuidString)"
         }
     }
 }

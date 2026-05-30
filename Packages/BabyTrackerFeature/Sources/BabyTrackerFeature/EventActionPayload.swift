@@ -30,5 +30,12 @@ public enum EventActionPayload: Equatable, Sendable {
         startedAt: Date,
         endedAt: Date
     )
+    case editMedication(
+        occurredAt: Date,
+        medicineName: String,
+        amount: Double,
+        unit: MedicationUnit,
+        customUnitLabel: String?
+    )
     case endSleep(startedAt: Date)
 }
