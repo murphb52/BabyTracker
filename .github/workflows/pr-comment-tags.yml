@@ -1,0 +1,341 @@
+name: PR Comment Tags
+
+on:
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  tag:
+    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, 'tag ') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve tag request
+        id: request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.comment.body.trim();
+            const testFlightMatch = body.match(/^tag TestFlight$/);
+            const releaseMatch = body.match(/^tag Release (major|minor|patch)$/);
+
+            if (!testFlightMatch && !releaseMatch) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: [
+                  '> Tag request rejected.',
+                  '> Use `tag TestFlight`, `tag Release major`, `tag Release minor`, or `tag Release patch`.',
+                ].join('\n'),
+              });
+
+              core.setFailed('Unsupported tag request.');
+              return;
+            }
+
+            const allowedAssociations = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+            const authorAssociation = context.payload.comment.author_association;
+
+            if (!allowedAssociations.has(authorAssociation)) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: [
+                  '> Tag request rejected.',
+                  '> Only repository owners, members, and collaborators can create release tags from pull request comments.',
+                ].join('\n'),
+              });
+
+              core.setFailed(`Unauthorized comment author association: ${authorAssociation}`);
+              return;
+            }
+
+            const pullRequest = await github.request(context.payload.issue.pull_request.url, {
+              headers: {
+                accept: 'application/vnd.github+json',
+              },
+            });
+
+            const pr = pullRequest.data;
+            const isFork = pr.head.repo.full_name !== pr.base.repo.full_name;
+
+            if (isFork) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: [
+                  '> Tag request rejected.',
+                  '> Release tags can only be created from pull requests whose head branch is in this repository.',
+                ].join('\n'),
+              });
+
+              core.setFailed('Fork pull requests are not supported for release tag creation.');
+              return;
+            }
+
+            core.setOutput('request_type', testFlightMatch ? 'testflight' : 'release');
+            core.setOutput('release_bump', releaseMatch ? releaseMatch[1] : '');
+            core.setOutput('head_sha', pr.head.sha);
+            core.setOutput('head_ref', pr.head.ref);
+
+      - name: Check out pull request commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.request.outputs.head_sha }}
+          fetch-depth: 0
+
+      - name: Configure git author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create TestFlight tag
+        id: testflight
+        if: ${{ steps.request.outputs.request_type == 'testflight' }}
+        env:
+          HEAD_SHA: ${{ steps.request.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+
+          latest_number="$({
+            git ls-remote --tags origin 'refs/tags/TestFlight-*' || true
+          } | sed -nE 's#.*refs/tags/TestFlight-([0-9]+)$#\1#p' | sort -n | tail -1)"
+
+          if [[ -z "${latest_number}" ]]; then
+            next_number=1
+          else
+            next_number=$((latest_number + 1))
+          fi
+
+          tag_name="TestFlight-${next_number}"
+          git tag "${tag_name}" "${HEAD_SHA}"
+          git push origin "refs/tags/${tag_name}"
+
+          echo "tag_name=${tag_name}" >> "${GITHUB_OUTPUT}"
+
+      - name: Comment with TestFlight tag details
+        if: ${{ steps.request.outputs.request_type == 'testflight' }}
+        uses: actions/github-script@v7
+        env:
+          TAG_NAME: ${{ steps.testflight.outputs.tag_name }}
+          HEAD_SHA: ${{ steps.request.outputs.head_sha }}
+          HEAD_REF: ${{ steps.request.outputs.head_ref }}
+        with:
+          script: |
+            const tagUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/tree/${process.env.TAG_NAME}`;
+            const commitUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${process.env.HEAD_SHA}`;
+            const body = [
+              '> TestFlight tag created.',
+              `> Tag: [\`${process.env.TAG_NAME}\`](${tagUrl})`,
+              `> Branch: \`${process.env.HEAD_REF}\``,
+              `> Commit: [\`${process.env.HEAD_SHA.slice(0, 12)}\`](${commitUrl})`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Bump release version
+        id: release
+        if: ${{ steps.request.outputs.request_type == 'release' }}
+        env:
+          BUMP_KIND: ${{ steps.request.outputs.release_bump }}
+          HEAD_REF: ${{ steps.request.outputs.head_ref }}
+        run: |
+          set -euo pipefail
+
+          python3 <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          version_files = [
+              Path('Config/App.xcconfig'),
+              Path('Config/LiveActivitiesExtension.xcconfig'),
+              Path('Config/Tests.xcconfig'),
+              Path('Config/UITests.xcconfig'),
+          ]
+          project_file = Path('Baby Tracker.xcodeproj/project.pbxproj')
+          bump_kind = os.environ['BUMP_KIND']
+
+          app_config = version_files[0].read_text()
+          version_match = re.search(r'^MARKETING_VERSION = (\d+)\.(\d+)\.(\d+)$', app_config, re.MULTILINE)
+          if not version_match:
+              raise SystemExit('Could not find MARKETING_VERSION in Config/App.xcconfig')
+
+          major, minor, patch = [int(part) for part in version_match.groups()]
+          if bump_kind == 'major':
+              major += 1
+              minor = 0
+              patch = 0
+          elif bump_kind == 'minor':
+              minor += 1
+              patch = 0
+          elif bump_kind == 'patch':
+              patch += 1
+          else:
+              raise SystemExit(f'Unsupported release bump: {bump_kind}')
+
+          next_version = f'{major}.{minor}.{patch}'
+          current_build_numbers = []
+          current_version_pattern = re.compile(r'^CURRENT_PROJECT_VERSION = (\d+);?$', re.MULTILINE)
+
+          for path in [*version_files, project_file]:
+              text = path.read_text()
+              current_build_numbers.extend(int(match) for match in current_version_pattern.findall(text))
+
+          if not current_build_numbers:
+              raise SystemExit('Could not find CURRENT_PROJECT_VERSION values to bump')
+
+          next_build_number = max(current_build_numbers) + 1
+
+          for path in version_files:
+              text = path.read_text()
+              text = re.sub(
+                  r'^MARKETING_VERSION = \d+\.\d+\.\d+$',
+                  f'MARKETING_VERSION = {next_version}',
+                  text,
+                  flags=re.MULTILINE,
+              )
+              text = re.sub(
+                  r'^CURRENT_PROJECT_VERSION = \d+$',
+                  f'CURRENT_PROJECT_VERSION = {next_build_number}',
+                  text,
+                  flags=re.MULTILINE,
+              )
+              path.write_text(text)
+
+          project_text = project_file.read_text()
+          project_text = re.sub(
+              r'CURRENT_PROJECT_VERSION = \d+;',
+              f'CURRENT_PROJECT_VERSION = {next_build_number};',
+              project_text,
+          )
+          project_file.write_text(project_text)
+
+          with Path(os.environ['GITHUB_OUTPUT']).open('a') as output:
+              print(f'new_version={next_version}', file=output)
+              print(f'build_number={next_build_number}', file=output)
+          PY
+
+          new_version="$(grep '^new_version=' "${GITHUB_OUTPUT}" | tail -1 | cut -d= -f2-)"
+          build_number="$(grep '^build_number=' "${GITHUB_OUTPUT}" | tail -1 | cut -d= -f2-)"
+          branch_name="release/${new_version}-build-${build_number}"
+          tag_name="Release-${new_version}"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; then
+            echo "Release tag ${tag_name} already exists." >&2
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --heads origin "refs/heads/${branch_name}" >/dev/null 2>&1; then
+            branch_name="release/${new_version}-build-${build_number}-${GITHUB_RUN_ID}"
+          fi
+
+          git switch -c "${branch_name}"
+          git add Config/App.xcconfig Config/LiveActivitiesExtension.xcconfig Config/Tests.xcconfig Config/UITests.xcconfig "Baby Tracker.xcodeproj/project.pbxproj"
+          git commit -m "Bump release version to ${new_version}"
+          git tag "${tag_name}"
+          git push origin "HEAD:refs/heads/${branch_name}"
+
+          echo "branch_name=${branch_name}" >> "${GITHUB_OUTPUT}"
+          echo "tag_name=${tag_name}" >> "${GITHUB_OUTPUT}"
+
+      - name: Open release bump pull request
+        id: release_pr
+        if: ${{ steps.request.outputs.request_type == 'release' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: ${{ steps.release.outputs.branch_name }}
+          NEW_VERSION: ${{ steps.release.outputs.new_version }}
+          BUILD_NUMBER: ${{ steps.release.outputs.build_number }}
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+
+          cat > release-pr-body.md <<BODY
+          ## Summary
+          - Bump marketing version to ${NEW_VERSION}.
+          - Bump build number to ${BUILD_NUMBER}.
+          - Push release tag ${TAG_NAME}.
+
+          ## Version values updated
+          - MARKETING_VERSION in Config/App.xcconfig, Config/LiveActivitiesExtension.xcconfig, Config/Tests.xcconfig, and Config/UITests.xcconfig.
+          - CURRENT_PROJECT_VERSION in those xcconfig files and Baby Tracker.xcodeproj/project.pbxproj.
+          BODY
+
+          pr_url="$(gh pr create \
+            --base main \
+            --head "${BRANCH_NAME}" \
+            --title "Bump release version to ${NEW_VERSION}" \
+            --body-file release-pr-body.md)"
+
+          echo "pr_url=${pr_url}" >> "${GITHUB_OUTPUT}"
+
+      - name: Push release tag
+        if: ${{ steps.request.outputs.request_type == 'release' }}
+        env:
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+
+          git push origin "refs/tags/${TAG_NAME}"
+
+      - name: Comment with release details
+        if: ${{ steps.request.outputs.request_type == 'release' }}
+        uses: actions/github-script@v7
+        env:
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+          BRANCH_NAME: ${{ steps.release.outputs.branch_name }}
+          NEW_VERSION: ${{ steps.release.outputs.new_version }}
+          BUILD_NUMBER: ${{ steps.release.outputs.build_number }}
+          PR_URL: ${{ steps.release_pr.outputs.pr_url }}
+        with:
+          script: |
+            const tagUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/tree/${process.env.TAG_NAME}`;
+            const branchUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/tree/${process.env.BRANCH_NAME}`;
+            const body = [
+              '> Release bump created.',
+              `> Version: \`${process.env.NEW_VERSION}\``,
+              `> Build: \`${process.env.BUILD_NUMBER}\``,
+              `> Tag: [\`${process.env.TAG_NAME}\`](${tagUrl})`,
+              `> Branch: [\`${process.env.BRANCH_NAME}\`](${branchUrl})`,
+              `> Pull request: ${process.env.PR_URL}`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Comment with failure details
+        if: ${{ failure() && steps.request.outcome == 'success' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              '> Tag request failed.',
+              `> Review the GitHub Actions logs: ${runUrl}`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
