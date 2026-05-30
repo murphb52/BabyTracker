@@ -102,6 +102,16 @@ public struct ExportEventsUseCase: UseCase {
                 pooVolume: e.pooVolume,
                 pooColor: e.pooColor
             ))
+        case .medication(let e):
+            return .medication(NestMedicationExport(
+                id: e.metadata.id,
+                occurredAt: e.metadata.occurredAt,
+                notes: e.metadata.notes,
+                medicineName: e.medicineName,
+                amount: e.amount,
+                unit: e.unit,
+                customUnitLabel: e.customUnitLabel
+            ))
         }
     }
 }

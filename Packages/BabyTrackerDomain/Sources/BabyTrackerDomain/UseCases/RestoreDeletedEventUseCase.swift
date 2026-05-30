@@ -47,6 +47,9 @@ public struct RestoreDeletedEventUseCase: UseCase {
         case var .nappy(feed):
             feed.metadata.restoreDeleted(by: userID)
             return .nappy(feed)
+        case var .medication(medication):
+            medication.metadata.restoreDeleted(by: userID)
+            return .medication(medication)
         }
     }
 }

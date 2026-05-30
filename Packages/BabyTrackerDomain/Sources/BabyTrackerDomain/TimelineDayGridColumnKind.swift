@@ -6,4 +6,5 @@ public enum TimelineDayGridColumnKind: String, CaseIterable, Equatable, Sendable
     case bath
     case bottleFeed
     case breastFeed
+    case medication
 }

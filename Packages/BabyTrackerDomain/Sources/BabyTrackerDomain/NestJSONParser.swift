@@ -86,6 +86,24 @@ public struct NestJSONParser {
                 pooVolume: e.pooVolume,
                 pooColor: e.pooColor
             ))
+
+        case .medication(let e):
+            guard e.amount > 0 else {
+                skippedReasons.append("Medication at \(e.occurredAt.formatted()): amount must be greater than zero")
+                return nil
+            }
+            guard !e.medicineName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                skippedReasons.append("Medication at \(e.occurredAt.formatted()): name is missing")
+                return nil
+            }
+            let metadata = ImportEventMetadata(occurredAt: e.occurredAt, notes: e.notes.isEmpty ? nil : e.notes)
+            return .medication(MedicationImport(
+                metadata: metadata,
+                medicineName: e.medicineName,
+                amount: e.amount,
+                unit: e.unit,
+                customUnitLabel: e.customUnitLabel
+            ))
         }
     }
 }
