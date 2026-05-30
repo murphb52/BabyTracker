@@ -63,7 +63,7 @@ public struct MedicationEditorSheetView: View {
             Form {
                 LoggingSummaryView(sentence: summarySentence)
 
-                Section("Which medicine?") {
+                Section {
                     if !medicineSuggestions.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
@@ -90,8 +90,14 @@ public struct MedicationEditorSheetView: View {
                         .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
                     }
 
-                    TextField("Medicine name", text: $medicineName)
+                    TextField("Type a medicine name", text: $medicineName)
                         .accessibilityIdentifier("medication-name-field")
+                } header: {
+                    Text("Which medicine?")
+                } footer: {
+                    Text(medicineSuggestions.isEmpty
+                        ? "Type the name of the medicine."
+                        : "Tap a recent medicine above, or type a new one.")
                 }
 
                 Section("How much?") {
