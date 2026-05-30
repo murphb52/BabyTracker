@@ -21,6 +21,11 @@ struct BabyTrackerApp: App {
             return summary.state == .failed ? .failed : .newData
         }
         try? Tips.configure()
+
+        let appModel = container.appModel
+        container.backgroundRefreshScheduler.registerLaunchHandler {
+            await PerformBackgroundRefreshUseCase.execute(refresher: appModel)
+        }
     }
 
     var body: some Scene {
