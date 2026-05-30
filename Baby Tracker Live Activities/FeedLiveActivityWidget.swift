@@ -10,7 +10,6 @@ struct FeedLiveActivityWidget: Widget {
             FeedLiveActivityContentView(state: context.state)
                 .activityBackgroundTint(Color(red: 0.12, green: 0.15, blue: 0.24))
                 .activitySystemActionForegroundColor(.white)
-                .widgetURL(FeedLiveActivityDeepLink.endSleepURL(childID: context.state.childID))
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.center) {
