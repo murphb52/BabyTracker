@@ -8,6 +8,7 @@ import Foundation
 struct AppContainer {
     let appModel: AppModel
     let shareAcceptanceHandler: ShareAcceptanceHandler
+    let backgroundRefreshScheduler: any BackgroundRefreshScheduling
 
     init(processInfo: ProcessInfo = .processInfo) {
         let launchConfiguration = LaunchConfiguration(processInfo: processInfo)
@@ -50,6 +51,9 @@ struct AppContainer {
         let localNotificationManager: any LocalNotificationManaging = launchConfiguration.usesUnavailableCloudKitClient ?
             NoOpLocalNotificationManager() :
             SystemLocalNotificationManager()
+        let backgroundRefreshScheduler: any BackgroundRefreshScheduling = launchConfiguration.usesUnavailableCloudKitClient ?
+            NoOpBackgroundRefreshScheduler() :
+            SystemBackgroundRefreshScheduler()
         let hapticFeedbackProvider: any HapticFeedbackProviding = SystemHapticFeedbackProvider()
         let appReviewRequester: any AppReviewRequesting = SystemAppReviewRequester()
         let syncEngine = CloudKitSyncEngine(
@@ -94,6 +98,7 @@ struct AppContainer {
 
         self.appModel = appModel
         self.shareAcceptanceHandler = shareAcceptanceHandler
+        self.backgroundRefreshScheduler = backgroundRefreshScheduler
     }
 
     static let live = AppContainer()
@@ -167,16 +172,19 @@ struct AppContainer {
         _ = processInfo
         return AppContainer(
             appModel: appModel,
-            shareAcceptanceHandler: shareAcceptanceHandler
+            shareAcceptanceHandler: shareAcceptanceHandler,
+            backgroundRefreshScheduler: NoOpBackgroundRefreshScheduler()
         )
     }()
 
     private init(
         appModel: AppModel,
-        shareAcceptanceHandler: ShareAcceptanceHandler
+        shareAcceptanceHandler: ShareAcceptanceHandler,
+        backgroundRefreshScheduler: any BackgroundRefreshScheduling
     ) {
         self.appModel = appModel
         self.shareAcceptanceHandler = shareAcceptanceHandler
+        self.backgroundRefreshScheduler = backgroundRefreshScheduler
     }
 
     private static func seed(
