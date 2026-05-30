@@ -1,5 +1,6 @@
 import BabyTrackerDomain
 import SwiftUI
+import TipKit
 
 public struct ChildHomeView: View {
     let model: AppModel
@@ -18,6 +19,7 @@ public struct ChildHomeView: View {
     @State private var quickLogSectionExpanded: Bool
     @State private var todaySectionExpanded: Bool
     @State private var syncSectionExpanded: Bool
+    @State private var quickSwapTip = ChildQuickSwapTip()
 
     public init(
         model: AppModel,
@@ -54,7 +56,18 @@ public struct ChildHomeView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                HomeGreetingView(childName: nil, onAvatarTapped: {})
+                HomeGreetingView {
+                    if let currentChild = model.currentChild {
+                        ChildQuickSwapMenu(
+                            currentChild: currentChild,
+                            children: model.activeChildren,
+                            quickSwapTip: quickSwapTip,
+                            viewChild: viewChildProfile(childID:),
+                            setActiveChild: model.quickSwitchChild(id:),
+                            showNextChild: model.quickSwitchToNextChild
+                        )
+                    }
+                }
 
                 heroCard
                     .transition(.opacity)
@@ -82,6 +95,14 @@ public struct ChildHomeView: View {
         .onChange(of: quickLogSectionExpanded) { _, v in UserDefaults.standard.set(v, forKey: "home.quickLogSectionExpanded") }
         .onChange(of: todaySectionExpanded) { _, v in UserDefaults.standard.set(v, forKey: "home.todaySectionExpanded") }
         .onChange(of: syncSectionExpanded) { _, v in UserDefaults.standard.set(v, forKey: "home.syncSectionExpanded") }
+    }
+
+    private func viewChildProfile(childID: UUID) {
+        if childID == model.currentChild?.id {
+            openProfile()
+        } else {
+            model.selectChild(id: childID)
+        }
     }
 
     // MARK: - Hero card

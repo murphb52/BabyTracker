@@ -510,6 +510,29 @@ public final class AppModel {
     }
 
     public func selectChild(id: UUID) {
+        selectChild(id: id, opensProfile: true)
+    }
+
+    public func quickSwitchChild(id: UUID) {
+        selectChild(id: id, opensProfile: false)
+    }
+
+    public func quickSwitchToNextChild() {
+        guard activeChildren.count > 1 else {
+            return
+        }
+
+        let currentSelectedChildID = currentChild?.id ?? childSelectionStore.loadSelectedChildID()
+        let currentIndex = activeChildren.firstIndex { summary in
+            summary.child.id == currentSelectedChildID
+        } ?? 0
+        let nextIndex = activeChildren.index(after: currentIndex)
+        let wrappedIndex = nextIndex == activeChildren.endIndex ? activeChildren.startIndex : nextIndex
+
+        quickSwitchChild(id: activeChildren[wrappedIndex].child.id)
+    }
+
+    private func selectChild(id: UUID, opensProfile: Bool) {
         let currentSelectedChildID = childSelectionStore.loadSelectedChildID()
         let didChangeChild = currentSelectedChildID != id
 
@@ -519,7 +542,9 @@ public final class AppModel {
         if didChangeChild {
             timelineDisplayMode = .day
             activeEventFilter = .empty
-            selectedWorkspaceTab = .profile
+            if opensProfile {
+                selectedWorkspaceTab = .profile
+            }
             resetNavigationStack()
             showTransientMessage("Child changed.")
         }

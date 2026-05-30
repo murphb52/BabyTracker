@@ -1,12 +1,15 @@
 import SwiftUI
 
-struct HomeGreetingView: View {
-    let childName: String?
-    let onAvatarTapped: () -> Void
+struct HomeGreetingView<Accessory: View>: View {
+    let accessory: Accessory
+
+    init(@ViewBuilder accessory: () -> Accessory) {
+        self.accessory = accessory()
+    }
 
     var body: some View {
         TimelineView(.everyMinute) { context in
-            HStack(alignment: .bottom) {
+            HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(dateLabel(for: context.date))
                         .font(.subheadline)
@@ -19,28 +22,10 @@ struct HomeGreetingView: View {
 
                 Spacer(minLength: 12)
 
-                if let initials = childInitials {
-                    Button(action: onAvatarTapped) {
-                        Text(initials)
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(.tint)
-                            .frame(width: 42, height: 42)
-                            .background(.tint.opacity(0.12), in: Circle())
-                            .overlay(Circle().stroke(.tint.opacity(0.25), lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                }
+                accessory
+                    .padding(.top, 2)
             }
         }
-    }
-
-    private var childInitials: String? {
-        guard let name = childName, !name.isEmpty else { return nil }
-        let words = name.split(separator: " ")
-        if words.count >= 2 {
-            return words.prefix(2).compactMap { $0.first.map(String.init) }.joined()
-        }
-        return String(name.prefix(1))
     }
 
     private func greeting(for date: Date) -> String {
@@ -58,22 +43,23 @@ struct HomeGreetingView: View {
     }
 }
 
-#Preview("Evening with child") {
-    HomeGreetingView(childName: "Emily", onAvatarTapped: {})
+extension HomeGreetingView where Accessory == EmptyView {
+    init() {
+        self.accessory = EmptyView()
+    }
+}
+
+#Preview("Default") {
+    HomeGreetingView()
         .padding()
 }
 
-#Preview("Morning with two-word name") {
-    HomeGreetingView(childName: "Poppy Rose", onAvatarTapped: {})
-        .padding()
-}
-
-#Preview("No child yet") {
-    HomeGreetingView(childName: nil, onAvatarTapped: {})
-        .padding()
-}
-
-#Preview("Long name truncation") {
-    HomeGreetingView(childName: "Alexandria", onAvatarTapped: {})
-        .padding()
+#Preview("With accessory") {
+    HomeGreetingView {
+        Image(systemName: "person.crop.circle")
+            .font(.title2)
+            .frame(width: 44, height: 44)
+            .background(.thinMaterial, in: Circle())
+    }
+    .padding()
 }
