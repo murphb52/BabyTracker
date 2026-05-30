@@ -173,6 +173,52 @@ struct CloudKitRecordMapperTests {
     }
 
     @Test
+    func medicationMapperRoundTripsCustomUnit() throws {
+        let childID = UUID()
+        let userID = UUID()
+        let occurredAt = Date(timeIntervalSince1970: 4_200)
+        let zoneID = CloudKitRecordNames.zoneID(
+            for: childID,
+            ownerName: "probe-owner"
+        )
+        let medication = try MedicationEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: occurredAt,
+                createdAt: occurredAt,
+                createdBy: userID
+            ),
+            medicineName: "Calpol",
+            amount: 2.5,
+            unit: .custom,
+            customUnitLabel: "puff"
+        )
+
+        let record = CloudKitRecordMapper.eventRecord(
+            from: .medication(medication),
+            zoneID: zoneID
+        )
+
+        #expect(record.recordType == CloudKitConfiguration.medicationRecordType)
+        #expect(record["medicineName"] as? String == "Calpol")
+        #expect(record["amount"] as? Double == 2.5)
+        #expect(record["unit"] as? String == MedicationUnit.custom.rawValue)
+        #expect(record["customUnitLabel"] as? String == "puff")
+
+        let mappedEvent = try CloudKitRecordMapper.event(from: record)
+
+        switch mappedEvent {
+        case let .medication(event):
+            #expect(event.medicineName == "Calpol")
+            #expect(event.amount == 2.5)
+            #expect(event.unit == .custom)
+            #expect(event.customUnitLabel == "puff")
+        default:
+            Issue.record("Expected a medication event")
+        }
+    }
+
+    @Test
     func sleepMapperRoundTripsOpenEndedAndCompletedSessions() throws {
         let childID = UUID()
         let userID = UUID()
