@@ -40,7 +40,12 @@ final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
                 task.setTaskCompleted(success: false)
                 return
             }
-            MainActor.assumeIsolated {
+            // BGTaskScheduler invokes this launch handler on a private
+            // background queue, so we must hop to the main actor before
+            // touching @MainActor state. `MainActor.assumeIsolated` would
+            // trap here because the runtime asserts we are already on the
+            // main queue.
+            Task { @MainActor in
                 self?.handle(task: appRefreshTask)
             }
         }
