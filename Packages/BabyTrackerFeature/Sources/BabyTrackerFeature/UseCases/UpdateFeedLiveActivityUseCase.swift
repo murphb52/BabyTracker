@@ -13,6 +13,11 @@ public enum UpdateFeedLiveActivityUseCase {
         snapshotCache: any FeedLiveActivitySnapshotCaching
     ) {
         guard isLiveActivityEnabled, let child else {
+            AppLogger.shared.log(
+                .info,
+                category: "LiveActivity",
+                "Update skipped — \(isLiveActivityEnabled ? "no selected child" : "toggle disabled"); ending activity"
+            )
             liveActivityManager.synchronize(with: nil)
             snapshotCache.save(nil)
             return
@@ -24,14 +29,35 @@ public enum UpdateFeedLiveActivityUseCase {
             activeSleep: activeSleep
         )
 
+        guard snapshot != nil else {
+            AppLogger.shared.log(
+                .info,
+                category: "LiveActivity",
+                "Update produced no snapshot — no feed data yet for \(child.name); ending activity"
+            )
+            liveActivityManager.synchronize(with: nil)
+            snapshotCache.save(nil)
+            return
+        }
+
         // Bypass deduplication when no activity is running — the activity may have been
         // ended by the system (8-hour limit, low battery, user dismissal) while the
         // cached snapshot still matches, which would prevent a restart.
         let activityIsDead = !liveActivityManager.hasRunningActivity
         guard snapshot != snapshotCache.load() || activityIsDead else {
+            AppLogger.shared.log(
+                .debug,
+                category: "LiveActivity",
+                "Update deduped — snapshot unchanged and activity already running"
+            )
             return
         }
 
+        AppLogger.shared.log(
+            .info,
+            category: "LiveActivity",
+            "Synchronizing Live Activity (activityIsDead: \(activityIsDead))"
+        )
         liveActivityManager.synchronize(with: snapshot)
         snapshotCache.save(snapshot)
     }

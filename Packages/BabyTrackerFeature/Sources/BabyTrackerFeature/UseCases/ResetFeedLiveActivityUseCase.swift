@@ -1,3 +1,5 @@
+import BabyTrackerDomain
+
 /// Ends the live activity and clears the snapshot cache, but only if the
 /// cache contains data (i.e. a live activity is actually running).
 /// Call this to force a full restart — the next UpdateFeedLiveActivityUseCase
@@ -11,6 +13,7 @@ public enum ResetFeedLiveActivityUseCase {
         guard snapshotCache.load() != nil else {
             return
         }
+        AppLogger.shared.log(.info, category: "LiveActivity", "Reset — ending Live Activity and clearing cache")
         liveActivityManager.synchronize(with: nil)
         snapshotCache.save(nil)
     }
