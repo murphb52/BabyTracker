@@ -11,4 +11,7 @@ public protocol LocalNotificationManaging: AnyObject {
     func scheduleInactivityDriftNotification(childID: UUID, childName: String, fireAfter: TimeInterval) async
     func cancelInactivityDriftNotification(childID: UUID) async
     func pendingDriftNotifications() async -> [PendingDriftNotification]
+    func scheduleMedicationReminderNotification(childID: UUID, childName: String, medicineName: String, mode: ReminderMode, intervalHours: Int, fireAt: Date) async
+    func cancelMedicationReminderNotification(childID: UUID, medicineName: String) async
+    func pendingMedicationReminderNotifications() async -> [PendingMedicationReminder]
 }
