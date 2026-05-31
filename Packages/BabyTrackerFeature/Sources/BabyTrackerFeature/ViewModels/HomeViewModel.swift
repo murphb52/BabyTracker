@@ -105,6 +105,10 @@ public final class HomeViewModel {
                 id = nappy.id
                 kind = .nappy
                 occurredAt = nappy.metadata.occurredAt
+            case let .medication(medication):
+                id = medication.id
+                kind = .medication
+                occurredAt = medication.metadata.occurredAt
             }
 
             return HomeTimelineEventViewState(

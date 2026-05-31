@@ -43,6 +43,7 @@ public enum NestEventExport: Codable, Sendable {
     case bottleFeed(NestBottleFeedExport)
     case sleep(NestSleepExport)
     case nappy(NestNappyExport)
+    case medication(NestMedicationExport)
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -55,6 +56,8 @@ public enum NestEventExport: Codable, Sendable {
         case amountMilliliters, milkType
         // nappy
         case nappyType, peeVolume, pooVolume, pooColor
+        // medication
+        case medicineName, amount, unit, customUnitLabel
     }
 
     public init(from decoder: any Decoder) throws {
@@ -114,6 +117,18 @@ public enum NestEventExport: Codable, Sendable {
                 pooVolume: try c.decodeIfPresent(String.self, forKey: .pooVolume).flatMap(NappyVolume.init(rawValue:)),
                 pooColor: try c.decodeIfPresent(String.self, forKey: .pooColor).flatMap(PooColor.init(rawValue:))
             ))
+        case "medication":
+            let unitRaw = try c.decodeIfPresent(String.self, forKey: .unit)
+            let unit = unitRaw.flatMap(MedicationUnit.init(rawValue:)) ?? .custom
+            self = .medication(NestMedicationExport(
+                id: id,
+                occurredAt: occurredAt,
+                notes: notes,
+                medicineName: try c.decode(String.self, forKey: .medicineName),
+                amount: try c.decode(Double.self, forKey: .amount),
+                unit: unit,
+                customUnitLabel: try c.decodeIfPresent(String.self, forKey: .customUnitLabel)
+            ))
         default:
             throw DecodingError.dataCorrupted(
                 .init(codingPath: decoder.codingPath, debugDescription: "Unknown event type: \(type)")
@@ -169,6 +184,16 @@ public enum NestEventExport: Codable, Sendable {
             try c.encodeIfPresent(e.peeVolume?.rawValue, forKey: .peeVolume)
             try c.encodeIfPresent(e.pooVolume?.rawValue, forKey: .pooVolume)
             try c.encodeIfPresent(e.pooColor?.rawValue, forKey: .pooColor)
+
+        case .medication(let e):
+            try c.encode("medication", forKey: .type)
+            try c.encode(e.id, forKey: .id)
+            try c.encode(e.occurredAt, forKey: .occurredAt)
+            try c.encode(e.notes, forKey: .notes)
+            try c.encode(e.medicineName, forKey: .medicineName)
+            try c.encode(e.amount, forKey: .amount)
+            try c.encode(e.unit.rawValue, forKey: .unit)
+            try c.encodeIfPresent(e.customUnitLabel, forKey: .customUnitLabel)
         }
     }
 }
@@ -268,5 +293,33 @@ public struct NestNappyExport: Sendable {
         self.peeVolume = peeVolume
         self.pooVolume = pooVolume
         self.pooColor = pooColor
+    }
+}
+
+public struct NestMedicationExport: Sendable {
+    public let id: UUID
+    public let occurredAt: Date
+    public let notes: String
+    public let medicineName: String
+    public let amount: Double
+    public let unit: MedicationUnit
+    public let customUnitLabel: String?
+
+    public init(
+        id: UUID,
+        occurredAt: Date,
+        notes: String,
+        medicineName: String,
+        amount: Double,
+        unit: MedicationUnit,
+        customUnitLabel: String?
+    ) {
+        self.id = id
+        self.occurredAt = occurredAt
+        self.notes = notes
+        self.medicineName = medicineName
+        self.amount = amount
+        self.unit = unit
+        self.customUnitLabel = customUnitLabel
     }
 }

@@ -7,6 +7,7 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
     case breastFeed(BreastFeedImport)
     case sleep(SleepImport)
     case nappy(NappyImport)
+    case medication(MedicationImport)
 
     public var id: UUID { metadata.id }
 
@@ -17,6 +18,7 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
         case .breastFeed(let e): return e.metadata
         case .sleep(let e): return e.metadata
         case .nappy(let e): return e.metadata
+        case .medication(let e): return e.metadata
         }
     }
 
@@ -29,6 +31,7 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
         case .breastFeed: return .breastFeed
         case .sleep: return .sleep
         case .nappy: return .nappy
+        case .medication: return .medication
         }
     }
 
@@ -62,6 +65,8 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
             return DurationText.short(minutes: durationMinutes)
         case .nappy(let e):
             return e.type.displayName
+        case .medication(let e):
+            return "\(e.medicineName) · \(e.displayAmount)"
         }
     }
 
@@ -72,6 +77,7 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
         case .breastFeed: return "Breast Feed"
         case .sleep: return "Sleep"
         case .nappy: return "Nappy"
+        case .medication: return "Medication"
         }
     }
 }
@@ -115,6 +121,46 @@ public struct BathImport: Equatable, Sendable {
         self.metadata = metadata
         self.usedShampoo = usedShampoo
         self.usedSoap = usedSoap
+    }
+}
+
+public struct MedicationImport: Equatable, Sendable {
+    public let metadata: ImportEventMetadata
+    public let medicineName: String
+    public let amount: Double
+    public let unit: MedicationUnit
+    public let customUnitLabel: String?
+
+    public init(
+        metadata: ImportEventMetadata,
+        medicineName: String,
+        amount: Double,
+        unit: MedicationUnit,
+        customUnitLabel: String?
+    ) {
+        self.metadata = metadata
+        self.medicineName = medicineName
+        self.amount = amount
+        self.unit = unit
+        self.customUnitLabel = customUnitLabel
+    }
+
+    /// Amount + unit for display (e.g. "2.5 ml"), resolving the custom unit label.
+    public var displayAmount: String {
+        let amountText: String
+        let rounded = (amount * 100).rounded() / 100
+        if rounded == rounded.rounded() {
+            amountText = String(Int(rounded))
+        } else {
+            amountText = String(rounded)
+        }
+        let unitText: String
+        if unit == .custom, let label = customUnitLabel, !label.isEmpty {
+            unitText = label
+        } else {
+            unitText = unit.shortTitle
+        }
+        return "\(amountText) \(unitText)"
     }
 }
 

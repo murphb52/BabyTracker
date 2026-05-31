@@ -212,6 +212,8 @@ struct OnboardingTimelineDemoView: View {
             baseDelay = 130
         case .nappy:
             baseDelay = 240
+        case .medication:
+            baseDelay = 255
         }
 
         let rowDelay = UInt64(entry.start * 170)

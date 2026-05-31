@@ -132,6 +132,7 @@ public struct ChildProfileNestImportView: View {
                 let bottleCount = state.taggedEvents.filter { if case .bottleFeed = $0.event { true } else { false } }.count
                 let breastCount = state.taggedEvents.filter { if case .breastFeed = $0.event { true } else { false } }.count
                 let nappyCount = state.taggedEvents.filter { if case .nappy = $0.event { true } else { false } }.count
+                let medicationCount = state.taggedEvents.filter { if case .medication = $0.event { true } else { false } }.count
 
                 if bathCount > 0 {
                     eventCountRow(icon: "drop.fill", label: "Baths", count: bathCount, color: .teal)
@@ -147,6 +148,9 @@ public struct ChildProfileNestImportView: View {
                 }
                 if nappyCount > 0 {
                     eventCountRow(icon: "checklist.checked", label: "Nappy changes", count: nappyCount, color: .orange)
+                }
+                if medicationCount > 0 {
+                    eventCountRow(icon: "pills.fill", label: "Medications", count: medicationCount, color: .purple)
                 }
             }
 
@@ -419,6 +423,7 @@ private struct NestImportEventRow: View {
         case .bottleFeed: return "waterbottle.fill"
         case .breastFeed: return "figure.seated.side.air.upper"
         case .nappy: return "checklist.checked"
+        case .medication: return "pills.fill"
         }
     }
 
@@ -429,6 +434,7 @@ private struct NestImportEventRow: View {
         case .bottleFeed: return .blue
         case .breastFeed: return .pink
         case .nappy: return .orange
+        case .medication: return .purple
         }
     }
 }

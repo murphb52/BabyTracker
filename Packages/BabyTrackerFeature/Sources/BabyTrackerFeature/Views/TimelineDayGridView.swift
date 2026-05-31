@@ -291,6 +291,8 @@ struct TimelineDayGridHeaderView: View {
             .bottleFeed
         case .breastFeed:
             .breastFeed
+        case .medication:
+            .medication
         }
     }
 }

@@ -31,6 +31,8 @@ public struct EventDeleteCandidate: Identifiable {
             return "Delete Sleep?"
         case .nappy:
             return "Delete Nappy?"
+        case .medication:
+            return "Delete Medication?"
         }
     }
 
@@ -44,6 +46,8 @@ public struct EventDeleteCandidate: Identifiable {
             return "Delete Sleep"
         case .nappy:
             return "Delete Nappy"
+        case .medication:
+            return "Delete Medication"
         }
     }
 }

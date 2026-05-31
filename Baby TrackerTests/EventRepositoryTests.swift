@@ -282,6 +282,44 @@ struct EventRepositoryTests {
     }
 
     @Test
+    func medicationEventsRoundTripWithAmountAndUnit() throws {
+        let harness = try RepositoryHarness()
+        defer { harness.cleanUp() }
+
+        let childID = UUID()
+        let userID = UUID()
+        let occurredAt = Date(timeIntervalSince1970: 11_000)
+
+        let medication = try MedicationEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: occurredAt,
+                createdAt: occurredAt,
+                createdBy: userID
+            ),
+            medicineName: "Ibuprofen (Nurofen)",
+            amount: 2.5,
+            unit: .ml
+        )
+
+        try harness.repository.saveEvent(.medication(medication))
+
+        let timeline = try harness.repository.loadTimeline(for: childID, includingDeleted: false)
+        #expect(timeline.map(\.kind) == [.medication])
+
+        let reloaded = try #require(try harness.repository.loadEvent(id: medication.id))
+        switch reloaded {
+        case let .medication(event):
+            #expect(event.medicineName == "Ibuprofen (Nurofen)")
+            #expect(event.amount == 2.5)
+            #expect(event.unit == .ml)
+            #expect(event.customUnitLabel == nil)
+        default:
+            Issue.record("Expected a medication event")
+        }
+    }
+
+    @Test
     func savingEditedEventUpdatesExistingRecordInPlace() throws {
         let harness = try RepositoryHarness()
         defer { harness.cleanUp() }

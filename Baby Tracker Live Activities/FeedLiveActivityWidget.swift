@@ -63,6 +63,8 @@ struct FeedLiveActivityWidget: Widget {
             metric.isActiveSleep ? "zzz" : "bed.double.fill"
         case .nappy:
             "checklist"
+        case .medication:
+            "pills.fill"
         }
     }
 

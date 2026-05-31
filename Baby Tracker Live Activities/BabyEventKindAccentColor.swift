@@ -14,6 +14,8 @@ extension BabyEventKind {
             Color(red: 0.29, green: 0.33, blue: 0.73)
         case .nappy:
             Color(red: 0.74, green: 0.47, blue: 0.16)
+        case .medication:
+            Color(red: 0.55, green: 0.34, blue: 0.78)
         }
     }
 }
