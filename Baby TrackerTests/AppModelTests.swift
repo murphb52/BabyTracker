@@ -420,6 +420,49 @@ struct AppModelTests {
     }
 
     @Test
+    func quickSwitchingChildKeepsCurrentWorkspaceTab() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let secondChild = try harness.saveOwnedChild(
+            name: "Juniper",
+            owner: seed.localUser
+        )
+
+        harness.model.load(performLaunchSync: false)
+        harness.model.selectedWorkspaceTab = .summary
+
+        harness.model.quickSwitchChild(id: secondChild.id)
+
+        #expect(harness.model.currentChild?.id == secondChild.id)
+        #expect(harness.model.selectedWorkspaceTab == .summary)
+        #expect(harness.model.transientMessage == "Child changed.")
+    }
+
+    @Test
+    func quickSwitchToNextChildWrapsThroughActiveChildren() throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        let secondChild = try harness.saveOwnedChild(
+            name: "Juniper",
+            owner: seed.localUser
+        )
+
+        harness.model.load(performLaunchSync: false)
+
+        harness.model.quickSwitchToNextChild()
+
+        #expect(harness.model.currentChild?.id == secondChild.id)
+
+        harness.model.quickSwitchToNextChild()
+
+        #expect(harness.model.currentChild?.id == seed.child.id)
+    }
+
+    @Test
     func timelineShowsSyncMessageWhenSyncStatusIsNotUpToDate() async throws {
         let syncEngine = TestSyncEngine()
         syncEngine.refreshForegroundSummary = SyncStatusSummary(

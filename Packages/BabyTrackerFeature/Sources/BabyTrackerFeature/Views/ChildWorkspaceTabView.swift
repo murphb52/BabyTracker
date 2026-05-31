@@ -15,6 +15,7 @@ public struct ChildWorkspaceTabView: View {
     @State private var homeViewModel: HomeViewModel
     @State private var timelineViewModel: TimelineViewModel
     @State private var childProfileViewModel: ChildProfileViewModel
+    @State private var quickSwapTip = ChildQuickSwapTip()
 
     public init(model: AppModel) {
         self.model = model
@@ -105,17 +106,17 @@ public struct ChildWorkspaceTabView: View {
         .navigationTitle(childProfileViewModel.childName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if model.selectedWorkspaceTab == .home, let initials = childInitials {
+            if model.selectedWorkspaceTab == .home,
+               let currentChild = model.currentChild {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { showingEditChildSheet = true }) {
-                        Text(initials)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.tint)
-                            .frame(width: 34, height: 34)
-                            .background(.tint.opacity(0.12), in: Circle())
-                            .overlay(Circle().stroke(.tint.opacity(0.25), lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
+                    ChildQuickSwapMenu(
+                        currentChild: currentChild,
+                        children: model.activeChildren,
+                        quickSwapTip: quickSwapTip,
+                        viewChild: viewChildProfile(childID:),
+                        setActiveChild: model.quickSwitchChild(id:),
+                        showNextChild: model.quickSwitchToNextChild
+                    )
                 }
             }
             if model.selectedWorkspaceTab == .events {
@@ -195,16 +196,6 @@ public struct ChildWorkspaceTabView: View {
         }
     }
 
-    private var childInitials: String? {
-        let name = childProfileViewModel.childName
-        guard !name.isEmpty else { return nil }
-        let words = name.split(separator: " ")
-        if words.count >= 2 {
-            return words.prefix(2).compactMap { $0.first.map(String.init) }.joined()
-        }
-        return String(name.prefix(1))
-    }
-
     private func processPendingSleepSheetRequest() {
         guard model.sleepSheetRequestToken > handledSleepSheetRequestToken else {
             return
@@ -222,6 +213,14 @@ public struct ChildWorkspaceTabView: View {
             )
         } else {
             activeEventSheet = .startSleep(suggestions: model.sleepStartSuggestions())
+        }
+    }
+
+    private func viewChildProfile(childID: UUID) {
+        if childID == model.currentChild?.id {
+            showingEditChildSheet = true
+        } else {
+            model.selectChild(id: childID)
         }
     }
 

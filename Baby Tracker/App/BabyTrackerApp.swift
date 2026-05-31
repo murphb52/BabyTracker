@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import UIKit
 import BabyTrackerDomain
 import BabyTrackerFeature
@@ -19,6 +20,8 @@ struct BabyTrackerApp: App {
             )
             return summary.state == .failed ? .failed : .newData
         }
+        try? Tips.configure()
+
         let appModel = container.appModel
         container.backgroundRefreshScheduler.registerLaunchHandler {
             await PerformBackgroundRefreshUseCase.execute(refresher: appModel)

@@ -1,46 +1,18 @@
 import SwiftUI
 
 struct HomeGreetingView: View {
-    let childName: String?
-    let onAvatarTapped: () -> Void
-
     var body: some View {
         TimelineView(.everyMinute) { context in
-            HStack(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(dateLabel(for: context.date))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(dateLabel(for: context.date))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
 
-                    Text(greeting(for: context.date))
-                        .font(.largeTitle.bold())
-                        .foregroundStyle(.primary)
-                }
-
-                Spacer(minLength: 12)
-
-                if let initials = childInitials {
-                    Button(action: onAvatarTapped) {
-                        Text(initials)
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(.tint)
-                            .frame(width: 42, height: 42)
-                            .background(.tint.opacity(0.12), in: Circle())
-                            .overlay(Circle().stroke(.tint.opacity(0.25), lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                }
+                Text(greeting(for: context.date))
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(.primary)
             }
         }
-    }
-
-    private var childInitials: String? {
-        guard let name = childName, !name.isEmpty else { return nil }
-        let words = name.split(separator: " ")
-        if words.count >= 2 {
-            return words.prefix(2).compactMap { $0.first.map(String.init) }.joined()
-        }
-        return String(name.prefix(1))
     }
 
     private func greeting(for date: Date) -> String {
@@ -58,22 +30,7 @@ struct HomeGreetingView: View {
     }
 }
 
-#Preview("Evening with child") {
-    HomeGreetingView(childName: "Emily", onAvatarTapped: {})
-        .padding()
-}
-
-#Preview("Morning with two-word name") {
-    HomeGreetingView(childName: "Poppy Rose", onAvatarTapped: {})
-        .padding()
-}
-
-#Preview("No child yet") {
-    HomeGreetingView(childName: nil, onAvatarTapped: {})
-        .padding()
-}
-
-#Preview("Long name truncation") {
-    HomeGreetingView(childName: "Alexandria", onAvatarTapped: {})
+#Preview("Default") {
+    HomeGreetingView()
         .padding()
 }

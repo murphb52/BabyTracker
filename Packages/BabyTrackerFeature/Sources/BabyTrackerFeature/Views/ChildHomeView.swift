@@ -57,7 +57,7 @@ public struct ChildHomeView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                HomeGreetingView(childName: nil, onAvatarTapped: {})
+                HomeGreetingView()
 
                 heroCard
                     .transition(.opacity)
