@@ -1,5 +1,6 @@
 import BabyTrackerDomain
 import SwiftUI
+import UIKit
 
 public struct MedicationEditorSheetView: View {
     private static let eventColor = BabyEventStyle.accentColor(for: .medication)
@@ -10,10 +11,12 @@ public struct MedicationEditorSheetView: View {
     let recentMedicineNames: [String]
     let millilitreAmounts: [Double]
     let reminderPreferenceLoader: ((_ medicineName: String) -> MedicationReminderPreference?)?
+    let requestNotificationPermission: (() async -> Bool)?
     let saveAction: (_ occurredAt: Date, _ medicineName: String, _ amount: Double, _ unit: MedicationUnit, _ customUnitLabel: String?, _ reminder: MedicationReminderPreference?) -> Bool
     let deleteAction: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @State private var occurredAt: Date
     @State private var medicineName: String
     @State private var isCustomMedicine: Bool
@@ -22,6 +25,7 @@ public struct MedicationEditorSheetView: View {
     @State private var unit: MedicationUnit
     @State private var customUnitLabel: String
     @State private var showDeleteConfirmation = false
+    @State private var showNotificationDeniedAlert = false
     @State private var isReminderEnabled = false
     @State private var reminderIntervalHours: Int = 4
     @State private var reminderMode: ReminderMode = .safeToGive
@@ -51,6 +55,7 @@ public struct MedicationEditorSheetView: View {
         initialCustomUnitLabel: String? = nil,
         initialTimePreset: QuickTimeSelectorView.TimePreset = .now,
         reminderPreferenceLoader: ((_ medicineName: String) -> MedicationReminderPreference?)? = nil,
+        requestNotificationPermission: (() async -> Bool)? = nil,
         deleteAction: (() -> Void)? = nil,
         saveAction: @escaping (_ occurredAt: Date, _ medicineName: String, _ amount: Double, _ unit: MedicationUnit, _ customUnitLabel: String?, _ reminder: MedicationReminderPreference?) -> Bool
     ) {
@@ -60,6 +65,7 @@ public struct MedicationEditorSheetView: View {
         self.recentMedicineNames = recentMedicineNames
         self.millilitreAmounts = millilitreAmounts
         self.reminderPreferenceLoader = reminderPreferenceLoader
+        self.requestNotificationPermission = requestNotificationPermission
         self.deleteAction = deleteAction
         self.saveAction = saveAction
         let allKnownNames = Set(
@@ -95,6 +101,16 @@ public struct MedicationEditorSheetView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("This event will be permanently removed.")
+            }
+            .alert("Notifications Disabled", isPresented: $showNotificationDeniedAlert) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        openURL(url)
+                    }
+                }
+                Button("Not Now", role: .cancel) {}
+            } message: {
+                Text("Allow notifications in Settings to use medication reminders.")
             }
             .scrollContentBackground(.hidden)
             .background(Self.eventColor.opacity(0.08))
@@ -228,8 +244,19 @@ public struct MedicationEditorSheetView: View {
             Toggle("Set a reminder", isOn: $isReminderEnabled)
                 .accessibilityIdentifier("medication-reminder-toggle")
                 .onChange(of: isReminderEnabled) { _, newValue in
-                    if newValue {
+                    guard newValue else { return }
+                    guard let requestPermission = requestNotificationPermission else {
                         prefillReminderIfAvailable(for: effectiveMedicineName)
+                        return
+                    }
+                    Task {
+                        let granted = await requestPermission()
+                        if granted {
+                            prefillReminderIfAvailable(for: effectiveMedicineName)
+                        } else {
+                            isReminderEnabled = false
+                            showNotificationDeniedAlert = true
+                        }
                     }
                 }
 

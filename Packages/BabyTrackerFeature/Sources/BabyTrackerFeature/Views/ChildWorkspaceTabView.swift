@@ -311,6 +311,9 @@ public struct ChildWorkspaceTabView: View {
                 initialOccurredAt: Date(),
                 reminderPreferenceLoader: { medicineName in
                     model.medicationReminderPreference(for: medicineName)
+                },
+                requestNotificationPermission: {
+                    await model.requestMedicationReminderPermission()
                 }
             ) { occurredAt, medicineName, amount, unit, customUnitLabel, reminder in
                 let didSave = model.logMedication(

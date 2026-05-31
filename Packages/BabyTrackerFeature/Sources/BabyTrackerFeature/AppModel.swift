@@ -259,6 +259,12 @@ public final class AppModel {
         return isReminderNotificationsEnabled == isEnabled
     }
 
+    /// Requests notification permission if not yet determined. Returns `true` if
+    /// notifications are authorized, `false` if the user has denied permission.
+    public func requestMedicationReminderPermission() async -> Bool {
+        await localNotificationManager.requestAuthorizationIfNeeded()
+    }
+
     public func refreshReminderNotificationAuthorization() async {
         let isAuthorized = await localNotificationManager.isAuthorizedForNotifications()
         let previousValue = isReminderNotificationsEnabled
