@@ -1,5 +1,28 @@
 DEFINE SCHEMA
 
+    RECORD TYPE BathEvent (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE,
+        childID         STRING QUERYABLE SEARCHABLE SORTABLE,
+        createdAt       TIMESTAMP QUERYABLE SORTABLE,
+        createdBy       STRING QUERYABLE SEARCHABLE SORTABLE,
+        deletedAt       TIMESTAMP QUERYABLE SORTABLE,
+        isDeleted       INT64 QUERYABLE SORTABLE,
+        notes           STRING QUERYABLE SEARCHABLE SORTABLE,
+        occurredAt      TIMESTAMP QUERYABLE SORTABLE,
+        shampooUsed     INT64 QUERYABLE SORTABLE,
+        soapUsed        INT64 QUERYABLE SORTABLE,
+        updatedAt       TIMESTAMP QUERYABLE SORTABLE,
+        updatedBy       STRING QUERYABLE SEARCHABLE SORTABLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
     RECORD TYPE BottleFeedEvent (
         "___createTime"   TIMESTAMP,
         "___createdBy"    REFERENCE,
@@ -282,6 +305,31 @@ DEFINE SCHEMA
         role            STRING QUERYABLE SEARCHABLE SORTABLE,
         status          STRING QUERYABLE SEARCHABLE SORTABLE,
         userID          STRING QUERYABLE SEARCHABLE SORTABLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE MedicationEvent (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE,
+        amount          DOUBLE QUERYABLE SORTABLE,
+        childID         STRING QUERYABLE SEARCHABLE SORTABLE,
+        createdAt       TIMESTAMP QUERYABLE SORTABLE,
+        createdBy       STRING QUERYABLE SEARCHABLE SORTABLE,
+        customUnitLabel STRING QUERYABLE SEARCHABLE SORTABLE,
+        deletedAt       TIMESTAMP QUERYABLE SORTABLE,
+        isDeleted       INT64 QUERYABLE SORTABLE,
+        medicineName    STRING QUERYABLE SEARCHABLE SORTABLE,
+        notes           STRING QUERYABLE SEARCHABLE SORTABLE,
+        occurredAt      TIMESTAMP QUERYABLE SORTABLE,
+        unit            STRING QUERYABLE SEARCHABLE SORTABLE,
+        updatedAt       TIMESTAMP QUERYABLE SORTABLE,
+        updatedBy       STRING QUERYABLE SEARCHABLE SORTABLE,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"
