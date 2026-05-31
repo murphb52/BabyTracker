@@ -6,6 +6,8 @@ public struct EventCardView: View {
     let pendingReminderDate: Date?
     let onCancelReminder: (() -> Void)?
 
+    @State private var showCancelReminderAlert = false
+
     public init(
         event: EventCardViewState,
         pendingReminderDate: Date? = nil,
@@ -58,9 +60,9 @@ public struct EventCardView: View {
                         .font(.caption)
                         .foregroundStyle(BabyEventStyle.cardSecondaryForegroundColor(for: event.kind))
                     Spacer()
-                    if let onCancel = onCancelReminder {
+                    if onCancelReminder != nil {
                         Button {
-                            onCancel()
+                            showCancelReminderAlert = true
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.caption)
@@ -83,5 +85,13 @@ public struct EventCardView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(BabyEventStyle.timelineBorderColor(for: event.kind), lineWidth: 1)
         )
+        .alert("Cancel Reminder?", isPresented: $showCancelReminderAlert) {
+            Button("Cancel Reminder", role: .destructive) {
+                onCancelReminder?()
+            }
+            Button("Keep It", role: .cancel) {}
+        } message: {
+            Text("The reminder will be removed and you won't be notified.")
+        }
     }
 }

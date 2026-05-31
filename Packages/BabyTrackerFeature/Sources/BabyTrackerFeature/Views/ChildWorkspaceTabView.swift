@@ -608,6 +608,10 @@ public struct ChildWorkspaceTabView: View {
                 return didSave
             }
         case let .editMedication(id, occurredAt, medicineName, amount, unit, customUnitLabel):
+            let pendingReminder = model.pendingMedicationReminders.first(where: {
+                $0.childID == model.currentChild?.id &&
+                $0.medicineName.lowercased() == medicineName.lowercased()
+            })
             MedicationEditorSheetView(
                 navigationTitle: "Edit Medication",
                 primaryActionTitle: "Update",
@@ -620,6 +624,10 @@ public struct ChildWorkspaceTabView: View {
                 initialUnit: unit,
                 initialCustomUnitLabel: customUnitLabel,
                 initialTimePreset: .custom,
+                pendingReminder: pendingReminder,
+                cancelReminderAction: {
+                    model.cancelMedicationReminder(medicineName: medicineName)
+                },
                 deleteAction: childProfileViewModel.canManageEvents ? {
                     if model.deleteEvent(id: id) {
                         activeEventSheet = nil

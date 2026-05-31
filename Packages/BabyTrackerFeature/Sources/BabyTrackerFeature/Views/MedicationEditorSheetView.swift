@@ -12,6 +12,10 @@ public struct MedicationEditorSheetView: View {
     let millilitreAmounts: [Double]
     let reminderPreferenceLoader: ((_ medicineName: String) -> MedicationReminderPreference?)?
     let requestNotificationPermission: (() async -> Bool)?
+    /// In edit mode, provide the currently pending reminder (if any) and a cancel action.
+    /// When non-nil, the sheet shows a read-only reminder display instead of the toggle setup.
+    let pendingReminder: PendingMedicationReminder?
+    let cancelReminderAction: (() -> Void)?
     let saveAction: (_ occurredAt: Date, _ medicineName: String, _ amount: Double, _ unit: MedicationUnit, _ customUnitLabel: String?, _ reminder: MedicationReminderPreference?) -> Bool
     let deleteAction: (() -> Void)?
 
@@ -26,6 +30,7 @@ public struct MedicationEditorSheetView: View {
     @State private var customUnitLabel: String
     @State private var showDeleteConfirmation = false
     @State private var showNotificationDeniedAlert = false
+    @State private var showCancelReminderAlert = false
     @State private var isReminderEnabled = false
     @State private var reminderIntervalHours: Int = 4
     @State private var reminderMode: ReminderMode = .safeToGive
@@ -56,6 +61,8 @@ public struct MedicationEditorSheetView: View {
         initialTimePreset: QuickTimeSelectorView.TimePreset = .now,
         reminderPreferenceLoader: ((_ medicineName: String) -> MedicationReminderPreference?)? = nil,
         requestNotificationPermission: (() async -> Bool)? = nil,
+        pendingReminder: PendingMedicationReminder? = nil,
+        cancelReminderAction: (() -> Void)? = nil,
         deleteAction: (() -> Void)? = nil,
         saveAction: @escaping (_ occurredAt: Date, _ medicineName: String, _ amount: Double, _ unit: MedicationUnit, _ customUnitLabel: String?, _ reminder: MedicationReminderPreference?) -> Bool
     ) {
@@ -66,6 +73,8 @@ public struct MedicationEditorSheetView: View {
         self.millilitreAmounts = millilitreAmounts
         self.reminderPreferenceLoader = reminderPreferenceLoader
         self.requestNotificationPermission = requestNotificationPermission
+        self.pendingReminder = pendingReminder
+        self.cancelReminderAction = cancelReminderAction
         self.deleteAction = deleteAction
         self.saveAction = saveAction
         let allKnownNames = Set(
@@ -111,6 +120,14 @@ public struct MedicationEditorSheetView: View {
                 Button("Not Now", role: .cancel) {}
             } message: {
                 Text("Allow notifications in Settings to use medication reminders.")
+            }
+            .alert("Cancel Reminder?", isPresented: $showCancelReminderAlert) {
+                Button("Cancel Reminder", role: .destructive) {
+                    cancelReminderAction?()
+                }
+                Button("Keep It", role: .cancel) {}
+            } message: {
+                Text("The reminder will be removed and you won't be notified.")
             }
             .scrollContentBackground(.hidden)
             .background(Self.eventColor.opacity(0.08))
@@ -240,44 +257,73 @@ public struct MedicationEditorSheetView: View {
 
     @ViewBuilder
     private var reminderSection: some View {
-        Section {
-            Toggle("Set a reminder", isOn: $isReminderEnabled)
-                .accessibilityIdentifier("medication-reminder-toggle")
-                .onChange(of: isReminderEnabled) { _, newValue in
-                    guard newValue else { return }
-                    guard let requestPermission = requestNotificationPermission else {
-                        prefillReminderIfAvailable(for: effectiveMedicineName)
-                        return
-                    }
-                    Task {
-                        let granted = await requestPermission()
-                        if granted {
-                            prefillReminderIfAvailable(for: effectiveMedicineName)
-                        } else {
-                            isReminderEnabled = false
-                            showNotificationDeniedAlert = true
-                        }
-                    }
-                }
-
-            if isReminderEnabled {
-                reminderIntervalRow
-                reminderModeRow
-                reminderReferencePointRow
-                if let fireDate = calculatedFireDate {
+        if cancelReminderAction != nil {
+            // Edit mode: show a read-only overview of the existing reminder, or nothing.
+            if let reminder = pendingReminder {
+                Section {
                     HStack {
-                        Text("Reminder will fire at")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text(fireDate, style: .time)
+                        Image(systemName: "bell.fill")
                             .foregroundStyle(Self.eventColor)
-                            .fontWeight(.semibold)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Reminder set")
+                                .font(.subheadline.weight(.medium))
+                            Text(reminder.fireDate, style: .time)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Cancel", role: .destructive) {
+                            showCancelReminderAlert = true
+                        }
+                        .font(.subheadline)
+                        .accessibilityIdentifier("medication-cancel-reminder-button")
                     }
-                    .accessibilityIdentifier("medication-reminder-fire-time")
+                } header: {
+                    Text("Reminder")
                 }
             }
-        } header: {
-            Text("Reminder")
+            // No reminder set in edit mode → show nothing.
+        } else {
+            // Log mode: full toggle and setup UI.
+            Section {
+                Toggle("Set a reminder", isOn: $isReminderEnabled)
+                    .accessibilityIdentifier("medication-reminder-toggle")
+                    .onChange(of: isReminderEnabled) { _, newValue in
+                        guard newValue else { return }
+                        guard let requestPermission = requestNotificationPermission else {
+                            prefillReminderIfAvailable(for: effectiveMedicineName)
+                            return
+                        }
+                        Task {
+                            let granted = await requestPermission()
+                            if granted {
+                                prefillReminderIfAvailable(for: effectiveMedicineName)
+                            } else {
+                                isReminderEnabled = false
+                                showNotificationDeniedAlert = true
+                            }
+                        }
+                    }
+
+                if isReminderEnabled {
+                    reminderIntervalRow
+                    reminderModeRow
+                    reminderReferencePointRow
+                    if let fireDate = calculatedFireDate {
+                        HStack {
+                            Text("Reminder will fire at")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(fireDate, style: .time)
+                                .foregroundStyle(Self.eventColor)
+                                .fontWeight(.semibold)
+                        }
+                        .accessibilityIdentifier("medication-reminder-fire-time")
+                    }
+                }
+            } header: {
+                Text("Reminder")
+            }
         }
     }
 
@@ -533,6 +579,49 @@ public struct MedicationEditorSheetView: View {
         reminderPreferenceLoader: { _ in
             MedicationReminderPreference(intervalHours: 4, mode: .safeToGive, referencePoint: .doseTime)
         },
+        saveAction: { _, _, _, _, _, _ in true }
+    )
+}
+
+#Preview("Edit — Reminder Active") {
+    MedicationEditorSheetView(
+        navigationTitle: "Edit Medication",
+        primaryActionTitle: "Update",
+        childName: "Poppy",
+        recentMedicineNames: ["Paracetamol (Calpol)"],
+        millilitreAmounts: [2.5, 5, 7.5, 10],
+        initialOccurredAt: .now.addingTimeInterval(-3_600),
+        initialMedicineName: "Paracetamol (Calpol)",
+        initialAmount: 5,
+        initialUnit: .ml,
+        initialTimePreset: .custom,
+        pendingReminder: PendingMedicationReminder(
+            id: "medication.child.calpol",
+            childID: UUID(),
+            medicineName: "Paracetamol (Calpol)",
+            fireDate: .now.addingTimeInterval(3 * 3_600)
+        ),
+        cancelReminderAction: {},
+        deleteAction: {},
+        saveAction: { _, _, _, _, _, _ in true }
+    )
+}
+
+#Preview("Edit — No Reminder") {
+    MedicationEditorSheetView(
+        navigationTitle: "Edit Medication",
+        primaryActionTitle: "Update",
+        childName: "Poppy",
+        recentMedicineNames: ["Paracetamol (Calpol)"],
+        millilitreAmounts: [2.5, 5, 7.5, 10],
+        initialOccurredAt: .now.addingTimeInterval(-3_600),
+        initialMedicineName: "Paracetamol (Calpol)",
+        initialAmount: 5,
+        initialUnit: .ml,
+        initialTimePreset: .custom,
+        pendingReminder: nil,
+        cancelReminderAction: {},
+        deleteAction: {},
         saveAction: { _, _, _, _, _, _ in true }
     )
 }
