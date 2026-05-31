@@ -135,6 +135,15 @@ public struct ImportChildWithEventsUseCase {
                 pooVolume: e.pooVolume,
                 pooColor: e.pooColor
             ))
+        case .medication(let e):
+            guard e.amount > 0, !e.medicineName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            return .medication(MedicationImport(
+                metadata: ImportEventMetadata(occurredAt: e.occurredAt, notes: e.notes.isEmpty ? nil : e.notes),
+                medicineName: e.medicineName,
+                amount: e.amount,
+                unit: e.unit,
+                customUnitLabel: e.customUnitLabel
+            ))
         }
     }
 }

@@ -413,6 +413,7 @@ private struct ImportEventRow: View {
         case .bottleFeed: return "waterbottle.fill"
         case .breastFeed: return "figure.seated.side.air.upper"
         case .nappy: return "checklist.checked"
+        case .medication: return "pills.fill"
         }
     }
 
@@ -423,6 +424,7 @@ private struct ImportEventRow: View {
         case .bottleFeed: return .blue
         case .breastFeed: return .pink
         case .nappy: return .orange
+        case .medication: return .purple
         }
     }
 }

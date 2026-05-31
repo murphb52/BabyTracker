@@ -6,6 +6,7 @@ public enum BabyEvent: Equatable, Identifiable, Sendable {
     case bottleFeed(BottleFeedEvent)
     case sleep(SleepEvent)
     case nappy(NappyEvent)
+    case medication(MedicationEvent)
 
     public var id: UUID {
         metadata.id
@@ -23,6 +24,8 @@ public enum BabyEvent: Equatable, Identifiable, Sendable {
             event.metadata
         case let .nappy(event):
             event.metadata
+        case let .medication(event):
+            event.metadata
         }
     }
 
@@ -38,6 +41,8 @@ public enum BabyEvent: Equatable, Identifiable, Sendable {
             .sleep
         case .nappy:
             .nappy
+        case .medication:
+            .medication
         }
     }
 }

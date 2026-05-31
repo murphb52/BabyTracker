@@ -104,6 +104,17 @@ public enum BabyEventStyle {
                 prominentForeground: adaptiveColor(light: rgb(1.00, 1.00, 1.00), dark: rgb(1.00, 0.98, 0.94)),
                 prominentBorder: adaptiveColor(light: rgba(0.74, 0.47, 0.16, 0.82), dark: rgba(0.96, 0.77, 0.46, 0.72))
             )
+        case .medication:
+            EventPalette(
+                accent: adaptiveColor(light: rgb(0.55, 0.34, 0.78), dark: rgb(0.78, 0.64, 0.98)),
+                badgeFill: adaptiveColor(light: rgba(0.55, 0.34, 0.78, 0.14), dark: rgba(0.55, 0.34, 0.78, 0.28)),
+                cardFill: adaptiveColor(light: rgb(0.96, 0.93, 0.99), dark: rgb(0.20, 0.13, 0.31)),
+                cardForeground: adaptiveColor(light: rgb(0.30, 0.16, 0.46), dark: rgb(0.97, 0.95, 1.00)),
+                cardSecondaryForeground: adaptiveColor(light: rgb(0.42, 0.27, 0.58), dark: rgb(0.87, 0.80, 0.97)),
+                prominentFill: adaptiveColor(light: rgb(0.45, 0.26, 0.67), dark: rgb(0.39, 0.24, 0.59)),
+                prominentForeground: adaptiveColor(light: rgb(1.00, 1.00, 1.00), dark: rgb(0.98, 0.96, 1.00)),
+                prominentBorder: adaptiveColor(light: rgba(0.55, 0.34, 0.78, 0.82), dark: rgba(0.78, 0.64, 0.98, 0.72))
+            )
         }
     }
 

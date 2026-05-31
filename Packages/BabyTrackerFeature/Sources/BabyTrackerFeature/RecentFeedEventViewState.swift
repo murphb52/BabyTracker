@@ -45,7 +45,7 @@ public struct RecentFeedEventViewState: Equatable, Identifiable, Sendable {
                 occurredAt: feed.metadata.occurredAt,
                 milkType: feed.milkType
             )
-        case .bath, .sleep, .nappy:
+        case .bath, .sleep, .nappy, .medication:
             return nil
         }
     }

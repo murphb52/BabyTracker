@@ -79,6 +79,9 @@ final class InMemoryEventRepository: EventRepository {
         case var .nappy(e):
             e.metadata.markDeleted(at: deletedAt, by: deletedBy)
             store.events[id] = .nappy(e)
+        case var .medication(e):
+            e.metadata.markDeleted(at: deletedAt, by: deletedBy)
+            store.events[id] = .medication(e)
         }
         store.syncStates[id]?.state = .pendingSync
     }
@@ -90,6 +93,7 @@ final class InMemoryEventRepository: EventRepository {
         case .bottleFeed: return .bottleFeedEvent
         case .sleep: return .sleepEvent
         case .nappy: return .nappyEvent
+        case .medication: return .medicationEvent
         }
     }
 }

@@ -43,6 +43,13 @@ public struct ChildWorkspaceTabView: View {
                     activeEventSheet = .quickLogNappy(.mixed)
                 },
                 quickLogBath: { activeEventSheet = .quickLogBath },
+                quickLogMedication: {
+                    activeEventSheet = .quickLogMedication(
+                        recentNames: model.recentMedicineNames(),
+                        millilitreAmounts: model.medicationMillilitreAmounts()
+                    )
+                },
+                openProfile: { showingEditChildSheet = true }
             )
             .tag(ChildWorkspaceTab.home)
             .tabItem {
@@ -277,6 +284,27 @@ public struct ChildWorkspaceTabView: View {
                     occurredAt: occurredAt,
                     usedShampoo: usedShampoo,
                     usedSoap: usedSoap
+                )
+                if didSave {
+                    activeEventSheet = nil
+                }
+                return didSave
+            }
+        case let .quickLogMedication(recentNames, millilitreAmounts):
+            MedicationEditorSheetView(
+                navigationTitle: "Medication",
+                primaryActionTitle: "Save",
+                childName: childProfileViewModel.childName,
+                recentMedicineNames: recentNames,
+                millilitreAmounts: millilitreAmounts,
+                initialOccurredAt: Date()
+            ) { occurredAt, medicineName, amount, unit, customUnitLabel in
+                let didSave = model.logMedication(
+                    occurredAt: occurredAt,
+                    medicineName: medicineName,
+                    amount: amount,
+                    unit: unit,
+                    customUnitLabel: customUnitLabel
                 )
                 if didSave {
                     activeEventSheet = nil
@@ -555,6 +583,38 @@ public struct ChildWorkspaceTabView: View {
                     occurredAt: updatedOccurredAt,
                     usedShampoo: updatedUsedShampoo,
                     usedSoap: updatedUsedSoap
+                )
+                if didSave {
+                    activeEventSheet = nil
+                }
+                return didSave
+            }
+        case let .editMedication(id, occurredAt, medicineName, amount, unit, customUnitLabel):
+            MedicationEditorSheetView(
+                navigationTitle: "Edit Medication",
+                primaryActionTitle: "Update",
+                childName: childProfileViewModel.childName,
+                recentMedicineNames: model.recentMedicineNames(),
+                millilitreAmounts: model.medicationMillilitreAmounts(),
+                initialOccurredAt: occurredAt,
+                initialMedicineName: medicineName,
+                initialAmount: amount,
+                initialUnit: unit,
+                initialCustomUnitLabel: customUnitLabel,
+                initialTimePreset: .custom,
+                deleteAction: childProfileViewModel.canManageEvents ? {
+                    if model.deleteEvent(id: id) {
+                        activeEventSheet = nil
+                    }
+                } : nil
+            ) { updatedOccurredAt, updatedName, updatedAmount, updatedUnit, updatedCustomUnitLabel in
+                let didSave = model.updateMedication(
+                    id: id,
+                    occurredAt: updatedOccurredAt,
+                    medicineName: updatedName,
+                    amount: updatedAmount,
+                    unit: updatedUnit,
+                    customUnitLabel: updatedCustomUnitLabel
                 )
                 if didSave {
                     activeEventSheet = nil

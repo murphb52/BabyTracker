@@ -12,6 +12,8 @@ public struct ChildHomeView: View {
     let quickLogSleep: () -> Void
     let quickLogNappy: () -> Void
     let quickLogBath: () -> Void
+    let quickLogMedication: () -> Void
+    let openProfile: () -> Void
 
     @State private var statusSectionExpanded: Bool
     @State private var quickLogSectionExpanded: Bool
@@ -28,7 +30,9 @@ public struct ChildHomeView: View {
         quickLogBottleFeed: @escaping () -> Void,
         quickLogSleep: @escaping () -> Void,
         quickLogNappy: @escaping () -> Void,
-        quickLogBath: @escaping () -> Void
+        quickLogBath: @escaping () -> Void,
+        quickLogMedication: @escaping () -> Void,
+        openProfile: @escaping () -> Void
     ) {
         self.model = model
         self.viewModel = viewModel
@@ -40,6 +44,8 @@ public struct ChildHomeView: View {
         self.quickLogSleep = quickLogSleep
         self.quickLogNappy = quickLogNappy
         self.quickLogBath = quickLogBath
+        self.quickLogMedication = quickLogMedication
+        self.openProfile = openProfile
 
         let defaults = UserDefaults.standard
         _statusSectionExpanded = State(initialValue: defaults.object(forKey: "home.statusSectionExpanded") as? Bool ?? true)
@@ -359,6 +365,14 @@ public struct ChildHomeView: View {
                 accessibilityIdentifier: "quick-log-bath-button",
                 action: quickLogBath
             )
+        case .medication:
+            quickLogButton(
+                title: "Medication",
+                systemImage: BabyEventStyle.systemImage(for: .medication),
+                kind: .medication,
+                accessibilityIdentifier: "quick-log-medication-button",
+                action: quickLogMedication
+            )
         }
     }
 
@@ -449,7 +463,9 @@ private func makeHomeView(from model: AppModel) -> some View {
             quickLogBottleFeed: {},
             quickLogSleep: {},
             quickLogNappy: {},
-            quickLogBath: {}
+            quickLogBath: {},
+            quickLogMedication: {},
+            openProfile: {}
         )
     }
 }

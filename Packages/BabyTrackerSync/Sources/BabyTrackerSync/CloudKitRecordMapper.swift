@@ -21,6 +21,8 @@ public enum CloudKitRecordMapper {
             metadataFieldKeys + ["type", "peeVolume", "pooVolume", "pooColor"]
         case CloudKitConfiguration.bathRecordType:
             metadataFieldKeys + ["shampooUsed", "soapUsed"]
+        case CloudKitConfiguration.medicationRecordType:
+            metadataFieldKeys + ["medicineName", "amount", "unit", "customUnitLabel"]
         default:
             []
         }
@@ -114,6 +116,8 @@ public enum CloudKitRecordMapper {
             return sleepRecord(from: value, zoneID: zoneID)
         case let .nappy(value):
             return nappyRecord(from: value, zoneID: zoneID)
+        case let .medication(value):
+            return medicationRecord(from: value, zoneID: zoneID)
         }
     }
 
@@ -175,6 +179,8 @@ public enum CloudKitRecordMapper {
             return .sleep(try sleep(from: record))
         case CloudKitConfiguration.nappyRecordType:
             return .nappy(try nappy(from: record))
+        case CloudKitConfiguration.medicationRecordType:
+            return .medication(try medication(from: record))
         default:
             throw BabyEventError.invalidDateRange
         }
@@ -276,6 +282,25 @@ public enum CloudKitRecordMapper {
         return record
     }
 
+    private static func medicationRecord(
+        from event: MedicationEvent,
+        zoneID: CKRecordZone.ID
+    ) -> CKRecord {
+        let record = CKRecord(
+            recordType: CloudKitConfiguration.medicationRecordType,
+            recordID: CloudKitRecordNames.medicationRecordID(
+                eventID: event.id,
+                zoneID: zoneID
+            )
+        )
+        applyMetadata(event.metadata, to: record)
+        record["medicineName"] = event.medicineName
+        record["amount"] = event.amount
+        record["unit"] = event.unit.rawValue
+        record["customUnitLabel"] = event.customUnitLabel
+        return record
+    }
+
     private static func breastFeed(from record: CKRecord) throws -> BreastFeedEvent {
         try BreastFeedEvent(
             metadata: metadata(from: record, prefix: "breastFeed."),
@@ -318,6 +343,16 @@ public enum CloudKitRecordMapper {
             metadata: metadata(from: record, prefix: "bath."),
             usedShampoo: record["shampooUsed"] as? Bool ?? false,
             usedSoap: record["soapUsed"] as? Bool ?? false
+        )
+    }
+
+    private static func medication(from record: CKRecord) throws -> MedicationEvent {
+        try MedicationEvent(
+            metadata: metadata(from: record, prefix: "medication."),
+            medicineName: record["medicineName"] as? String ?? "",
+            amount: record["amount"] as? Double ?? 0,
+            unit: MedicationUnit(rawValue: record["unit"] as? String ?? "") ?? .custom,
+            customUnitLabel: record["customUnitLabel"] as? String
         )
     }
 

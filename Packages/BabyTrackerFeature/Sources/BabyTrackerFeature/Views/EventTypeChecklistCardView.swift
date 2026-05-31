@@ -117,6 +117,7 @@ struct EventTypeChecklistCardView: View {
         case .bottleFeed: "Bottle feed"
         case .sleep: "Sleep"
         case .nappy: "Nappy"
+        case .medication: "Medication"
         }
     }
 
@@ -127,6 +128,7 @@ struct EventTypeChecklistCardView: View {
         case .bottleFeed: "Formula and expressed milk"
         case .sleep: "Naps and overnight sleeps"
         case .nappy: "Wet and dirty nappy changes"
+        case .medication: "Doses, amounts and units"
         }
     }
 

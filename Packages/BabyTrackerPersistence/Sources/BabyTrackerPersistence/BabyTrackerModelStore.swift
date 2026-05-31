@@ -14,6 +14,7 @@ public final class BabyTrackerModelStore {
             StoredSleepEvent.self,
             StoredNappyEvent.self,
             StoredBathEvent.self,
+            StoredMedicationEvent.self,
             StoredCloudKitRecordMetadata.self,
             StoredSyncAnchor.self,
         ])

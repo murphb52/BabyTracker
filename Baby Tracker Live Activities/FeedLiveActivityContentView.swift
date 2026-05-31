@@ -120,6 +120,8 @@ struct FeedLiveActivityContentView: View {
             "bed.double"
         case .nappy:
             "checklist"
+        case .medication:
+            "pills.fill"
         }
     }
 

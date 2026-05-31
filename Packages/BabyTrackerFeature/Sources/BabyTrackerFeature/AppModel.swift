@@ -739,6 +739,34 @@ public final class AppModel {
     }
 
     @discardableResult
+    public func logMedication(
+        occurredAt: Date,
+        medicineName: String,
+        amount: Double,
+        unit: MedicationUnit,
+        customUnitLabel: String?
+    ) -> Bool {
+        perform(onSuccess: handleSuccessfulEventLog) {
+            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            _ = try LogMedicationUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
+                .execute(.init(
+                    childID: currentChild.id,
+                    localUserID: localUser.id,
+                    occurredAt: occurredAt,
+                    medicineName: medicineName,
+                    amount: amount,
+                    unit: unit,
+                    customUnitLabel: customUnitLabel,
+                    membership: currentMembership
+                ))
+        }
+    }
+
+    @discardableResult
     public func logBottleFeed(
         amountMilliliters: Int,
         occurredAt: Date,
@@ -914,6 +942,35 @@ public final class AppModel {
     }
 
     @discardableResult
+    public func updateMedication(
+        id: UUID,
+        occurredAt: Date,
+        medicineName: String,
+        amount: Double,
+        unit: MedicationUnit,
+        customUnitLabel: String?
+    ) -> Bool {
+        perform {
+            guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+            guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
+            try UpdateMedicationUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            )
+                .execute(.init(
+                    eventID: id,
+                    localUserID: localUser.id,
+                    occurredAt: occurredAt,
+                    medicineName: medicineName,
+                    amount: amount,
+                    unit: unit,
+                    customUnitLabel: customUnitLabel,
+                    membership: currentMembership
+                ))
+        }
+    }
+
+    @discardableResult
     public func updateBottleFeed(
         id: UUID,
         amountMilliliters: Int,
@@ -993,6 +1050,18 @@ public final class AppModel {
         guard let currentChild else { return [] }
         return (try? FetchSmartBottleAmountsUseCase(eventRepository: eventRepository)
             .execute(.init(childID: currentChild.id, referenceTime: Date()))) ?? []
+    }
+
+    /// Medicine names previously logged for the current child, most-recent first.
+    public func recentMedicineNames() -> [String] {
+        guard let currentChild else { return [] }
+        return (try? FetchRecentMedicineNamesUseCase(eventRepository: eventRepository)
+            .execute(.init(childID: currentChild.id))) ?? []
+    }
+
+    /// Default ml quick-pick amounts for the current child, chosen by age.
+    public func medicationMillilitreAmounts() -> [Double] {
+        MedicationCatalog.defaultMillilitreAmounts(forBirthDate: currentChild?.birthDate)
     }
 
     public func updateBottleQuickAmounts(_ amounts: [Int]?) {
@@ -1581,6 +1650,8 @@ public final class AppModel {
             return "Bottle"
         case .breastFeed:
             return "Breast"
+        case .medication:
+            return "Medication"
         }
     }
 
@@ -1591,6 +1662,7 @@ public final class AppModel {
         case .bath: return .bath
         case .bottleFeed: return .bottleFeed
         case .breastFeed: return .breastFeed
+        case .medication: return .medication
         }
     }
 
@@ -1609,6 +1681,8 @@ public final class AppModel {
             return "Started \(shortTimeText(for: sleep.startedAt))"
         case let .nappy(nappy):
             return shortTimeText(for: nappy.metadata.occurredAt)
+        case let .medication(medication):
+            return shortTimeText(for: medication.metadata.occurredAt)
         }
     }
 
@@ -1653,6 +1727,12 @@ public final class AppModel {
             return (
                 title: DurationText.short(minutes: durationMinutes, minuteStyle: .word),
                 detailText: "",
+                timeText: ""
+            )
+        case let .medication(medication):
+            return (
+                title: medication.medicineName,
+                detailText: "\(medication.formattedAmount) \(medication.displayUnit)",
                 timeText: ""
             )
         }
@@ -1712,6 +1792,14 @@ public final class AppModel {
                 peeVolume: nappy.peeVolume,
                 pooVolume: nappy.pooVolume,
                 pooColor: nappy.pooColor
+            )
+        case let .medication(medication):
+            return .editMedication(
+                occurredAt: medication.metadata.occurredAt,
+                medicineName: medication.medicineName,
+                amount: medication.amount,
+                unit: medication.unit,
+                customUnitLabel: medication.customUnitLabel
             )
         }
     }

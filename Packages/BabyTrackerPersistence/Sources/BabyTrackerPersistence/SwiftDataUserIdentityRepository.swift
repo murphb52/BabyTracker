@@ -136,6 +136,7 @@ public final class SwiftDataUserIdentityRepository: CloudKitUserIdentityReposito
         try deleteAll(StoredSleepEvent.self)
         try deleteAll(StoredNappyEvent.self)
         try deleteAll(StoredBathEvent.self)
+        try deleteAll(StoredMedicationEvent.self)
         try deleteAll(StoredSyncAnchor.self)
         userDefaults.removeObject(forKey: DefaultsKey.localUserID)
     }
@@ -245,6 +246,14 @@ public final class SwiftDataUserIdentityRepository: CloudKitUserIdentityReposito
                 markPendingSync(event, errorCode: nil)
             }
         }
+
+        for event in try modelContext.fetch(FetchDescriptor<StoredMedicationEvent>()) {
+            if event.createdBy == sourceUserID { event.createdBy = targetUserID }
+            if event.updatedBy == sourceUserID { event.updatedBy = targetUserID }
+            if event.createdBy == targetUserID || event.updatedBy == targetUserID {
+                markPendingSync(event, errorCode: nil)
+            }
+        }
     }
 
     private func markPendingSync(_ storedModel: StoredChild, errorCode: String?) {
@@ -278,6 +287,11 @@ public final class SwiftDataUserIdentityRepository: CloudKitUserIdentityReposito
     }
 
     private func markPendingSync(_ storedModel: StoredBathEvent, errorCode: String?) {
+        storedModel.syncStateRawValue = SyncState.pendingSync.rawValue
+        storedModel.lastSyncErrorCode = errorCode
+    }
+
+    private func markPendingSync(_ storedModel: StoredMedicationEvent, errorCode: String?) {
         storedModel.syncStateRawValue = SyncState.pendingSync.rawValue
         storedModel.lastSyncErrorCode = errorCode
     }

@@ -105,6 +105,7 @@ struct OnboardingFirstEventStepView: View {
         case .bottleFeed: "Bottle Feed"
         case .sleep: "Start Sleep"
         case .nappy: "Nappy"
+        case .medication: "Medication"
         }
     }
 
@@ -115,6 +116,10 @@ struct OnboardingFirstEventStepView: View {
         case .bottleFeed: .quickLogBottleFeed(smartSuggestions: [])
         case .sleep: .startSleep(suggestions: [])
         case .nappy: .quickLogNappy(.mixed)
+        case .medication: .quickLogMedication(
+            recentNames: [],
+            millilitreAmounts: MedicationCatalog.defaultMillilitreAmounts(forBirthDate: nil)
+        )
         }
     }
 

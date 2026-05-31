@@ -11,6 +11,7 @@ public enum CloudKitConfiguration {
     public static let sleepRecordType = "SleepEvent"
     public static let nappyRecordType = "NappyEvent"
     public static let bathRecordType = "BathEvent"
+    public static let medicationRecordType = "MedicationEvent"
 
     public static func container() -> CKContainer {
         CKContainer(identifier: containerIdentifier)
