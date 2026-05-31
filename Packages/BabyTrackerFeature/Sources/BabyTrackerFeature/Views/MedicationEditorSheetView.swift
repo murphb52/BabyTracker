@@ -15,6 +15,8 @@ public struct MedicationEditorSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var occurredAt: Date
     @State private var medicineName: String
+    @State private var isCustomMedicine: Bool
+    @State private var customMedicineName: String
     @State private var amountText: String
     @State private var unit: MedicationUnit
     @State private var customUnitLabel: String
@@ -50,8 +52,14 @@ public struct MedicationEditorSheetView: View {
         self.millilitreAmounts = millilitreAmounts
         self.deleteAction = deleteAction
         self.saveAction = saveAction
+        let allKnownNames = Set(
+            (recentMedicineNames + MedicationCatalog.commonMedicines).map { $0.lowercased() }
+        )
+        let isCustom = !initialMedicineName.isEmpty && !allKnownNames.contains(initialMedicineName.lowercased())
         _occurredAt = State(initialValue: initialOccurredAt)
-        _medicineName = State(initialValue: initialMedicineName)
+        _medicineName = State(initialValue: isCustom ? "" : initialMedicineName)
+        _isCustomMedicine = State(initialValue: isCustom)
+        _customMedicineName = State(initialValue: isCustom ? initialMedicineName : "")
         _amountText = State(initialValue: initialAmount.map(Self.amountText(for:)) ?? "")
         _unit = State(initialValue: initialUnit)
         _customUnitLabel = State(initialValue: initialCustomUnitLabel ?? "")
@@ -90,17 +98,13 @@ public struct MedicationEditorSheetView: View {
     @ViewBuilder
     private var medicineSection: some View {
         Section {
-            if !medicineSuggestions.isEmpty {
-                medicineSuggestionsRow
+            medicineSuggestionsRow
+            if isCustomMedicine {
+                TextField("Medicine name", text: $customMedicineName)
+                    .accessibilityIdentifier("medication-name-field")
             }
-            TextField("Type a medicine name", text: $medicineName)
-                .accessibilityIdentifier("medication-name-field")
         } header: {
             Text("Which medicine?")
-        } footer: {
-            Text(medicineSuggestions.isEmpty
-                ? "Type the name of the medicine."
-                : "Tap a recent medicine above, or type a new one.")
         }
     }
 
@@ -110,12 +114,21 @@ public struct MedicationEditorSheetView: View {
                 ForEach(medicineSuggestions, id: \.self) { name in
                     Button {
                         medicineName = name
+                        isCustomMedicine = false
                     } label: {
-                        chipLabel(name, isSelected: isSelectedName(name), shape: Capsule())
+                        chipLabel(name, isSelected: !isCustomMedicine && isSelectedName(name), shape: Capsule())
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("medication-name-suggestion-\(name)")
                 }
+                Button {
+                    isCustomMedicine = true
+                    medicineName = ""
+                } label: {
+                    chipLabel("Custom", isSelected: isCustomMedicine, shape: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("medication-name-custom")
             }
             .padding(.vertical, 2)
         }
@@ -222,7 +235,7 @@ public struct MedicationEditorSheetView: View {
                 guard let amount = parsedAmount, isValid else { return }
                 let didSave = saveAction(
                     occurredAt,
-                    medicineName.trimmingCharacters(in: .whitespacesAndNewlines),
+                    effectiveMedicineName.trimmingCharacters(in: .whitespacesAndNewlines),
                     amount,
                     unit,
                     unit == .custom ? customUnitLabel.trimmingCharacters(in: .whitespacesAndNewlines) : nil
@@ -292,8 +305,12 @@ public struct MedicationEditorSheetView: View {
         Double(amountText.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "."))
     }
 
+    private var effectiveMedicineName: String {
+        isCustomMedicine ? customMedicineName : medicineName
+    }
+
     private var isValid: Bool {
-        guard !medicineName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        guard !effectiveMedicineName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         guard let amount = parsedAmount, amount > 0 else { return false }
         if unit == .custom, customUnitLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return false
@@ -322,7 +339,7 @@ public struct MedicationEditorSheetView: View {
         var sentence = summaryVariable(childName, color: Self.eventColor)
         sentence += AttributedString(" had ")
 
-        let name = medicineName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = effectiveMedicineName.trimmingCharacters(in: .whitespacesAndNewlines)
         sentence += summaryVariable(name.isEmpty ? "medicine" : name, color: Self.eventColor)
 
         if let amount = parsedAmount, amount > 0 {

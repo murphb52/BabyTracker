@@ -8,7 +8,6 @@ public enum MedicationCatalog {
         "Paracetamol (Calpol)",
         "Ibuprofen (Nurofen)",
         "Vitamin D drops",
-        "Gripe water",
         "Teething gel"
     ]
 
