@@ -32,19 +32,23 @@ final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
         guard !didRegisterLaunchHandler else { return }
         didRegisterLaunchHandler = true
 
+        // The launch handler MUST be `@Sendable`. Without it, the closure
+        // inherits this method's `@MainActor` isolation, and the Swift runtime
+        // emits an executor-isolation check at the closure's entry point.
+        // BGTaskScheduler invokes the handler on a private *background* queue,
+        // so that check (`dispatch_assert_queue` for the main queue) fails and
+        // traps with EXC_BREAKPOINT before any of our code runs. Marking the
+        // closure `@Sendable` keeps it non-isolated; we then hop to the main
+        // actor explicitly via `Task { @MainActor in }` to touch @MainActor
+        // state safely.
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: Self.taskIdentifier,
             using: nil
-        ) { [weak self] task in
+        ) { @Sendable [weak self] task in
             guard let appRefreshTask = task as? BGAppRefreshTask else {
                 task.setTaskCompleted(success: false)
                 return
             }
-            // BGTaskScheduler invokes this launch handler on a private
-            // background queue, so we must hop to the main actor before
-            // touching @MainActor state. `MainActor.assumeIsolated` would
-            // trap here because the runtime asserts we are already on the
-            // main queue.
             Task { @MainActor in
                 self?.handle(task: appRefreshTask)
             }
