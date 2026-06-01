@@ -4,6 +4,18 @@ on:
   issue_comment:
     types:
       - created
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'Tag command to run against the selected branch'
+        required: true
+        type: choice
+        default: 'Release patch'
+        options:
+          - 'TestFlight'
+          - 'Release major'
+          - 'Release minor'
+          - 'Release patch'
 
 permissions:
   contents: write
@@ -12,7 +24,7 @@ permissions:
 
 jobs:
   tag:
-    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, 'tag ') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.issue.pull_request && startsWith(github.event.comment.body, 'tag ')) }}
     runs-on: ubuntu-latest
 
     steps:
@@ -21,6 +33,23 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            if (context.eventName === 'workflow_dispatch') {
+              const command = (context.payload.inputs.command || '').trim();
+              const dispatchTestFlight = command.match(/^TestFlight$/);
+              const dispatchRelease = command.match(/^Release (major|minor|patch)$/);
+
+              if (!dispatchTestFlight && !dispatchRelease) {
+                core.setFailed(`Unsupported tag command: ${command}`);
+                return;
+              }
+
+              core.setOutput('request_type', dispatchTestFlight ? 'testflight' : 'release');
+              core.setOutput('release_bump', dispatchRelease ? dispatchRelease[1] : '');
+              core.setOutput('head_sha', context.sha);
+              core.setOutput('head_ref', context.ref.replace(/^refs\/heads\//, ''));
+              return;
+            }
+
             const body = context.payload.comment.body.trim();
             const testFlightMatch = body.match(/^tag TestFlight$/);
             const releaseMatch = body.match(/^tag Release (major|minor|patch)$/);
@@ -141,8 +170,14 @@ jobs:
 
           echo "tag_name=${tag_name}" >> "${GITHUB_OUTPUT}"
 
+          {
+            echo "### TestFlight tag created"
+            echo "- Tag: \`${tag_name}\`"
+            echo "- Commit: \`${HEAD_SHA}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
       - name: Comment with TestFlight tag details
-        if: ${{ steps.request.outputs.request_type == 'testflight' }}
+        if: ${{ steps.request.outputs.request_type == 'testflight' && github.event_name == 'issue_comment' }}
         uses: actions/github-script@v7
         env:
           TAG_NAME: ${{ steps.testflight.outputs.tag_name }}
@@ -307,13 +342,26 @@ jobs:
         if: ${{ steps.request.outputs.request_type == 'release' }}
         env:
           TAG_NAME: ${{ steps.release.outputs.tag_name }}
+          BRANCH_NAME: ${{ steps.release.outputs.branch_name }}
+          NEW_VERSION: ${{ steps.release.outputs.new_version }}
+          BUILD_NUMBER: ${{ steps.release.outputs.build_number }}
+          PR_URL: ${{ steps.release_pr.outputs.pr_url }}
         run: |
           set -euo pipefail
 
           git push origin "refs/tags/${TAG_NAME}"
 
+          {
+            echo "### Release bump created"
+            echo "- Version: \`${NEW_VERSION}\`"
+            echo "- Build: \`${BUILD_NUMBER}\`"
+            echo "- Tag: \`${TAG_NAME}\`"
+            echo "- Branch: \`${BRANCH_NAME}\`"
+            echo "- Pull request: ${PR_URL}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
       - name: Comment with release details
-        if: ${{ steps.request.outputs.request_type == 'release' }}
+        if: ${{ steps.request.outputs.request_type == 'release' && github.event_name == 'issue_comment' }}
         uses: actions/github-script@v7
         env:
           TAG_NAME: ${{ steps.release.outputs.tag_name }}
@@ -342,7 +390,7 @@ jobs:
             });
 
       - name: React to completed request
-        if: ${{ success() && steps.request.outcome == 'success' }}
+        if: ${{ success() && steps.request.outcome == 'success' && github.event_name == 'issue_comment' }}
         uses: actions/github-script@v7
         with:
           script: |
@@ -360,7 +408,7 @@ jobs:
             }
 
       - name: Comment with failure details
-        if: ${{ failure() && steps.request.outcome == 'success' }}
+        if: ${{ failure() && steps.request.outcome == 'success' && github.event_name == 'issue_comment' }}
         uses: actions/github-script@v7
         with:
           script: |
