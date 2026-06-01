@@ -1,4 +1,5 @@
 import ActivityKit
+import BabyTrackerDomain
 import BabyTrackerFeature
 import BabyTrackerLiveActivities
 import Foundation
@@ -24,6 +25,9 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         let activities = Activity<FeedLiveActivityAttributes>.activities
 
         guard let snapshot else {
+            if !activities.isEmpty {
+                Self.log(.info, "reconcile: snapshot is nil — ending \(activities.count) activity(ies)")
+            }
             stateObservationTask?.cancel()
             stateObservationTask = nil
             await Self.endAllActivities()
@@ -62,6 +66,16 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
 
         guard !Task.isCancelled else { return }
 
+        let authorizationInfo = ActivityAuthorizationInfo()
+        guard authorizationInfo.areActivitiesEnabled else {
+            Self.log(
+                .error,
+                "Cannot start Live Activity — Live Activities are disabled in system settings (areActivitiesEnabled == false)"
+            )
+            activeActivityID = nil
+            return
+        }
+
         do {
             let activity = try Activity.request(
                 attributes: FeedLiveActivityAttributes(childID: snapshot.childID),
@@ -70,9 +84,17 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
             )
             activeActivityID = activity.id
             observeActivityState(activity)
+            Self.log(.info, "Started Live Activity \(activity.id) for child \(snapshot.childID)")
         } catch {
+            // ActivityKit only permits starting a Live Activity while the app is in the
+            // foreground; surfacing the error here is what makes this path observable.
+            Self.log(.error, "Activity.request failed: \(error)")
             activeActivityID = nil
         }
+    }
+
+    private static func log(_ level: LogLevel, _ message: String) {
+        AppLogger.shared.log(level, category: "LiveActivity", message)
     }
 
     private func observeActivityState(_ activity: Activity<FeedLiveActivityAttributes>) {

@@ -1576,7 +1576,10 @@ struct AppModelTests {
 
         #expect(harness.model.isLiveActivityEnabled == false)
         #expect(liveActivityManager.latestSnapshot == nil)
-        #expect(liveActivityManager.snapshots.count == 1)
+        // The activity is reconciled on every successful refresh (load + background),
+        // but while disabled every reconcile must clear the activity rather than
+        // publish a real snapshot.
+        #expect(liveActivityManager.snapshots.allSatisfy { $0 == nil })
     }
 
     @Test
@@ -1595,7 +1598,8 @@ struct AppModelTests {
         )
         harness.model.load(performLaunchSync: false)
 
-        #expect(liveActivityManager.latestSnapshot == nil)
+        // A successful foreground refresh (load) already starts/reconciles the activity.
+        #expect(liveActivityManager.latestSnapshot?.childID == seed.child.id)
 
         _ = await harness.model.refreshAfterRemoteNotification(isAppInBackground: true)
 
@@ -1603,7 +1607,11 @@ struct AppModelTests {
     }
 
     @Test
-    func remoteNotificationSyncInForegroundDoesNotUpdateLiveActivity() async throws {
+    func remoteNotificationSyncInForegroundKeepsLiveActivityInSync() async throws {
+        // ActivityKit only permits *starting* a Live Activity while the app is in the
+        // foreground, so a foreground refresh must reconcile the activity rather than
+        // skip it. (Previously the app only synced from the background, which meant the
+        // activity could never actually start.)
         let liveActivityManager = LiveActivityManagerSpy()
         let harness = try Harness(liveActivityManager: liveActivityManager)
         defer { harness.cleanUp() }
@@ -1618,12 +1626,11 @@ struct AppModelTests {
         )
         harness.model.load(performLaunchSync: false)
 
-        #expect(liveActivityManager.latestSnapshot == nil)
+        #expect(liveActivityManager.latestSnapshot?.childID == seed.child.id)
 
         _ = await harness.model.refreshAfterRemoteNotification(isAppInBackground: false)
 
-        #expect(liveActivityManager.latestSnapshot == nil)
-        #expect(liveActivityManager.snapshots.isEmpty)
+        #expect(liveActivityManager.latestSnapshot?.childID == seed.child.id)
     }
 
     @Test

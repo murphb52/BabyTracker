@@ -299,13 +299,15 @@ public final class AppModel {
         await refreshAfterRemoteNotification(isAppInBackground: false)
     }
 
+    // `isAppInBackground` is retained to satisfy `BackgroundRefreshing`, but the
+    // Live Activity is now reconciled on every successful refresh regardless of
+    // foreground/background state — ActivityKit only lets us *start* an activity
+    // while in the foreground, and updating a running one from the background is
+    // always safe.
     public func refreshAfterRemoteNotification(isAppInBackground: Bool) async -> SyncStatusSummary {
         let summary = await syncEngine.refreshAfterRemoteNotification()
         await scheduleRemoteSyncNotificationIfNeeded()
-        refresh(
-            selecting: childSelectionStore.loadSelectedChildID(),
-            synchronizeLiveActivity: isAppInBackground
-        )
+        refresh(selecting: childSelectionStore.loadSelectedChildID())
         return summary
     }
 
@@ -1284,7 +1286,7 @@ public final class AppModel {
         await scheduleInactivityDriftNotificationIfNeededAsync()
     }
 
-    private func refresh(selecting selectedChildID: UUID?, synchronizeLiveActivity: Bool = false) {
+    private func refresh(selecting selectedChildID: UUID?) {
         do {
             localUser = try userIdentityRepository.loadLocalUser()
 
@@ -1391,9 +1393,10 @@ public final class AppModel {
             pendingShareInvites = builtPendingInvites
 
             route = .childProfile
-            if synchronizeLiveActivity {
-                synchronizeFeedLiveActivity()
-            }
+            // ActivityKit only permits *starting* a Live Activity while the app is in
+            // the foreground, so reconcile on every successful foreground refresh. The
+            // update use case dedups unchanged snapshots, so repeated calls are cheap.
+            synchronizeFeedLiveActivity()
         } catch {
             AppLogger.shared.log(.error, category: "AppModel", "refresh failed: \(error)")
             setErrorMessage(resolveErrorMessage(for: error))
