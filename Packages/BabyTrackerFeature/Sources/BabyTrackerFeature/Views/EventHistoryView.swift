@@ -10,6 +10,8 @@ public struct EventHistoryView: View {
     let confirmDelete: () -> Void
     let cancelDelete: () -> Void
     let onRefresh: () async -> Void
+    let pendingReminderDate: ((EventCardViewState) -> Date?)?
+    let cancelReminder: ((EventCardViewState) -> Void)?
 
     public init(
         viewModel: EventHistoryViewModel,
@@ -19,7 +21,9 @@ public struct EventHistoryView: View {
         pendingDeleteEvent: EventDeleteCandidate?,
         confirmDelete: @escaping () -> Void,
         cancelDelete: @escaping () -> Void,
-        onRefresh: @escaping () async -> Void
+        onRefresh: @escaping () async -> Void,
+        pendingReminderDate: ((EventCardViewState) -> Date?)? = nil,
+        cancelReminder: ((EventCardViewState) -> Void)? = nil
     ) {
         self.viewModel = viewModel
         self.canManageEvents = canManageEvents
@@ -29,6 +33,8 @@ public struct EventHistoryView: View {
         self.confirmDelete = confirmDelete
         self.cancelDelete = cancelDelete
         self.onRefresh = onRefresh
+        self.pendingReminderDate = pendingReminderDate
+        self.cancelReminder = cancelReminder
     }
 
     public var body: some View {
@@ -109,13 +115,19 @@ public struct EventHistoryView: View {
     @ViewBuilder
     private func eventRow(for event: EventCardViewState) -> some View {
         let isPendingDelete = pendingDeleteEvent?.id == event.id
+        let fireDate = pendingReminderDate?(event)
+        let card = EventCardView(
+            event: event,
+            pendingReminderDate: fireDate,
+            onCancelReminder: fireDate != nil ? { cancelReminder?(event) } : nil
+        )
 
         if canManageEvents {
             VStack(alignment: .leading, spacing: 8) {
                 Button {
                     openEvent(event)
                 } label: {
-                    EventCardView(event: event)
+                    card
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("event-history-event-\(event.id.uuidString)")
@@ -149,7 +161,7 @@ public struct EventHistoryView: View {
                 }
             }
         } else {
-            EventCardView(event: event)
+            card
                 .accessibilityIdentifier("event-history-event-\(event.id.uuidString)")
         }
     }

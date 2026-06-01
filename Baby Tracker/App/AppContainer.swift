@@ -25,6 +25,7 @@ struct AppContainer {
         let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
         let liveActivityPreferenceStore = UserDefaultsLiveActivityPreferenceStore(userDefaults: userDefaults)
         let reminderNotificationPreferenceStore = UserDefaultsReminderNotificationPreferenceStore(userDefaults: userDefaults)
+        let medicationReminderPreferenceStore = UserDefaultsMedicationReminderPreferenceStore(userDefaults: userDefaults)
         let eventVisibilityPreferenceStore = UserDefaultsEventVisibilityPreferenceStore(userDefaults: userDefaults)
         let appReviewPromptStateStore = UserDefaultsAppReviewPromptStateStore(userDefaults: userDefaults)
 
@@ -76,6 +77,7 @@ struct AppContainer {
             liveActivitySnapshotCache: liveActivitySnapshotCache,
             liveActivityPreferenceStore: liveActivityPreferenceStore,
             reminderNotificationPreferenceStore: reminderNotificationPreferenceStore,
+            medicationReminderPreferenceStore: medicationReminderPreferenceStore,
             eventVisibilityPreferenceStore: eventVisibilityPreferenceStore,
             localNotificationManager: localNotificationManager,
             hapticFeedbackProvider: hapticFeedbackProvider,

@@ -124,6 +124,68 @@ final class SystemLocalNotificationManager: NSObject, LocalNotificationManaging 
         .sorted { $0.fireDate < $1.fireDate }
     }
 
+    func scheduleMedicationReminderNotification(
+        childID: UUID,
+        childName: String,
+        medicineName: String,
+        mode: ReminderMode,
+        intervalHours: Int,
+        fireAt: Date
+    ) async {
+        guard await isAuthorized() else { return }
+
+        let content = UNMutableNotificationContent()
+        switch mode {
+        case .safeToGive:
+            content.title = "\(medicineName) – Safe to give again"
+            content.body = "It's been \(intervalHours)h since \(childName)'s last dose."
+        case .nextDueDose:
+            content.title = "\(medicineName) – Next dose due"
+            content.body = "\(childName)'s next \(medicineName) dose is due now."
+        }
+        content.sound = .default
+        content.userInfo = ["childID": childID.uuidString, "medicineName": medicineName]
+
+        let id = medicationReminderIdentifier(childID: childID, medicineName: medicineName)
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [id])
+
+        // Calendar trigger survives device restarts; time-interval trigger does not.
+        let components = Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second],
+            from: fireAt
+        )
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+        try? await notificationCenter.add(request)
+    }
+
+    func cancelMedicationReminderNotification(childID: UUID, medicineName: String) async {
+        notificationCenter.removePendingNotificationRequests(
+            withIdentifiers: [medicationReminderIdentifier(childID: childID, medicineName: medicineName)]
+        )
+    }
+
+    func pendingMedicationReminderNotifications() async -> [PendingMedicationReminder] {
+        let requests = await notificationCenter.pendingNotificationRequests()
+        return requests.compactMap { request -> PendingMedicationReminder? in
+            guard request.identifier.hasPrefix("medication."),
+                  let trigger = request.trigger as? UNCalendarNotificationTrigger,
+                  let fireDate = trigger.nextTriggerDate(),
+                  let childIDString = request.content.userInfo["childID"] as? String,
+                  let childID = UUID(uuidString: childIDString),
+                  let medicineName = request.content.userInfo["medicineName"] as? String
+            else { return nil }
+
+            return PendingMedicationReminder(
+                id: request.identifier,
+                childID: childID,
+                medicineName: medicineName,
+                fireDate: fireDate
+            )
+        }
+        .sorted { $0.fireDate < $1.fireDate }
+    }
+
     // MARK: - Private helpers
 
     private func isAuthorized() async -> Bool {
@@ -137,6 +199,10 @@ final class SystemLocalNotificationManager: NSObject, LocalNotificationManaging 
 
     private func inactivityDriftIdentifier(childID: UUID) -> String {
         "drift.inactivity.\(childID.uuidString)"
+    }
+
+    private func medicationReminderIdentifier(childID: UUID, medicineName: String) -> String {
+        "medication.\(childID.uuidString).\(medicineName.lowercased())"
     }
 }
 

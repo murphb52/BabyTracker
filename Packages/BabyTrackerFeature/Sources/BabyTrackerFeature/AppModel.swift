@@ -62,6 +62,8 @@ public final class AppModel {
     public private(set) var timelineDisplayMode: TimelineDisplayMode = .day
     /// The active event filter for the event history screen.
     public private(set) var activeEventFilter: EventFilter = .empty
+    /// Pending medication reminder notifications for the current child.
+    public private(set) var pendingMedicationReminders: [PendingMedicationReminder] = []
 
     private let logger = Logger(subsystem: "com.adappt.BabyTracker", category: "AppModel")
     private let childRepository: any ChildRepository
@@ -74,6 +76,7 @@ public final class AppModel {
     private let liveActivitySnapshotCache: any FeedLiveActivitySnapshotCaching
     private let liveActivityPreferenceStore: any LiveActivityPreferenceStore
     private let reminderNotificationPreferenceStore: any ReminderNotificationPreferenceStore
+    private let medicationReminderPreferenceStore: any MedicationReminderPreferenceStore
     private let eventVisibilityPreferenceStore: any EventVisibilityPreferenceStore
     private let localNotificationManager: any LocalNotificationManaging
     private let hapticFeedbackProvider: any HapticFeedbackProviding
@@ -102,6 +105,7 @@ public final class AppModel {
         liveActivitySnapshotCache: any FeedLiveActivitySnapshotCaching = InMemoryFeedLiveActivitySnapshotCache(),
         liveActivityPreferenceStore: any LiveActivityPreferenceStore = InMemoryLiveActivityPreferenceStore(),
         reminderNotificationPreferenceStore: any ReminderNotificationPreferenceStore = InMemoryReminderNotificationPreferenceStore(),
+        medicationReminderPreferenceStore: any MedicationReminderPreferenceStore = InMemoryMedicationReminderPreferenceStore(),
         eventVisibilityPreferenceStore: any EventVisibilityPreferenceStore = InMemoryEventVisibilityPreferenceStore(),
         localNotificationManager: any LocalNotificationManaging = NoOpLocalNotificationManager(),
         hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider(),
@@ -118,6 +122,7 @@ public final class AppModel {
         self.liveActivitySnapshotCache = liveActivitySnapshotCache
         self.liveActivityPreferenceStore = liveActivityPreferenceStore
         self.reminderNotificationPreferenceStore = reminderNotificationPreferenceStore
+        self.medicationReminderPreferenceStore = medicationReminderPreferenceStore
         self.eventVisibilityPreferenceStore = eventVisibilityPreferenceStore
         self.localNotificationManager = localNotificationManager
         self.hapticFeedbackProvider = hapticFeedbackProvider
@@ -137,6 +142,7 @@ public final class AppModel {
         rescheduleAllDriftNotifications()
         Task { @MainActor in
             await refreshReminderNotificationAuthorization()
+            await refreshPendingMedicationReminders()
         }
 
         guard performLaunchSync else {
@@ -251,6 +257,12 @@ public final class AppModel {
             await cancelAllDriftNotificationsAsync()
         }
         return isReminderNotificationsEnabled == isEnabled
+    }
+
+    /// Requests notification permission if not yet determined. Returns `true` if
+    /// notifications are authorized, `false` if the user has denied permission.
+    public func requestMedicationReminderPermission() async -> Bool {
+        await localNotificationManager.requestAuthorizationIfNeeded()
     }
 
     public func refreshReminderNotificationAuthorization() async {
@@ -746,17 +758,21 @@ public final class AppModel {
         medicineName: String,
         amount: Double,
         unit: MedicationUnit,
-        customUnitLabel: String?
+        customUnitLabel: String?,
+        reminder: MedicationReminderPreference? = nil
     ) -> Bool {
-        perform(onSuccess: handleSuccessfulEventLog) {
-            guard let currentChild, let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
+        guard let currentChild else { return false }
+        let childID = currentChild.id
+        let childName = currentChild.name
+        let succeeded = perform(onSuccess: handleSuccessfulEventLog) {
+            guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             _ = try LogMedicationUseCase(
                 eventRepository: eventRepository,
                 hapticFeedbackProvider: hapticFeedbackProvider
             )
                 .execute(.init(
-                    childID: currentChild.id,
+                    childID: childID,
                     localUserID: localUser.id,
                     occurredAt: occurredAt,
                     medicineName: medicineName,
@@ -766,6 +782,52 @@ public final class AppModel {
                     membership: currentMembership
                 ))
         }
+        if succeeded {
+            Task { @MainActor in
+                if let reminder {
+                    await ScheduleMedicationReminderUseCase.execute(
+                        input: .init(
+                            childID: childID,
+                            childName: childName,
+                            medicineName: medicineName,
+                            preference: reminder,
+                            occurredAt: occurredAt
+                        ),
+                        notificationManager: localNotificationManager,
+                        preferenceStore: medicationReminderPreferenceStore
+                    )
+                } else {
+                    await CancelMedicationReminderUseCase.execute(
+                        childID: childID,
+                        medicineName: medicineName,
+                        notificationManager: localNotificationManager
+                    )
+                }
+                await refreshPendingMedicationReminders()
+            }
+        }
+        return succeeded
+    }
+
+    public func medicationReminderPreference(for medicineName: String) -> MedicationReminderPreference? {
+        guard let childID = currentChild?.id else { return nil }
+        return medicationReminderPreferenceStore.preference(for: medicineName, childID: childID)
+    }
+
+    public func cancelMedicationReminder(medicineName: String) {
+        guard let childID = currentChild?.id else { return }
+        Task { @MainActor in
+            await CancelMedicationReminderUseCase.execute(
+                childID: childID,
+                medicineName: medicineName,
+                notificationManager: localNotificationManager
+            )
+            await refreshPendingMedicationReminders()
+        }
+    }
+
+    private func refreshPendingMedicationReminders() async {
+        pendingMedicationReminders = await localNotificationManager.pendingMedicationReminderNotifications()
     }
 
     @discardableResult
@@ -1122,7 +1184,8 @@ public final class AppModel {
 
     @discardableResult
     public func deleteEvent(id: UUID) -> Bool {
-        perform {
+        guard let childID = currentChild?.id else { return false }
+        let succeeded = perform {
             guard let currentMembership else { throw ChildProfileValidationError.insufficientPermissions }
             guard let localUser else { throw ChildProfileValidationError.insufficientPermissions }
             clearUndoDeleteState()
@@ -1138,8 +1201,19 @@ public final class AppModel {
                 pendingUndoDeletedEvent = event
                 undoDeleteMessage = "\(eventTitle(for: event)) deleted"
                 startUndoDeleteExpiryTask()
+                if case let .medication(medication) = event {
+                    Task { @MainActor in
+                        await CancelMedicationReminderUseCase.execute(
+                            childID: childID,
+                            medicineName: medication.medicineName,
+                            notificationManager: localNotificationManager
+                        )
+                        await refreshPendingMedicationReminders()
+                    }
+                }
             }
         }
+        return succeeded
     }
 
     public func undoLastDeletedEvent() {
