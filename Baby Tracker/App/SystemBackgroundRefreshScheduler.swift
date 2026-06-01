@@ -32,31 +32,26 @@ final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
         guard !didRegisterLaunchHandler else { return }
         didRegisterLaunchHandler = true
 
-        // The launch handler MUST be `@Sendable`. Without it, the closure
-        // inherits this method's `@MainActor` isolation, and the Swift runtime
-        // emits an executor-isolation check at the closure's entry point.
-        // BGTaskScheduler invokes the handler on a private *background* queue,
-        // so that check (`dispatch_assert_queue` for the main queue) fails and
-        // traps with EXC_BREAKPOINT before any of our code runs. Marking the
-        // closure `@Sendable` keeps it non-isolated; we then hop to the main
-        // actor explicitly via `Task { @MainActor in }` to touch @MainActor
-        // state safely.
+        // Run the launch handler on the main queue (`using: .main`).
+        //
+        // The app target builds with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`,
+        // so this closure is implicitly `@MainActor`-isolated and the Swift
+        // runtime inserts an executor-isolation check at its entry point. With
+        // the default queue (`using: nil`), BGTaskScheduler invokes the handler
+        // on a private *background* queue, so that check (`dispatch_assert_queue`
+        // for the main queue) fails and traps with EXC_BREAKPOINT before any of
+        // our code runs. Dispatching on the main queue satisfies the MainActor
+        // executor, so the check passes. The handler is trivial — it just kicks
+        // off the actual async refresh work on the main actor.
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: Self.taskIdentifier,
-            using: nil
-        ) { @Sendable [weak self] task in
+            using: .main
+        ) { [weak self] task in
             guard let appRefreshTask = task as? BGAppRefreshTask else {
                 task.setTaskCompleted(success: false)
                 return
             }
-            // `task` is a non-Sendable value handed to this non-isolated
-            // closure, so it can't be sent across the actor hop directly.
-            // The system hands us exactly one task and we only ever touch it
-            // serially on the main actor, so an unchecked box is safe here.
-            let boxedTask = UncheckedSendableBox(appRefreshTask)
-            Task { @MainActor in
-                self?.handle(task: boxedTask.value)
-            }
+            self?.handle(task: appRefreshTask)
         }
     }
 
@@ -100,17 +95,5 @@ final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
         task.expirationHandler = {
             work.cancel()
         }
-    }
-}
-
-/// Bridges a non-`Sendable` value across a concurrency boundary. Used to carry
-/// the `BGTask` from the non-isolated launch handler onto the main actor. Safe
-/// because the boxed task is owned solely by this scheduler and accessed
-/// serially on the main actor.
-private struct UncheckedSendableBox<Value>: @unchecked Sendable {
-    let value: Value
-
-    init(_ value: Value) {
-        self.value = value
     }
 }
