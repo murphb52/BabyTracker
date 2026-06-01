@@ -49,8 +49,13 @@ final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
                 task.setTaskCompleted(success: false)
                 return
             }
+            // `task` is a non-Sendable value handed to this non-isolated
+            // closure, so it can't be sent across the actor hop directly.
+            // The system hands us exactly one task and we only ever touch it
+            // serially on the main actor, so an unchecked box is safe here.
+            let boxedTask = UncheckedSendableBox(appRefreshTask)
             Task { @MainActor in
-                self?.handle(task: appRefreshTask)
+                self?.handle(task: boxedTask.value)
             }
         }
     }
@@ -95,5 +100,17 @@ final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
         task.expirationHandler = {
             work.cancel()
         }
+    }
+}
+
+/// Bridges a non-`Sendable` value across a concurrency boundary. Used to carry
+/// the `BGTask` from the non-isolated launch handler onto the main actor. Safe
+/// because the boxed task is owned solely by this scheduler and accessed
+/// serially on the main actor.
+private struct UncheckedSendableBox<Value>: @unchecked Sendable {
+    let value: Value
+
+    init(_ value: Value) {
+        self.value = value
     }
 }
