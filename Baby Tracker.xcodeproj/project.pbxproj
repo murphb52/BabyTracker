@@ -477,7 +477,7 @@
 			baseConfigurationReference = D0A000000000000000000023 /* App.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = "Baby Tracker/Baby Tracker.Debug.entitlements";
-				CURRENT_PROJECT_VERSION = 89;
+				CURRENT_PROJECT_VERSION = 91;
 				DEVELOPMENT_TEAM = 8AGZ5RNUVG;
 				ENABLE_APP_SANDBOX = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Nest Dev";
@@ -492,7 +492,7 @@
 			baseConfigurationReference = D0A000000000000000000023 /* App.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = "Baby Tracker/Baby Tracker.entitlements";
-				CURRENT_PROJECT_VERSION = 89;
+				CURRENT_PROJECT_VERSION = 91;
 				DEVELOPMENT_TEAM = 8AGZ5RNUVG;
 				ENABLE_APP_SANDBOX = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Nest;
