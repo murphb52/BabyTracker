@@ -19,39 +19,40 @@ struct ResetFeedLiveActivityUseCaseTests {
         )
     }
 
-    // MARK: - Cache has data
+    // MARK: - Activity running
 
     @Test
-    func synchronizesManagerWithNilWhenCacheHasData() {
+    func synchronizesManagerWithNilWhenActivityIsRunning() {
         let cache = InMemoryFeedLiveActivitySnapshotCache()
         let manager = SpyFeedLiveActivityManager(snapshotCache: cache)
+        manager.hasRunningActivity = true
         cache.save(makeSnapshot())
 
-        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager, snapshotCache: cache)
+        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager)
 
         #expect(manager.synchronizeCalls.count == 1)
         #expect(manager.synchronizeCalls.first == .some(nil))
     }
 
     @Test
-    func clearsCacheWhenCacheHasData() {
+    func clearsCacheWhenActivityIsRunning() {
         let cache = InMemoryFeedLiveActivitySnapshotCache()
         let manager = SpyFeedLiveActivityManager(snapshotCache: cache)
+        manager.hasRunningActivity = true
         cache.save(makeSnapshot())
 
-        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager, snapshotCache: cache)
+        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager)
 
         #expect(cache.load() == nil)
     }
 
-    // MARK: - Cache is empty
+    // MARK: - No activity running
 
     @Test
-    func doesNothingWhenCacheIsEmpty() {
+    func doesNothingWhenNoActivityIsRunning() {
         let manager = SpyFeedLiveActivityManager()
-        let cache = InMemoryFeedLiveActivitySnapshotCache()
 
-        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager, snapshotCache: cache)
+        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager)
 
         #expect(manager.synchronizeCalls.isEmpty)
     }
@@ -68,7 +69,7 @@ struct ResetFeedLiveActivityUseCaseTests {
             amountMilliliters: 120
         ))]
 
-        // First update — populates cache
+        // First update — starts the activity and populates the cache
         UpdateFeedLiveActivityUseCase.execute(
             events: events,
             child: child,
@@ -78,7 +79,7 @@ struct ResetFeedLiveActivityUseCaseTests {
             snapshotCache: cache
         )
 
-        // Second update with same data — skipped by cache
+        // Second update with same data — skipped by the cache
         UpdateFeedLiveActivityUseCase.execute(
             events: events,
             child: child,
@@ -90,10 +91,10 @@ struct ResetFeedLiveActivityUseCaseTests {
 
         let callsBeforeReset = manager.synchronizeCalls.count
 
-        // Reset ends the activity and clears the cache
-        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager, snapshotCache: cache)
+        // Reset ends the running activity, and the manager clears the cache
+        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager)
 
-        // Same data again — goes through because cache was cleared by reset
+        // Same data again — goes through because the cache was cleared by reset
         UpdateFeedLiveActivityUseCase.execute(
             events: events,
             child: child,

@@ -1486,8 +1486,7 @@ public final class AppModel {
 
     private func stopLiveActivity() {
         ResetFeedLiveActivityUseCase.execute(
-            liveActivityManager: liveActivityManager,
-            snapshotCache: liveActivitySnapshotCache
+            liveActivityManager: liveActivityManager
         )
     }
 
