@@ -73,7 +73,6 @@ public final class AppModel {
     private let eventRepository: EventRepository
     private let syncEngine: any CloudKitSyncControlling
     private let liveActivityManager: any FeedLiveActivityManaging
-    private let liveActivitySnapshotCache: any FeedLiveActivitySnapshotCaching
     private let liveActivityPreferenceStore: any LiveActivityPreferenceStore
     private let reminderNotificationPreferenceStore: any ReminderNotificationPreferenceStore
     private let medicationReminderPreferenceStore: any MedicationReminderPreferenceStore
@@ -102,7 +101,6 @@ public final class AppModel {
         eventRepository: EventRepository,
         syncEngine: any CloudKitSyncControlling,
         liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager(),
-        liveActivitySnapshotCache: any FeedLiveActivitySnapshotCaching = InMemoryFeedLiveActivitySnapshotCache(),
         liveActivityPreferenceStore: any LiveActivityPreferenceStore = InMemoryLiveActivityPreferenceStore(),
         reminderNotificationPreferenceStore: any ReminderNotificationPreferenceStore = InMemoryReminderNotificationPreferenceStore(),
         medicationReminderPreferenceStore: any MedicationReminderPreferenceStore = InMemoryMedicationReminderPreferenceStore(),
@@ -119,7 +117,6 @@ public final class AppModel {
         self.eventRepository = eventRepository
         self.syncEngine = syncEngine
         self.liveActivityManager = liveActivityManager
-        self.liveActivitySnapshotCache = liveActivitySnapshotCache
         self.liveActivityPreferenceStore = liveActivityPreferenceStore
         self.reminderNotificationPreferenceStore = reminderNotificationPreferenceStore
         self.medicationReminderPreferenceStore = medicationReminderPreferenceStore
@@ -1496,8 +1493,7 @@ public final class AppModel {
             child: currentChild,
             activeSleep: activeSleep,
             isLiveActivityEnabled: isLiveActivityEnabled,
-            liveActivityManager: liveActivityManager,
-            snapshotCache: liveActivitySnapshotCache
+            liveActivityManager: liveActivityManager
         )
     }
 

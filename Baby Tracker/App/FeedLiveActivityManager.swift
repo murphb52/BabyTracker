@@ -6,14 +6,9 @@ import Foundation
 
 @MainActor
 final class FeedLiveActivityManager: FeedLiveActivityManaging {
-    private let snapshotCache: any FeedLiveActivitySnapshotCaching
     private var activeActivityID: String?
     private var synchronizationTask: Task<Void, Never>?
     private var stateObservationTask: Task<Void, Never>?
-
-    init(snapshotCache: any FeedLiveActivitySnapshotCaching) {
-        self.snapshotCache = snapshotCache
-    }
 
     var hasRunningActivity: Bool {
         !Activity<FeedLiveActivityAttributes>.activities.isEmpty
@@ -24,17 +19,6 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         synchronizationTask = Task { @MainActor [weak self] in
             await self?.reconcile(snapshot)
         }
-    }
-
-    /// Persists the snapshot the activity is actually displaying. The cache is the
-    /// dedup oracle for `UpdateFeedLiveActivityUseCase`, so it must only advance once
-    /// the ActivityKit write has truly landed — otherwise an interrupted update (app
-    /// suspended mid-write, task cancelled) leaves the cache ahead of the live
-    /// activity and every later update gets wrongly deduped. A superseded
-    /// (cancelled) task must not clobber a newer snapshot, hence the cancellation guard.
-    private func commitToCache(_ snapshot: FeedLiveActivitySnapshot?) {
-        guard !Task.isCancelled else { return }
-        snapshotCache.save(snapshot)
     }
 
     private func reconcile(_ snapshot: FeedLiveActivitySnapshot?) async {
@@ -48,7 +32,6 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
             stateObservationTask = nil
             await Self.endAllActivities()
             activeActivityID = nil
-            commitToCache(nil)
             return
         }
 
@@ -67,19 +50,28 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         }
 
         if let activeActivityID {
-            let didUpdate = await Self.updateActivity(
+            // Dedup against the activity's *actual* live content rather than a
+            // shadow cache. ActivityKit is the single source of truth for what is
+            // on screen, so it can never silently disagree with our record — which
+            // is exactly how the activity used to get stuck on stale data while
+            // every refresh reported "deduped".
+            let result = await Self.updateActivityIfNeeded(
                 withID: activeActivityID,
                 content: content(for: snapshot)
             )
 
             guard !Task.isCancelled else { return }
 
-            if didUpdate {
-                commitToCache(snapshot)
+            switch result {
+            case .updated:
+                Self.log(.info, "Updated Live Activity \(activeActivityID)")
                 return
+            case .unchanged:
+                Self.log(.debug, "Update skipped — live activity already shows this content")
+                return
+            case .notFound:
+                self.activeActivityID = nil
             }
-
-            self.activeActivityID = nil
         }
 
         guard !Task.isCancelled else { return }
@@ -102,7 +94,6 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
             )
             activeActivityID = activity.id
             observeActivityState(activity)
-            commitToCache(snapshot)
             Self.log(.info, "Started Live Activity \(activity.id) for child \(snapshot.childID)")
         } catch {
             // ActivityKit only permits starting a Live Activity while the app is in the
@@ -153,15 +144,25 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         }
     }
 
-    private nonisolated static func updateActivity(
+    private enum UpdateResult {
+        case updated
+        case unchanged
+        case notFound
+    }
+
+    private nonisolated static func updateActivityIfNeeded(
         withID id: String,
         content: ActivityContent<FeedLiveActivityAttributes.ContentState>
-    ) async -> Bool {
+    ) async -> UpdateResult {
         guard let activity = Activity<FeedLiveActivityAttributes>.activities.first(where: { $0.id == id }) else {
-            return false
+            return .notFound
+        }
+
+        guard activity.content.state != content.state else {
+            return .unchanged
         }
 
         await activity.update(content)
-        return true
+        return .updated
     }
 }
