@@ -39,8 +39,8 @@ struct UpdateFeedLiveActivityUseCaseTests {
 
     @Test
     func skipsWriteWhenSnapshotMatchesCache() throws {
-        let manager = SpyFeedLiveActivityManager()
         let cache = InMemoryFeedLiveActivitySnapshotCache()
+        let manager = SpyFeedLiveActivityManager(snapshotCache: cache)
         let child = try makeChild()
         let events = [try makeBottleFeedEvent(childID: child.id)]
 
@@ -56,8 +56,8 @@ struct UpdateFeedLiveActivityUseCaseTests {
 
     @Test
     func doesNotUpdateCacheWhenSkipped() throws {
-        let manager = SpyFeedLiveActivityManager()
         let cache = InMemoryFeedLiveActivitySnapshotCache()
+        let manager = SpyFeedLiveActivityManager(snapshotCache: cache)
         let child = try makeChild()
         let events = [try makeBottleFeedEvent(childID: child.id)]
 
@@ -73,8 +73,8 @@ struct UpdateFeedLiveActivityUseCaseTests {
 
     @Test
     func writesWhenCacheIsEmpty() throws {
-        let manager = SpyFeedLiveActivityManager()
         let cache = InMemoryFeedLiveActivitySnapshotCache()
+        let manager = SpyFeedLiveActivityManager(snapshotCache: cache)
         let child = try makeChild()
         let events = [try makeBottleFeedEvent(childID: child.id)]
 
@@ -85,8 +85,8 @@ struct UpdateFeedLiveActivityUseCaseTests {
 
     @Test
     func writesWhenSnapshotDiffersFromCache() throws {
-        let manager = SpyFeedLiveActivityManager()
         let cache = InMemoryFeedLiveActivitySnapshotCache()
+        let manager = SpyFeedLiveActivityManager(snapshotCache: cache)
         let child = try makeChild()
 
         execute(
@@ -109,8 +109,8 @@ struct UpdateFeedLiveActivityUseCaseTests {
 
     @Test
     func updatesCacheAfterWrite() throws {
-        let manager = SpyFeedLiveActivityManager()
         let cache = InMemoryFeedLiveActivitySnapshotCache()
+        let manager = SpyFeedLiveActivityManager(snapshotCache: cache)
         let child = try makeChild()
         let events = [try makeBottleFeedEvent(childID: child.id)]
 
@@ -121,12 +121,34 @@ struct UpdateFeedLiveActivityUseCaseTests {
         #expect(cache.load() != nil)
     }
 
+    // MARK: - Cache ownership
+
+    /// Regression: the use case must NOT persist the snapshot itself. The cache is
+    /// the dedup oracle and must only advance once the manager confirms the
+    /// ActivityKit write actually landed. If the use case writes it optimistically
+    /// (as it once did), an interrupted update — app suspended mid-write, task
+    /// cancelled — leaves the cache ahead of the live activity, so every later
+    /// update gets wrongly deduped and the activity stays stuck on stale data.
+    @Test
+    func doesNotPersistSnapshotWhenManagerHasNotConfirmedWrite() throws {
+        let cache = InMemoryFeedLiveActivitySnapshotCache()
+        // Manager with no cache wired — models an ActivityKit write that never lands.
+        let manager = SpyFeedLiveActivityManager()
+        let child = try makeChild()
+        let events = [try makeBottleFeedEvent(childID: child.id)]
+
+        execute(events: events, child: child, manager: manager, cache: cache)
+
+        #expect(manager.synchronizeCalls.count == 1)
+        #expect(cache.load() == nil)
+    }
+
     // MARK: - Disabled / no child
 
     @Test
     func synchronizesNilAndClearsCacheWhenDisabled() throws {
-        let manager = SpyFeedLiveActivityManager()
         let cache = InMemoryFeedLiveActivitySnapshotCache()
+        let manager = SpyFeedLiveActivityManager(snapshotCache: cache)
         let child = try makeChild()
         let events = [try makeBottleFeedEvent(childID: child.id)]
 
@@ -135,14 +157,14 @@ struct UpdateFeedLiveActivityUseCaseTests {
 
         execute(events: events, child: child, isLiveActivityEnabled: false, manager: manager, cache: cache)
 
-        #expect(manager.synchronizeCalls.last == nil)
+        #expect(manager.synchronizeCalls.last == .some(nil))
         #expect(cache.load() == nil)
     }
 
     @Test
     func synchronizesNilAndClearsCacheWhenChildIsNil() throws {
-        let manager = SpyFeedLiveActivityManager()
         let cache = InMemoryFeedLiveActivitySnapshotCache()
+        let manager = SpyFeedLiveActivityManager(snapshotCache: cache)
         let child = try makeChild()
         let events = [try makeBottleFeedEvent(childID: child.id)]
 
@@ -151,7 +173,7 @@ struct UpdateFeedLiveActivityUseCaseTests {
 
         execute(events: events, child: nil, manager: manager, cache: cache)
 
-        #expect(manager.synchronizeCalls.last == nil)
+        #expect(manager.synchronizeCalls.last == .some(nil))
         #expect(cache.load() == nil)
     }
 }

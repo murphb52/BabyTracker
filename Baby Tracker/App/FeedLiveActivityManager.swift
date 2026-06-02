@@ -6,9 +6,14 @@ import Foundation
 
 @MainActor
 final class FeedLiveActivityManager: FeedLiveActivityManaging {
+    private let snapshotCache: any FeedLiveActivitySnapshotCaching
     private var activeActivityID: String?
     private var synchronizationTask: Task<Void, Never>?
     private var stateObservationTask: Task<Void, Never>?
+
+    init(snapshotCache: any FeedLiveActivitySnapshotCaching) {
+        self.snapshotCache = snapshotCache
+    }
 
     var hasRunningActivity: Bool {
         !Activity<FeedLiveActivityAttributes>.activities.isEmpty
@@ -19,6 +24,17 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         synchronizationTask = Task { @MainActor [weak self] in
             await self?.reconcile(snapshot)
         }
+    }
+
+    /// Persists the snapshot the activity is actually displaying. The cache is the
+    /// dedup oracle for `UpdateFeedLiveActivityUseCase`, so it must only advance once
+    /// the ActivityKit write has truly landed — otherwise an interrupted update (app
+    /// suspended mid-write, task cancelled) leaves the cache ahead of the live
+    /// activity and every later update gets wrongly deduped. A superseded
+    /// (cancelled) task must not clobber a newer snapshot, hence the cancellation guard.
+    private func commitToCache(_ snapshot: FeedLiveActivitySnapshot?) {
+        guard !Task.isCancelled else { return }
+        snapshotCache.save(snapshot)
     }
 
     private func reconcile(_ snapshot: FeedLiveActivitySnapshot?) async {
@@ -32,6 +48,7 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
             stateObservationTask = nil
             await Self.endAllActivities()
             activeActivityID = nil
+            commitToCache(nil)
             return
         }
 
@@ -58,6 +75,7 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
             guard !Task.isCancelled else { return }
 
             if didUpdate {
+                commitToCache(snapshot)
                 return
             }
 
@@ -84,6 +102,7 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
             )
             activeActivityID = activity.id
             observeActivityState(activity)
+            commitToCache(snapshot)
             Self.log(.info, "Started Live Activity \(activity.id) for child \(snapshot.childID)")
         } catch {
             // ActivityKit only permits starting a Live Activity while the app is in the

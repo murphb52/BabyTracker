@@ -2,6 +2,13 @@ import BabyTrackerDomain
 
 /// Synchronizes the lock-screen live activity from the current in-memory profile state.
 /// Skips the write when the snapshot is unchanged, preserving Apple's update budget.
+///
+/// The snapshot cache is read here as the dedup oracle but written by the
+/// `FeedLiveActivityManaging` implementation once the ActivityKit write actually
+/// lands. Persisting it here optimistically would let the cache run ahead of the
+/// live activity whenever an update is interrupted (background suspension, task
+/// cancellation), which permanently dedups every later update and leaves the
+/// activity stuck on stale data.
 public enum UpdateFeedLiveActivityUseCase {
     @MainActor
     public static func execute(
@@ -19,7 +26,6 @@ public enum UpdateFeedLiveActivityUseCase {
                 "Update skipped — \(isLiveActivityEnabled ? "no selected child" : "toggle disabled"); ending activity"
             )
             liveActivityManager.synchronize(with: nil)
-            snapshotCache.save(nil)
             return
         }
 
@@ -36,7 +42,6 @@ public enum UpdateFeedLiveActivityUseCase {
                 "Update produced no snapshot — no feed data yet for \(child.name); ending activity"
             )
             liveActivityManager.synchronize(with: nil)
-            snapshotCache.save(nil)
             return
         }
 
@@ -59,6 +64,5 @@ public enum UpdateFeedLiveActivityUseCase {
             "Synchronizing Live Activity (activityIsDead: \(activityIsDead))"
         )
         liveActivityManager.synchronize(with: snapshot)
-        snapshotCache.save(snapshot)
     }
 }

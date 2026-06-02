@@ -14,7 +14,7 @@ public enum ResetFeedLiveActivityUseCase {
             return
         }
         AppLogger.shared.log(.info, category: "LiveActivity", "Reset — ending Live Activity and clearing cache")
+        // The manager clears the snapshot cache once the activity has actually ended.
         liveActivityManager.synchronize(with: nil)
-        snapshotCache.save(nil)
     }
 }
