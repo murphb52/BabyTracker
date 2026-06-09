@@ -14,12 +14,22 @@ import UIKit
 /// manager ends it and requests a fresh one — renewing the system's update
 /// budget on every realistic app visit. An activity that is never renewed is
 /// exactly what used to leave stale data frozen on the lock screen.
+///
+/// Concurrency note: `Activity` values are not Sendable and their `end`/
+/// `update` methods are `@concurrent`, so every ActivityKit read or write
+/// happens inside `nonisolated static` helpers. Only Sendable facts (activity
+/// ID and start date) ever cross back into this main-actor type.
 @MainActor
 final class FeedLiveActivityManager: FeedLiveActivityManaging {
     /// Restart a foreground-reconciled activity once it is this old. Kept far
     /// below the ~8h update ceiling so the budget is renewed long before it
     /// can expire.
     private let restartAge: TimeInterval = 60 * 60
+
+    private struct RunningActivity: Sendable {
+        let id: String
+        let startedAt: Date?
+    }
 
     // Latest-wins mailbox: `.some(snapshot)` is a queued reconcile (whose
     // payload may itself be nil = "end the activity"); nil means nothing
@@ -51,17 +61,20 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
 
     private func reconcile(_ snapshot: FeedLiveActivitySnapshot?) async {
         guard let snapshot else {
-            await endAllActivities()
+            let endedCount = await Self.endAllActivities()
+            if endedCount > 0 {
+                log(.info, "Ended \(endedCount) activity(ies)")
+            }
             return
         }
 
-        let existingActivity = await endAllActivitiesExceptFirst(matching: snapshot.childID)
+        let runningActivity = await Self.endAllActivitiesExceptFirst(matching: snapshot.childID)
 
         // ActivityKit rejects `Activity.request` from the background; updates
         // to a running activity are always allowed.
         let canStartActivity = UIApplication.shared.applicationState != .background
 
-        guard let existingActivity else {
+        guard let runningActivity else {
             if canStartActivity {
                 startActivity(with: snapshot)
             } else {
@@ -70,17 +83,19 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
             return
         }
 
-        if canStartActivity && hasOutlivedRestartAge(existingActivity) {
-            log(.info, "Restarting activity \(existingActivity.id) to renew the system update budget")
-            await existingActivity.end(nil, dismissalPolicy: .immediate)
+        if canStartActivity && hasOutlivedRestartAge(startedAt: runningActivity.startedAt) {
+            log(.info, "Restarting activity \(runningActivity.id) to renew the system update budget")
+            await Self.endActivity(withID: runningActivity.id)
             startActivity(with: snapshot)
             return
         }
 
-        let content = Self.makeContent(for: snapshot)
-        if existingActivity.content.state != content.state {
-            await existingActivity.update(content)
-            log(.info, "Updated activity \(existingActivity.id)")
+        let didUpdate = await Self.updateActivityIfNeeded(
+            withID: runningActivity.id,
+            content: Self.makeContent(for: snapshot)
+        )
+        if didUpdate {
+            log(.info, "Updated activity \(runningActivity.id)")
         }
     }
 
@@ -108,8 +123,8 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
     /// Activities without a `startedAt` were started by builds that never
     /// renewed the update budget, so their age is unknown — treat them as
     /// expired.
-    private func hasOutlivedRestartAge(_ activity: Activity<FeedLiveActivityAttributes>) -> Bool {
-        guard let startedAt = activity.attributes.startedAt else {
+    private func hasOutlivedRestartAge(startedAt: Date?) -> Bool {
+        guard let startedAt else {
             return true
         }
         return Date.now.timeIntervalSince(startedAt) > restartAge
@@ -117,33 +132,59 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
 
     /// Ends every running activity except the first one for `childID` (stray
     /// duplicates and activities for other children must not linger), and
-    /// returns the survivor.
-    private func endAllActivitiesExceptFirst(
+    /// returns the survivor's Sendable facts.
+    private nonisolated static func endAllActivitiesExceptFirst(
         matching childID: UUID
-    ) async -> Activity<FeedLiveActivityAttributes>? {
-        var matchingActivity: Activity<FeedLiveActivityAttributes>?
+    ) async -> RunningActivity? {
+        var runningActivity: RunningActivity?
 
         for activity in Activity<FeedLiveActivityAttributes>.activities {
-            if matchingActivity == nil && activity.attributes.childID == childID {
-                matchingActivity = activity
+            if runningActivity == nil && activity.attributes.childID == childID {
+                runningActivity = RunningActivity(
+                    id: activity.id,
+                    startedAt: activity.attributes.startedAt
+                )
             } else {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
         }
 
-        return matchingActivity
+        return runningActivity
     }
 
-    private func endAllActivities() async {
-        let activities = Activity<FeedLiveActivityAttributes>.activities
-        guard !activities.isEmpty else {
+    private nonisolated static func endActivity(withID id: String) async {
+        guard let activity = Activity<FeedLiveActivityAttributes>.activities.first(where: { $0.id == id }) else {
             return
         }
+        await activity.end(nil, dismissalPolicy: .immediate)
+    }
 
-        log(.info, "Ending \(activities.count) activity(ies)")
+    /// Returns the number of activities that were ended.
+    private nonisolated static func endAllActivities() async -> Int {
+        let activities = Activity<FeedLiveActivityAttributes>.activities
         for activity in activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
+        return activities.count
+    }
+
+    /// Dedups against the activity's *actual* on-screen content — ActivityKit
+    /// is the single source of truth, never a shadow cache. Returns whether an
+    /// update was written.
+    private nonisolated static func updateActivityIfNeeded(
+        withID id: String,
+        content: ActivityContent<FeedLiveActivityAttributes.ContentState>
+    ) async -> Bool {
+        guard let activity = Activity<FeedLiveActivityAttributes>.activities.first(where: { $0.id == id }) else {
+            return false
+        }
+
+        guard activity.content.state != content.state else {
+            return false
+        }
+
+        await activity.update(content)
+        return true
     }
 
     private static func makeContent(
