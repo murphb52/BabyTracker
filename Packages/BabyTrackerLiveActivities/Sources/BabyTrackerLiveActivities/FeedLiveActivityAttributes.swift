@@ -33,7 +33,13 @@ public struct FeedLiveActivityAttributes: ActivityAttributes, Sendable {
 
     public let childID: UUID
 
-    public init(childID: UUID) {
+    /// When the activity was requested. iOS stops applying updates ~8 hours
+    /// after `Activity.request`, so the app uses this to restart the activity
+    /// in time. Optional so activities started by older builds still decode.
+    public let startedAt: Date?
+
+    public init(childID: UUID, startedAt: Date? = nil) {
         self.childID = childID
+        self.startedAt = startedAt
     }
 }

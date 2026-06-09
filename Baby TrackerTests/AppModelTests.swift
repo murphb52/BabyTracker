@@ -2194,20 +2194,14 @@ extension AppModelTests {
 
     @MainActor
     private final class LiveActivityManagerSpy: FeedLiveActivityManaging {
-        var hasRunningActivity: Bool = false
         private(set) var snapshots: [FeedLiveActivitySnapshot?] = []
-        private var _currentSnapshot: FeedLiveActivitySnapshot?
 
         var latestSnapshot: FeedLiveActivitySnapshot? {
-            _currentSnapshot
+            snapshots.last ?? nil
         }
 
         func synchronize(with snapshot: FeedLiveActivitySnapshot?) {
             snapshots.append(snapshot)
-            _currentSnapshot = snapshot
-            // Mirror the real manager: a non-nil snapshot starts/keeps an activity
-            // running, a nil snapshot ends it.
-            hasRunningActivity = snapshot != nil
         }
     }
 
