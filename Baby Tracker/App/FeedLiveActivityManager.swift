@@ -50,18 +50,28 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         }
 
         if let activeActivityID {
-            let didUpdate = await Self.updateActivity(
+            // Dedup against the activity's *actual* live content rather than a
+            // shadow cache. ActivityKit is the single source of truth for what is
+            // on screen, so it can never silently disagree with our record — which
+            // is exactly how the activity used to get stuck on stale data while
+            // every refresh reported "deduped".
+            let result = await Self.updateActivityIfNeeded(
                 withID: activeActivityID,
                 content: content(for: snapshot)
             )
 
             guard !Task.isCancelled else { return }
 
-            if didUpdate {
+            switch result {
+            case .updated:
+                Self.log(.info, "Updated Live Activity \(activeActivityID)")
                 return
+            case .unchanged:
+                Self.log(.debug, "Update skipped — live activity already shows this content")
+                return
+            case .notFound:
+                self.activeActivityID = nil
             }
-
-            self.activeActivityID = nil
         }
 
         guard !Task.isCancelled else { return }
@@ -134,15 +144,25 @@ final class FeedLiveActivityManager: FeedLiveActivityManaging {
         }
     }
 
-    private nonisolated static func updateActivity(
+    private enum UpdateResult {
+        case updated
+        case unchanged
+        case notFound
+    }
+
+    private nonisolated static func updateActivityIfNeeded(
         withID id: String,
         content: ActivityContent<FeedLiveActivityAttributes.ContentState>
-    ) async -> Bool {
+    ) async -> UpdateResult {
         guard let activity = Activity<FeedLiveActivityAttributes>.activities.first(where: { $0.id == id }) else {
-            return false
+            return .notFound
+        }
+
+        guard activity.content.state != content.state else {
+            return .unchanged
         }
 
         await activity.update(content)
-        return true
+        return .updated
     }
 }

@@ -2205,6 +2205,9 @@ extension AppModelTests {
         func synchronize(with snapshot: FeedLiveActivitySnapshot?) {
             snapshots.append(snapshot)
             _currentSnapshot = snapshot
+            // Mirror the real manager: a non-nil snapshot starts/keeps an activity
+            // running, a nil snapshot ends it.
+            hasRunningActivity = snapshot != nil
         }
     }
 

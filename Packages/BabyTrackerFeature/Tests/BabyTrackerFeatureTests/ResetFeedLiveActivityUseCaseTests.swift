@@ -5,53 +5,37 @@ import Testing
 
 @MainActor
 struct ResetFeedLiveActivityUseCaseTests {
-    // MARK: - Helpers
-
-    private func makeSnapshot() -> FeedLiveActivitySnapshot {
-        FeedLiveActivitySnapshot(
-            childID: UUID(),
-            childName: "Robin",
-            lastFeedKind: .bottleFeed,
-            lastFeedAt: .now,
-            lastSleepAt: nil,
-            activeSleepStartedAt: nil,
-            lastNappyAt: nil
-        )
-    }
-
-    // MARK: - Cache has data
+    // MARK: - Activity running
 
     @Test
-    func synchronizesManagerWithNilWhenCacheHasData() {
+    func synchronizesManagerWithNilWhenActivityIsRunning() {
         let manager = SpyFeedLiveActivityManager()
-        let cache = InMemoryFeedLiveActivitySnapshotCache()
-        cache.save(makeSnapshot())
+        manager.hasRunningActivity = true
 
-        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager, snapshotCache: cache)
+        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager)
 
         #expect(manager.synchronizeCalls.count == 1)
         #expect(manager.synchronizeCalls.first == .some(nil))
     }
 
     @Test
-    func clearsCacheWhenCacheHasData() {
+    func endingClearsTheRunningActivity() {
         let manager = SpyFeedLiveActivityManager()
-        let cache = InMemoryFeedLiveActivitySnapshotCache()
-        cache.save(makeSnapshot())
+        manager.hasRunningActivity = true
 
-        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager, snapshotCache: cache)
+        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager)
 
-        #expect(cache.load() == nil)
+        // The spy mirrors the manager: a nil synchronize ends the activity.
+        #expect(manager.hasRunningActivity == false)
     }
 
-    // MARK: - Cache is empty
+    // MARK: - No activity running
 
     @Test
-    func doesNothingWhenCacheIsEmpty() {
+    func doesNothingWhenNoActivityIsRunning() {
         let manager = SpyFeedLiveActivityManager()
-        let cache = InMemoryFeedLiveActivitySnapshotCache()
 
-        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager, snapshotCache: cache)
+        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager)
 
         #expect(manager.synchronizeCalls.isEmpty)
     }
@@ -59,51 +43,37 @@ struct ResetFeedLiveActivityUseCaseTests {
     // MARK: - Integration with UpdateFeedLiveActivityUseCase
 
     @Test
-    func allowsSubsequentUpdateToWriteAfterReset() throws {
+    func allowsSubsequentUpdateToStartAfterReset() throws {
         let manager = SpyFeedLiveActivityManager()
-        let cache = InMemoryFeedLiveActivitySnapshotCache()
         let child = try Child(name: "Robin", createdBy: UUID())
         let events: [BabyEvent] = [.bottleFeed(try BottleFeedEvent(
             metadata: EventMetadata(childID: child.id, occurredAt: .now, createdBy: UUID()),
             amountMilliliters: 120
         ))]
 
-        // First update — populates cache
+        // Update starts the activity.
         UpdateFeedLiveActivityUseCase.execute(
             events: events,
             child: child,
             activeSleep: nil,
             isLiveActivityEnabled: true,
-            liveActivityManager: manager,
-            snapshotCache: cache
+            liveActivityManager: manager
         )
+        #expect(manager.hasRunningActivity)
 
-        // Second update with same data — skipped by cache
+        // Reset ends it.
+        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager)
+        #expect(manager.hasRunningActivity == false)
+        #expect(manager.synchronizeCalls.last == .some(nil))
+
+        // A later update starts it again.
         UpdateFeedLiveActivityUseCase.execute(
             events: events,
             child: child,
             activeSleep: nil,
             isLiveActivityEnabled: true,
-            liveActivityManager: manager,
-            snapshotCache: cache
+            liveActivityManager: manager
         )
-
-        let callsBeforeReset = manager.synchronizeCalls.count
-
-        // Reset ends the activity and clears the cache
-        ResetFeedLiveActivityUseCase.execute(liveActivityManager: manager, snapshotCache: cache)
-
-        // Same data again — goes through because cache was cleared by reset
-        UpdateFeedLiveActivityUseCase.execute(
-            events: events,
-            child: child,
-            activeSleep: nil,
-            isLiveActivityEnabled: true,
-            liveActivityManager: manager,
-            snapshotCache: cache
-        )
-
-        // Reset's nil synchronize + post-reset update both produced calls
-        #expect(manager.synchronizeCalls.count == callsBeforeReset + 2)
+        #expect(manager.hasRunningActivity)
     }
 }

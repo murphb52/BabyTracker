@@ -22,136 +22,82 @@ struct UpdateFeedLiveActivityUseCaseTests {
         events: [BabyEvent],
         child: Child?,
         isLiveActivityEnabled: Bool = true,
-        manager: SpyFeedLiveActivityManager,
-        cache: InMemoryFeedLiveActivitySnapshotCache
+        manager: SpyFeedLiveActivityManager
     ) {
         UpdateFeedLiveActivityUseCase.execute(
             events: events,
             child: child,
             activeSleep: nil,
             isLiveActivityEnabled: isLiveActivityEnabled,
-            liveActivityManager: manager,
-            snapshotCache: cache
+            liveActivityManager: manager
         )
     }
 
-    // MARK: - Cache hit: skip
+    // MARK: - Synchronizing a snapshot
 
     @Test
-    func skipsWriteWhenSnapshotMatchesCache() throws {
+    func synchronizesSnapshotWhenEnabledAndChildExists() throws {
         let manager = SpyFeedLiveActivityManager()
-        let cache = InMemoryFeedLiveActivitySnapshotCache()
         let child = try makeChild()
         let events = [try makeBottleFeedEvent(childID: child.id)]
 
-        // First call — populates the cache
-        execute(events: events, child: child, manager: manager, cache: cache)
-        let callsAfterFirst = manager.synchronizeCalls.count
-
-        // Second call with identical data — should be skipped
-        execute(events: events, child: child, manager: manager, cache: cache)
-
-        #expect(manager.synchronizeCalls.count == callsAfterFirst)
-    }
-
-    @Test
-    func doesNotUpdateCacheWhenSkipped() throws {
-        let manager = SpyFeedLiveActivityManager()
-        let cache = InMemoryFeedLiveActivitySnapshotCache()
-        let child = try makeChild()
-        let events = [try makeBottleFeedEvent(childID: child.id)]
-
-        execute(events: events, child: child, manager: manager, cache: cache)
-        let snapshotAfterFirst = cache.load()
-
-        execute(events: events, child: child, manager: manager, cache: cache)
-
-        #expect(cache.load() == snapshotAfterFirst)
-    }
-
-    // MARK: - Cache miss: write
-
-    @Test
-    func writesWhenCacheIsEmpty() throws {
-        let manager = SpyFeedLiveActivityManager()
-        let cache = InMemoryFeedLiveActivitySnapshotCache()
-        let child = try makeChild()
-        let events = [try makeBottleFeedEvent(childID: child.id)]
-
-        execute(events: events, child: child, manager: manager, cache: cache)
+        execute(events: events, child: child, manager: manager)
 
         #expect(manager.synchronizeCalls.count == 1)
+        let snapshot = try #require(manager.synchronizeCalls.last ?? nil)
+        #expect(snapshot.childID == child.id)
+        #expect(snapshot.lastFeedKind == .bottleFeed)
     }
 
+    /// Deduplication is the manager's responsibility (against the activity's real
+    /// content), so the use case forwards every call — it must never skip one.
     @Test
-    func writesWhenSnapshotDiffersFromCache() throws {
+    func forwardsEveryUpdateWithoutDeduping() throws {
         let manager = SpyFeedLiveActivityManager()
-        let cache = InMemoryFeedLiveActivitySnapshotCache()
         let child = try makeChild()
+        let events = [try makeBottleFeedEvent(childID: child.id)]
 
-        execute(
-            events: [try makeBottleFeedEvent(childID: child.id, occurredAt: .now)],
-            child: child,
-            manager: manager,
-            cache: cache
-        )
-
-        // Different feed time → different snapshot
-        execute(
-            events: [try makeBottleFeedEvent(childID: child.id, occurredAt: .now.addingTimeInterval(3_600))],
-            child: child,
-            manager: manager,
-            cache: cache
-        )
+        execute(events: events, child: child, manager: manager)
+        execute(events: events, child: child, manager: manager)
 
         #expect(manager.synchronizeCalls.count == 2)
+        #expect(manager.synchronizeCalls.allSatisfy { $0 != nil })
     }
 
+    // MARK: - Ending the activity
+
     @Test
-    func updatesCacheAfterWrite() throws {
+    func endsActivityWhenDisabled() throws {
         let manager = SpyFeedLiveActivityManager()
-        let cache = InMemoryFeedLiveActivitySnapshotCache()
         let child = try makeChild()
         let events = [try makeBottleFeedEvent(childID: child.id)]
 
-        #expect(cache.load() == nil)
+        execute(events: events, child: child, isLiveActivityEnabled: false, manager: manager)
 
-        execute(events: events, child: child, manager: manager, cache: cache)
-
-        #expect(cache.load() != nil)
-    }
-
-    // MARK: - Disabled / no child
-
-    @Test
-    func synchronizesNilAndClearsCacheWhenDisabled() throws {
-        let manager = SpyFeedLiveActivityManager()
-        let cache = InMemoryFeedLiveActivitySnapshotCache()
-        let child = try makeChild()
-        let events = [try makeBottleFeedEvent(childID: child.id)]
-
-        // Populate cache first
-        execute(events: events, child: child, manager: manager, cache: cache)
-
-        execute(events: events, child: child, isLiveActivityEnabled: false, manager: manager, cache: cache)
-
-        #expect(manager.synchronizeCalls.last == nil)
-        #expect(cache.load() == nil)
+        #expect(manager.synchronizeCalls.count == 1)
+        #expect(manager.synchronizeCalls.last == .some(nil))
     }
 
     @Test
-    func synchronizesNilAndClearsCacheWhenChildIsNil() throws {
+    func endsActivityWhenChildIsNil() throws {
         let manager = SpyFeedLiveActivityManager()
-        let cache = InMemoryFeedLiveActivitySnapshotCache()
         let child = try makeChild()
         let events = [try makeBottleFeedEvent(childID: child.id)]
 
-        // Populate cache first
-        execute(events: events, child: child, manager: manager, cache: cache)
+        execute(events: events, child: nil, manager: manager)
 
-        execute(events: events, child: nil, manager: manager, cache: cache)
+        #expect(manager.synchronizeCalls.count == 1)
+        #expect(manager.synchronizeCalls.last == .some(nil))
+    }
 
-        #expect(manager.synchronizeCalls.last == nil)
-        #expect(cache.load() == nil)
+    @Test
+    func endsActivityWhenNoFeedData() throws {
+        let manager = SpyFeedLiveActivityManager()
+        let child = try makeChild()
+
+        execute(events: [], child: child, manager: manager)
+
+        #expect(manager.synchronizeCalls.count == 1)
+        #expect(manager.synchronizeCalls.last == .some(nil))
     }
 }
