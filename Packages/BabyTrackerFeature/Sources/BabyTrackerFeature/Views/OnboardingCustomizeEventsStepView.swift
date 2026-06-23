@@ -9,6 +9,7 @@ struct OnboardingCustomizeEventsStepView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
+                OnboardingCharacterSceneView(scene: .customize)
                 header
                 kindCard
             }

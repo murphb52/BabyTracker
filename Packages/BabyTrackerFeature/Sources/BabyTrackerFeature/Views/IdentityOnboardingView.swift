@@ -128,9 +128,8 @@ public struct IdentityOnboardingView: View {
                         introPager
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: currentStepIndex)
-
-                Spacer(minLength: 24)
 
                 footer
                     .padding(.horizontal, 24)
