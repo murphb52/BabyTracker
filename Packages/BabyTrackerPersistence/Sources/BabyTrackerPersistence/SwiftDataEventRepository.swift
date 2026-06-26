@@ -76,65 +76,53 @@ public final class SwiftDataEventRepository: EventRepository {
         // Behaviour below is identical to the original implementation.
         PerfLog.tick("EventRepository.loadTimeline")
         return try PerfLog.measure("EventRepository.loadTimeline") {
+            // PHASE 1 — childID + soft-delete filtering now runs in SQLite via a
+            // #Predicate (backed by the #Index on each Stored*Event), instead of
+            // fetching every row of every table and discarding in Swift. The store
+            // only materialises rows for this child, so `fetched` == `surviving`.
+            let baths = try modelContext.fetch(
+                FetchDescriptor<StoredBathEvent>(predicate: #Predicate { event in
+                    event.childID == childID && (includingDeleted || (event.isDeleted == false && event.deletedAt == nil))
+                })
+            )
+            let breastFeeds = try modelContext.fetch(
+                FetchDescriptor<StoredBreastFeedEvent>(predicate: #Predicate { event in
+                    event.childID == childID && (includingDeleted || (event.isDeleted == false && event.deletedAt == nil))
+                })
+            )
+            let bottleFeeds = try modelContext.fetch(
+                FetchDescriptor<StoredBottleFeedEvent>(predicate: #Predicate { event in
+                    event.childID == childID && (includingDeleted || (event.isDeleted == false && event.deletedAt == nil))
+                })
+            )
+            let sleeps = try modelContext.fetch(
+                FetchDescriptor<StoredSleepEvent>(predicate: #Predicate { event in
+                    event.childID == childID && (includingDeleted || (event.isDeleted == false && event.deletedAt == nil))
+                })
+            )
+            let nappies = try modelContext.fetch(
+                FetchDescriptor<StoredNappyEvent>(predicate: #Predicate { event in
+                    event.childID == childID && (includingDeleted || (event.isDeleted == false && event.deletedAt == nil))
+                })
+            )
+            let medications = try modelContext.fetch(
+                FetchDescriptor<StoredMedicationEvent>(predicate: #Predicate { event in
+                    event.childID == childID && (includingDeleted || (event.isDeleted == false && event.deletedAt == nil))
+                })
+            )
+
             var timeline: [BabyEvent] = []
-            var fetched = 0
-            var surviving = 0
+            timeline.reserveCapacity(
+                baths.count + breastFeeds.count + bottleFeeds.count + sleeps.count + nappies.count + medications.count
+            )
+            timeline.append(contentsOf: baths.map { .bath(mapBath($0)) })
+            timeline.append(contentsOf: try breastFeeds.map { .breastFeed(try mapBreastFeed($0)) })
+            timeline.append(contentsOf: try bottleFeeds.map { .bottleFeed(try mapBottleFeed($0)) })
+            timeline.append(contentsOf: try sleeps.map { .sleep(try mapSleep($0)) })
+            timeline.append(contentsOf: try nappies.map { .nappy(try mapNappy($0)) })
+            timeline.append(contentsOf: try medications.map { .medication(try mapMedication($0)) })
 
-            let baths = try modelContext.fetch(FetchDescriptor<StoredBathEvent>())
-            fetched += baths.count
-            let visibleBaths = baths.filter { storedEvent in
-                storedEvent.childID == childID &&
-                (includingDeleted || !isSoftDeleted(isDeleted: storedEvent.isDeleted, deletedAt: storedEvent.deletedAt))
-            }
-            surviving += visibleBaths.count
-            timeline.append(contentsOf: visibleBaths.map { .bath(mapBath($0)) })
-
-            let breastFeeds = try modelContext.fetch(FetchDescriptor<StoredBreastFeedEvent>())
-            fetched += breastFeeds.count
-            let visibleBreastFeeds = breastFeeds.filter { storedEvent in
-                storedEvent.childID == childID &&
-                (includingDeleted || !isSoftDeleted(isDeleted: storedEvent.isDeleted, deletedAt: storedEvent.deletedAt))
-            }
-            surviving += visibleBreastFeeds.count
-            timeline.append(contentsOf: try visibleBreastFeeds.map { .breastFeed(try mapBreastFeed($0)) })
-
-            let bottleFeeds = try modelContext.fetch(FetchDescriptor<StoredBottleFeedEvent>())
-            fetched += bottleFeeds.count
-            let visibleBottleFeeds = bottleFeeds.filter { storedEvent in
-                storedEvent.childID == childID &&
-                (includingDeleted || !isSoftDeleted(isDeleted: storedEvent.isDeleted, deletedAt: storedEvent.deletedAt))
-            }
-            surviving += visibleBottleFeeds.count
-            timeline.append(contentsOf: try visibleBottleFeeds.map { .bottleFeed(try mapBottleFeed($0)) })
-
-            let sleeps = try modelContext.fetch(FetchDescriptor<StoredSleepEvent>())
-            fetched += sleeps.count
-            let visibleSleeps = sleeps.filter { storedEvent in
-                storedEvent.childID == childID &&
-                (includingDeleted || !isSoftDeleted(isDeleted: storedEvent.isDeleted, deletedAt: storedEvent.deletedAt))
-            }
-            surviving += visibleSleeps.count
-            timeline.append(contentsOf: try visibleSleeps.map { .sleep(try mapSleep($0)) })
-
-            let nappies = try modelContext.fetch(FetchDescriptor<StoredNappyEvent>())
-            fetched += nappies.count
-            let visibleNappies = nappies.filter { storedEvent in
-                storedEvent.childID == childID &&
-                (includingDeleted || !isSoftDeleted(isDeleted: storedEvent.isDeleted, deletedAt: storedEvent.deletedAt))
-            }
-            surviving += visibleNappies.count
-            timeline.append(contentsOf: try visibleNappies.map { .nappy(try mapNappy($0)) })
-
-            let medications = try modelContext.fetch(FetchDescriptor<StoredMedicationEvent>())
-            fetched += medications.count
-            let visibleMedications = medications.filter { storedEvent in
-                storedEvent.childID == childID &&
-                (includingDeleted || !isSoftDeleted(isDeleted: storedEvent.isDeleted, deletedAt: storedEvent.deletedAt))
-            }
-            surviving += visibleMedications.count
-            timeline.append(contentsOf: try visibleMedications.map { .medication(try mapMedication($0)) })
-
-            PerfLog.event("EventRepository.loadTimeline fetched=\(fetched) surviving=\(surviving)")
+            PerfLog.event("EventRepository.loadTimeline fetched=\(timeline.count) surviving=\(timeline.count)")
 
             return timeline.sorted { left, right in
                 left.metadata.occurredAt > right.metadata.occurredAt
@@ -192,18 +180,15 @@ public final class SwiftDataEventRepository: EventRepository {
         // PHASE 0 INSTRUMENTATION — another full StoredSleepEvent table scan per refresh.
         PerfLog.tick("EventRepository.loadActiveSleepEvent")
         return try PerfLog.measure("EventRepository.loadActiveSleepEvent") {
-            try modelContext.fetch(FetchDescriptor<StoredSleepEvent>())
-                .filter { storedEvent in
-                    storedEvent.childID == childID &&
-                    !isSoftDeleted(
-                        isDeleted: storedEvent.isDeleted,
-                        deletedAt: storedEvent.deletedAt
-                    ) &&
-                    storedEvent.endedAt == nil
-                }
-                .map(mapSleep)
-                .sorted { left, right in left.startedAt > right.startedAt }
-                .first
+            // PHASE 1 — filter in SQLite (childID, not soft-deleted, still running).
+            try modelContext.fetch(
+                FetchDescriptor<StoredSleepEvent>(predicate: #Predicate { event in
+                    event.childID == childID && event.isDeleted == false && event.deletedAt == nil && event.endedAt == nil
+                })
+            )
+            .map(mapSleep)
+            .sorted { left, right in left.startedAt > right.startedAt }
+            .first
         }
     }
 
@@ -428,34 +413,42 @@ public final class SwiftDataEventRepository: EventRepository {
         }
     }
 
+    // PHASE 1 — fetch a single record by id with a #Predicate + fetchLimit so the
+    // store stops materialising the whole table just to find one row by id.
     private func fetchStoredBathEvent(id: UUID) throws -> StoredBathEvent? {
-        try modelContext.fetch(FetchDescriptor<StoredBathEvent>())
-            .first { $0.id == id }
+        var descriptor = FetchDescriptor<StoredBathEvent>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
     }
 
     private func fetchStoredBreastFeedEvent(id: UUID) throws -> StoredBreastFeedEvent? {
-        try modelContext.fetch(FetchDescriptor<StoredBreastFeedEvent>())
-            .first { $0.id == id }
+        var descriptor = FetchDescriptor<StoredBreastFeedEvent>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
     }
 
     private func fetchStoredBottleFeedEvent(id: UUID) throws -> StoredBottleFeedEvent? {
-        try modelContext.fetch(FetchDescriptor<StoredBottleFeedEvent>())
-            .first { $0.id == id }
+        var descriptor = FetchDescriptor<StoredBottleFeedEvent>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
     }
 
     private func fetchStoredSleepEvent(id: UUID) throws -> StoredSleepEvent? {
-        try modelContext.fetch(FetchDescriptor<StoredSleepEvent>())
-            .first { $0.id == id }
+        var descriptor = FetchDescriptor<StoredSleepEvent>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
     }
 
     private func fetchStoredNappyEvent(id: UUID) throws -> StoredNappyEvent? {
-        try modelContext.fetch(FetchDescriptor<StoredNappyEvent>())
-            .first { $0.id == id }
+        var descriptor = FetchDescriptor<StoredNappyEvent>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
     }
 
     private func fetchStoredMedicationEvent(id: UUID) throws -> StoredMedicationEvent? {
-        try modelContext.fetch(FetchDescriptor<StoredMedicationEvent>())
-            .first { $0.id == id }
+        var descriptor = FetchDescriptor<StoredMedicationEvent>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
     }
 
     private func mapBath(_ storedEvent: StoredBathEvent) -> BathEvent {

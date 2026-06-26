@@ -3,6 +3,9 @@ import SwiftData
 
 @Model
 final class StoredSleepEvent {
+    // PHASE 1 — indexes so timeline/active-sleep/id fetches filter via SQLite.
+    #Index<StoredSleepEvent>([\.childID, \.occurredAt], [\.childID, \.endedAt], [\.id])
+
     var id: UUID = UUID()
     var childID: UUID = UUID()
     var occurredAt: Date = Date()

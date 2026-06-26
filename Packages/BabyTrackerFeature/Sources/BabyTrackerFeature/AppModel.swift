@@ -1304,17 +1304,17 @@ public final class AppModel {
     private func scheduleInactivityDriftNotificationIfNeededAsync() async {
         guard isReminderNotificationsEnabled else { return }
         guard let child = currentChild else { return }
-        // PHASE 0 INSTRUMENTATION — full O(n) scan to find the latest event, and the
-        // entire `events` array is handed to the use case though only the latest is used.
+        // PHASE 1 — the threshold use case only inspects the most-recent event, so
+        // hand it just that one instead of copying the whole array across.
         PerfLog.tick("AppModel.scheduleInactivityDriftNotification")
-        PerfLog.event("AppModel.scheduleInactivityDriftNotification passing allEvents=\(events.count)")
         guard let lastEvent = events.max(by: { $0.metadata.occurredAt < $1.metadata.occurredAt }) else { return }
+        PerfLog.event("AppModel.scheduleInactivityDriftNotification passing latest-only (events=\(events.count))")
         await ScheduleInactivityDriftNotificationUseCase.execute(
             input: .init(
                 childID: child.id,
                 childName: child.name,
                 lastEventOccurredAt: lastEvent.metadata.occurredAt,
-                allEvents: events
+                allEvents: [lastEvent]
             ),
             notificationManager: localNotificationManager
         )
@@ -1436,10 +1436,12 @@ public final class AppModel {
             let visibleEvents = try PerfLog.measure("AppModel.loadVisibleEvents") {
                 try loadVisibleEvents(for: currentSummary.child.id)
             }
-            let builtTimelinePages = try PerfLog.measure("AppModel.loadTimelinePages") {
-                try loadTimelinePages(
+            let builtTimelinePages = PerfLog.measure("AppModel.loadTimelinePages") {
+                // PHASE 1 — slice the already-loaded events in memory per day instead
+                // of re-querying the full timeline once per visible day.
+                loadTimelinePages(
                     child: currentSummary.child,
-                    for: currentSummary.child.id,
+                    events: visibleEvents,
                     days: timelineVisibleDays(for: timelineSelectedDay)
                 )
             }
@@ -1588,17 +1590,15 @@ public final class AppModel {
 
     private func loadTimelinePages(
         child: Child,
-        for childID: UUID,
+        events allEvents: [BabyEvent],
         days: [Date]
-    ) throws -> [TimelineDayGridPageState] {
-        try days.map { day in
+    ) -> [TimelineDayGridPageState] {
+        days.map { day in
             let dayStart = calendar.startOfDay(for: day)
-            let events = try eventRepository.loadEvents(
-                for: childID,
-                on: day,
-                calendar: calendar,
-                includingDeleted: false
-            ).filter { enabledEventKinds.contains($0.kind) }
+            let endOfDay = calendar.date(byAdding: .day, value: 1, to: dayStart)
+            let events = endOfDay.map { dayEnd in
+                allEvents.filter { eventOverlapsDay($0, startOfDay: dayStart, endOfDay: dayEnd) }
+            } ?? []
             let gridDataset = buildTimelineDayGridDatasetUseCase.execute(
                 events: events,
                 day: dayStart,
@@ -1620,6 +1620,31 @@ public final class AppModel {
                 emptyStateTitle: "No events for this day",
                 emptyStateMessage: "Try another day or use Quick Log to add the next event."
             )
+        }
+    }
+
+    /// Whether an event overlaps a given day. Mirrors the repository's day-overlap
+    /// rules so in-memory slicing for timeline pages matches a per-day DB query:
+    /// sleeps and breast feeds can span days, point events use `occurredAt`.
+    private func eventOverlapsDay(
+        _ event: BabyEvent,
+        startOfDay: Date,
+        endOfDay: Date
+    ) -> Bool {
+        switch event {
+        case let .sleep(sleep):
+            let end = sleep.endedAt ?? Date.distantFuture
+            return sleep.startedAt < endOfDay && end > startOfDay
+        case let .breastFeed(feed):
+            return feed.startedAt < endOfDay && feed.endedAt > startOfDay
+        case let .bath(bath):
+            return bath.metadata.occurredAt >= startOfDay && bath.metadata.occurredAt < endOfDay
+        case let .bottleFeed(feed):
+            return feed.metadata.occurredAt >= startOfDay && feed.metadata.occurredAt < endOfDay
+        case let .nappy(nappy):
+            return nappy.metadata.occurredAt >= startOfDay && nappy.metadata.occurredAt < endOfDay
+        case let .medication(medication):
+            return medication.metadata.occurredAt >= startOfDay && medication.metadata.occurredAt < endOfDay
         }
     }
 

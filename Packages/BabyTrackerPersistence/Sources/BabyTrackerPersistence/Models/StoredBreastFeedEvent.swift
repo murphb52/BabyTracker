@@ -3,6 +3,9 @@ import SwiftData
 
 @Model
 final class StoredBreastFeedEvent {
+    // PHASE 1 — indexes so timeline/id fetches filter via SQLite.
+    #Index<StoredBreastFeedEvent>([\.childID, \.occurredAt], [\.id])
+
     var id: UUID = UUID()
     var childID: UUID = UUID()
     var occurredAt: Date = Date()
