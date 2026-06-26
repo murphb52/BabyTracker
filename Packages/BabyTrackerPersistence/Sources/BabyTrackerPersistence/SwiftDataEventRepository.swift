@@ -68,83 +68,77 @@ public final class SwiftDataEventRepository: EventRepository {
         for childID: UUID,
         includingDeleted: Bool = false
     ) throws -> [BabyEvent] {
-        var timeline: [BabyEvent] = []
+        // PHASE 0 INSTRUMENTATION — measures the full-table-scan cost. `fetched`
+        // counts rows materialised from the store across all six event types;
+        // `surviving` counts rows that pass the childID + soft-delete filter. A
+        // large fetched/surviving gap is the fetch-then-discard waste the refactor
+        // removes, and the call counter exposes the repeated re-loads per refresh.
+        // Behaviour below is identical to the original implementation.
+        PerfLog.tick("EventRepository.loadTimeline")
+        return try PerfLog.measure("EventRepository.loadTimeline") {
+            var timeline: [BabyEvent] = []
+            var fetched = 0
+            var surviving = 0
 
-        timeline.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredBathEvent>())
-            .filter { storedEvent in
+            let baths = try modelContext.fetch(FetchDescriptor<StoredBathEvent>())
+            fetched += baths.count
+            let visibleBaths = baths.filter { storedEvent in
                 storedEvent.childID == childID &&
-                (
-                    includingDeleted ||
-                    !isSoftDeleted(
-                        isDeleted: storedEvent.isDeleted,
-                        deletedAt: storedEvent.deletedAt
-                    )
-                )
+                (includingDeleted || !isSoftDeleted(isDeleted: storedEvent.isDeleted, deletedAt: storedEvent.deletedAt))
             }
-            .map { .bath(mapBath($0)) })
-        timeline.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredBreastFeedEvent>())
-            .filter { storedEvent in
-                storedEvent.childID == childID &&
-                (
-                    includingDeleted ||
-                    !isSoftDeleted(
-                        isDeleted: storedEvent.isDeleted,
-                        deletedAt: storedEvent.deletedAt
-                    )
-                )
-            }
-            .map { .breastFeed(try mapBreastFeed($0)) })
-        timeline.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredBottleFeedEvent>())
-            .filter { storedEvent in
-                storedEvent.childID == childID &&
-                (
-                    includingDeleted ||
-                    !isSoftDeleted(
-                        isDeleted: storedEvent.isDeleted,
-                        deletedAt: storedEvent.deletedAt
-                    )
-                )
-            }
-            .map { .bottleFeed(try mapBottleFeed($0)) })
-        timeline.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredSleepEvent>())
-            .filter { storedEvent in
-                storedEvent.childID == childID &&
-                (
-                    includingDeleted ||
-                    !isSoftDeleted(
-                        isDeleted: storedEvent.isDeleted,
-                        deletedAt: storedEvent.deletedAt
-                    )
-                )
-            }
-            .map { .sleep(try mapSleep($0)) })
-        timeline.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredNappyEvent>())
-            .filter { storedEvent in
-                storedEvent.childID == childID &&
-                (
-                    includingDeleted ||
-                    !isSoftDeleted(
-                        isDeleted: storedEvent.isDeleted,
-                        deletedAt: storedEvent.deletedAt
-                    )
-                )
-            }
-            .map { .nappy(try mapNappy($0)) })
-        timeline.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredMedicationEvent>())
-            .filter { storedEvent in
-                storedEvent.childID == childID &&
-                (
-                    includingDeleted ||
-                    !isSoftDeleted(
-                        isDeleted: storedEvent.isDeleted,
-                        deletedAt: storedEvent.deletedAt
-                    )
-                )
-            }
-            .map { .medication(try mapMedication($0)) })
+            surviving += visibleBaths.count
+            timeline.append(contentsOf: visibleBaths.map { .bath(mapBath($0)) })
 
-        return timeline.sorted { left, right in
-            left.metadata.occurredAt > right.metadata.occurredAt
+            let breastFeeds = try modelContext.fetch(FetchDescriptor<StoredBreastFeedEvent>())
+            fetched += breastFeeds.count
+            let visibleBreastFeeds = breastFeeds.filter { storedEvent in
+                storedEvent.childID == childID &&
+                (includingDeleted || !isSoftDeleted(isDeleted: storedEvent.isDeleted, deletedAt: storedEvent.deletedAt))
+            }
+            surviving += visibleBreastFeeds.count
+            timeline.append(contentsOf: try visibleBreastFeeds.map { .breastFeed(try mapBreastFeed($0)) })
+
+            let bottleFeeds = try modelContext.fetch(FetchDescriptor<StoredBottleFeedEvent>())
+            fetched += bottleFeeds.count
+            let visibleBottleFeeds = bottleFeeds.filter { storedEvent in
+                storedEvent.childID == childID &&
+                (includingDeleted || !isSoftDeleted(isDeleted: storedEvent.isDeleted, deletedAt: storedEvent.deletedAt))
+            }
+            surviving += visibleBottleFeeds.count
+            timeline.append(contentsOf: try visibleBottleFeeds.map { .bottleFeed(try mapBottleFeed($0)) })
+
+            let sleeps = try modelContext.fetch(FetchDescriptor<StoredSleepEvent>())
+            fetched += sleeps.count
+            let visibleSleeps = sleeps.filter { storedEvent in
+                storedEvent.childID == childID &&
+                (includingDeleted || !isSoftDeleted(isDeleted: storedEvent.isDeleted, deletedAt: storedEvent.deletedAt))
+            }
+            surviving += visibleSleeps.count
+            timeline.append(contentsOf: try visibleSleeps.map { .sleep(try mapSleep($0)) })
+
+            let nappies = try modelContext.fetch(FetchDescriptor<StoredNappyEvent>())
+            fetched += nappies.count
+            let visibleNappies = nappies.filter { storedEvent in
+                storedEvent.childID == childID &&
+                (includingDeleted || !isSoftDeleted(isDeleted: storedEvent.isDeleted, deletedAt: storedEvent.deletedAt))
+            }
+            surviving += visibleNappies.count
+            timeline.append(contentsOf: try visibleNappies.map { .nappy(try mapNappy($0)) })
+
+            let medications = try modelContext.fetch(FetchDescriptor<StoredMedicationEvent>())
+            fetched += medications.count
+            let visibleMedications = medications.filter { storedEvent in
+                storedEvent.childID == childID &&
+                (includingDeleted || !isSoftDeleted(isDeleted: storedEvent.isDeleted, deletedAt: storedEvent.deletedAt))
+            }
+            surviving += visibleMedications.count
+            timeline.append(contentsOf: try visibleMedications.map { .medication(try mapMedication($0)) })
+
+            PerfLog.event("EventRepository.loadTimeline fetched=\(fetched) surviving=\(surviving)")
+
+            return timeline.sorted { left, right in
+                left.metadata.occurredAt > right.metadata.occurredAt
+            }
         }
     }
 
@@ -154,15 +148,21 @@ public final class SwiftDataEventRepository: EventRepository {
         calendar: Calendar = .current,
         includingDeleted: Bool = false
     ) throws -> [BabyEvent] {
-        let startOfDay = calendar.startOfDay(for: day)
-        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else {
-            return []
-        }
-
-        return try loadTimeline(for: childID, includingDeleted: includingDeleted)
-            .filter { event in
-                eventOverlapsDay(event, startOfDay: startOfDay, endOfDay: endOfDay)
+        // PHASE 0 INSTRUMENTATION — each call re-runs the full `loadTimeline`
+        // above and then discards everything outside `day`; the call counter shows
+        // how many times this happens per refresh (one per visible timeline day).
+        PerfLog.tick("EventRepository.loadEvents(on:)")
+        return try PerfLog.measure("EventRepository.loadEvents(on:)") {
+            let startOfDay = calendar.startOfDay(for: day)
+            guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else {
+                return []
             }
+
+            return try loadTimeline(for: childID, includingDeleted: includingDeleted)
+                .filter { event in
+                    eventOverlapsDay(event, startOfDay: startOfDay, endOfDay: endOfDay)
+                }
+        }
     }
 
     private func eventOverlapsDay(
@@ -189,18 +189,22 @@ public final class SwiftDataEventRepository: EventRepository {
     }
 
     public func loadActiveSleepEvent(for childID: UUID) throws -> SleepEvent? {
-        try modelContext.fetch(FetchDescriptor<StoredSleepEvent>())
-            .filter { storedEvent in
-                storedEvent.childID == childID &&
-                !isSoftDeleted(
-                    isDeleted: storedEvent.isDeleted,
-                    deletedAt: storedEvent.deletedAt
-                ) &&
-                storedEvent.endedAt == nil
-            }
-            .map(mapSleep)
-            .sorted { left, right in left.startedAt > right.startedAt }
-            .first
+        // PHASE 0 INSTRUMENTATION — another full StoredSleepEvent table scan per refresh.
+        PerfLog.tick("EventRepository.loadActiveSleepEvent")
+        return try PerfLog.measure("EventRepository.loadActiveSleepEvent") {
+            try modelContext.fetch(FetchDescriptor<StoredSleepEvent>())
+                .filter { storedEvent in
+                    storedEvent.childID == childID &&
+                    !isSoftDeleted(
+                        isDeleted: storedEvent.isDeleted,
+                        deletedAt: storedEvent.deletedAt
+                    ) &&
+                    storedEvent.endedAt == nil
+                }
+                .map(mapSleep)
+                .sorted { left, right in left.startedAt > right.startedAt }
+                .first
+        }
     }
 
     public func softDeleteEvent(

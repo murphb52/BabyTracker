@@ -27,22 +27,29 @@ public final class HomeViewModel {
                 lastSleep: nil
             )
         }
-        return BuildCurrentStatusViewStateUseCase.execute(
-            events: appModel.events,
-            child: child,
-            enabledEventKinds: appModel.enabledEventKinds,
-            activeSleep: appModel.activeSleep
-        )
+        // PHASE 0 INSTRUMENTATION — recomputed on every body access over the full
+        // event array with no memoization (one [Perf] line per render).
+        return PerfLog.measure("HomeViewModel.currentStatus") {
+            BuildCurrentStatusViewStateUseCase.execute(
+                events: appModel.events,
+                child: child,
+                enabledEventKinds: appModel.enabledEventKinds,
+                activeSleep: appModel.activeSleep
+            )
+        }
     }
 
     public var recentEvents: [EventCardViewState] {
         guard let child = appModel.currentChild else { return [] }
-        return Array(
-            BuildEventCardsUseCase.execute(
-                events: appModel.events,
-                preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
-            ).prefix(6)
-        )
+        // PHASE 0 INSTRUMENTATION — builds cards from the full array just to show 6.
+        return PerfLog.measure("HomeViewModel.recentEvents") {
+            Array(
+                BuildEventCardsUseCase.execute(
+                    events: appModel.events,
+                    preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
+                ).prefix(6)
+            )
+        }
     }
 
     public var syncStatus: CloudKitStatusViewState {
@@ -79,6 +86,8 @@ public final class HomeViewModel {
         let preferredUnit = child.preferredFeedVolumeUnit
         let activeSleepID = appModel.activeSleep?.id
 
+        // PHASE 0 INSTRUMENTATION — per-render transform + date formatting.
+        return PerfLog.measure("HomeViewModel.todayTimelineEvents") {
         return Array(appModel.events.prefix(6)).compactMap { event -> HomeTimelineEventViewState? in
             let id: UUID
             let kind: BabyEventKind
@@ -119,6 +128,7 @@ public final class HomeViewModel {
                 timeText: occurredAt.formatted(.dateTime.hour().minute()),
                 isOngoing: activeSleepID.map { $0 == id } ?? false
             )
+        }
         }
     }
 }

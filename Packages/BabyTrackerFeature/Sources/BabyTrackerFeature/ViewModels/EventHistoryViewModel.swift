@@ -22,26 +22,30 @@ public final class EventHistoryViewModel {
 
     public var sections: [EventHistorySectionViewState] {
         guard let child = appModel.currentChild else { return [] }
-        let filter = appModel.activeEventFilter
-        let filtered = filter.isEmpty
-            ? appModel.events
-            : appModel.events.filter { filter.matches($0) }
+        // PHASE 0 INSTRUMENTATION — filter O(n) + group O(n) + per-day card build +
+        // sort O(n log n), recomputed on every body access with no memoization.
+        return PerfLog.measure("EventHistoryViewModel.sections") {
+            let filter = appModel.activeEventFilter
+            let filtered = filter.isEmpty
+                ? appModel.events
+                : appModel.events.filter { filter.matches($0) }
 
-        let grouped = Dictionary(grouping: filtered) { event in
-            calendar.startOfDay(for: event.metadata.occurredAt)
-        }
-
-        return grouped
-            .map { day, events in
-                EventHistorySectionViewState(
-                    date: day,
-                    events: BuildEventCardsUseCase.execute(
-                        events: events,
-                        preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
-                    )
-                )
+            let grouped = Dictionary(grouping: filtered) { event in
+                calendar.startOfDay(for: event.metadata.occurredAt)
             }
-            .sorted { $0.date > $1.date }
+
+            return grouped
+                .map { day, events in
+                    EventHistorySectionViewState(
+                        date: day,
+                        events: BuildEventCardsUseCase.execute(
+                            events: events,
+                            preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
+                        )
+                    )
+                }
+                .sorted { $0.date > $1.date }
+        }
     }
 
     public var activeFilter: EventFilter {

@@ -21,6 +21,13 @@ public enum TodaySummaryCalculator {
         referenceNow: Date = .now,
         calendar: Calendar = .autoupdatingCurrent
     ) -> TodaySummaryData {
+        // PHASE 0 INSTRUMENTATION — scans the full event array ~8× (today + 7 days)
+        // plus per-hour cumulative series; recomputed per render / date change.
+        let perfStart = PerfLog.now()
+        defer {
+            let ms = PerfLog.elapsedMs(since: perfStart)
+            PerfLog.event("TodaySummaryCalculator.makeData took \(String(format: "%.2f", ms)) ms (events=\(allEvents.count))")
+        }
         let selectedDay = calendar.startOfDay(for: day)
         let isSelectedDayToday = calendar.isDate(selectedDay, inSameDayAs: referenceNow)
         let effectiveNow = if isSelectedDayToday {

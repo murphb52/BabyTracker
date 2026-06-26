@@ -8,6 +8,13 @@ public enum TrendsSummaryCalculator {
         now: Date = .now,
         calendar: Calendar = .autoupdatingCurrent
     ) -> TrendsSummaryData {
+        // PHASE 0 INSTRUMENTATION — sorts + groups the full array and maps across
+        // every day in the range; recomputed per render / range change.
+        let perfStart = PerfLog.now()
+        defer {
+            let ms = PerfLog.elapsedMs(since: perfStart)
+            PerfLog.event("TrendsSummaryCalculator.makeData took \(String(format: "%.2f", ms)) ms (events=\(events.count))")
+        }
         let sortedEvents = events.sorted { $0.metadata.occurredAt < $1.metadata.occurredAt }
         let rangeEvents = filter(events: sortedEvents, range: range, now: now, calendar: calendar)
         let dates = makeDates(range: range, events: rangeEvents, now: now, calendar: calendar)

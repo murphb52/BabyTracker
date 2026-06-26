@@ -135,8 +135,14 @@ public final class AppModel {
     }
 
     public func load(performLaunchSync: Bool = true) {
-        refresh(selecting: nil)
-        rescheduleAllDriftNotifications()
+        // PHASE 0 INSTRUMENTATION — `load` is the synchronous launch-critical path
+        // (called from AppContainer at startup). The measured span covers the
+        // blocking work done before the first frame settles.
+        PerfLog.tick("AppModel.load")
+        PerfLog.measure("AppModel.load (sync portion)") {
+            refresh(selecting: nil)
+            rescheduleAllDriftNotifications()
+        }
         Task { @MainActor in
             await refreshReminderNotificationAuthorization()
             await refreshPendingMedicationReminders()
@@ -147,7 +153,9 @@ public final class AppModel {
         }
 
         Task { @MainActor in
+            let syncStart = PerfLog.now()
             await runSyncRefresh { await self.syncEngine.prepareForLaunch() }
+            PerfLog.event("AppModel.syncEngine.prepareForLaunch took \(String(format: "%.2f", PerfLog.elapsedMs(since: syncStart))) ms")
         }
     }
 
@@ -1296,6 +1304,10 @@ public final class AppModel {
     private func scheduleInactivityDriftNotificationIfNeededAsync() async {
         guard isReminderNotificationsEnabled else { return }
         guard let child = currentChild else { return }
+        // PHASE 0 INSTRUMENTATION — full O(n) scan to find the latest event, and the
+        // entire `events` array is handed to the use case though only the latest is used.
+        PerfLog.tick("AppModel.scheduleInactivityDriftNotification")
+        PerfLog.event("AppModel.scheduleInactivityDriftNotification passing allEvents=\(events.count)")
         guard let lastEvent = events.max(by: { $0.metadata.occurredAt < $1.metadata.occurredAt }) else { return }
         await ScheduleInactivityDriftNotificationUseCase.execute(
             input: .init(
@@ -1358,6 +1370,20 @@ public final class AppModel {
     }
 
     private func refresh(selecting selectedChildID: UUID?) {
+        // PHASE 0 INSTRUMENTATION — `refresh` runs on launch, child switch, and
+        // after every sync. The defer logs total wall-clock plus how many times
+        // the repository was hit *during this single refresh* (the ~8× re-load),
+        // regardless of which return path is taken.
+        PerfLog.tick("AppModel.refresh")
+        let timelineCallsBefore = PerfLog.total("EventRepository.loadTimeline")
+        let dayCallsBefore = PerfLog.total("EventRepository.loadEvents(on:)")
+        let refreshStart = PerfLog.now()
+        defer {
+            let elapsedMs = PerfLog.elapsedMs(since: refreshStart)
+            let timelineCalls = PerfLog.total("EventRepository.loadTimeline") - timelineCallsBefore
+            let dayCalls = PerfLog.total("EventRepository.loadEvents(on:)") - dayCallsBefore
+            PerfLog.event("AppModel.refresh finished in \(String(format: "%.2f", elapsedMs)) ms — loadTimeline×\(timelineCalls), loadEvents(on:)×\(dayCalls), events=\(events.count)")
+        }
         do {
             localUser = try userIdentityRepository.loadLocalUser()
 
@@ -1407,12 +1433,16 @@ public final class AppModel {
             childSelectionStore.saveSelectedChildID(currentSummary.child.id)
             synchronizeTimelineSelection(for: currentSummary.child.id)
 
-            let visibleEvents = try loadVisibleEvents(for: currentSummary.child.id)
-            let builtTimelinePages = try loadTimelinePages(
-                child: currentSummary.child,
-                for: currentSummary.child.id,
-                days: timelineVisibleDays(for: timelineSelectedDay)
-            )
+            let visibleEvents = try PerfLog.measure("AppModel.loadVisibleEvents") {
+                try loadVisibleEvents(for: currentSummary.child.id)
+            }
+            let builtTimelinePages = try PerfLog.measure("AppModel.loadTimelinePages") {
+                try loadTimelinePages(
+                    child: currentSummary.child,
+                    for: currentSummary.child.id,
+                    days: timelineVisibleDays(for: timelineSelectedDay)
+                )
+            }
             let currentActiveSleep = try eventRepository.loadActiveSleepEvent(for: currentSummary.child.id)
             let childMemberships = try membershipRepository.loadMemberships(for: currentSummary.child.id)
             let userIDs = childMemberships.map(\.userID)
@@ -1445,10 +1475,12 @@ public final class AppModel {
                     statusLabel: invite.acceptanceStatus == .pending ? "Pending invitation" : "Invited"
                 )
             }
-            let stripDataset = buildTimelineStripDatasetUseCase.execute(
-                events: visibleEvents,
-                calendar: calendar
-            )
+            let stripDataset = PerfLog.measure("AppModel.buildTimelineStripDataset") {
+                buildTimelineStripDatasetUseCase.execute(
+                    events: visibleEvents,
+                    calendar: calendar
+                )
+            }
 
             // Set flat observable properties — triggers ViewModel recomputation
             events = visibleEvents
@@ -1488,6 +1520,10 @@ public final class AppModel {
     }
 
     private func synchronizeFeedLiveActivity() {
+        // PHASE 0 INSTRUMENTATION — feeds the full event array into Feed/Sleep/Nappy
+        // summary calculators, each of which does its own O(n) scan.
+        PerfLog.tick("AppModel.synchronizeFeedLiveActivity")
+        PerfLog.measure("AppModel.synchronizeFeedLiveActivity") {
         UpdateFeedLiveActivityUseCase.execute(
             events: events,
             child: currentChild,
@@ -1495,6 +1531,7 @@ public final class AppModel {
             isLiveActivityEnabled: isLiveActivityEnabled,
             liveActivityManager: liveActivityManager
         )
+        }
     }
 
     private func clearProfileData() {

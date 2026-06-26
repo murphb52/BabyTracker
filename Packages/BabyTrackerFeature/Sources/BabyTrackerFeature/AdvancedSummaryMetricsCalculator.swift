@@ -8,6 +8,13 @@ public enum AdvancedSummaryMetricsCalculator {
         now: Date = .now,
         calendar: Calendar = .autoupdatingCurrent
     ) -> AdvancedSummaryViewState {
+        // PHASE 0 INSTRUMENTATION — sorts + filters the full array; recomputed per
+        // render / selection change.
+        let perfStart = PerfLog.now()
+        defer {
+            let ms = PerfLog.elapsedMs(since: perfStart)
+            PerfLog.event("AdvancedSummaryMetricsCalculator.makeViewState took \(String(format: "%.2f", ms)) ms (events=\(events.count))")
+        }
         let filteredEvents = filter(
             events: events.sorted { $0.metadata.occurredAt < $1.metadata.occurredAt },
             selection: selection,

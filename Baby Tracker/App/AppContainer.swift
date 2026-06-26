@@ -11,11 +11,21 @@ struct AppContainer {
     let backgroundRefreshScheduler: any BackgroundRefreshScheduling
 
     init(processInfo: ProcessInfo = .processInfo) {
+        // PHASE 0 INSTRUMENTATION — the whole synchronous launch composition root,
+        // including ModelContainer creation and the blocking `appModel.load` below.
+        PerfLog.event("AppContainer.init started")
+        let launchStart = PerfLog.now()
+        defer {
+            let ms = PerfLog.elapsedMs(since: launchStart)
+            PerfLog.event("AppContainer.init finished in \(String(format: "%.2f", ms)) ms")
+        }
         let launchConfiguration = LaunchConfiguration(processInfo: processInfo)
         let userDefaults = launchConfiguration.makeUserDefaults()
-        let store = try! BabyTrackerModelStore(
-            isStoredInMemoryOnly: launchConfiguration.usesInMemoryStore
-        )
+        let store = try! PerfLog.measure("AppContainer.BabyTrackerModelStore.init") {
+            try BabyTrackerModelStore(
+                isStoredInMemoryOnly: launchConfiguration.usesInMemoryStore
+            )
+        }
         let childRepository = SwiftDataChildRepository(store: store)
         let userIdentityRepository = SwiftDataUserIdentityRepository(store: store, userDefaults: userDefaults)
         let membershipRepository = SwiftDataMembershipRepository(store: store)
