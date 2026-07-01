@@ -291,10 +291,7 @@ public struct SummaryScreenView: View {
     // MARK: - Today Tab
 
     private var todayTabContent: some View {
-        let data = TodaySummaryCalculator.makeData(
-            from: viewModel.events,
-            day: selectedDate
-        )
+        let data = viewModel.todaySummaryData(for: selectedDate)
 
         return Group {
             if viewModel.events.isEmpty {
@@ -684,7 +681,7 @@ public struct SummaryScreenView: View {
     // MARK: - Trends Tab
 
     private var trendsTabContent: some View {
-        let data = TrendsSummaryCalculator.makeData(from: viewModel.events, range: selectedTrendsRange)
+        let data = viewModel.trendsSummaryData(for: selectedTrendsRange)
         let hasData = data.dailyBottle.contains { $0.count > 0 }
             || data.dailyBreastFeed.contains { $0.sessionCount > 0 }
             || data.dailySleep.contains { $0.totalMinutes > 0 }

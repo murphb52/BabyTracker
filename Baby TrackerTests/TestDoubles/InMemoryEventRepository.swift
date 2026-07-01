@@ -40,11 +40,16 @@ final class InMemoryEventRepository: EventRepository {
         calendar: Calendar,
         includingDeleted: Bool
     ) throws -> [BabyEvent] {
-        store.events.values
+        let startOfDay = calendar.startOfDay(for: day)
+        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else {
+            return []
+        }
+
+        return store.events.values
             .filter { event in
                 event.metadata.childID == childID &&
                 (includingDeleted || !event.metadata.isDeleted) &&
-                calendar.isDate(event.metadata.occurredAt, inSameDayAs: day)
+                event.overlaps(startOfDay: startOfDay, endOfDay: endOfDay)
             }
             .sorted { $0.metadata.occurredAt > $1.metadata.occurredAt }
     }

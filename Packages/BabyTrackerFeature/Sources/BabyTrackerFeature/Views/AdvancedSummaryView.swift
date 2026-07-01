@@ -15,10 +15,7 @@ public struct AdvancedSummaryView: View {
     }
 
     public var body: some View {
-        let viewState = AdvancedSummaryMetricsCalculator.makeViewState(
-            from: viewModel.events,
-            selection: selection
-        )
+        let viewState = viewModel.advancedSummaryViewState(for: selection)
 
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {

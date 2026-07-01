@@ -3,6 +3,8 @@ import SwiftData
 
 @Model
 final class StoredMedicationEvent {
+    #Index<StoredMedicationEvent>([\.childID], [\.childID, \.occurredAt])
+
     var id: UUID = UUID()
     var childID: UUID = UUID()
     var occurredAt: Date = Date()
