@@ -1,15 +1,16 @@
 @testable import BabyTrackerFeature
 
-/// Records the snapshots it is asked to synchronize and mirrors the real manager's
-/// running-state contract: a non-nil snapshot starts/keeps an activity running, a
-/// nil snapshot ends it.
+/// Records every snapshot the use case asks it to synchronize, including the
+/// `nil` "end the activity" calls.
 @MainActor
 final class SpyFeedLiveActivityManager: FeedLiveActivityManaging {
-    var hasRunningActivity: Bool = false
     private(set) var synchronizeCalls: [FeedLiveActivitySnapshot?] = []
+
+    var latestSnapshot: FeedLiveActivitySnapshot? {
+        synchronizeCalls.last ?? nil
+    }
 
     func synchronize(with snapshot: FeedLiveActivitySnapshot?) {
         synchronizeCalls.append(snapshot)
-        hasRunningActivity = snapshot != nil
     }
 }

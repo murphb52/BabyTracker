@@ -1,6 +1,10 @@
 import BabyTrackerDomain
 import Foundation
 
+/// The complete desired state of the lock-screen Live Activity for one child.
+/// Built by `SyncFeedLiveActivityUseCase` and consumed by the
+/// `FeedLiveActivityManaging` implementation, which mirrors it into
+/// ActivityKit content.
 public struct FeedLiveActivitySnapshot: Codable, Equatable, Sendable {
     public let childID: UUID
     public let childName: String

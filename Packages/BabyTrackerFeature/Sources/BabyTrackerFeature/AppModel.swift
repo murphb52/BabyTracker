@@ -1466,7 +1466,8 @@ public final class AppModel {
             route = .childProfile
             // ActivityKit only permits *starting* a Live Activity while the app is in
             // the foreground, so reconcile on every successful foreground refresh. The
-            // update use case dedups unchanged snapshots, so repeated calls are cheap.
+            // manager dedups against the activity's actual content and renews the
+            // system's ~8h update budget here, so repeated calls are cheap and required.
             synchronizeFeedLiveActivity()
         } catch {
             AppLogger.shared.log(.error, category: "AppModel", "refresh failed: \(error)")
@@ -1482,13 +1483,11 @@ public final class AppModel {
     }
 
     private func stopLiveActivity() {
-        ResetFeedLiveActivityUseCase.execute(
-            liveActivityManager: liveActivityManager
-        )
+        liveActivityManager.synchronize(with: nil)
     }
 
     private func synchronizeFeedLiveActivity() {
-        UpdateFeedLiveActivityUseCase.execute(
+        SyncFeedLiveActivityUseCase.execute(
             events: events,
             child: currentChild,
             activeSleep: activeSleep,
