@@ -1408,9 +1408,9 @@ public final class AppModel {
             synchronizeTimelineSelection(for: currentSummary.child.id)
 
             let visibleEvents = try loadVisibleEvents(for: currentSummary.child.id)
-            let builtTimelinePages = try loadTimelinePages(
+            let builtTimelinePages = loadTimelinePages(
                 child: currentSummary.child,
-                for: currentSummary.child.id,
+                from: visibleEvents,
                 days: timelineVisibleDays(for: timelineSelectedDay)
             )
             let currentActiveSleep = try eventRepository.loadActiveSleepEvent(for: currentSummary.child.id)
@@ -1551,25 +1551,21 @@ public final class AppModel {
 
     private func loadTimelinePages(
         child: Child,
-        for childID: UUID,
+        from events: [BabyEvent],
         days: [Date]
-    ) throws -> [TimelineDayGridPageState] {
-        try days.map { day in
+    ) -> [TimelineDayGridPageState] {
+        days.map { day in
             let dayStart = calendar.startOfDay(for: day)
-            let events = try eventRepository.loadEvents(
-                for: childID,
-                on: day,
-                calendar: calendar,
-                includingDeleted: false
-            ).filter { enabledEventKinds.contains($0.kind) }
+            let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
+            let dayEvents = events.filter { $0.overlaps(startOfDay: dayStart, endOfDay: dayEnd) }
             let gridDataset = buildTimelineDayGridDatasetUseCase.execute(
-                events: events,
+                events: dayEvents,
                 day: dayStart,
                 calendar: calendar
             )
             let grid = buildTimelineDayGridViewState(
                 from: gridDataset,
-                events: events,
+                events: dayEvents,
                 child: child,
                 day: dayStart
             )

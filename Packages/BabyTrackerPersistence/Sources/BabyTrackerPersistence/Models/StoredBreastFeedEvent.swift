@@ -3,6 +3,8 @@ import SwiftData
 
 @Model
 final class StoredBreastFeedEvent {
+    #Index<StoredBreastFeedEvent>([\.childID], [\.childID, \.startedAt])
+
     var id: UUID = UUID()
     var childID: UUID = UUID()
     var occurredAt: Date = Date()

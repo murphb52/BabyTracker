@@ -37,11 +37,9 @@ public final class HomeViewModel {
 
     public var recentEvents: [EventCardViewState] {
         guard let child = appModel.currentChild else { return [] }
-        return Array(
-            BuildEventCardsUseCase.execute(
-                events: appModel.events,
-                preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
-            ).prefix(6)
+        return BuildEventCardsUseCase.execute(
+            events: Array(appModel.events.prefix(6)),
+            preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
         )
     }
 

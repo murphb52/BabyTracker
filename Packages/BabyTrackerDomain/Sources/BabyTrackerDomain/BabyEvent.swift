@@ -45,4 +45,23 @@ public enum BabyEvent: Equatable, Identifiable, Sendable {
             .medication
         }
     }
+
+    /// Whether this event should be considered part of the given day.
+    ///
+    /// Instant events (bath/bottle feed/nappy/medication) use `occurredAt`.
+    /// Sessions with a duration (sleep, breast feed) overlap a day if any
+    /// part of the session falls within it, so a session spanning midnight
+    /// counts on both days. An active sleep session (nil `endedAt`) is
+    /// treated as still ongoing.
+    public func overlaps(startOfDay: Date, endOfDay: Date) -> Bool {
+        switch self {
+        case let .sleep(sleep):
+            let end = sleep.endedAt ?? Date.distantFuture
+            return sleep.startedAt < endOfDay && end > startOfDay
+        case let .breastFeed(feed):
+            return feed.startedAt < endOfDay && feed.endedAt > startOfDay
+        case .bath, .bottleFeed, .nappy, .medication:
+            return metadata.occurredAt >= startOfDay && metadata.occurredAt < endOfDay
+        }
+    }
 }

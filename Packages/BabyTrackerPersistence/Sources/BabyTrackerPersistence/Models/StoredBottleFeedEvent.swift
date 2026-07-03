@@ -3,6 +3,8 @@ import SwiftData
 
 @Model
 final class StoredBottleFeedEvent {
+    #Index<StoredBottleFeedEvent>([\.childID], [\.childID, \.occurredAt])
+
     var id: UUID = UUID()
     var childID: UUID = UUID()
     var occurredAt: Date = Date()

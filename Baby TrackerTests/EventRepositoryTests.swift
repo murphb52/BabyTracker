@@ -461,6 +461,148 @@ struct EventRepositoryTests {
         #expect(firstDayEvents.map(\.id) == [sleep.id])
         #expect(secondDayEvents.map(\.id) == [sleep.id])
     }
+
+    @Test
+    func loadEventsIncludesBreastFeedOnBothDaysWhenItSpansMidnight() throws {
+        let harness = try RepositoryHarness()
+        defer { harness.cleanUp() }
+
+        let childID = UUID()
+        let userID = UUID()
+        let calendar = Calendar(identifier: .gregorian)
+        let dayOne = Date(timeIntervalSince1970: 1_728_000_000)
+        let startOfDayOne = calendar.startOfDay(for: dayOne)
+        let startOfDayTwo = try #require(
+            calendar.date(byAdding: .day, value: 1, to: startOfDayOne)
+        )
+        let feedStart = try #require(
+            calendar.date(byAdding: .hour, value: 23, to: startOfDayOne)
+        )
+        let feedEnd = try #require(
+            calendar.date(byAdding: .hour, value: 1, to: startOfDayTwo)
+        )
+
+        let feed = try BreastFeedEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: feedEnd,
+                createdAt: feedEnd,
+                createdBy: userID
+            ),
+            side: nil,
+            startedAt: feedStart,
+            endedAt: feedEnd
+        )
+
+        try harness.repository.saveEvent(.breastFeed(feed))
+
+        let firstDayEvents = try harness.repository.loadEvents(
+            for: childID,
+            on: startOfDayOne,
+            calendar: calendar,
+            includingDeleted: false
+        )
+        let secondDayEvents = try harness.repository.loadEvents(
+            for: childID,
+            on: startOfDayTwo,
+            calendar: calendar,
+            includingDeleted: false
+        )
+
+        #expect(firstDayEvents.map(\.id) == [feed.id])
+        #expect(secondDayEvents.map(\.id) == [feed.id])
+    }
+
+    @Test
+    func loadEventsExcludesSoftDeletedEventsUnlessIncludingDeleted() throws {
+        let harness = try RepositoryHarness()
+        defer { harness.cleanUp() }
+
+        let childID = UUID()
+        let userID = UUID()
+        let calendar = Calendar(identifier: .gregorian)
+        let occurredAt = Date(timeIntervalSince1970: 20_000)
+        let day = calendar.startOfDay(for: occurredAt)
+
+        let bottle = try BottleFeedEvent(
+            metadata: EventMetadata(
+                childID: childID,
+                occurredAt: occurredAt,
+                createdAt: occurredAt,
+                createdBy: userID
+            ),
+            amountMilliliters: 90
+        )
+
+        try harness.repository.saveEvent(.bottleFeed(bottle))
+        try harness.repository.softDeleteEvent(
+            id: bottle.id,
+            deletedAt: occurredAt.addingTimeInterval(60),
+            deletedBy: userID
+        )
+
+        let visibleDayEvents = try harness.repository.loadEvents(
+            for: childID,
+            on: day,
+            calendar: calendar,
+            includingDeleted: false
+        )
+        let allDayEvents = try harness.repository.loadEvents(
+            for: childID,
+            on: day,
+            calendar: calendar,
+            includingDeleted: true
+        )
+
+        #expect(visibleDayEvents.isEmpty)
+        #expect(allDayEvents.map(\.id) == [bottle.id])
+    }
+
+    @Test
+    func loadTimelineAndLoadEventsDoNotLeakEventsAcrossChildren() throws {
+        let harness = try RepositoryHarness()
+        defer { harness.cleanUp() }
+
+        let childOneID = UUID()
+        let childTwoID = UUID()
+        let userID = UUID()
+        let calendar = Calendar(identifier: .gregorian)
+        let occurredAt = Date(timeIntervalSince1970: 30_000)
+        let day = calendar.startOfDay(for: occurredAt)
+
+        let childOneNappy = try NappyEvent(
+            metadata: EventMetadata(
+                childID: childOneID,
+                occurredAt: occurredAt,
+                createdAt: occurredAt,
+                createdBy: userID
+            ),
+            type: .dry
+        )
+        let childTwoNappy = try NappyEvent(
+            metadata: EventMetadata(
+                childID: childTwoID,
+                occurredAt: occurredAt,
+                createdAt: occurredAt,
+                createdBy: userID
+            ),
+            type: .dry
+        )
+
+        try harness.repository.saveEvent(.nappy(childOneNappy))
+        try harness.repository.saveEvent(.nappy(childTwoNappy))
+
+        let childOneTimeline = try harness.repository.loadTimeline(for: childOneID, includingDeleted: false)
+        let childOneDayEvents = try harness.repository.loadEvents(
+            for: childOneID,
+            on: day,
+            calendar: calendar,
+            includingDeleted: false
+        )
+
+        #expect(childOneTimeline.map(\.id) == [childOneNappy.id])
+        #expect(childOneDayEvents.map(\.id) == [childOneNappy.id])
+    }
 }
 
 extension EventRepositoryTests {

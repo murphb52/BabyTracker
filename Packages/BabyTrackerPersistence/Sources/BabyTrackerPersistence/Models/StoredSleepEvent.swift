@@ -3,6 +3,8 @@ import SwiftData
 
 @Model
 final class StoredSleepEvent {
+    #Index<StoredSleepEvent>([\.childID], [\.childID, \.startedAt], [\.childID, \.occurredAt])
+
     var id: UUID = UUID()
     var childID: UUID = UUID()
     var occurredAt: Date = Date()
