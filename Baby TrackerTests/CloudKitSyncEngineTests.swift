@@ -515,6 +515,71 @@ struct CloudKitSyncEngineTests {
         #expect(privateBatches.count == 1)
         #expect(privateBatches.first?.recordTypes == ["cloudkit.share"])
     }
+
+    // MARK: - Background refresh reporting
+
+    @Test
+    func refreshReportsNoRemoteChangesWhenNothingIsPulled() async throws {
+        let harness = SyncEngineHarness()
+        defer { harness.cleanUp() }
+
+        let localUser = try UserIdentity(displayName: "Alex Parent")
+        try harness.userIdentityRepository.saveLocalUser(localUser)
+
+        let summary = await harness.syncEngine.refreshAfterRemoteNotification()
+
+        #expect(summary.didApplyRemoteChanges == false)
+    }
+
+    @Test
+    func refreshReportsRemoteChangesWhenRecordsArePulled() async throws {
+        let harness = SyncEngineHarness()
+        defer { harness.cleanUp() }
+
+        let localUser = try UserIdentity(displayName: "Alex Parent")
+        let child = try Child(name: "Poppy", createdBy: localUser.id)
+        try harness.userIdentityRepository.saveLocalUser(localUser)
+        try harness.childRepository.saveChild(child)
+
+        try await harness.seedRemoteBottleFeed(
+            child: child,
+            authoredBy: UUID(),
+            occurredAt: Date(timeIntervalSince1970: 9_000)
+        )
+
+        let summary = await harness.syncEngine.refreshAfterRemoteNotification()
+
+        #expect(summary.didApplyRemoteChanges)
+    }
+
+    @Test
+    func aLaterRefreshKeepsCaregiverChangesCollectedByThePush() async throws {
+        let harness = SyncEngineHarness()
+        defer { harness.cleanUp() }
+
+        let localUser = try UserIdentity(displayName: "Alex Parent")
+        let child = try Child(name: "Poppy", createdBy: localUser.id)
+        try harness.userIdentityRepository.saveLocalUser(localUser)
+        try harness.childRepository.saveChild(child)
+
+        try await harness.seedRemoteBottleFeed(
+            child: child,
+            authoredBy: UUID(),
+            occurredAt: Date(timeIntervalSince1970: 9_000)
+        )
+
+        _ = await harness.syncEngine.refreshAfterRemoteNotification()
+
+        // Any refresh arriving before the caller drained the collected changes
+        // used to clear them, so the caregiver never saw the "someone logged a
+        // feed" notification the push had just produced.
+        _ = await harness.syncEngine.refreshForeground()
+
+        let changes = harness.syncEngine.consumeRemoteCaregiverEventChanges()
+
+        #expect(changes.count == 1)
+        #expect(harness.syncEngine.consumeRemoteCaregiverEventChanges().isEmpty)
+    }
 }
 
 // MARK: - Test Harness
@@ -555,6 +620,51 @@ extension CloudKitSyncEngineTests {
         }
 
         func cleanUp() {}
+
+        /// Puts a bottle feed authored by another caregiver into the child's
+        /// zone, with the local CloudKit context already in place so a refresh
+        /// pulls it rather than creating the zone. Returns the zone it used.
+        @discardableResult
+        func seedRemoteBottleFeed(
+            child: Child,
+            authoredBy authorID: UUID,
+            occurredAt: Date
+        ) async throws -> CKRecordZone.ID {
+            let zoneID = CloudKitRecordNames.zoneID(for: child.id)
+            try childRepository.saveCloudKitChildContext(
+                CloudKitChildContext(
+                    childID: child.id,
+                    zoneID: zoneID,
+                    databaseScope: .private
+                )
+            )
+            try await client.modifyRecordZones(
+                saving: [CKRecordZone(zoneID: zoneID)],
+                deleting: [],
+                databaseScope: .private
+            )
+
+            let event = try BottleFeedEvent(
+                metadata: EventMetadata(
+                    childID: child.id,
+                    occurredAt: occurredAt,
+                    createdAt: occurredAt,
+                    createdBy: authorID,
+                    updatedAt: occurredAt,
+                    updatedBy: authorID
+                ),
+                amountMilliliters: 120
+            )
+            _ = try await client.modifyRecords(
+                saving: [CloudKitRecordMapper.eventRecord(from: .bottleFeed(event), zoneID: zoneID)],
+                deleting: [],
+                databaseScope: .private,
+                savePolicy: .changedKeys,
+                atomically: true
+            )
+
+            return zoneID
+        }
     }
 }
 

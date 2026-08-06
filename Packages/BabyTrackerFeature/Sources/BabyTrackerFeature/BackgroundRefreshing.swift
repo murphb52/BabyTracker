@@ -5,5 +5,11 @@ import Foundation
 /// tested without spinning up the full feature graph.
 @MainActor
 public protocol BackgroundRefreshing: AnyObject {
-    func refreshAfterRemoteNotification(isAppInBackground: Bool) async -> SyncStatusSummary
+    /// - Parameter timeout: How long to wait before reporting back regardless.
+    ///   A background wake-up that misses iOS's window is killed and throttled,
+    ///   so the caller always needs an answer in time.
+    func refreshAfterRemoteNotification(
+        isAppInBackground: Bool,
+        timeout: Duration
+    ) async -> SyncStatusSummary
 }

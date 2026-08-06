@@ -32,6 +32,12 @@ public final class CloudKitSyncEngine {
     private var ensuredPrivateZoneSubscriptionIDs: Set<String> = []
     private var remoteCaregiverEventChanges: [RemoteCaregiverEventChange] = []
     private var shouldCollectRemoteCaregiverEvents = false
+    /// Set whenever a pull in the current refresh applied remote records or
+    /// deletions locally. Surfaced on `SyncStatusSummary` so background
+    /// wake-ups can report an accurate fetch result to iOS.
+    private var didApplyRemoteChangesDuringRefresh = false
+    /// The refresh pass currently in flight, if any. New passes queue behind it.
+    private var activeRefreshTask: Task<SyncStatusSummary, Never>?
     private var currentLocalUserID: UUID?
     private var cachedUserDisplayNames: [UUID: String] = [:]
 
@@ -295,9 +301,37 @@ public final class CloudKitSyncEngine {
         AppLogger.shared.log(.info, category: "CloudKitSync", "[5/5] Share acceptance complete")
     }
 
+    /// Runs refresh passes one at a time.
+    ///
+    /// A background-refresh run and a silent-push wake can arrive together, and
+    /// two passes interleaving at their `await` points can persist a change
+    /// token covering records the other pass already consumed — CloudKit then
+    /// never sends those records again, so they are lost until a full refresh.
+    /// Queueing behind any pass already in flight removes that overlap.
     private func refresh(reason: RefreshReason) async -> SyncStatusSummary {
+        let precedingRefresh = activeRefreshTask
+        let refreshTask = Task { @MainActor in
+            _ = await precedingRefresh?.value
+            return await self.performRefresh(reason: reason)
+        }
+        activeRefreshTask = refreshTask
+
+        let summary = await refreshTask.value
+
+        if activeRefreshTask == refreshTask {
+            activeRefreshTask = nil
+        }
+
+        return summary
+    }
+
+    private func performRefresh(reason: RefreshReason) async -> SyncStatusSummary {
         shouldCollectRemoteCaregiverEvents = reason == .remoteNotification
-        remoteCaregiverEventChanges = []
+        // Collected changes are deliberately not cleared here — they are drained
+        // by `consumeRemoteCaregiverEventChanges()`. Clearing them at the start
+        // of a pass would discard a push's changes whenever another refresh ran
+        // before the caller got to read them.
+        didApplyRemoteChangesDuringRefresh = false
         cachedUserDisplayNames = [:]
         currentLocalUserID = try? userIdentityRepository.loadLocalUser()?.id
 
@@ -342,7 +376,7 @@ public final class CloudKitSyncEngine {
                 try await pushPendingChanges()
             }
 
-            statusSummary = try syncStateRepository.loadStatusSummary()
+            statusSummary = try summaryApplyingRemoteChangeFlag()
             return statusSummary
         } catch {
             logger.error("Refresh(\(reason.logDescription, privacy: .public)) failed: \(error.localizedDescription, privacy: .public) [\(String(describing: error), privacy: .public)]")
@@ -352,10 +386,25 @@ public final class CloudKitSyncEngine {
                 state: .failed,
                 pendingRecordCount: localSummary.pendingRecordCount,
                 lastSyncAt: localSummary.lastSyncAt,
-                lastErrorDescription: error.localizedDescription
+                lastErrorDescription: error.localizedDescription,
+                didApplyRemoteChanges: didApplyRemoteChangesDuringRefresh
             )
             return statusSummary
         }
+    }
+
+    /// The persisted status summary, carrying whether this refresh actually
+    /// applied anything from CloudKit. `loadStatusSummary` only knows about the
+    /// local outbox, so the flag has to be layered on here.
+    private func summaryApplyingRemoteChangeFlag() throws -> SyncStatusSummary {
+        let summary = try syncStateRepository.loadStatusSummary()
+        return SyncStatusSummary(
+            state: summary.state,
+            pendingRecordCount: summary.pendingRecordCount,
+            lastSyncAt: summary.lastSyncAt,
+            lastErrorDescription: summary.lastErrorDescription,
+            didApplyRemoteChanges: didApplyRemoteChangesDuringRefresh
+        )
     }
 
     private func ensureDatabaseSubscriptions() async throws {
@@ -442,6 +491,7 @@ public final class CloudKitSyncEngine {
                 let childID = childID(from: deletedZoneID.zoneName)
                 try childRepository.purgeChildData(id: childID)
                 pendingInvitesByChildID[childID] = []
+                didApplyRemoteChangesDuringRefresh = true
             }
 
             for zoneID in changes.modifiedZoneIDs {
@@ -927,6 +977,10 @@ public final class CloudKitSyncEngine {
         let recordTypes = changes.modifiedRecords.map(\.recordType)
         logger.info("pullZoneSnapshot \(context.zoneID.zoneName, privacy: .public) (\(databaseScope, privacy: .public)): \(changes.modifiedRecords.count, privacy: .public) modified, \(changes.deletions.count, privacy: .public) deleted — types: \(recordTypes.joined(separator: ", "), privacy: .public)")
         AppLogger.shared.log(.info, category: "CloudKitSync", "pullZoneSnapshot \(context.zoneID.zoneName) (\(databaseScope)): \(changes.modifiedRecords.count) modified, \(changes.deletions.count) deleted — types: \(recordTypes.joined(separator: ", "))")
+
+        if !changes.modifiedRecords.isEmpty || !changes.deletions.isEmpty {
+            didApplyRemoteChangesDuringRefresh = true
+        }
 
         for record in changes.modifiedRecords {
             try save(record: record, within: context)

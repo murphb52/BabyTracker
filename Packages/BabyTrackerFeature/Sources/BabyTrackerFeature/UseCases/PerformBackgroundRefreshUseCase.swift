@@ -5,8 +5,14 @@ import BabyTrackerDomain
 /// scheduler can hint the system about future scheduling.
 public enum PerformBackgroundRefreshUseCase {
     @MainActor
-    public static func execute(refresher: any BackgroundRefreshing) async -> Bool {
-        let summary = await refresher.refreshAfterRemoteNotification(isAppInBackground: true)
+    public static func execute(
+        refresher: any BackgroundRefreshing,
+        timeout: Duration = backgroundRefreshTimeout
+    ) async -> Bool {
+        let summary = await refresher.refreshAfterRemoteNotification(
+            isAppInBackground: true,
+            timeout: timeout
+        )
         return summary.state != .failed
     }
 }
