@@ -32,6 +32,10 @@ public final class CloudKitSyncEngine {
     private var ensuredPrivateZoneSubscriptionIDs: Set<String> = []
     private var remoteCaregiverEventChanges: [RemoteCaregiverEventChange] = []
     private var shouldCollectRemoteCaregiverEvents = false
+    /// Set whenever a pull in the current refresh applied remote records or
+    /// deletions locally. Surfaced on `SyncStatusSummary` so background
+    /// wake-ups can report an accurate fetch result to iOS.
+    private var didApplyRemoteChangesDuringRefresh = false
     private var currentLocalUserID: UUID?
     private var cachedUserDisplayNames: [UUID: String] = [:]
 
@@ -298,6 +302,7 @@ public final class CloudKitSyncEngine {
     private func refresh(reason: RefreshReason) async -> SyncStatusSummary {
         shouldCollectRemoteCaregiverEvents = reason == .remoteNotification
         remoteCaregiverEventChanges = []
+        didApplyRemoteChangesDuringRefresh = false
         cachedUserDisplayNames = [:]
         currentLocalUserID = try? userIdentityRepository.loadLocalUser()?.id
 
@@ -342,7 +347,7 @@ public final class CloudKitSyncEngine {
                 try await pushPendingChanges()
             }
 
-            statusSummary = try syncStateRepository.loadStatusSummary()
+            statusSummary = try summaryApplyingRemoteChangeFlag()
             return statusSummary
         } catch {
             logger.error("Refresh(\(reason.logDescription, privacy: .public)) failed: \(error.localizedDescription, privacy: .public) [\(String(describing: error), privacy: .public)]")
@@ -352,10 +357,25 @@ public final class CloudKitSyncEngine {
                 state: .failed,
                 pendingRecordCount: localSummary.pendingRecordCount,
                 lastSyncAt: localSummary.lastSyncAt,
-                lastErrorDescription: error.localizedDescription
+                lastErrorDescription: error.localizedDescription,
+                didApplyRemoteChanges: didApplyRemoteChangesDuringRefresh
             )
             return statusSummary
         }
+    }
+
+    /// The persisted status summary, carrying whether this refresh actually
+    /// applied anything from CloudKit. `loadStatusSummary` only knows about the
+    /// local outbox, so the flag has to be layered on here.
+    private func summaryApplyingRemoteChangeFlag() throws -> SyncStatusSummary {
+        let summary = try syncStateRepository.loadStatusSummary()
+        return SyncStatusSummary(
+            state: summary.state,
+            pendingRecordCount: summary.pendingRecordCount,
+            lastSyncAt: summary.lastSyncAt,
+            lastErrorDescription: summary.lastErrorDescription,
+            didApplyRemoteChanges: didApplyRemoteChangesDuringRefresh
+        )
     }
 
     private func ensureDatabaseSubscriptions() async throws {
@@ -442,6 +462,7 @@ public final class CloudKitSyncEngine {
                 let childID = childID(from: deletedZoneID.zoneName)
                 try childRepository.purgeChildData(id: childID)
                 pendingInvitesByChildID[childID] = []
+                didApplyRemoteChangesDuringRefresh = true
             }
 
             for zoneID in changes.modifiedZoneIDs {
@@ -927,6 +948,10 @@ public final class CloudKitSyncEngine {
         let recordTypes = changes.modifiedRecords.map(\.recordType)
         logger.info("pullZoneSnapshot \(context.zoneID.zoneName, privacy: .public) (\(databaseScope, privacy: .public)): \(changes.modifiedRecords.count, privacy: .public) modified, \(changes.deletions.count, privacy: .public) deleted — types: \(recordTypes.joined(separator: ", "), privacy: .public)")
         AppLogger.shared.log(.info, category: "CloudKitSync", "pullZoneSnapshot \(context.zoneID.zoneName) (\(databaseScope)): \(changes.modifiedRecords.count) modified, \(changes.deletions.count) deleted — types: \(recordTypes.joined(separator: ", "))")
+
+        if !changes.modifiedRecords.isEmpty || !changes.deletions.isEmpty {
+            didApplyRemoteChangesDuringRefresh = true
+        }
 
         for record in changes.modifiedRecords {
             try save(record: record, within: context)
