@@ -313,15 +313,69 @@ public final class AppModel {
     // foreground/background state — ActivityKit only lets us *start* an activity
     // while in the foreground, and updating a running one from the background is
     // always safe.
-    public func refreshAfterRemoteNotification(isAppInBackground: Bool) async -> SyncStatusSummary {
+    public func refreshAfterRemoteNotification(
+        isAppInBackground: Bool,
+        timeout: Duration = backgroundRefreshTimeout
+    ) async -> SyncStatusSummary {
+        let work = Task { @MainActor in
+            await self.syncAndReloadAfterRemoteNotification()
+        }
+
+        guard let summary = await backgroundRefreshSummary(from: work, within: timeout) else {
+            logger.warning("Remote notification refresh exceeded its background deadline")
+            AppLogger.shared.log(
+                .warning,
+                category: "CloudKitSync",
+                "Remote notification refresh exceeded its background deadline"
+            )
+            return timedOutSummary()
+        }
+
+        return summary
+    }
+
+    private func syncAndReloadAfterRemoteNotification() async -> SyncStatusSummary {
         let summary = await syncEngine.refreshAfterRemoteNotification()
         await scheduleRemoteSyncNotificationIfNeeded()
-        refresh(selecting: childSelectionStore.loadSelectedChildID())
+
+        // Nothing arrived from CloudKit, so there is nothing new in the local
+        // store to surface. Skipping the reload keeps background wake-ups off
+        // the main actor, which is what iOS meters when deciding how often to
+        // keep waking the app.
+        if summary.didApplyRemoteChanges {
+            refresh(selecting: childSelectionStore.loadSelectedChildID())
+        }
+
         return summary
+    }
+
+    private func timedOutSummary() -> SyncStatusSummary {
+        let lastKnown = syncEngine.statusSummary
+        return SyncStatusSummary(
+            state: .failed,
+            pendingRecordCount: lastKnown.pendingRecordCount,
+            lastSyncAt: lastKnown.lastSyncAt,
+            lastErrorDescription: "Sync didn't finish in time."
+        )
     }
 
     public func appDidEnterBackground() {
         synchronizeFeedLiveActivity()
+        flushPendingChangesOnBackground()
+    }
+
+    /// Gives records still waiting in the outbox one more push as the app
+    /// leaves the foreground. A write that never reaches CloudKit means the
+    /// other caregiver's device is never notified at all, so it is worth
+    /// spending the background transition on.
+    private func flushPendingChangesOnBackground() {
+        guard syncEngine.statusSummary.pendingRecordCount > 0 else {
+            return
+        }
+
+        Task { @MainActor in
+            _ = await self.syncEngine.refreshAfterLocalWrite()
+        }
     }
 
     public func requestNotificationAuthorizationIfNeeded() {

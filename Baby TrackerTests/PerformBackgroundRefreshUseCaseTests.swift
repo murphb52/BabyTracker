@@ -24,13 +24,18 @@ struct PerformBackgroundRefreshUseCaseTests {
 private final class StubBackgroundRefresher: BackgroundRefreshing {
     private let state: SyncState
     private(set) var recordedIsAppInBackground: Bool?
+    private(set) var recordedTimeout: Duration?
 
     init(state: SyncState) {
         self.state = state
     }
 
-    func refreshAfterRemoteNotification(isAppInBackground: Bool) async -> SyncStatusSummary {
+    func refreshAfterRemoteNotification(
+        isAppInBackground: Bool,
+        timeout: Duration
+    ) async -> SyncStatusSummary {
         recordedIsAppInBackground = isAppInBackground
+        recordedTimeout = timeout
         return SyncStatusSummary(state: state)
     }
 }
