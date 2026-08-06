@@ -16,7 +16,11 @@ final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
     /// `BGTaskSchedulerPermittedIdentifiers`.
     static let taskIdentifier = "com.adappt.BabyTracker.backgroundRefresh"
 
-    private static let earliestRefreshInterval: TimeInterval = 60 * 60
+    /// `earliestBeginDate` is a floor, not a request — iOS still applies its own
+    /// budget on top. Keeping the floor short means the app is eligible for any
+    /// slot the system is willing to grant, rather than sitting out the ones
+    /// that come up sooner.
+    private static let earliestRefreshInterval: TimeInterval = 15 * 60
 
     private var handler: (@MainActor () async -> Bool)?
     private var didRegisterLaunchHandler = false
@@ -79,21 +83,48 @@ final class SystemBackgroundRefreshScheduler: BackgroundRefreshScheduling {
         // in this run still leaves a future refresh pending.
         scheduleNext()
 
-        let work = Task { @MainActor in
-            let success = await handler?() ?? false
-            let cancelled = Task.isCancelled
-            task.setTaskCompleted(success: success && !cancelled)
-            AppLogger.shared.log(
-                .info,
-                category: "BackgroundRefresh",
-                "Background refresh finished — success: \(success), expired: \(cancelled)"
-            )
+        // BGTaskScheduler traps if `setTaskCompleted` is called twice, and the
+        // expiration handler can fire while the refresh is still in flight, so
+        // both paths go through this.
+        let completion = BackgroundTaskCompletion(task: task)
+
+        // Installed before the work starts — expiration can fire immediately,
+        // and a run with no handler yet installed is one iOS records against
+        // the app.
+        task.expirationHandler = {
+            Task { @MainActor in
+                completion.complete(success: false, expired: true)
+            }
         }
 
-        // Expiration runs on a system queue, so we can only do Sendable work
-        // here. Cancelling the task lets the work block log the outcome itself.
-        task.expirationHandler = {
-            work.cancel()
+        Task { @MainActor in
+            let success = await self.handler?() ?? false
+            completion.complete(success: success, expired: false)
         }
+    }
+}
+
+/// Calls `setTaskCompleted` exactly once, whichever of the refresh and the
+/// expiration handler finishes first.
+@MainActor
+private final class BackgroundTaskCompletion {
+    private var task: BGAppRefreshTask?
+
+    init(task: BGAppRefreshTask) {
+        self.task = task
+    }
+
+    func complete(success: Bool, expired: Bool) {
+        guard let task else {
+            return
+        }
+
+        self.task = nil
+        task.setTaskCompleted(success: success)
+        AppLogger.shared.log(
+            .info,
+            category: "BackgroundRefresh",
+            "Background refresh finished — success: \(success), expired: \(expired)"
+        )
     }
 }
