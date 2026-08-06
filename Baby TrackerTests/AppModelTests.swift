@@ -1941,6 +1941,110 @@ struct AppModelTests {
         #expect(harness.model.localUser == nil)
     }
 
+    // MARK: - Background refresh
+
+    @Test
+    func backgroundRefreshReloadsLocalStateWhenRemoteChangesArrived() async throws {
+        let syncEngine = TestSyncEngine()
+        syncEngine.remoteNotificationSummary = SyncStatusSummary(didApplyRemoteChanges: true)
+        let harness = try Harness(syncEngine: syncEngine)
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+        #expect(harness.model.events.isEmpty)
+
+        // Stands in for a record the sync pulled down from the other caregiver.
+        _ = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 120,
+            occurredAt: Date(timeIntervalSince1970: 5_000),
+            milkType: .formula
+        )
+
+        _ = await harness.model.refreshAfterRemoteNotification(isAppInBackground: true)
+
+        #expect(harness.model.events.count == 1)
+    }
+
+    @Test
+    func backgroundRefreshSkipsLocalReloadWhenNothingArrived() async throws {
+        let syncEngine = TestSyncEngine()
+        syncEngine.remoteNotificationSummary = SyncStatusSummary(didApplyRemoteChanges: false)
+        let harness = try Harness(syncEngine: syncEngine)
+        defer { harness.cleanUp() }
+
+        let seed = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+
+        _ = try harness.saveBottleFeed(
+            childID: seed.child.id,
+            userID: seed.localUser.id,
+            amountMilliliters: 120,
+            occurredAt: Date(timeIntervalSince1970: 5_000),
+            milkType: .formula
+        )
+
+        _ = await harness.model.refreshAfterRemoteNotification(isAppInBackground: true)
+
+        // The sync applied nothing, so the reload is skipped and the store write
+        // made behind the model's back stays invisible until something does.
+        #expect(harness.model.events.isEmpty)
+    }
+
+    @Test
+    func backgroundRefreshReportsFailureWhenSyncOutlastsItsDeadline() async throws {
+        let syncEngine = StallingSyncEngine()
+        let harness = try Harness(syncEngine: syncEngine)
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+
+        let summary = await harness.model.refreshAfterRemoteNotification(
+            isAppInBackground: true,
+            timeout: .milliseconds(10)
+        )
+
+        #expect(summary.state == .failed)
+        syncEngine.release()
+    }
+
+    @Test
+    func enteringBackgroundRetriesPendingPushes() async throws {
+        let syncEngine = TestSyncEngine()
+        syncEngine.statusSummary = SyncStatusSummary(state: .pendingSync, pendingRecordCount: 2)
+        let harness = try Harness(syncEngine: syncEngine)
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+
+        harness.model.appDidEnterBackground()
+        await Task.yield()
+        await Task.yield()
+
+        #expect(syncEngine.refreshAfterLocalWriteCount == 1)
+    }
+
+    @Test
+    func enteringBackgroundDoesNotSyncWithAnEmptyOutbox() async throws {
+        let syncEngine = TestSyncEngine()
+        syncEngine.statusSummary = SyncStatusSummary(state: .upToDate, pendingRecordCount: 0)
+        let harness = try Harness(syncEngine: syncEngine)
+        defer { harness.cleanUp() }
+
+        _ = try harness.seedOwnerProfile()
+        harness.model.load(performLaunchSync: false)
+
+        harness.model.appDidEnterBackground()
+        await Task.yield()
+        await Task.yield()
+
+        #expect(syncEngine.refreshAfterLocalWriteCount == 0)
+    }
+
     private func selectedTimelineItems(
         pages: [TimelineDayGridPageState],
         selectedDay: Date
@@ -2262,16 +2366,19 @@ extension AppModelTests {
 
 extension AppModelTests {
     @MainActor
-    private final class TestSyncEngine: CloudKitSyncControlling {
+    private class TestSyncEngine: CloudKitSyncControlling {
         var statusSummary = SyncStatusSummary()
         var refreshForegroundSummary: SyncStatusSummary?
+        var remoteNotificationSummary: SyncStatusSummary?
+        private(set) var refreshAfterLocalWriteCount = 0
 
         func prepareForLaunch() async -> SyncStatusSummary {
             statusSummary
         }
 
         func refreshAfterLocalWrite() async -> SyncStatusSummary {
-            statusSummary
+            refreshAfterLocalWriteCount += 1
+            return statusSummary
         }
 
         func refreshForeground() async -> SyncStatusSummary {
@@ -2287,7 +2394,7 @@ extension AppModelTests {
         }
 
         func refreshAfterRemoteNotification() async -> SyncStatusSummary {
-            statusSummary
+            remoteNotificationSummary ?? statusSummary
         }
 
         func pendingInvites(for childID: UUID) -> [CloudKitPendingInvite] {
@@ -2311,6 +2418,33 @@ extension AppModelTests {
         func leaveShare(childID: UUID) async throws {}
 
         func hardDeleteChildCloudData(childID: UUID) async throws {}
+    }
+
+    /// Stands in for a CloudKit request that stalls in the background — the
+    /// case the refresh deadline exists to survive.
+    @MainActor
+    private final class StallingSyncEngine: TestSyncEngine {
+        private var continuation: CheckedContinuation<Void, Never>?
+        private var isReleased = false
+
+        override func refreshAfterRemoteNotification() async -> SyncStatusSummary {
+            await withCheckedContinuation { continuation in
+                if isReleased {
+                    continuation.resume()
+                } else {
+                    self.continuation = continuation
+                }
+            }
+
+            return statusSummary
+        }
+
+        /// Lets the stalled refresh finish so it does not outlive the test.
+        func release() {
+            isReleased = true
+            continuation?.resume()
+            continuation = nil
+        }
     }
 
     private enum TestSyncEngineError: Error {
