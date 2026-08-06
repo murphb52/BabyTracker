@@ -36,6 +36,8 @@ public final class CloudKitSyncEngine {
     /// deletions locally. Surfaced on `SyncStatusSummary` so background
     /// wake-ups can report an accurate fetch result to iOS.
     private var didApplyRemoteChangesDuringRefresh = false
+    /// The refresh pass currently in flight, if any. New passes queue behind it.
+    private var activeRefreshTask: Task<SyncStatusSummary, Never>?
     private var currentLocalUserID: UUID?
     private var cachedUserDisplayNames: [UUID: String] = [:]
 
@@ -299,9 +301,36 @@ public final class CloudKitSyncEngine {
         AppLogger.shared.log(.info, category: "CloudKitSync", "[5/5] Share acceptance complete")
     }
 
+    /// Runs refresh passes one at a time.
+    ///
+    /// A background-refresh run and a silent-push wake can arrive together, and
+    /// two passes interleaving at their `await` points can persist a change
+    /// token covering records the other pass already consumed — CloudKit then
+    /// never sends those records again, so they are lost until a full refresh.
+    /// Queueing behind any pass already in flight removes that overlap.
     private func refresh(reason: RefreshReason) async -> SyncStatusSummary {
+        let precedingRefresh = activeRefreshTask
+        let refreshTask = Task { @MainActor in
+            _ = await precedingRefresh?.value
+            return await self.performRefresh(reason: reason)
+        }
+        activeRefreshTask = refreshTask
+
+        let summary = await refreshTask.value
+
+        if activeRefreshTask == refreshTask {
+            activeRefreshTask = nil
+        }
+
+        return summary
+    }
+
+    private func performRefresh(reason: RefreshReason) async -> SyncStatusSummary {
         shouldCollectRemoteCaregiverEvents = reason == .remoteNotification
-        remoteCaregiverEventChanges = []
+        // Collected changes are deliberately not cleared here — they are drained
+        // by `consumeRemoteCaregiverEventChanges()`. Clearing them at the start
+        // of a pass would discard a push's changes whenever another refresh ran
+        // before the caller got to read them.
         didApplyRemoteChangesDuringRefresh = false
         cachedUserDisplayNames = [:]
         currentLocalUserID = try? userIdentityRepository.loadLocalUser()?.id
