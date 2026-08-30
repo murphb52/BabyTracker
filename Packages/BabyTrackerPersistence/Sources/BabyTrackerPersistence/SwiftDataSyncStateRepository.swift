@@ -26,6 +26,8 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
         records.append(contentsOf: try pendingMemberships())
         records.append(contentsOf: try pendingBreastFeeds())
         records.append(contentsOf: try pendingBottleFeeds())
+        records.append(contentsOf: try pendingFoodEvents())
+        records.append(contentsOf: try pendingFoodPresets())
         records.append(contentsOf: try pendingSleepEvents())
         records.append(contentsOf: try pendingNappyEvents())
         records.append(contentsOf: try pendingBathEvents())
@@ -59,6 +61,14 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
             }
         case .bottleFeedEvent:
             if let model = try fetchBottleFeed(id: record.recordID) {
+                apply(state: state, lastSyncedAt: lastSyncedAt, lastSyncErrorCode: lastSyncErrorCode, to: model)
+            }
+        case .foodEvent:
+            if let model = try fetchFoodEvent(id: record.recordID) {
+                apply(state: state, lastSyncedAt: lastSyncedAt, lastSyncErrorCode: lastSyncErrorCode, to: model)
+            }
+        case .foodPreset:
+            if let model = try fetchFoodPreset(id: record.recordID) {
                 apply(state: state, lastSyncedAt: lastSyncedAt, lastSyncErrorCode: lastSyncErrorCode, to: model)
             }
         case .sleepEvent:
@@ -199,6 +209,18 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
             .map { SyncRecordReference(recordType: .bottleFeedEvent, recordID: $0.id, childID: $0.childID) }
     }
 
+    private func pendingFoodEvents() throws -> [SyncRecordReference] {
+        try modelContext.fetch(FetchDescriptor<StoredFoodEvent>())
+            .filter { $0.syncStateRawValue == SyncState.pendingSync.rawValue }
+            .map { SyncRecordReference(recordType: .foodEvent, recordID: $0.id, childID: $0.childID) }
+    }
+
+    private func pendingFoodPresets() throws -> [SyncRecordReference] {
+        try modelContext.fetch(FetchDescriptor<StoredFoodPreset>())
+            .filter { $0.syncStateRawValue == SyncState.pendingSync.rawValue }
+            .map { SyncRecordReference(recordType: .foodPreset, recordID: $0.id, childID: $0.childID) }
+    }
+
     private func pendingSleepEvents() throws -> [SyncRecordReference] {
         try modelContext.fetch(FetchDescriptor<StoredSleepEvent>())
             .filter { $0.syncStateRawValue == SyncState.pendingSync.rawValue }
@@ -243,6 +265,14 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
         try modelContext.fetch(FetchDescriptor<StoredBottleFeedEvent>()).first { $0.id == id }
     }
 
+    private func fetchFoodEvent(id: UUID) throws -> StoredFoodEvent? {
+        try modelContext.fetch(FetchDescriptor<StoredFoodEvent>()).first { $0.id == id }
+    }
+
+    private func fetchFoodPreset(id: UUID) throws -> StoredFoodPreset? {
+        try modelContext.fetch(FetchDescriptor<StoredFoodPreset>()).first { $0.id == id }
+    }
+
     private func fetchSleep(id: UUID) throws -> StoredSleepEvent? {
         try modelContext.fetch(FetchDescriptor<StoredSleepEvent>()).first { $0.id == id }
     }
@@ -280,6 +310,8 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
         rawValues.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredMembership>()).map(\.syncStateRawValue))
         rawValues.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredBreastFeedEvent>()).map(\.syncStateRawValue))
         rawValues.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredBottleFeedEvent>()).map(\.syncStateRawValue))
+        rawValues.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredFoodEvent>()).map(\.syncStateRawValue))
+        rawValues.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredFoodPreset>()).map(\.syncStateRawValue))
         rawValues.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredSleepEvent>()).map(\.syncStateRawValue))
         rawValues.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredNappyEvent>()).map(\.syncStateRawValue))
         rawValues.append(contentsOf: try modelContext.fetch(FetchDescriptor<StoredBathEvent>()).map(\.syncStateRawValue))
@@ -294,6 +326,8 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
             modelContext.fetch(FetchDescriptor<StoredMembership>()).map(\.lastSyncedAt) +
             modelContext.fetch(FetchDescriptor<StoredBreastFeedEvent>()).map(\.lastSyncedAt) +
             modelContext.fetch(FetchDescriptor<StoredBottleFeedEvent>()).map(\.lastSyncedAt) +
+            modelContext.fetch(FetchDescriptor<StoredFoodEvent>()).map(\.lastSyncedAt) +
+            modelContext.fetch(FetchDescriptor<StoredFoodPreset>()).map(\.lastSyncedAt) +
             modelContext.fetch(FetchDescriptor<StoredSleepEvent>()).map(\.lastSyncedAt) +
             modelContext.fetch(FetchDescriptor<StoredNappyEvent>()).map(\.lastSyncedAt) +
             modelContext.fetch(FetchDescriptor<StoredBathEvent>()).map(\.lastSyncedAt) +
@@ -306,6 +340,8 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
             modelContext.fetch(FetchDescriptor<StoredMembership>()).map(\.lastSyncErrorCode) +
             modelContext.fetch(FetchDescriptor<StoredBreastFeedEvent>()).map(\.lastSyncErrorCode) +
             modelContext.fetch(FetchDescriptor<StoredBottleFeedEvent>()).map(\.lastSyncErrorCode) +
+            modelContext.fetch(FetchDescriptor<StoredFoodEvent>()).map(\.lastSyncErrorCode) +
+            modelContext.fetch(FetchDescriptor<StoredFoodPreset>()).map(\.lastSyncErrorCode) +
             modelContext.fetch(FetchDescriptor<StoredSleepEvent>()).map(\.lastSyncErrorCode) +
             modelContext.fetch(FetchDescriptor<StoredNappyEvent>()).map(\.lastSyncErrorCode) +
             modelContext.fetch(FetchDescriptor<StoredBathEvent>()).map(\.lastSyncErrorCode) +
@@ -362,6 +398,18 @@ public final class SwiftDataSyncStateRepository: SyncStateRepository {
         lastSyncErrorCode: String?,
         to model: StoredBottleFeedEvent
     ) {
+        model.syncStateRawValue = state.rawValue
+        model.lastSyncedAt = lastSyncedAt
+        model.lastSyncErrorCode = lastSyncErrorCode
+    }
+
+    private func apply(state: SyncState, lastSyncedAt: Date?, lastSyncErrorCode: String?, to model: StoredFoodEvent) {
+        model.syncStateRawValue = state.rawValue
+        model.lastSyncedAt = lastSyncedAt
+        model.lastSyncErrorCode = lastSyncErrorCode
+    }
+
+    private func apply(state: SyncState, lastSyncedAt: Date?, lastSyncErrorCode: String?, to model: StoredFoodPreset) {
         model.syncStateRawValue = state.rawValue
         model.lastSyncedAt = lastSyncedAt
         model.lastSyncErrorCode = lastSyncErrorCode

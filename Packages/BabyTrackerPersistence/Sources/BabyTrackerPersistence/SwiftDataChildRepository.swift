@@ -106,6 +106,14 @@ public final class SwiftDataChildRepository: CloudKitChildRepository {
             modelContext.delete(event)
         }
 
+        for event in try modelContext.fetch(FetchDescriptor<StoredFoodEvent>()) where event.childID == id {
+            modelContext.delete(event)
+        }
+
+        for preset in try modelContext.fetch(FetchDescriptor<StoredFoodPreset>()) where preset.childID == id {
+            modelContext.delete(preset)
+        }
+
         for event in try modelContext.fetch(FetchDescriptor<StoredSleepEvent>()) where event.childID == id {
             modelContext.delete(event)
         }

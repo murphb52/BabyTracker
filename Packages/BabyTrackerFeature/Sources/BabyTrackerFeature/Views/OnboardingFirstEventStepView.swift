@@ -103,6 +103,7 @@ struct OnboardingFirstEventStepView: View {
         case .bath: "Bath"
         case .breastFeed: "Breast Feed"
         case .bottleFeed: "Bottle Feed"
+        case .food: "Food"
         case .sleep: "Start Sleep"
         case .nappy: "Nappy"
         case .medication: "Medication"
@@ -114,6 +115,7 @@ struct OnboardingFirstEventStepView: View {
         case .bath: .quickLogBath
         case .breastFeed: .quickLogBreastFeed
         case .bottleFeed: .quickLogBottleFeed(smartSuggestions: [])
+        case .food: .quickLogFood(recentNames: [], presets: [])
         case .sleep: .startSleep(suggestions: [])
         case .nappy: .quickLogNappy(.mixed)
         case .medication: .quickLogMedication(
@@ -267,6 +269,33 @@ struct OnboardingFirstEventStepView: View {
                     amountMilliliters: amountMilliliters,
                     occurredAt: occurredAt,
                     milkType: milkType
+                )
+                if didSave {
+                    activeEventSheet = nil
+                    firstEventSaved = true
+                }
+                return didSave
+            }
+
+        case let .quickLogFood(recentNames, presets):
+            FoodEditorSheetView(
+                navigationTitle: "Food",
+                primaryActionTitle: "Save",
+                childName: childName,
+                recentFoodNames: recentNames,
+                presets: presets,
+                initialOccurredAt: Date(),
+                updatePreset: model.updateFoodPreset,
+                deletePreset: model.deleteFoodPreset,
+                reorderPresets: model.reorderFoodPresets
+            ) { occurredAt, foodName, amount, unit, customLabel, saveAsPreset in
+                let didSave = model.logFood(
+                    occurredAt: occurredAt,
+                    foodName: foodName,
+                    amount: amount,
+                    unit: unit,
+                    customUnitLabel: customLabel,
+                    saveAsPreset: saveAsPreset
                 )
                 if didSave {
                     activeEventSheet = nil

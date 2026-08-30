@@ -86,6 +86,8 @@ public struct ImportEventsUseCase {
             try saveBath(e, childID: childID, localUserID: localUserID, membership: membership)
         case .bottleFeed(let e):
             try saveBottleFeed(e, childID: childID, localUserID: localUserID, membership: membership)
+        case .food(let e):
+            try saveFood(e, childID: childID, localUserID: localUserID, membership: membership)
         case .breastFeed(let e):
             try saveBreastFeed(e, childID: childID, localUserID: localUserID, membership: membership)
         case .sleep(let e):
@@ -95,6 +97,19 @@ public struct ImportEventsUseCase {
         case .medication(let e):
             try saveMedication(e, childID: childID, localUserID: localUserID, membership: membership)
         }
+    }
+
+    private func saveFood(_ e: FoodImport, childID: UUID, localUserID: UUID, membership: Membership) throws {
+        _ = try LogFoodUseCase(eventRepository: eventRepository, hapticFeedbackProvider: NoOpHapticFeedbackProvider()).execute(.init(
+            childID: childID,
+            localUserID: localUserID,
+            occurredAt: e.metadata.occurredAt,
+            foodName: e.foodName,
+            amount: e.amount,
+            unit: e.unit,
+            customUnitLabel: e.customUnitLabel,
+            membership: membership
+        ))
     }
 
     private func saveMedication(

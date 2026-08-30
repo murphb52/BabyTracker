@@ -1509,11 +1509,11 @@ struct AppModelTests {
         harness.model.setEventKindEnabled(.breastFeed, isEnabled: false)
 
         #expect(!harness.model.isEventKindEnabled(.breastFeed))
-        #expect(visibilityStore.enabledEventKinds == [.bath, .bottleFeed, .sleep, .nappy, .medication])
+        #expect(visibilityStore.enabledEventKinds == [.bath, .bottleFeed, .food, .sleep, .nappy, .medication])
         #expect(!harness.model.events.contains(where: { $0.id == breastFeed.id }))
         #expect(harness.model.events.contains(where: { $0.id == bottleFeed.id }))
         #expect(HomeViewModel(appModel: harness.model).currentStatus.row(for: .breastFeed) == nil)
-        #expect(HomeViewModel(appModel: harness.model).currentStatus.visibleEventKinds == [.bath, .bottleFeed, .sleep, .nappy, .medication])
+        #expect(HomeViewModel(appModel: harness.model).currentStatus.visibleEventKinds == [.bath, .bottleFeed, .food, .sleep, .nappy, .medication])
 
         harness.model.setEventKindEnabled(.breastFeed, isEnabled: true)
 

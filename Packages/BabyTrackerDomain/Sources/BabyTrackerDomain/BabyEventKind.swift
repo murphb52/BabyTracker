@@ -4,6 +4,7 @@ public enum BabyEventKind: String, CaseIterable, Codable, Equatable, Hashable, S
     case bath
     case breastFeed
     case bottleFeed
+    case food
     case sleep
     case nappy
     case medication

@@ -62,6 +62,27 @@ struct SyncFeedLiveActivityUseCaseTests {
     }
 
     @Test
+    func latestFoodCanDriveFeedTile() throws {
+        let manager = SpyFeedLiveActivityManager()
+        let child = try makeChild()
+        let foodTime = Date(timeIntervalSince1970: 3_000)
+        let events: [BabyEvent] = [
+            try makeBottleFeedEvent(childID: child.id, occurredAt: Date(timeIntervalSince1970: 2_000)),
+            .food(try FoodEvent(
+                metadata: EventMetadata(childID: child.id, occurredAt: foodTime, createdAt: foodTime, createdBy: UUID()),
+                foodName: "Porridge",
+                amount: 1,
+                unit: .bowl
+            )),
+        ]
+
+        execute(events: events, child: child, manager: manager)
+
+        #expect(manager.latestSnapshot?.lastFeedKind == .food)
+        #expect(manager.latestSnapshot?.lastFeedAt == foodTime)
+    }
+
+    @Test
     func snapshotCarriesActiveSleepStart() throws {
         let manager = SpyFeedLiveActivityManager()
         let child = try makeChild()

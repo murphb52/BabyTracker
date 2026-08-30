@@ -369,6 +369,55 @@ DEFINE SCHEMA
         GRANT READ TO "_world"
     );
 
+    RECORD TYPE FoodEvent (
+        "___createTime" TIMESTAMP,
+        "___createdBy" REFERENCE,
+        "___etag" STRING,
+        "___modTime" TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID" REFERENCE,
+        amount DOUBLE QUERYABLE SORTABLE,
+        childID STRING QUERYABLE SEARCHABLE SORTABLE,
+        createdAt TIMESTAMP QUERYABLE SORTABLE,
+        createdBy STRING QUERYABLE SEARCHABLE SORTABLE,
+        customUnitLabel STRING QUERYABLE SEARCHABLE SORTABLE,
+        deletedAt TIMESTAMP QUERYABLE SORTABLE,
+        foodName STRING QUERYABLE SEARCHABLE SORTABLE,
+        isDeleted INT64 QUERYABLE SORTABLE,
+        notes STRING QUERYABLE SEARCHABLE SORTABLE,
+        occurredAt TIMESTAMP QUERYABLE SORTABLE,
+        unit STRING QUERYABLE SEARCHABLE SORTABLE,
+        updatedAt TIMESTAMP QUERYABLE SORTABLE,
+        updatedBy STRING QUERYABLE SEARCHABLE SORTABLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE FoodPreset (
+        "___createTime" TIMESTAMP,
+        "___createdBy" REFERENCE,
+        "___etag" STRING,
+        "___modTime" TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID" REFERENCE,
+        amount DOUBLE QUERYABLE SORTABLE,
+        childID STRING QUERYABLE SEARCHABLE SORTABLE,
+        createdAt TIMESTAMP QUERYABLE SORTABLE,
+        createdBy STRING QUERYABLE SEARCHABLE SORTABLE,
+        customUnitLabel STRING QUERYABLE SEARCHABLE SORTABLE,
+        deletedAt TIMESTAMP QUERYABLE SORTABLE,
+        foodName STRING QUERYABLE SEARCHABLE SORTABLE,
+        isDeleted INT64 QUERYABLE SORTABLE,
+        sortOrder INT64 QUERYABLE SORTABLE,
+        unit STRING QUERYABLE SEARCHABLE SORTABLE,
+        updatedAt TIMESTAMP QUERYABLE SORTABLE,
+        updatedBy STRING QUERYABLE SEARCHABLE SORTABLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
     RECORD TYPE Membership (
         "___createTime" TIMESTAMP,
         "___createdBy"  REFERENCE,

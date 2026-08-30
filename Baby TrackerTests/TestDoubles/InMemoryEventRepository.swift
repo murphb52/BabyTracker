@@ -78,6 +78,9 @@ final class InMemoryEventRepository: EventRepository {
         case var .bottleFeed(e):
             e.metadata.markDeleted(at: deletedAt, by: deletedBy)
             store.events[id] = .bottleFeed(e)
+        case var .food(e):
+            e.metadata.markDeleted(at: deletedAt, by: deletedBy)
+            store.events[id] = .food(e)
         case var .sleep(e):
             e.metadata.markDeleted(at: deletedAt, by: deletedBy)
             store.events[id] = .sleep(e)
@@ -96,6 +99,7 @@ final class InMemoryEventRepository: EventRepository {
         case .bath: return .bathEvent
         case .breastFeed: return .breastFeedEvent
         case .bottleFeed: return .bottleFeedEvent
+        case .food: return .foodEvent
         case .sleep: return .sleepEvent
         case .nappy: return .nappyEvent
         case .medication: return .medicationEvent

@@ -41,6 +41,9 @@ public struct RestoreDeletedEventUseCase: UseCase {
         case var .bottleFeed(feed):
             feed.metadata.restoreDeleted(by: userID)
             return .bottleFeed(feed)
+        case var .food(food):
+            food.metadata.restoreDeleted(by: userID)
+            return .food(food)
         case var .sleep(feed):
             feed.metadata.restoreDeleted(by: userID)
             return .sleep(feed)

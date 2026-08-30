@@ -131,6 +131,8 @@ public struct BuildTimelineStripDatasetUseCase {
             return 3
         case .bottleFeed:
             return 2
+        case .food:
+            return 2
         case .medication:
             return 2
         case .nappy:
@@ -158,6 +160,8 @@ public struct BuildTimelineStripDatasetUseCase {
             return feed.startedAt
         case let .bottleFeed(feed):
             return feed.metadata.occurredAt
+        case let .food(food):
+            return food.metadata.occurredAt
         case let .sleep(sleep):
             return sleep.startedAt
         case let .nappy(nappy):
@@ -178,6 +182,8 @@ public struct BuildTimelineStripDatasetUseCase {
             return feed.endedAt
         case let .bottleFeed(feed):
             return feed.metadata.occurredAt.addingTimeInterval(TimeInterval(slotMinutes * 60))
+        case let .food(food):
+            return food.metadata.occurredAt.addingTimeInterval(TimeInterval(slotMinutes * 60))
         case let .sleep(sleep):
             return sleep.endedAt ?? now
         case let .nappy(nappy):

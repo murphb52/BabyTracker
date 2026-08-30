@@ -25,6 +25,8 @@ public final class SwiftDataEventRepository: EventRepository {
             try saveBreastFeed(value)
         case let .bottleFeed(value):
             try saveBottleFeed(value)
+        case let .food(value):
+            try saveFood(value)
         case let .sleep(value):
             try saveSleep(value)
         case let .nappy(value):
@@ -47,6 +49,10 @@ public final class SwiftDataEventRepository: EventRepository {
 
         if let storedEvent = try fetchStoredBottleFeedEvent(id: id) {
             return .bottleFeed(try mapBottleFeed(storedEvent))
+        }
+
+        if let storedEvent = try fetchStoredFoodEvent(id: id) {
+            return .food(try mapFood(storedEvent))
         }
 
         if let storedEvent = try fetchStoredSleepEvent(id: id) {
@@ -76,6 +82,8 @@ public final class SwiftDataEventRepository: EventRepository {
             .map { .breastFeed(try mapBreastFeed($0)) })
         timeline.append(contentsOf: try fetchBottleFeedEvents(childID: childID, includingDeleted: includingDeleted)
             .map { .bottleFeed(try mapBottleFeed($0)) })
+        timeline.append(contentsOf: try fetchFoodEvents(childID: childID, includingDeleted: includingDeleted)
+            .map { .food(try mapFood($0)) })
         timeline.append(contentsOf: try fetchSleepEvents(childID: childID, includingDeleted: includingDeleted)
             .map { .sleep(try mapSleep($0)) })
         timeline.append(contentsOf: try fetchNappyEvents(childID: childID, includingDeleted: includingDeleted)
@@ -119,6 +127,12 @@ public final class SwiftDataEventRepository: EventRepository {
             to: endOfDay,
             includingDeleted: includingDeleted
         ).map { .bottleFeed(try mapBottleFeed($0)) })
+        dayEvents.append(contentsOf: try fetchFoodEvents(
+            childID: childID,
+            occurringFrom: startOfDay,
+            to: endOfDay,
+            includingDeleted: includingDeleted
+        ).map { .food(try mapFood($0)) })
         dayEvents.append(contentsOf: try fetchSleepEvents(
             childID: childID,
             overlapping: startOfDay,
@@ -169,6 +183,8 @@ public final class SwiftDataEventRepository: EventRepository {
         } else if let storedEvent = try fetchStoredBreastFeedEvent(id: id) {
             markDeleted(storedEvent, deletedAt: deletedAt, deletedBy: deletedBy)
         } else if let storedEvent = try fetchStoredBottleFeedEvent(id: id) {
+            markDeleted(storedEvent, deletedAt: deletedAt, deletedBy: deletedBy)
+        } else if let storedEvent = try fetchStoredFoodEvent(id: id) {
             markDeleted(storedEvent, deletedAt: deletedAt, deletedBy: deletedBy)
         } else if let storedEvent = try fetchStoredSleepEvent(id: id) {
             markDeleted(storedEvent, deletedAt: deletedAt, deletedBy: deletedBy)
@@ -227,6 +243,16 @@ public final class SwiftDataEventRepository: EventRepository {
             }
         }
         return try modelContext.fetch(FetchDescriptor<StoredBottleFeedEvent>(predicate: predicate))
+    }
+
+    private func fetchFoodEvents(childID: UUID, includingDeleted: Bool) throws -> [StoredFoodEvent] {
+        let predicate: Predicate<StoredFoodEvent>
+        if includingDeleted {
+            predicate = #Predicate { $0.childID == childID }
+        } else {
+            predicate = #Predicate { $0.childID == childID && !$0.isDeleted && $0.deletedAt == nil }
+        }
+        return try modelContext.fetch(FetchDescriptor(predicate: predicate))
     }
 
     private func fetchSleepEvents(childID: UUID, includingDeleted: Bool) throws -> [StoredSleepEvent] {
@@ -326,6 +352,25 @@ public final class SwiftDataEventRepository: EventRepository {
             }
         }
         return try modelContext.fetch(FetchDescriptor<StoredBottleFeedEvent>(predicate: predicate))
+    }
+
+    private func fetchFoodEvents(
+        childID: UUID,
+        occurringFrom startOfDay: Date,
+        to endOfDay: Date,
+        includingDeleted: Bool
+    ) throws -> [StoredFoodEvent] {
+        let predicate: Predicate<StoredFoodEvent>
+        if includingDeleted {
+            predicate = #Predicate { event in
+                event.childID == childID && event.occurredAt >= startOfDay && event.occurredAt < endOfDay
+            }
+        } else {
+            predicate = #Predicate { event in
+                event.childID == childID && event.occurredAt >= startOfDay && event.occurredAt < endOfDay && !event.isDeleted && event.deletedAt == nil
+            }
+        }
+        return try modelContext.fetch(FetchDescriptor(predicate: predicate))
     }
 
     private func fetchNappyEvents(
@@ -587,6 +632,36 @@ public final class SwiftDataEventRepository: EventRepository {
         }
     }
 
+    private func saveFood(_ event: FoodEvent) throws {
+        let existing = try fetchStoredFoodEvent(id: event.id)
+        let stored = existing ?? StoredFoodEvent(
+            id: event.id,
+            childID: event.metadata.childID,
+            occurredAt: event.metadata.occurredAt,
+            createdAt: event.metadata.createdAt,
+            createdBy: event.metadata.createdBy,
+            updatedAt: event.metadata.updatedAt,
+            updatedBy: event.metadata.updatedBy,
+            notes: event.metadata.notes,
+            isDeleted: event.metadata.isDeleted,
+            deletedAt: event.metadata.deletedAt,
+            foodName: event.foodName,
+            amount: event.amount,
+            unitRawValue: event.unit.rawValue,
+            customUnitLabel: event.customUnitLabel,
+            syncStateRawValue: SyncState.pendingSync.rawValue,
+            lastSyncedAt: nil,
+            lastSyncErrorCode: nil
+        )
+        applyMetadata(event.metadata, to: stored)
+        stored.foodName = event.foodName
+        stored.amount = event.amount
+        stored.unitRawValue = event.unit.rawValue
+        stored.customUnitLabel = event.customUnitLabel
+        markPending(stored)
+        if existing == nil { modelContext.insert(stored) }
+    }
+
     private func saveSleep(_ event: SleepEvent) throws {
         let existingEvent = try fetchStoredSleepEvent(id: event.id)
         let storedEvent = existingEvent ?? StoredSleepEvent(
@@ -665,6 +740,11 @@ public final class SwiftDataEventRepository: EventRepository {
     private func fetchStoredBottleFeedEvent(id: UUID) throws -> StoredBottleFeedEvent? {
         let predicate = #Predicate<StoredBottleFeedEvent> { $0.id == id }
         return try modelContext.fetch(FetchDescriptor<StoredBottleFeedEvent>(predicate: predicate)).first
+    }
+
+    private func fetchStoredFoodEvent(id: UUID) throws -> StoredFoodEvent? {
+        let predicate = #Predicate<StoredFoodEvent> { $0.id == id }
+        return try modelContext.fetch(FetchDescriptor(predicate: predicate)).first
     }
 
     private func fetchStoredSleepEvent(id: UUID) throws -> StoredSleepEvent? {
@@ -774,6 +854,27 @@ public final class SwiftDataEventRepository: EventRepository {
             ),
             amountMilliliters: storedEvent.amountMilliliters,
             milkType: milkType
+        )
+    }
+
+    private func mapFood(_ storedEvent: StoredFoodEvent) throws -> FoodEvent {
+        try FoodEvent(
+            metadata: makeMetadata(
+                id: storedEvent.id,
+                childID: storedEvent.childID,
+                occurredAt: storedEvent.occurredAt,
+                createdAt: storedEvent.createdAt,
+                createdBy: storedEvent.createdBy,
+                updatedAt: storedEvent.updatedAt,
+                updatedBy: storedEvent.updatedBy,
+                notes: storedEvent.notes,
+                isDeleted: storedEvent.isDeleted,
+                deletedAt: storedEvent.deletedAt
+            ),
+            foodName: storedEvent.foodName,
+            amount: storedEvent.amount,
+            unit: FoodUnit(rawValue: storedEvent.unitRawValue) ?? .custom,
+            customUnitLabel: storedEvent.customUnitLabel
         )
     }
 
@@ -902,6 +1003,18 @@ public final class SwiftDataEventRepository: EventRepository {
         storedEvent.deletedAt = metadata.deletedAt
     }
 
+    private func applyMetadata(_ metadata: EventMetadata, to storedEvent: StoredFoodEvent) {
+        storedEvent.childID = metadata.childID
+        storedEvent.occurredAt = metadata.occurredAt
+        storedEvent.createdAt = metadata.createdAt
+        storedEvent.createdBy = metadata.createdBy
+        storedEvent.updatedAt = metadata.updatedAt
+        storedEvent.updatedBy = metadata.updatedBy
+        storedEvent.notes = metadata.notes
+        storedEvent.isDeleted = metadata.isDeleted
+        storedEvent.deletedAt = metadata.deletedAt
+    }
+
     private func applyMetadata(_ metadata: EventMetadata, to storedEvent: StoredSleepEvent) {
         storedEvent.childID = metadata.childID
         storedEvent.occurredAt = metadata.occurredAt
@@ -974,6 +1087,14 @@ public final class SwiftDataEventRepository: EventRepository {
         markPending(storedEvent)
     }
 
+    private func markDeleted(_ storedEvent: StoredFoodEvent, deletedAt: Date, deletedBy: UUID) {
+        storedEvent.isDeleted = true
+        storedEvent.deletedAt = deletedAt
+        storedEvent.updatedAt = deletedAt
+        storedEvent.updatedBy = deletedBy
+        markPending(storedEvent)
+    }
+
     private func markDeleted(
         _ storedEvent: StoredSleepEvent,
         deletedAt: Date,
@@ -1014,6 +1135,11 @@ public final class SwiftDataEventRepository: EventRepository {
     }
 
     private func markPending(_ storedEvent: StoredBottleFeedEvent) {
+        storedEvent.syncStateRawValue = SyncState.pendingSync.rawValue
+        storedEvent.lastSyncErrorCode = nil
+    }
+
+    private func markPending(_ storedEvent: StoredFoodEvent) {
         storedEvent.syncStateRawValue = SyncState.pendingSync.rawValue
         storedEvent.lastSyncErrorCode = nil
     }

@@ -101,17 +101,26 @@ public enum TrendsSummaryCalculator {
             )
         }
 
+        let dailyFood = dates.map { date -> DailyFoodData in
+            let count = (eventsByDay[date] ?? []).reduce(into: 0) { result, event in
+                if case .food = event { result += 1 }
+            }
+            return DailyFoodData(date: date, label: formatter(date), count: count)
+        }
+
         return TrendsSummaryData(
             dailyBottle: dailyBottle,
             dailyBreastFeed: dailyBreastFeed,
             dailySleep: dailySleep,
             dailyNappy: dailyNappy,
             dailyBath: dailyBath,
+            dailyFood: dailyFood,
             avgDailyBottleMilliliters: average(of: dailyBottle.filter { $0.count > 0 }.map(\.totalMilliliters)),
             avgDailyBreastFeedSessions: average(of: dailyBreastFeed.filter { $0.sessionCount > 0 }.map(\.sessionCount)),
             avgDailySleepMinutes: average(of: dailySleep.filter { $0.totalMinutes > 0 }.map(\.totalMinutes)),
             avgDailyNappies: average(of: dailyNappy.filter { $0.totalCount > 0 }.map(\.totalCount)),
-            avgDailyBaths: average(of: dailyBath.filter { $0.count > 0 }.map(\.count))
+            avgDailyBaths: average(of: dailyBath.filter { $0.count > 0 }.map(\.count)),
+            avgDailyFoodEntries: average(of: dailyFood.filter { $0.count > 0 }.map(\.count))
         )
     }
 

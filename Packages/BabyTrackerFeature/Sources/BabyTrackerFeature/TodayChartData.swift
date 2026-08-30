@@ -23,6 +23,9 @@ public struct TodayChartData: Equatable, Sendable {
     /// Cumulative breast-feed session count per hour.
     public let breast: HourlyCumulativeSeries
 
+    /// Cumulative Food entry count per hour.
+    public let food: HourlyCumulativeSeries
+
     /// Cumulative minutes of completed sleep per hour.
     public let sleep: HourlyCumulativeSeries
 
@@ -49,6 +52,7 @@ public struct TodayChartData: Equatable, Sendable {
 
     /// Individual breast feed events per hour for the selected day.
     public let breastHourlyMarkers: [[BreastEventMarker]]
+    public let foodHourlyMarkers: [[FoodEventMarker]]
 
     /// Completed sleep end events per hour for the selected day.
     public let sleepHourlyMarkers: [[SleepEventMarker]]
@@ -64,6 +68,7 @@ public struct TodayChartData: Equatable, Sendable {
         bottleFormulaIncludingMixed: HourlyCumulativeSeries,
         bottleBreastMilkIncludingMixed: HourlyCumulativeSeries,
         breast: HourlyCumulativeSeries,
+        food: HourlyCumulativeSeries,
         sleep: HourlyCumulativeSeries,
         nappy: HourlyCumulativeSeries,
         nappyPee: HourlyCumulativeSeries,
@@ -73,6 +78,7 @@ public struct TodayChartData: Equatable, Sendable {
         nappyPooIncludingMixed: HourlyCumulativeSeries,
         bottleHourlyMarkers: [[BottleEventMarker]],
         breastHourlyMarkers: [[BreastEventMarker]],
+        foodHourlyMarkers: [[FoodEventMarker]],
         sleepHourlyMarkers: [[SleepEventMarker]],
         nappyHourlyMarkers: [[NappyEventMarker]]
     ) {
@@ -83,6 +89,7 @@ public struct TodayChartData: Equatable, Sendable {
         self.bottleFormulaIncludingMixed = bottleFormulaIncludingMixed
         self.bottleBreastMilkIncludingMixed = bottleBreastMilkIncludingMixed
         self.breast = breast
+        self.food = food
         self.sleep = sleep
         self.nappy = nappy
         self.nappyPee = nappyPee
@@ -92,6 +99,7 @@ public struct TodayChartData: Equatable, Sendable {
         self.nappyPooIncludingMixed = nappyPooIncludingMixed
         self.bottleHourlyMarkers = bottleHourlyMarkers
         self.breastHourlyMarkers = breastHourlyMarkers
+        self.foodHourlyMarkers = foodHourlyMarkers
         self.sleepHourlyMarkers = sleepHourlyMarkers
         self.nappyHourlyMarkers = nappyHourlyMarkers
     }

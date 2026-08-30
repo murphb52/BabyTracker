@@ -10,12 +10,30 @@ public struct NestExportData: Codable, Sendable {
     public let exportedAt: Date
     public let child: NestChildExport
     public let events: [NestEventExport]
+    public let foodPresets: [NestFoodPresetExport]?
 
-    public init(version: Int = 1, exportedAt: Date, child: NestChildExport, events: [NestEventExport]) {
+    public init(version: Int = 1, exportedAt: Date, child: NestChildExport, events: [NestEventExport], foodPresets: [NestFoodPresetExport]? = nil) {
         self.version = version
         self.exportedAt = exportedAt
         self.child = child
         self.events = events
+        self.foodPresets = foodPresets
+    }
+}
+
+public struct NestFoodPresetExport: Codable, Sendable {
+    public let foodName: String
+    public let amount: Double
+    public let unit: FoodUnit
+    public let customUnitLabel: String?
+    public let sortOrder: Int
+
+    public init(foodName: String, amount: Double, unit: FoodUnit, customUnitLabel: String?, sortOrder: Int) {
+        self.foodName = foodName
+        self.amount = amount
+        self.unit = unit
+        self.customUnitLabel = customUnitLabel
+        self.sortOrder = sortOrder
     }
 }
 
@@ -41,6 +59,7 @@ public enum NestEventExport: Codable, Sendable {
     case bath(NestBathExport)
     case breastFeed(NestBreastFeedExport)
     case bottleFeed(NestBottleFeedExport)
+    case food(NestFoodExport)
     case sleep(NestSleepExport)
     case nappy(NestNappyExport)
     case medication(NestMedicationExport)
@@ -54,10 +73,12 @@ public enum NestEventExport: Codable, Sendable {
         case side, startedAt, endedAt, leftDurationSeconds, rightDurationSeconds
         // bottleFeed
         case amountMilliliters, milkType
+        // food
+        case foodName, amount, unit, customUnitLabel
         // nappy
         case nappyType, peeVolume, pooVolume, pooColor
         // medication
-        case medicineName, amount, unit, customUnitLabel
+        case medicineName
     }
 
     public init(from decoder: any Decoder) throws {
@@ -94,6 +115,20 @@ public enum NestEventExport: Codable, Sendable {
                 notes: notes,
                 amountMilliliters: try c.decode(Int.self, forKey: .amountMilliliters),
                 milkType: try c.decodeIfPresent(String.self, forKey: .milkType).flatMap(MilkType.init(rawValue:))
+            ))
+        case "food":
+            let unitRaw = try c.decode(String.self, forKey: .unit)
+            guard let unit = FoodUnit(rawValue: unitRaw) else {
+                throw DecodingError.dataCorruptedError(forKey: .unit, in: c, debugDescription: "Unknown Food unit: \(unitRaw)")
+            }
+            self = .food(NestFoodExport(
+                id: id,
+                occurredAt: occurredAt,
+                notes: notes,
+                foodName: try c.decode(String.self, forKey: .foodName),
+                amount: try c.decode(Double.self, forKey: .amount),
+                unit: unit,
+                customUnitLabel: try c.decodeIfPresent(String.self, forKey: .customUnitLabel)
             ))
         case "sleep":
             self = .sleep(NestSleepExport(
@@ -167,6 +202,16 @@ public enum NestEventExport: Codable, Sendable {
             try c.encode(e.amountMilliliters, forKey: .amountMilliliters)
             try c.encodeIfPresent(e.milkType?.rawValue, forKey: .milkType)
 
+        case .food(let e):
+            try c.encode("food", forKey: .type)
+            try c.encode(e.id, forKey: .id)
+            try c.encode(e.occurredAt, forKey: .occurredAt)
+            try c.encode(e.notes, forKey: .notes)
+            try c.encode(e.foodName, forKey: .foodName)
+            try c.encode(e.amount, forKey: .amount)
+            try c.encode(e.unit.rawValue, forKey: .unit)
+            try c.encodeIfPresent(e.customUnitLabel, forKey: .customUnitLabel)
+
         case .sleep(let e):
             try c.encode("sleep", forKey: .type)
             try c.encode(e.id, forKey: .id)
@@ -195,6 +240,26 @@ public enum NestEventExport: Codable, Sendable {
             try c.encode(e.unit.rawValue, forKey: .unit)
             try c.encodeIfPresent(e.customUnitLabel, forKey: .customUnitLabel)
         }
+    }
+}
+
+public struct NestFoodExport: Sendable {
+    public let id: UUID
+    public let occurredAt: Date
+    public let notes: String
+    public let foodName: String
+    public let amount: Double
+    public let unit: FoodUnit
+    public let customUnitLabel: String?
+
+    public init(id: UUID, occurredAt: Date, notes: String, foodName: String, amount: Double, unit: FoodUnit, customUnitLabel: String?) {
+        self.id = id
+        self.occurredAt = occurredAt
+        self.notes = notes
+        self.foodName = foodName
+        self.amount = amount
+        self.unit = unit
+        self.customUnitLabel = customUnitLabel
     }
 }
 

@@ -64,7 +64,7 @@ public enum TodaySummaryCalculator {
         let allFeedEvents = todayEvents.filter {
             switch $0 {
             case .breastFeed, .bottleFeed: true
-            case .bath, .sleep, .nappy, .medication: false
+            case .bath, .food, .sleep, .nappy, .medication: false
             }
         }
         let averageFeedInterval = averageFeedIntervalMinutes(for: allFeedEvents)
@@ -73,6 +73,14 @@ public enum TodaySummaryCalculator {
         let lastFeedDate = allFeedEvents.map(\.metadata.occurredAt).max()
         let minutesSinceLastFeed = lastFeedDate.map {
             max(0, Int(effectiveNow.timeIntervalSince($0) / 60))
+        }
+
+        let foods = todayEvents.compactMap { event -> FoodEvent? in
+            guard case let .food(food) = event else { return nil }
+            return food
+        }
+        let latestFoods = foods.sorted { $0.metadata.occurredAt > $1.metadata.occurredAt }.prefix(3).map {
+            TodaySummaryData.LatestFood(foodName: $0.foodName, displayAmount: $0.displayAmount)
         }
 
         // Sleep - current active session state is only meaningful for the actual current day.
@@ -174,6 +182,8 @@ public enum TodaySummaryCalculator {
             averageBreastFeedMinutes: averageBreastFeedMinutes,
             averageFeedIntervalMinutes: averageFeedInterval,
             minutesSinceLastFeed: minutesSinceLastFeed,
+            foodCount: foods.count,
+            latestFoods: latestFoods,
             totalSleepMinutes: totalSleepMinutes,
             daytimeSleepMinutes: daytimeSleepMinutes,
             nighttimeSleepMinutes: nighttimeSleepMinutes,
@@ -265,6 +275,10 @@ public enum TodaySummaryCalculator {
                 todayAmounts: breastHourlyAmounts(events: todayEvents, calendar: calendar),
                 historicalAmounts: historicalDays.map { breastHourlyAmounts(events: $0, calendar: calendar) }
             ),
+            food: buildCumulativeSeries(
+                todayAmounts: foodHourlyAmounts(events: todayEvents, calendar: calendar),
+                historicalAmounts: historicalDays.map { foodHourlyAmounts(events: $0, calendar: calendar) }
+            ),
             sleep: buildCumulativeSeries(
                 todayAmounts: sleepHourlyAmounts(
                     allEvents: allEvents,
@@ -330,6 +344,7 @@ public enum TodaySummaryCalculator {
             ),
             bottleHourlyMarkers: makeBottleHourlyMarkers(events: todayEvents, calendar: calendar),
             breastHourlyMarkers: makeBreastHourlyMarkers(events: todayEvents, calendar: calendar),
+            foodHourlyMarkers: makeFoodHourlyMarkers(events: todayEvents, calendar: calendar),
             sleepHourlyMarkers: makeSleepHourlyMarkers(events: todayEvents, calendar: calendar),
             nappyHourlyMarkers: makeNappyHourlyMarkers(events: todayEvents, calendar: calendar)
         )
@@ -370,6 +385,20 @@ public enum TodaySummaryCalculator {
                 side: feed.side,
                 durationMinutes: durationMinutes,
                 time: markerTimeFormatter.string(from: feed.endedAt)
+            ))
+        }
+        return result
+    }
+
+    private static func makeFoodHourlyMarkers(events: [BabyEvent], calendar: Calendar) -> [[FoodEventMarker]] {
+        var result = [[FoodEventMarker]](repeating: [], count: 24)
+        for event in events.sorted(by: { $0.metadata.occurredAt < $1.metadata.occurredAt }) {
+            guard case let .food(food) = event else { continue }
+            let hour = calendar.component(.hour, from: food.metadata.occurredAt)
+            result[hour].append(FoodEventMarker(
+                foodName: food.foodName,
+                displayAmount: food.displayAmount,
+                time: markerTimeFormatter.string(from: food.metadata.occurredAt)
             ))
         }
         return result
@@ -463,6 +492,15 @@ public enum TodaySummaryCalculator {
             guard case let .breastFeed(feed) = event else { continue }
             let h = calendar.component(.hour, from: feed.endedAt)
             amounts[h] += 1
+        }
+        return amounts
+    }
+
+    private static func foodHourlyAmounts(events: [BabyEvent], calendar: Calendar) -> [Int] {
+        var amounts = [Int](repeating: 0, count: 24)
+        for event in events {
+            guard case let .food(food) = event else { continue }
+            amounts[calendar.component(.hour, from: food.metadata.occurredAt)] += 1
         }
         return amounts
     }

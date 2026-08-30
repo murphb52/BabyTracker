@@ -95,6 +95,10 @@ public final class HomeViewModel {
                 id = feed.id
                 kind = .bottleFeed
                 occurredAt = feed.metadata.occurredAt
+            case let .food(food):
+                id = food.id
+                kind = .food
+                occurredAt = food.metadata.occurredAt
             case let .sleep(sleep):
                 id = sleep.id
                 kind = .sleep

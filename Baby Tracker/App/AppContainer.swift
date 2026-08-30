@@ -21,6 +21,7 @@ struct AppContainer {
         let membershipRepository = SwiftDataMembershipRepository(store: store)
         let childSelectionStore = UserDefaultsChildSelectionStore(userDefaults: userDefaults)
         let eventRepository = SwiftDataEventRepository(store: store)
+        let foodPresetRepository = SwiftDataFoodPresetRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
         let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
         let liveActivityPreferenceStore = UserDefaultsLiveActivityPreferenceStore(userDefaults: userDefaults)
@@ -59,6 +60,7 @@ struct AppContainer {
             userIdentityRepository: userIdentityRepository,
             membershipRepository: membershipRepository,
             eventRepository: eventRepository,
+            foodPresetRepository: foodPresetRepository,
             syncStateRepository: syncStateRepository,
             recordMetadataRepository: recordMetadataRepository,
             client: cloudKitClient
@@ -69,6 +71,7 @@ struct AppContainer {
             membershipRepository: membershipRepository,
             childSelectionStore: childSelectionStore,
             eventRepository: eventRepository,
+            foodPresetRepository: foodPresetRepository,
             syncEngine: syncEngine,
             liveActivityManager: liveActivityManager,
             liveActivityPreferenceStore: liveActivityPreferenceStore,
@@ -115,6 +118,7 @@ struct AppContainer {
         let membershipRepository = SwiftDataMembershipRepository(store: store)
         let childSelectionStore = UserDefaultsChildSelectionStore(userDefaults: userDefaults)
         let eventRepository = SwiftDataEventRepository(store: store)
+        let foodPresetRepository = SwiftDataFoodPresetRepository(store: store)
         let syncStateRepository = SwiftDataSyncStateRepository(store: store)
         let recordMetadataRepository = SwiftDataCloudKitRecordMetadataRepository(store: store)
         let liveActivityPreferenceStore = UserDefaultsLiveActivityPreferenceStore(userDefaults: userDefaults)
@@ -135,6 +139,7 @@ struct AppContainer {
             userIdentityRepository: userIdentityRepository,
             membershipRepository: membershipRepository,
             eventRepository: eventRepository,
+            foodPresetRepository: foodPresetRepository,
             syncStateRepository: syncStateRepository,
             recordMetadataRepository: recordMetadataRepository,
             client: UnavailableCloudKitClient()
@@ -145,6 +150,7 @@ struct AppContainer {
             membershipRepository: membershipRepository,
             childSelectionStore: childSelectionStore,
             eventRepository: eventRepository,
+            foodPresetRepository: foodPresetRepository,
             syncEngine: syncEngine,
             liveActivityManager: NoOpFeedLiveActivityManager(),
             liveActivityPreferenceStore: liveActivityPreferenceStore,
@@ -292,6 +298,7 @@ struct AppContainer {
             let child = try Child(name: "Poppy", birthDate: .now, createdBy: owner.id)
             let feedTime = Date(timeIntervalSinceNow: -7_200)
             let sleepEnd = Date(timeIntervalSinceNow: -1_800)
+            let foodTime = Date(timeIntervalSinceNow: -3_600)
 
             try userIdentityRepository.saveUser(owner)
             try childRepository.saveChild(child)
@@ -319,8 +326,20 @@ struct AppContainer {
                 startedAt: sleepEnd.addingTimeInterval(-1_800),
                 endedAt: sleepEnd
             )
+            let food = try FoodEvent(
+                metadata: EventMetadata(
+                    childID: child.id,
+                    occurredAt: foodTime,
+                    createdAt: foodTime,
+                    createdBy: owner.id
+                ),
+                foodName: "Porridge",
+                amount: 0.5,
+                unit: .bowl
+            )
 
             try eventRepository.saveEvent(.bottleFeed(bottleFeed))
+            try eventRepository.saveEvent(.food(food))
             try eventRepository.saveEvent(.sleep(sleep))
         }
     }

@@ -116,6 +116,8 @@ struct FeedLiveActivityContentView: View {
             "heart.text.square"
         case .bottleFeed:
             "drop.circle"
+        case .food:
+            "fork.knife"
         case .sleep:
             "bed.double"
         case .nappy:

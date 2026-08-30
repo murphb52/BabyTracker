@@ -5,6 +5,27 @@ import Testing
 
 struct TrendsSummaryCalculatorTests {
     @Test
+    func foodTrendCountsEntriesAndAveragesActiveDays() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let childID = UUID()
+        let userID = UUID()
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 3, day: 26, hour: 12)))
+        let yesterday = now.addingTimeInterval(-86_400)
+        let events: [BabyEvent] = [
+            .food(try FoodEvent(metadata: EventMetadata(childID: childID, occurredAt: now, createdBy: userID), foodName: "Banana", amount: 20, unit: .grams)),
+            .food(try FoodEvent(metadata: EventMetadata(childID: childID, occurredAt: yesterday, createdBy: userID), foodName: "Porridge", amount: 1, unit: .bowl)),
+            .food(try FoodEvent(metadata: EventMetadata(childID: childID, occurredAt: yesterday.addingTimeInterval(60), createdBy: userID), foodName: "Yoghurt", amount: 1, unit: .pouch)),
+        ]
+
+        let data = TrendsSummaryCalculator.makeData(from: events, range: .sevenDays, now: now, calendar: calendar)
+
+        #expect(data.dailyFood.first(where: { calendar.isDate($0.date, inSameDayAs: yesterday) })?.count == 2)
+        #expect(data.avgDailyFoodEntries == 2)
+        #expect(data.avgDailyBottleMilliliters == nil)
+    }
+
+    @Test
     func bathTrendCountsAreGroupedPerDayAndAverageOverNonZeroDays() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!

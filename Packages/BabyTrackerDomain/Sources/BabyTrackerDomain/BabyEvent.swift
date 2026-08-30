@@ -4,6 +4,7 @@ public enum BabyEvent: Equatable, Identifiable, Sendable {
     case bath(BathEvent)
     case breastFeed(BreastFeedEvent)
     case bottleFeed(BottleFeedEvent)
+    case food(FoodEvent)
     case sleep(SleepEvent)
     case nappy(NappyEvent)
     case medication(MedicationEvent)
@@ -19,6 +20,8 @@ public enum BabyEvent: Equatable, Identifiable, Sendable {
         case let .breastFeed(event):
             event.metadata
         case let .bottleFeed(event):
+            event.metadata
+        case let .food(event):
             event.metadata
         case let .sleep(event):
             event.metadata
@@ -37,6 +40,8 @@ public enum BabyEvent: Equatable, Identifiable, Sendable {
             .breastFeed
         case .bottleFeed:
             .bottleFeed
+        case .food:
+            .food
         case .sleep:
             .sleep
         case .nappy:
@@ -60,7 +65,7 @@ public enum BabyEvent: Equatable, Identifiable, Sendable {
             return sleep.startedAt < endOfDay && end > startOfDay
         case let .breastFeed(feed):
             return feed.startedAt < endOfDay && feed.endedAt > startOfDay
-        case .bath, .bottleFeed, .nappy, .medication:
+        case .bath, .bottleFeed, .food, .nappy, .medication:
             return metadata.occurredAt >= startOfDay && metadata.occurredAt < endOfDay
         }
     }

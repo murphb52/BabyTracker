@@ -8,6 +8,8 @@ public enum CloudKitConfiguration {
     public static let membershipRecordType = "Membership"
     public static let breastFeedRecordType = "BreastFeedEvent"
     public static let bottleFeedRecordType = "BottleFeedEvent"
+    public static let foodRecordType = "FoodEvent"
+    public static let foodPresetRecordType = "FoodPreset"
     public static let sleepRecordType = "SleepEvent"
     public static let nappyRecordType = "NappyEvent"
     public static let bathRecordType = "BathEvent"

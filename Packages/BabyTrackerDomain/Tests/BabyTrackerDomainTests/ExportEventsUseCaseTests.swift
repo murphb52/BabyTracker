@@ -3,7 +3,7 @@ import XCTest
 
 final class ExportEventsUseCaseTests: XCTestCase {
     @MainActor
-    func testExportAlwaysIncludesChildProfileAndVersionOne() throws {
+    func testExportAlwaysIncludesChildProfileAndVersionTwo() throws {
         let eventRepository = StubEventRepository()
         let useCase = ExportEventsUseCase(
             eventRepository: eventRepository,
@@ -24,7 +24,7 @@ final class ExportEventsUseCaseTests: XCTestCase {
         decoder.dateDecodingStrategy = .iso8601
         let exportData = try decoder.decode(NestExportData.self, from: data)
 
-        XCTAssertEqual(exportData.version, 1)
+        XCTAssertEqual(exportData.version, 2)
         XCTAssertEqual(exportData.child.id, child.id)
         XCTAssertEqual(exportData.child.name, child.name)
         XCTAssertEqual(exportData.child.birthDate, child.birthDate)

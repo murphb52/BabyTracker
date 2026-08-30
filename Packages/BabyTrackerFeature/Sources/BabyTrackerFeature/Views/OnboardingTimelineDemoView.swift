@@ -210,6 +210,8 @@ struct OnboardingTimelineDemoView: View {
             baseDelay = 210
         case .breastFeed, .bottleFeed:
             baseDelay = 130
+        case .food:
+            baseDelay = 160
         case .nappy:
             baseDelay = 240
         case .medication:

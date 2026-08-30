@@ -305,6 +305,7 @@ public struct SummaryScreenView: View {
                     dateNavigationRow
                     if enabled.contains(.sleep) { sleepSectionCard(data: data) }
                     if enabled.contains(.bottleFeed) { bottleSectionCard(data: data) }
+                    if enabled.contains(.food) { foodSectionCard(data: data) }
                     if enabled.contains(.breastFeed) { breastSectionCard(data: data) }
                     if enabled.contains(.nappy) { nappySectionCard(data: data) }
                     advancedSummaryLink
@@ -442,6 +443,29 @@ public struct SummaryScreenView: View {
         return Text(parts.isEmpty ? "\(data.bottleCount) feed\(data.bottleCount == 1 ? "" : "s")" : parts.joined(separator: " • "))
             .font(.caption)
             .foregroundStyle(.secondary)
+    }
+
+    private func foodSectionCard(data: TodaySummaryData) -> some View {
+        let tint = BabyEventStyle.accentColor(for: .food)
+        return sectionCard(title: "Food", symbol: "fork.knife", tint: tint) {
+            Text("\(data.foodCount) entr\(data.foodCount == 1 ? "y" : "ies")")
+                .font(.title3.weight(.bold))
+            ForEach(Array(data.latestFoods.enumerated()), id: \.offset) { _, food in
+                HStack {
+                    Text(food.foodName)
+                    Spacer()
+                    Text(food.displayAmount).foregroundStyle(.secondary)
+                }
+                .font(.subheadline)
+            }
+            CumulativeLineChartView(
+                series: data.chartData.food,
+                tint: tint,
+                isToday: isSelectedDateToday,
+                eventMarkers: foodEventMarkers(from: data.chartData)
+            )
+            .padding(.top, 4)
+        }
     }
 
     private func bottleFeedTimingRow(data: TodaySummaryData) -> some View {
@@ -637,6 +661,12 @@ public struct SummaryScreenView: View {
         }
     }
 
+    private func foodEventMarkers(from chartData: TodayChartData) -> [[String]] {
+        chartData.foodHourlyMarkers.map { markers in
+            markers.map { "\($0.foodName) · \($0.displayAmount) · \($0.time)" }
+        }
+    }
+
     private func loggingStreakRow(data: TodaySummaryData) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "flame.fill")
@@ -687,6 +717,7 @@ public struct SummaryScreenView: View {
             || data.dailySleep.contains { $0.totalMinutes > 0 }
             || data.dailyNappy.contains { $0.totalCount > 0 }
             || data.dailyBath.contains { $0.count > 0 }
+            || data.dailyFood.contains { $0.count > 0 }
 
         let enabled = viewModel.enabledEventKinds
         return VStack(alignment: .leading, spacing: 12) {
@@ -701,6 +732,7 @@ public struct SummaryScreenView: View {
                 if enabled.contains(.sleep) { sleepChartCard(data: data) }
                 if enabled.contains(.bath) { bathChartCard(data: data) }
                 if enabled.contains(.bottleFeed) { bottleChartCard(data: data) }
+                if enabled.contains(.food) { foodChartCard(data: data) }
                 if enabled.contains(.breastFeed) { breastChartCard(data: data) }
                 if enabled.contains(.nappy) { nappyChartCard(data: data) }
             }
@@ -759,6 +791,23 @@ public struct SummaryScreenView: View {
                 points: points,
                 tint: .pink,
                 averageValue: data.avgDailyBreastFeedSessions
+            )
+        }
+    }
+
+    private func foodChartCard(data: TrendsSummaryData) -> some View {
+        let tint = BabyEventStyle.accentColor(for: .food)
+        let average = data.avgDailyFoodEntries
+        return chartCard(
+            title: "Food",
+            symbol: "fork.knife",
+            tint: tint,
+            subtitle: average.map { "Avg \($0) entr\($0 == 1 ? "y" : "ies")/active day" } ?? "No Food entries in this period"
+        ) {
+            TrendsBarChartView(
+                points: data.dailyFood.map { ($0.label, $0.count) },
+                tint: tint,
+                averageValue: average
             )
         }
     }

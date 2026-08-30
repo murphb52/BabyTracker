@@ -64,6 +64,8 @@ public final class AppModel {
     public private(set) var activeEventFilter: EventFilter = .empty
     /// Pending medication reminder notifications for the current child.
     public private(set) var pendingMedicationReminders: [PendingMedicationReminder] = []
+    /// Saved Food entries for the selected child, in the caregiver-defined order.
+    public private(set) var foodPresets: [FoodPreset] = []
 
     private let logger = Logger(subsystem: "com.adappt.BabyTracker", category: "AppModel")
     private let childRepository: any ChildRepository
@@ -71,6 +73,7 @@ public final class AppModel {
     private let membershipRepository: any MembershipRepository
     private let childSelectionStore: any ChildSelectionStore
     private let eventRepository: EventRepository
+    private let foodPresetRepository: any FoodPresetRepository
     private let syncEngine: any CloudKitSyncControlling
     private let liveActivityManager: any FeedLiveActivityManaging
     private let liveActivityPreferenceStore: any LiveActivityPreferenceStore
@@ -99,6 +102,7 @@ public final class AppModel {
         membershipRepository: any MembershipRepository,
         childSelectionStore: any ChildSelectionStore,
         eventRepository: EventRepository,
+        foodPresetRepository: any FoodPresetRepository = InMemoryFoodPresetRepository(),
         syncEngine: any CloudKitSyncControlling,
         liveActivityManager: any FeedLiveActivityManaging = NoOpFeedLiveActivityManager(),
         liveActivityPreferenceStore: any LiveActivityPreferenceStore = InMemoryLiveActivityPreferenceStore(),
@@ -115,6 +119,7 @@ public final class AppModel {
         self.membershipRepository = membershipRepository
         self.childSelectionStore = childSelectionStore
         self.eventRepository = eventRepository
+        self.foodPresetRepository = foodPresetRepository
         self.syncEngine = syncEngine
         self.liveActivityManager = liveActivityManager
         self.liveActivityPreferenceStore = liveActivityPreferenceStore
@@ -860,6 +865,47 @@ public final class AppModel {
         return succeeded
     }
 
+    @discardableResult
+    public func logFood(
+        occurredAt: Date,
+        foodName: String,
+        amount: Double,
+        unit: FoodUnit,
+        customUnitLabel: String?,
+        saveAsPreset: Bool
+    ) -> Bool {
+        let didSaveEvent = perform(onSuccess: handleSuccessfulEventLog) {
+            guard let currentChild, let currentMembership, let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            _ = try LogFoodUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            ).execute(.init(
+                childID: currentChild.id,
+                localUserID: localUser.id,
+                occurredAt: occurredAt,
+                foodName: foodName,
+                amount: amount,
+                unit: unit,
+                customUnitLabel: customUnitLabel,
+                membership: currentMembership
+            ))
+        }
+
+        guard didSaveEvent, saveAsPreset else { return didSaveEvent }
+        guard saveFoodPreset(
+            foodName: foodName,
+            amount: amount,
+            unit: unit,
+            customUnitLabel: customUnitLabel
+        ) else {
+            transientMessage = "Food was logged, but the preset couldn't be saved."
+            return true
+        }
+        return true
+    }
+
     public func medicationReminderPreference(for medicineName: String) -> MedicationReminderPreference? {
         guard let childID = currentChild?.id else { return nil }
         return medicationReminderPreferenceStore.preference(for: medicineName, childID: childID)
@@ -1086,6 +1132,35 @@ public final class AppModel {
     }
 
     @discardableResult
+    public func updateFood(
+        id: UUID,
+        occurredAt: Date,
+        foodName: String,
+        amount: Double,
+        unit: FoodUnit,
+        customUnitLabel: String?
+    ) -> Bool {
+        perform {
+            guard let currentMembership, let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            try UpdateFoodUseCase(
+                eventRepository: eventRepository,
+                hapticFeedbackProvider: hapticFeedbackProvider
+            ).execute(.init(
+                eventID: id,
+                localUserID: localUser.id,
+                occurredAt: occurredAt,
+                foodName: foodName,
+                amount: amount,
+                unit: unit,
+                customUnitLabel: customUnitLabel,
+                membership: currentMembership
+            ))
+        }
+    }
+
+    @discardableResult
     public func updateBottleFeed(
         id: UUID,
         amountMilliliters: Int,
@@ -1172,6 +1247,88 @@ public final class AppModel {
         guard let currentChild else { return [] }
         return (try? FetchRecentMedicineNamesUseCase(eventRepository: eventRepository)
             .execute(.init(childID: currentChild.id))) ?? []
+    }
+
+    /// Food names previously logged for the current child, most-recent first.
+    public func recentFoodNames() -> [String] {
+        guard let currentChild else { return [] }
+        return (try? FetchRecentFoodNamesUseCase(eventRepository: eventRepository)
+            .execute(.init(childID: currentChild.id))) ?? []
+    }
+
+    @discardableResult
+    public func saveFoodPreset(
+        foodName: String,
+        amount: Double,
+        unit: FoodUnit,
+        customUnitLabel: String?
+    ) -> Bool {
+        perform {
+            guard let currentChild, let currentMembership, let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            _ = try SaveFoodPresetUseCase(repository: foodPresetRepository).execute(.init(
+                childID: currentChild.id,
+                localUserID: localUser.id,
+                foodName: foodName,
+                amount: amount,
+                unit: unit,
+                customUnitLabel: customUnitLabel,
+                membership: currentMembership
+            ))
+        }
+    }
+
+    @discardableResult
+    public func updateFoodPreset(
+        id: UUID,
+        foodName: String,
+        amount: Double,
+        unit: FoodUnit,
+        customUnitLabel: String?
+    ) -> Bool {
+        perform {
+            guard let currentMembership, let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            try UpdateFoodPresetUseCase(repository: foodPresetRepository).execute(.init(
+                presetID: id,
+                localUserID: localUser.id,
+                foodName: foodName,
+                amount: amount,
+                unit: unit,
+                customUnitLabel: customUnitLabel,
+                membership: currentMembership
+            ))
+        }
+    }
+
+    @discardableResult
+    public func deleteFoodPreset(id: UUID) -> Bool {
+        perform {
+            guard let currentMembership, let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            try DeleteFoodPresetUseCase(repository: foodPresetRepository).execute(.init(
+                presetID: id,
+                localUserID: localUser.id,
+                membership: currentMembership
+            ))
+        }
+    }
+
+    @discardableResult
+    public func reorderFoodPresets(ids: [UUID]) -> Bool {
+        perform {
+            guard let currentMembership, let localUser else {
+                throw ChildProfileValidationError.insufficientPermissions
+            }
+            try ReorderFoodPresetsUseCase(repository: foodPresetRepository).execute(.init(
+                orderedPresetIDs: ids,
+                localUserID: localUser.id,
+                membership: currentMembership
+            ))
+        }
     }
 
     /// Default ml quick-pick amounts for the current child, chosen by age.
@@ -1462,6 +1619,10 @@ public final class AppModel {
             synchronizeTimelineSelection(for: currentSummary.child.id)
 
             let visibleEvents = try loadVisibleEvents(for: currentSummary.child.id)
+            let loadedFoodPresets = try foodPresetRepository.loadPresets(
+                for: currentSummary.child.id,
+                includingDeleted: false
+            )
             let builtTimelinePages = loadTimelinePages(
                 child: currentSummary.child,
                 from: visibleEvents,
@@ -1484,6 +1645,8 @@ public final class AppModel {
                 (.bathEvent,        "drop.fill",                   "Baths"),
                 (.breastFeedEvent, "figure.seated.side.air.upper", "Breast feeds"),
                 (.bottleFeedEvent, "waterbottle.fill",             "Bottle feeds"),
+                (.foodEvent,       "fork.knife",                   "Food entries"),
+                (.foodPreset,      "list.star",                    "Food presets"),
                 (.sleepEvent,      "moon.zzz.fill",                "Sleep sessions"),
                 (.nappyEvent,      "checklist.checked",            "Nappy changes"),
                 (.membership,      "person.2.fill",                "Sharing info"),
@@ -1506,6 +1669,7 @@ public final class AppModel {
 
             // Set flat observable properties — triggers ViewModel recomputation
             events = visibleEvents
+            foodPresets = loadedFoodPresets
             currentChild = currentSummary.child
             currentMembership = resolvedMembership
             activeSleep = currentActiveSleep
@@ -1552,6 +1716,7 @@ public final class AppModel {
 
     private func clearProfileData() {
         events = []
+        foodPresets = []
         currentChild = nil
         currentMembership = nil
         activeSleep = nil
@@ -1769,6 +1934,8 @@ public final class AppModel {
             return "Bath"
         case .bottleFeed:
             return "Bottle"
+        case .food:
+            return "Food"
         case .breastFeed:
             return "Breast"
         case .medication:
@@ -1782,6 +1949,7 @@ public final class AppModel {
         case .nappy: return .nappy
         case .bath: return .bath
         case .bottleFeed: return .bottleFeed
+        case .food: return .food
         case .breastFeed: return .breastFeed
         case .medication: return .medication
         }
@@ -1795,6 +1963,8 @@ public final class AppModel {
             return "\(shortTimeText(for: feed.startedAt))-\(shortTimeText(for: feed.endedAt))"
         case let .bottleFeed(feed):
             return shortTimeText(for: feed.metadata.occurredAt)
+        case let .food(food):
+            return shortTimeText(for: food.metadata.occurredAt)
         case let .sleep(sleep):
             if let endedAt = sleep.endedAt {
                 return "\(shortTimeText(for: sleep.startedAt))-\(shortTimeText(for: endedAt))"
@@ -1843,6 +2013,8 @@ public final class AppModel {
                 detailText: "",
                 timeText: ""
             )
+        case let .food(food):
+            return (title: food.foodName, detailText: food.displayAmount, timeText: "")
         case let .breastFeed(feed):
             let durationMinutes = max(1, Int(feed.endedAt.timeIntervalSince(feed.startedAt) / 60))
             return (
@@ -1900,6 +2072,14 @@ public final class AppModel {
                 amountMilliliters: feed.amountMilliliters,
                 occurredAt: feed.metadata.occurredAt,
                 milkType: feed.milkType
+            )
+        case let .food(food):
+            return .editFood(
+                occurredAt: food.metadata.occurredAt,
+                foodName: food.foodName,
+                amount: food.amount,
+                unit: food.unit,
+                customUnitLabel: food.customUnitLabel
             )
         case let .sleep(sleep):
             if let endedAt = sleep.endedAt {
@@ -2168,6 +2348,7 @@ public final class AppModel {
     public func performExport(child: Child, membership: Membership) throws -> URL {
         let data = try ExportEventsUseCase(
             eventRepository: eventRepository,
+            foodPresetRepository: foodPresetRepository,
             hapticFeedbackProvider: hapticFeedbackProvider
         )
         .execute(.init(child: child, membership: membership))
@@ -2232,6 +2413,7 @@ public final class AppModel {
             membershipRepository: membershipRepository,
             childSelectionStore: childSelectionStore,
             eventRepository: eventRepository,
+            foodPresetRepository: foodPresetRepository,
             hapticFeedbackProvider: hapticFeedbackProvider
         ).execute(
             .init(exportData: exportData, localUser: localUser),

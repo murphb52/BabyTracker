@@ -14,13 +14,16 @@ public struct ExportEventsUseCase: UseCase {
     }
 
     private let eventRepository: any EventRepository
+    private let foodPresetRepository: (any FoodPresetRepository)?
     private let hapticFeedbackProvider: any HapticFeedbackProviding
 
     public init(
         eventRepository: any EventRepository,
+        foodPresetRepository: (any FoodPresetRepository)? = nil,
         hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
     ) {
         self.eventRepository = eventRepository
+        self.foodPresetRepository = foodPresetRepository
         self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
@@ -28,6 +31,15 @@ public struct ExportEventsUseCase: UseCase {
         let events = try eventRepository.loadTimeline(for: input.child.id, includingDeleted: false)
 
         let exportEvents: [NestEventExport] = events.compactMap { nestEvent(from: $0) }
+        let presets = try foodPresetRepository?.loadPresets(for: input.child.id, includingDeleted: false).map {
+            NestFoodPresetExport(
+                foodName: $0.foodName,
+                amount: $0.amount,
+                unit: $0.unit,
+                customUnitLabel: $0.customUnitLabel,
+                sortOrder: $0.sortOrder
+            )
+        }
 
         let childExport = NestChildExport(
             id: input.child.id,
@@ -35,10 +47,11 @@ public struct ExportEventsUseCase: UseCase {
             birthDate: input.child.birthDate
         )
         let exportData = NestExportData(
-            version: 1,
+            version: 2,
             exportedAt: Date(),
             child: childExport,
-            events: exportEvents
+            events: exportEvents,
+            foodPresets: presets
         )
 
         let encoder = JSONEncoder()
@@ -79,6 +92,16 @@ public struct ExportEventsUseCase: UseCase {
                 notes: e.metadata.notes,
                 amountMilliliters: e.amountMilliliters,
                 milkType: e.milkType
+            ))
+        case .food(let e):
+            return .food(NestFoodExport(
+                id: e.metadata.id,
+                occurredAt: e.metadata.occurredAt,
+                notes: e.metadata.notes,
+                foodName: e.foodName,
+                amount: e.amount,
+                unit: e.unit,
+                customUnitLabel: e.customUnitLabel
             ))
         case .sleep(let e):
             guard let endedAt = e.endedAt else {

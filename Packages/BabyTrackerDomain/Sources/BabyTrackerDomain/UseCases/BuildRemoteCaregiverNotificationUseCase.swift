@@ -74,6 +74,8 @@ public struct BuildRemoteCaregiverNotificationUseCase: Sendable {
             return "\(change.actorDisplayName) logged a \(nappyDescriptor(for: event.type)) nappy at \(formatTime(event.metadata.occurredAt))."
         case let .bottleFeed(event):
             return "\(change.actorDisplayName) logged a bottle feed at \(formatTime(event.metadata.occurredAt))."
+        case let .food(event):
+            return "\(change.actorDisplayName) logged \(event.foodName) at \(formatTime(event.metadata.occurredAt))."
         case let .breastFeed(event):
             return "\(change.actorDisplayName) logged a breast feed at \(formatTime(event.metadata.occurredAt))."
         case let .medication(event):
@@ -91,6 +93,8 @@ public struct BuildRemoteCaregiverNotificationUseCase: Sendable {
             return "\(change.actorDisplayName) deleted a \(nappyDescriptor(for: event.type)) nappy log."
         case .bottleFeed:
             return "\(change.actorDisplayName) deleted a bottle feed log."
+        case let .food(event):
+            return "\(change.actorDisplayName) deleted a \(event.foodName) log."
         case .breastFeed:
             return "\(change.actorDisplayName) deleted a breast feed log."
         case let .medication(event):

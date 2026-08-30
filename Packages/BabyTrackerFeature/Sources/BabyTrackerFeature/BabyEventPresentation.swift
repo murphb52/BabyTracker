@@ -14,6 +14,8 @@ public enum BabyEventPresentation {
             "Breast Feed"
         case .bottleFeed:
             "Bottle Feed"
+        case .food:
+            "Food"
         case .sleep:
             "Sleep"
         case .nappy:
@@ -34,6 +36,8 @@ public enum BabyEventPresentation {
             breastFeedDetailText(for: feed)
         case let .bottleFeed(feed):
             bottleFeedDetailText(for: feed, preferredFeedVolumeUnit: preferredFeedVolumeUnit)
+        case let .food(food):
+            "\(food.foodName) • \(food.displayAmount)"
         case let .sleep(event):
             sleepDetailText(for: event)
         case let .nappy(event):
@@ -64,6 +68,8 @@ public enum BabyEventPresentation {
             "figure.seated.side.air.upper"
         case .bottleFeed:
             "waterbottle.fill"
+        case .food:
+            "fork.knife"
         case .sleep:
             "moon.zzz.fill"
         case .nappy:

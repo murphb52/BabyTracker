@@ -15,6 +15,10 @@ public enum CloudKitRecordMapper {
             metadataFieldKeys + ["side", "startedAt", "endedAt", "leftDurationSeconds", "rightDurationSeconds"]
         case CloudKitConfiguration.bottleFeedRecordType:
             metadataFieldKeys + ["amountMilliliters", "milkType"]
+        case CloudKitConfiguration.foodRecordType:
+            metadataFieldKeys + ["foodName", "amount", "unit", "customUnitLabel"]
+        case CloudKitConfiguration.foodPresetRecordType:
+            ["childID", "foodName", "amount", "unit", "customUnitLabel", "sortOrder", "createdAt", "createdBy", "updatedAt", "updatedBy", "isDeleted", "deletedAt"]
         case CloudKitConfiguration.sleepRecordType:
             metadataFieldKeys + ["startedAt", "endedAt"]
         case CloudKitConfiguration.nappyRecordType:
@@ -112,6 +116,8 @@ public enum CloudKitRecordMapper {
             return breastFeedRecord(from: value, zoneID: zoneID)
         case let .bottleFeed(value):
             return bottleFeedRecord(from: value, zoneID: zoneID)
+        case let .food(value):
+            return foodRecord(from: value, zoneID: zoneID)
         case let .sleep(value):
             return sleepRecord(from: value, zoneID: zoneID)
         case let .nappy(value):
@@ -119,6 +125,44 @@ public enum CloudKitRecordMapper {
         case let .medication(value):
             return medicationRecord(from: value, zoneID: zoneID)
         }
+    }
+
+    public static func foodPresetRecord(from preset: FoodPreset, zoneID: CKRecordZone.ID) -> CKRecord {
+        let record = CKRecord(
+            recordType: CloudKitConfiguration.foodPresetRecordType,
+            recordID: CloudKitRecordNames.foodPresetRecordID(presetID: preset.id, zoneID: zoneID)
+        )
+        record["childID"] = preset.childID.uuidString
+        record["foodName"] = preset.foodName
+        record["amount"] = preset.amount
+        record["unit"] = preset.unit.rawValue
+        record["customUnitLabel"] = preset.customUnitLabel
+        record["sortOrder"] = preset.sortOrder
+        record["createdAt"] = preset.createdAt
+        record["createdBy"] = preset.createdBy.uuidString
+        record["updatedAt"] = preset.updatedAt
+        record["updatedBy"] = preset.updatedBy.uuidString
+        record["isDeleted"] = preset.isDeleted
+        record["deletedAt"] = preset.deletedAt
+        return record
+    }
+
+    public static func foodPreset(from record: CKRecord) throws -> FoodPreset {
+        try FoodPreset(
+            id: extractUUID(prefix: "foodPreset.", from: record.recordID.recordName),
+            childID: UUID(uuidString: record["childID"] as? String ?? "") ?? UUID(),
+            foodName: record["foodName"] as? String ?? "",
+            amount: record["amount"] as? Double ?? 0,
+            unit: FoodUnit(rawValue: record["unit"] as? String ?? "") ?? .custom,
+            customUnitLabel: record["customUnitLabel"] as? String,
+            sortOrder: record["sortOrder"] as? Int ?? 0,
+            createdAt: record["createdAt"] as? Date ?? .now,
+            createdBy: UUID(uuidString: record["createdBy"] as? String ?? "") ?? UUID(),
+            updatedAt: record["updatedAt"] as? Date,
+            updatedBy: UUID(uuidString: record["updatedBy"] as? String ?? ""),
+            isDeleted: record["isDeleted"] as? Bool ?? false,
+            deletedAt: record["deletedAt"] as? Date
+        )
     }
 
     public static func child(from record: CKRecord) throws -> Child {
@@ -175,6 +219,8 @@ public enum CloudKitRecordMapper {
             return .breastFeed(try breastFeed(from: record))
         case CloudKitConfiguration.bottleFeedRecordType:
             return .bottleFeed(try bottleFeed(from: record))
+        case CloudKitConfiguration.foodRecordType:
+            return .food(try food(from: record))
         case CloudKitConfiguration.sleepRecordType:
             return .sleep(try sleep(from: record))
         case CloudKitConfiguration.nappyRecordType:
@@ -226,6 +272,19 @@ public enum CloudKitRecordMapper {
         applyMetadata(event.metadata, to: record)
         record["amountMilliliters"] = event.amountMilliliters
         record["milkType"] = event.milkType?.rawValue
+        return record
+    }
+
+    private static func foodRecord(from event: FoodEvent, zoneID: CKRecordZone.ID) -> CKRecord {
+        let record = CKRecord(
+            recordType: CloudKitConfiguration.foodRecordType,
+            recordID: CloudKitRecordNames.foodRecordID(eventID: event.id, zoneID: zoneID)
+        )
+        applyMetadata(event.metadata, to: record)
+        record["foodName"] = event.foodName
+        record["amount"] = event.amount
+        record["unit"] = event.unit.rawValue
+        record["customUnitLabel"] = event.customUnitLabel
         return record
     }
 
@@ -317,6 +376,16 @@ public enum CloudKitRecordMapper {
             metadata: metadata(from: record, prefix: "bottleFeed."),
             amountMilliliters: record["amountMilliliters"] as? Int ?? 0,
             milkType: (record["milkType"] as? String).flatMap(MilkType.init(rawValue:))
+        )
+    }
+
+    private static func food(from record: CKRecord) throws -> FoodEvent {
+        try FoodEvent(
+            metadata: metadata(from: record, prefix: "food."),
+            foodName: record["foodName"] as? String ?? "",
+            amount: record["amount"] as? Double ?? 0,
+            unit: FoodUnit(rawValue: record["unit"] as? String ?? "") ?? .custom,
+            customUnitLabel: record["customUnitLabel"] as? String
         )
     }
 

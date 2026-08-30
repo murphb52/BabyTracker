@@ -71,7 +71,7 @@ public struct EventFilter: Equatable, Sendable {
                 return false
             }
 
-        case .bath:
+        case .bath, .food:
             break
 
         case .medication:

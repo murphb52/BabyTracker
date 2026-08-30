@@ -77,6 +77,14 @@ public enum CloudKitRecordNames {
         )
     }
 
+    static func foodRecordID(eventID: UUID, zoneID: CKRecordZone.ID) -> CKRecord.ID {
+        CKRecord.ID(recordName: "food.\(eventID.uuidString)", zoneID: zoneID)
+    }
+
+    static func foodPresetRecordID(presetID: UUID, zoneID: CKRecordZone.ID) -> CKRecord.ID {
+        CKRecord.ID(recordName: "foodPreset.\(presetID.uuidString)", zoneID: zoneID)
+    }
+
     static func sleepRecordID(
         eventID: UUID,
         zoneID: CKRecordZone.ID
