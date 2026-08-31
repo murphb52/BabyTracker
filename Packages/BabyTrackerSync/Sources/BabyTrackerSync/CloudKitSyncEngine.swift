@@ -687,22 +687,32 @@ public final class CloudKitSyncEngine {
 
         // CloudKit enforces a maximum of 400 records per CKModifyRecordsOperation.
         // Split into batches so large imports (e.g. from Huckleberry) don't fail.
+        //
+        // Records are also grouped by record type before batching. CloudKit can
+        // reject an entire CKModifyRecordsOperation when it contains a record of
+        // a type that isn't recognized in the production schema (e.g. leftover
+        // local data for a retired record type), even with `atomically: false`.
+        // Keeping each type in its own operation stops one bad/unrecognized type
+        // from blocking sync of unrelated, valid records in the same push.
         let cloudKitBatchLimit = 400
         var mergedSaveResults: [CKRecord.ID: Result<CKRecord, Error>] = [:]
-        for batchStart in stride(from: 0, to: outboundRecords.count, by: cloudKitBatchLimit) {
-            let batch = Array(outboundRecords[batchStart..<min(batchStart + cloudKitBatchLimit, outboundRecords.count)])
-            if outboundRecords.count > cloudKitBatchLimit {
-                logger.info("pushPendingChanges '\(childID.uuidString, privacy: .public)' — batch \(batchStart / cloudKitBatchLimit + 1, privacy: .public): \(batch.count, privacy: .public) record(s)")
-                AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — batch \(batchStart / cloudKitBatchLimit + 1): \(batch.count) record(s)")
+        let outboundRecordsByType = Dictionary(grouping: outboundRecords, by: { $0.record.recordType })
+        for typeRecords in outboundRecordsByType.values {
+            for batchStart in stride(from: 0, to: typeRecords.count, by: cloudKitBatchLimit) {
+                let batch = Array(typeRecords[batchStart..<min(batchStart + cloudKitBatchLimit, typeRecords.count)])
+                if typeRecords.count > cloudKitBatchLimit {
+                    logger.info("pushPendingChanges '\(childID.uuidString, privacy: .public)' — batch \(batchStart / cloudKitBatchLimit + 1, privacy: .public): \(batch.count, privacy: .public) record(s)")
+                    AppLogger.shared.log(.info, category: "CloudKitSync", "pushPendingChanges — batch \(batchStart / cloudKitBatchLimit + 1): \(batch.count) record(s)")
+                }
+                let batchResults = try await client.modifyRecords(
+                    saving: batch.map(\.record),
+                    deleting: [],
+                    databaseScope: context.databaseScope,
+                    savePolicy: .ifServerRecordUnchanged,
+                    atomically: false
+                )
+                mergedSaveResults.merge(batchResults.saveResults) { _, new in new }
             }
-            let batchResults = try await client.modifyRecords(
-                saving: batch.map(\.record),
-                deleting: [],
-                databaseScope: context.databaseScope,
-                savePolicy: .ifServerRecordUnchanged,
-                atomically: false
-            )
-            mergedSaveResults.merge(batchResults.saveResults) { _, new in new }
         }
 
         for outboundRecord in outboundRecords {
