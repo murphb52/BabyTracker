@@ -219,6 +219,43 @@ struct CloudKitRecordMapperTests {
     }
 
     @Test
+    func foodEventAndPresetRoundTrip() throws {
+        let childID = UUID()
+        let userID = UUID()
+        let occurredAt = Date(timeIntervalSince1970: 4_500)
+        let zoneID = CloudKitRecordNames.zoneID(for: childID, ownerName: "probe-owner")
+        let food = try FoodEvent(
+            metadata: EventMetadata(childID: childID, occurredAt: occurredAt, createdAt: occurredAt, createdBy: userID),
+            foodName: "Porridge",
+            amount: 0.5,
+            unit: .bowl
+        )
+        let preset = try FoodPreset(
+            childID: childID,
+            foodName: "Banana",
+            amount: 20,
+            unit: .grams,
+            sortOrder: 2,
+            createdAt: occurredAt,
+            createdBy: userID
+        )
+
+        let eventRecord = CloudKitRecordMapper.eventRecord(from: .food(food), zoneID: zoneID)
+        let presetRecord = CloudKitRecordMapper.foodPresetRecord(from: preset, zoneID: zoneID)
+        guard case let .food(mappedFood) = try CloudKitRecordMapper.event(from: eventRecord) else {
+            Issue.record("Expected Food event")
+            return
+        }
+        let mappedPreset = try CloudKitRecordMapper.foodPreset(from: presetRecord)
+
+        #expect(eventRecord.recordType == CloudKitConfiguration.foodRecordType)
+        #expect(mappedFood.foodName == "Porridge")
+        #expect(mappedFood.amount == 0.5)
+        #expect(mappedPreset.foodName == "Banana")
+        #expect(mappedPreset.sortOrder == 2)
+    }
+
+    @Test
     func sleepMapperRoundTripsOpenEndedAndCompletedSessions() throws {
         let childID = UUID()
         let userID = UUID()

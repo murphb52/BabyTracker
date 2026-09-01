@@ -31,6 +31,7 @@ public struct ImportChildWithEventsUseCase {
     private let membershipRepository: any MembershipRepository
     private let childSelectionStore: any ChildSelectionStore
     private let eventRepository: any EventRepository
+    private let foodPresetRepository: (any FoodPresetRepository)?
     private let hapticFeedbackProvider: any HapticFeedbackProviding
 
     public init(
@@ -38,12 +39,14 @@ public struct ImportChildWithEventsUseCase {
         membershipRepository: any MembershipRepository,
         childSelectionStore: any ChildSelectionStore,
         eventRepository: any EventRepository,
+        foodPresetRepository: (any FoodPresetRepository)? = nil,
         hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider()
     ) {
         self.childRepository = childRepository
         self.membershipRepository = membershipRepository
         self.childSelectionStore = childSelectionStore
         self.eventRepository = eventRepository
+        self.foodPresetRepository = foodPresetRepository
         self.hapticFeedbackProvider = hapticFeedbackProvider
     }
 
@@ -89,6 +92,20 @@ public struct ImportChildWithEventsUseCase {
             onProgress: onProgress
         )
 
+        for exportedPreset in input.exportData.foodPresets ?? [] {
+            let preset = try FoodPreset(
+                childID: child.id,
+                foodName: exportedPreset.foodName,
+                amount: exportedPreset.amount,
+                unit: exportedPreset.unit,
+                customUnitLabel: exportedPreset.customUnitLabel,
+                sortOrder: exportedPreset.sortOrder,
+                createdAt: child.createdAt,
+                createdBy: input.localUser.id
+            )
+            try foodPresetRepository?.savePreset(preset)
+        }
+
         return Output(child: child, importResult: importResult)
     }
 
@@ -119,6 +136,15 @@ public struct ImportChildWithEventsUseCase {
                 metadata: ImportEventMetadata(occurredAt: e.occurredAt, notes: e.notes.isEmpty ? nil : e.notes),
                 amountMilliliters: e.amountMilliliters,
                 milkType: e.milkType
+            ))
+        case .food(let e):
+            guard e.amount.isFinite, e.amount > 0, !e.foodName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            return .food(FoodImport(
+                metadata: ImportEventMetadata(occurredAt: e.occurredAt, notes: e.notes.isEmpty ? nil : e.notes),
+                foodName: e.foodName,
+                amount: e.amount,
+                unit: e.unit,
+                customUnitLabel: e.customUnitLabel
             ))
         case .sleep(let e):
             guard e.endedAt >= e.startedAt else { return nil }

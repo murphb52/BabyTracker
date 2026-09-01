@@ -1,6 +1,16 @@
 import Foundation
 
 public struct TodaySummaryData: Equatable, Sendable {
+    public struct LatestFood: Equatable, Sendable {
+        public let foodName: String
+        public let displayAmount: String
+
+        public init(foodName: String, displayAmount: String) {
+            self.foodName = foodName
+            self.displayAmount = displayAmount
+        }
+    }
+
     // Bottle feeds
     public let bottleTotalMilliliters: Int
     public let bottleCount: Int
@@ -16,6 +26,10 @@ public struct TodaySummaryData: Equatable, Sendable {
 
     // Combined
     public let minutesSinceLastFeed: Int?
+
+    // Food
+    public let foodCount: Int
+    public let latestFoods: [LatestFood]
 
     // Sleep
     public let totalSleepMinutes: Int
@@ -54,6 +68,8 @@ public struct TodaySummaryData: Equatable, Sendable {
         averageBreastFeedMinutes: Int?,
         averageFeedIntervalMinutes: Int?,
         minutesSinceLastFeed: Int?,
+        foodCount: Int,
+        latestFoods: [LatestFood],
         totalSleepMinutes: Int,
         daytimeSleepMinutes: Int,
         nighttimeSleepMinutes: Int,
@@ -81,6 +97,8 @@ public struct TodaySummaryData: Equatable, Sendable {
         self.averageBreastFeedMinutes = averageBreastFeedMinutes
         self.averageFeedIntervalMinutes = averageFeedIntervalMinutes
         self.minutesSinceLastFeed = minutesSinceLastFeed
+        self.foodCount = foodCount
+        self.latestFoods = latestFoods
         self.totalSleepMinutes = totalSleepMinutes
         self.daytimeSleepMinutes = daytimeSleepMinutes
         self.nighttimeSleepMinutes = nighttimeSleepMinutes

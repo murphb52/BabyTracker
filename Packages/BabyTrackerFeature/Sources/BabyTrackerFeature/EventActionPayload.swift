@@ -19,6 +19,13 @@ public enum EventActionPayload: Equatable, Sendable {
         occurredAt: Date,
         milkType: MilkType?
     )
+    case editFood(
+        occurredAt: Date,
+        foodName: String,
+        amount: Double,
+        unit: FoodUnit,
+        customUnitLabel: String?
+    )
     case editNappy(
         type: NappyType,
         occurredAt: Date,

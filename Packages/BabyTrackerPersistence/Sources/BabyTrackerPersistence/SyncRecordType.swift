@@ -6,6 +6,8 @@ public enum SyncRecordType: String, Equatable, Sendable {
     case membership
     case breastFeedEvent
     case bottleFeedEvent
+    case foodEvent
+    case foodPreset
     case sleepEvent
     case nappyEvent
     case bathEvent

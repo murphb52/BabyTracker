@@ -411,6 +411,7 @@ private struct ImportEventRow: View {
         case .bath: return "drop.fill"
         case .sleep: return "moon.zzz.fill"
         case .bottleFeed: return "waterbottle.fill"
+        case .food: return "fork.knife"
         case .breastFeed: return "figure.seated.side.air.upper"
         case .nappy: return "checklist.checked"
         case .medication: return "pills.fill"
@@ -422,6 +423,7 @@ private struct ImportEventRow: View {
         case .bath: return .teal
         case .sleep: return .indigo
         case .bottleFeed: return .blue
+        case .food: return BabyEventStyle.accentColor(for: .food)
         case .breastFeed: return .pink
         case .nappy: return .orange
         case .medication: return .purple

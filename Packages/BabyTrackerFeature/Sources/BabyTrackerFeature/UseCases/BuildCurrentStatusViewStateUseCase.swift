@@ -22,7 +22,7 @@ public enum BuildCurrentStatusViewStateUseCase {
             switch kind {
             case .sleep:
                 return completedSleepRow(from: lastSleep)
-            case .bath, .breastFeed, .bottleFeed, .nappy, .medication:
+            case .bath, .breastFeed, .bottleFeed, .food, .nappy, .medication:
                 return latestEventRow(
                     for: kind,
                     events: events,
@@ -91,6 +91,8 @@ public enum BuildCurrentStatusViewStateUseCase {
             "No baths yet"
         case .breastFeed, .bottleFeed:
             "No feeds yet"
+        case .food:
+            "No food yet"
         case .sleep:
             "No sleep yet"
         case .nappy:

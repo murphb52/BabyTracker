@@ -93,17 +93,31 @@ public struct DailyBathData: Equatable, Sendable {
     }
 }
 
+public struct DailyFoodData: Equatable, Sendable {
+    public let date: Date
+    public let label: String
+    public let count: Int
+
+    public init(date: Date, label: String, count: Int) {
+        self.date = date
+        self.label = label
+        self.count = count
+    }
+}
+
 public struct TrendsSummaryData: Equatable, Sendable {
     public let dailyBottle: [DailyBottleData]
     public let dailyBreastFeed: [DailyBreastFeedData]
     public let dailySleep: [DailySleepData]
     public let dailyNappy: [DailyNappyData]
     public let dailyBath: [DailyBathData]
+    public let dailyFood: [DailyFoodData]
     public let avgDailyBottleMilliliters: Int?
     public let avgDailyBreastFeedSessions: Int?
     public let avgDailySleepMinutes: Int?
     public let avgDailyNappies: Int?
     public let avgDailyBaths: Int?
+    public let avgDailyFoodEntries: Int?
 
     public init(
         dailyBottle: [DailyBottleData],
@@ -111,21 +125,25 @@ public struct TrendsSummaryData: Equatable, Sendable {
         dailySleep: [DailySleepData],
         dailyNappy: [DailyNappyData],
         dailyBath: [DailyBathData],
+        dailyFood: [DailyFoodData],
         avgDailyBottleMilliliters: Int?,
         avgDailyBreastFeedSessions: Int?,
         avgDailySleepMinutes: Int?,
         avgDailyNappies: Int?,
-        avgDailyBaths: Int?
+        avgDailyBaths: Int?,
+        avgDailyFoodEntries: Int?
     ) {
         self.dailyBottle = dailyBottle
         self.dailyBreastFeed = dailyBreastFeed
         self.dailySleep = dailySleep
         self.dailyNappy = dailyNappy
         self.dailyBath = dailyBath
+        self.dailyFood = dailyFood
         self.avgDailyBottleMilliliters = avgDailyBottleMilliliters
         self.avgDailyBreastFeedSessions = avgDailyBreastFeedSessions
         self.avgDailySleepMinutes = avgDailySleepMinutes
         self.avgDailyNappies = avgDailyNappies
         self.avgDailyBaths = avgDailyBaths
+        self.avgDailyFoodEntries = avgDailyFoodEntries
     }
 }

@@ -82,6 +82,17 @@ public enum BabyEventStyle {
                 prominentForeground: adaptiveColor(light: rgb(1.00, 1.00, 1.00), dark: rgb(0.95, 0.99, 1.00)),
                 prominentBorder: adaptiveColor(light: rgba(0.15, 0.56, 0.72, 0.82), dark: rgba(0.51, 0.84, 0.96, 0.72))
             )
+        case .food:
+            EventPalette(
+                accent: adaptiveColor(light: rgb(0.88, 0.34, 0.19), dark: rgb(1.00, 0.65, 0.48)),
+                badgeFill: adaptiveColor(light: rgba(0.88, 0.34, 0.19, 0.14), dark: rgba(0.88, 0.34, 0.19, 0.28)),
+                cardFill: adaptiveColor(light: rgb(1.00, 0.94, 0.91), dark: rgb(0.31, 0.15, 0.10)),
+                cardForeground: adaptiveColor(light: rgb(0.45, 0.16, 0.08), dark: rgb(1.00, 0.96, 0.93)),
+                cardSecondaryForeground: adaptiveColor(light: rgb(0.59, 0.28, 0.18), dark: rgb(0.96, 0.82, 0.75)),
+                prominentFill: adaptiveColor(light: rgb(0.76, 0.27, 0.13), dark: rgb(0.62, 0.24, 0.14)),
+                prominentForeground: adaptiveColor(light: rgb(1.00, 1.00, 1.00), dark: rgb(1.00, 0.97, 0.95)),
+                prominentBorder: adaptiveColor(light: rgba(0.88, 0.34, 0.19, 0.82), dark: rgba(1.00, 0.65, 0.48, 0.72))
+            )
         case .sleep:
             EventPalette(
                 accent: adaptiveColor(light: rgb(0.29, 0.33, 0.73), dark: rgb(0.63, 0.69, 0.99)),

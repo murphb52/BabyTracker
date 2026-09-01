@@ -4,6 +4,7 @@ import Foundation
 public enum ImportableEvent: Equatable, Sendable, Identifiable {
     case bath(BathImport)
     case bottleFeed(BottleFeedImport)
+    case food(FoodImport)
     case breastFeed(BreastFeedImport)
     case sleep(SleepImport)
     case nappy(NappyImport)
@@ -15,6 +16,7 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
         switch self {
         case .bath(let e): return e.metadata
         case .bottleFeed(let e): return e.metadata
+        case .food(let e): return e.metadata
         case .breastFeed(let e): return e.metadata
         case .sleep(let e): return e.metadata
         case .nappy(let e): return e.metadata
@@ -28,6 +30,7 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
         switch self {
         case .bath: return .bath
         case .bottleFeed: return .bottleFeed
+        case .food: return .food
         case .breastFeed: return .breastFeed
         case .sleep: return .sleep
         case .nappy: return .nappy
@@ -54,6 +57,8 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
                 parts.insert(milkType.displayName, at: 0)
             }
             return parts.joined(separator: " ")
+        case .food(let e):
+            return "\(e.foodName) · \(e.displayAmount)"
         case .breastFeed(let e):
             let durationText = DurationText.short(minutes: e.durationMinutes)
             if let side = e.side {
@@ -74,11 +79,32 @@ public enum ImportableEvent: Equatable, Sendable, Identifiable {
         switch self {
         case .bath: return "Bath"
         case .bottleFeed: return "Bottle Feed"
+        case .food: return "Food"
         case .breastFeed: return "Breast Feed"
         case .sleep: return "Sleep"
         case .nappy: return "Nappy"
         case .medication: return "Medication"
         }
+    }
+}
+
+public struct FoodImport: Equatable, Sendable {
+    public let metadata: ImportEventMetadata
+    public let foodName: String
+    public let amount: Double
+    public let unit: FoodUnit
+    public let customUnitLabel: String?
+
+    public init(metadata: ImportEventMetadata, foodName: String, amount: Double, unit: FoodUnit, customUnitLabel: String?) {
+        self.metadata = metadata
+        self.foodName = foodName
+        self.amount = amount
+        self.unit = unit
+        self.customUnitLabel = customUnitLabel
+    }
+
+    public var displayAmount: String {
+        "\(FoodEvent.formattedAmount(amount)) \(unit.displayTitle(amount: amount, customLabel: customUnitLabel))"
     }
 }
 

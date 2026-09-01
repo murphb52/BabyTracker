@@ -48,12 +48,12 @@ public enum SyncFeedLiveActivityUseCase {
             return nil
         }
 
-        // The activity is anchored on the last feed; without one there is
-        // nothing meaningful to show yet.
-        guard let feedSummary = FeedSummaryCalculator.makeSummary(
-            from: events,
-            preferredFeedVolumeUnit: child.preferredFeedVolumeUnit
-        ) else {
+        // The compact Feed tile represents the latest nutrition event. Summary
+        // feed intervals remain milk-only elsewhere in the app.
+        let feedKinds: Set<BabyEventKind> = [.breastFeed, .bottleFeed, .food]
+        guard let latestFeed = events
+            .filter({ feedKinds.contains($0.kind) })
+            .max(by: { $0.metadata.occurredAt < $1.metadata.occurredAt }) else {
             return nil
         }
 
@@ -66,8 +66,8 @@ public enum SyncFeedLiveActivityUseCase {
         return FeedLiveActivitySnapshot(
             childID: child.id,
             childName: child.name,
-            lastFeedKind: feedSummary.lastFeedKind,
-            lastFeedAt: feedSummary.lastFeedAt,
+            lastFeedKind: latestFeed.kind,
+            lastFeedAt: latestFeed.metadata.occurredAt,
             lastSleepAt: lastSleep?.endedAt ?? lastSleep?.startedAt,
             activeSleepStartedAt: lastSleep?.isActive == true ? lastSleep?.startedAt : nil,
             lastNappyAt: lastNappy?.occurredAt

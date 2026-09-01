@@ -27,6 +27,8 @@ public struct EventDeleteCandidate: Identifiable {
             return "Delete Bath?"
         case .breastFeed, .bottleFeed:
             return "Delete Feed?"
+        case .food:
+            return "Delete Food Entry?"
         case .sleep:
             return "Delete Sleep?"
         case .nappy:
@@ -42,6 +44,8 @@ public struct EventDeleteCandidate: Identifiable {
             return "Delete Bath"
         case .breastFeed, .bottleFeed:
             return "Delete Feed"
+        case .food:
+            return "Delete Food Entry"
         case .sleep:
             return "Delete Sleep"
         case .nappy:

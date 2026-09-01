@@ -9,6 +9,7 @@ public struct ChildHomeView: View {
     let logPastSleep: () -> Void
     let quickLogBreastFeed: () -> Void
     let quickLogBottleFeed: () -> Void
+    let quickLogFood: () -> Void
     let quickLogSleep: () -> Void
     let quickLogNappy: () -> Void
     let quickLogBath: () -> Void
@@ -28,6 +29,7 @@ public struct ChildHomeView: View {
         logPastSleep: @escaping () -> Void,
         quickLogBreastFeed: @escaping () -> Void,
         quickLogBottleFeed: @escaping () -> Void,
+        quickLogFood: @escaping () -> Void,
         quickLogSleep: @escaping () -> Void,
         quickLogNappy: @escaping () -> Void,
         quickLogBath: @escaping () -> Void,
@@ -41,6 +43,7 @@ public struct ChildHomeView: View {
         self.logPastSleep = logPastSleep
         self.quickLogBreastFeed = quickLogBreastFeed
         self.quickLogBottleFeed = quickLogBottleFeed
+        self.quickLogFood = quickLogFood
         self.quickLogSleep = quickLogSleep
         self.quickLogNappy = quickLogNappy
         self.quickLogBath = quickLogBath
@@ -347,6 +350,14 @@ public struct ChildHomeView: View {
                 accessibilityIdentifier: "quick-log-bottle-feed-button",
                 action: quickLogBottleFeed
             )
+        case .food:
+            quickLogButton(
+                title: "Food",
+                systemImage: BabyEventStyle.systemImage(for: .food),
+                kind: .food,
+                accessibilityIdentifier: "quick-log-food-button",
+                action: quickLogFood
+            )
         case .sleep:
             sleepQuickLogButton
         case .nappy:
@@ -461,6 +472,7 @@ private func makeHomeView(from model: AppModel) -> some View {
             logPastSleep: {},
             quickLogBreastFeed: {},
             quickLogBottleFeed: {},
+            quickLogFood: {},
             quickLogSleep: {},
             quickLogNappy: {},
             quickLogBath: {},

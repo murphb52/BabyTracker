@@ -23,6 +23,7 @@ public final class CloudKitSyncEngine {
     private let userIdentityRepository: any CloudKitUserIdentityRepository
     private let membershipRepository: any CloudKitMembershipRepository
     private let eventRepository: EventRepository
+    private let foodPresetRepository: (any FoodPresetRepository)?
     private let syncStateRepository: SyncStateRepository
     private let recordMetadataRepository: any CloudKitRecordMetadataRepository
     private let client: CloudKitClient
@@ -48,6 +49,7 @@ public final class CloudKitSyncEngine {
         userIdentityRepository: any CloudKitUserIdentityRepository,
         membershipRepository: any CloudKitMembershipRepository,
         eventRepository: EventRepository,
+        foodPresetRepository: (any FoodPresetRepository)? = nil,
         syncStateRepository: SyncStateRepository,
         recordMetadataRepository: any CloudKitRecordMetadataRepository,
         client: CloudKitClient = LiveCloudKitClient()
@@ -56,6 +58,7 @@ public final class CloudKitSyncEngine {
         self.userIdentityRepository = userIdentityRepository
         self.membershipRepository = membershipRepository
         self.eventRepository = eventRepository
+        self.foodPresetRepository = foodPresetRepository
         self.syncStateRepository = syncStateRepository
         self.recordMetadataRepository = recordMetadataRepository
         self.client = client
@@ -748,6 +751,7 @@ public final class CloudKitSyncEngine {
             for: childID,
             includingDeleted: true
         )
+        let foodPresets = try foodPresetRepository?.loadPresets(for: childID, includingDeleted: true) ?? []
 
         let childRecord = CloudKitRecordMapper.childRecord(from: child, zoneID: context.zoneID)
         var recordsToSave: [CKRecord] = [childRecord]
@@ -759,6 +763,7 @@ public final class CloudKitSyncEngine {
         })
         recordsToSave.append(contentsOf: memberships.map { CloudKitRecordMapper.membershipRecord(from: $0, zoneID: context.zoneID) })
         recordsToSave.append(contentsOf: events.map { CloudKitRecordMapper.eventRecord(from: $0, zoneID: context.zoneID) })
+        recordsToSave.append(contentsOf: foodPresets.map { CloudKitRecordMapper.foodPresetRecord(from: $0, zoneID: context.zoneID) })
 
         let existingRecords = try await client.records(
             for: recordsToSave.map(\.recordID),
@@ -859,6 +864,15 @@ public final class CloudKitSyncEngine {
                     recordID: event.id,
                     childID: event.metadata.childID
                 ),
+                state: .upToDate,
+                lastSyncedAt: .now,
+                lastSyncErrorCode: nil
+            )
+        }
+
+        for preset in foodPresets {
+            try syncStateRepository.updateSyncState(
+                for: SyncRecordReference(recordType: .foodPreset, recordID: preset.id, childID: preset.childID),
                 state: .upToDate,
                 lastSyncedAt: .now,
                 lastSyncErrorCode: nil
@@ -1066,6 +1080,7 @@ public final class CloudKitSyncEngine {
             )
         case CloudKitConfiguration.breastFeedRecordType,
              CloudKitConfiguration.bottleFeedRecordType,
+             CloudKitConfiguration.foodRecordType,
              CloudKitConfiguration.sleepRecordType,
              CloudKitConfiguration.nappyRecordType,
              CloudKitConfiguration.bathRecordType,
@@ -1090,6 +1105,19 @@ public final class CloudKitSyncEngine {
                 lastSyncErrorCode: nil
             )
             try trackRemoteCaregiverChange(for: event)
+        case CloudKitConfiguration.foodPresetRecordType:
+            guard let foodPresetRepository else { return }
+            let preset = try CloudKitRecordMapper.foodPreset(from: record)
+            if let local = try foodPresetRepository.loadPreset(id: preset.id), local.updatedAt > preset.updatedAt {
+                return
+            }
+            try foodPresetRepository.savePreset(preset)
+            try syncStateRepository.updateSyncState(
+                for: SyncRecordReference(recordType: .foodPreset, recordID: preset.id, childID: preset.childID),
+                state: .upToDate,
+                lastSyncedAt: .now,
+                lastSyncErrorCode: nil
+            )
         default:
             return
         }
@@ -1300,6 +1328,8 @@ public final class CloudKitSyncEngine {
             .breastFeedEvent
         case .bottleFeed:
             .bottleFeedEvent
+        case .food:
+            .foodEvent
         case .sleep:
             .sleepEvent
         case .nappy:
@@ -1315,7 +1345,8 @@ public final class CloudKitSyncEngine {
         switch record.recordType {
         case CloudKitConfiguration.childRecordType,
              CloudKitConfiguration.membershipRecordType,
-             CloudKitConfiguration.userRecordType:
+             CloudKitConfiguration.userRecordType,
+             CloudKitConfiguration.foodPresetRecordType:
             return true
         default:
             return false
@@ -1339,6 +1370,8 @@ public final class CloudKitSyncEngine {
                 return max(acceptedAt, invitedAt)
             }
             return acceptedAt ?? invitedAt
+        case CloudKitConfiguration.foodPresetRecordType:
+            return record["updatedAt"] as? Date ?? record["createdAt"] as? Date
         default:
             return nil
         }
@@ -1409,7 +1442,7 @@ public final class CloudKitSyncEngine {
                     databaseScope: context.databaseScope
                 )
             )
-        case .breastFeedEvent, .bottleFeedEvent, .sleepEvent, .nappyEvent, .bathEvent, .medicationEvent:
+        case .breastFeedEvent, .bottleFeedEvent, .foodEvent, .sleepEvent, .nappyEvent, .bathEvent, .medicationEvent:
             guard let event = try eventRepository.loadEvent(id: reference.recordID) else {
                 return nil
             }
@@ -1421,6 +1454,15 @@ public final class CloudKitSyncEngine {
                 ),
                 record: try hydratedRecord(
                     from: CloudKitRecordMapper.eventRecord(from: event, zoneID: zoneID),
+                    databaseScope: context.databaseScope
+                )
+            )
+        case .foodPreset:
+            guard let preset = try foodPresetRepository?.loadPreset(id: reference.recordID) else { return nil }
+            return OutboundRecord(
+                reference: SyncRecordReference(recordType: .foodPreset, recordID: preset.id, childID: preset.childID),
+                record: try hydratedRecord(
+                    from: CloudKitRecordMapper.foodPresetRecord(from: preset, zoneID: zoneID),
                     databaseScope: context.databaseScope
                 )
             )

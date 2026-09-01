@@ -84,6 +84,31 @@ struct TodaySummaryCalculatorTests {
 
         #expect(data.chartData.bottle.todayCumulative.count == 24)
         #expect(data.chartData.bottle.averageCumulative.count == 24)
+        #expect(data.chartData.food.todayCumulative.count == 24)
+    }
+
+    @Test
+    func foodSummaryCountsEntriesAndDoesNotChangeMilkFeedMetrics() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let childID = UUID()
+        let userID = UUID()
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 4, day: 7, hour: 12)))
+        let earlier = now.addingTimeInterval(-3600)
+        let events: [BabyEvent] = [
+            .food(try FoodEvent(metadata: EventMetadata(childID: childID, occurredAt: earlier, createdBy: userID), foodName: "Porridge", amount: 1, unit: .bowl)),
+            .food(try FoodEvent(metadata: EventMetadata(childID: childID, occurredAt: now, createdBy: userID), foodName: "Banana", amount: 20, unit: .grams)),
+        ]
+
+        let data = TodaySummaryCalculator.makeData(from: events, now: now, calendar: calendar)
+
+        #expect(data.foodCount == 2)
+        #expect(data.latestFoods.map(\.foodName) == ["Banana", "Porridge"])
+        #expect(data.chartData.food.todayCumulative[12] == 2)
+        #expect(data.bottleCount == 0)
+        #expect(data.breastFeedCount == 0)
+        #expect(data.minutesSinceLastFeed == nil)
+        #expect(data.averageFeedIntervalMinutes == nil)
     }
 
     @Test

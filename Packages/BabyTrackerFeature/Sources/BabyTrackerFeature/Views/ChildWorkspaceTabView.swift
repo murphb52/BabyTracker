@@ -38,6 +38,12 @@ public struct ChildWorkspaceTabView: View {
                 logPastSleep: { activeEventSheet = .logPastSleep(suggestions: model.sleepStartSuggestions()) },
                 quickLogBreastFeed: { activeEventSheet = .quickLogBreastFeed },
                 quickLogBottleFeed: { activeEventSheet = .quickLogBottleFeed(smartSuggestions: model.smartBottleAmounts()) },
+                quickLogFood: {
+                    activeEventSheet = .quickLogFood(
+                        recentNames: model.recentFoodNames(),
+                        presets: model.foodPresets
+                    )
+                },
                 quickLogSleep: showSleepSheet,
                 quickLogNappy: {
                     activeEventSheet = .quickLogNappy(.mixed)
@@ -327,6 +333,29 @@ public struct ChildWorkspaceTabView: View {
                 if didSave {
                     activeEventSheet = nil
                 }
+                return didSave
+            }
+        case let .quickLogFood(recentNames, presets):
+            FoodEditorSheetView(
+                navigationTitle: "Food",
+                primaryActionTitle: "Save",
+                childName: childProfileViewModel.childName,
+                recentFoodNames: recentNames,
+                presets: presets,
+                initialOccurredAt: Date(),
+                updatePreset: model.updateFoodPreset,
+                deletePreset: model.deleteFoodPreset,
+                reorderPresets: model.reorderFoodPresets
+            ) { occurredAt, foodName, amount, unit, customUnitLabel, saveAsPreset in
+                let didSave = model.logFood(
+                    occurredAt: occurredAt,
+                    foodName: foodName,
+                    amount: amount,
+                    unit: unit,
+                    customUnitLabel: customUnitLabel,
+                    saveAsPreset: saveAsPreset
+                )
+                if didSave { activeEventSheet = nil }
                 return didSave
             }
         case .quickLogBreastFeed:
@@ -645,6 +674,37 @@ public struct ChildWorkspaceTabView: View {
                 if didSave {
                     activeEventSheet = nil
                 }
+                return didSave
+            }
+        case let .editFood(id, occurredAt, foodName, amount, unit, customUnitLabel):
+            FoodEditorSheetView(
+                navigationTitle: "Edit Food",
+                primaryActionTitle: "Update",
+                childName: childProfileViewModel.childName,
+                recentFoodNames: model.recentFoodNames(),
+                presets: model.foodPresets,
+                initialOccurredAt: occurredAt,
+                initialFoodName: foodName,
+                initialAmount: amount,
+                initialUnit: unit,
+                initialCustomUnitLabel: customUnitLabel,
+                initialTimePreset: .custom,
+                deleteAction: childProfileViewModel.canManageEvents ? {
+                    if model.deleteEvent(id: id) { activeEventSheet = nil }
+                } : nil,
+                updatePreset: model.updateFoodPreset,
+                deletePreset: model.deleteFoodPreset,
+                reorderPresets: model.reorderFoodPresets
+            ) { updatedAt, updatedName, updatedAmount, updatedUnit, updatedCustomLabel, _ in
+                let didSave = model.updateFood(
+                    id: id,
+                    occurredAt: updatedAt,
+                    foodName: updatedName,
+                    amount: updatedAmount,
+                    unit: updatedUnit,
+                    customUnitLabel: updatedCustomLabel
+                )
+                if didSave { activeEventSheet = nil }
                 return didSave
             }
         }

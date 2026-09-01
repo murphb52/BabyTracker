@@ -187,7 +187,7 @@ public struct EventHistoryView: View {
         switch event.actionPayload {
         case .endSleep:
             "End"
-        case .editBath, .editBreastFeed, .editBottleFeed, .editNappy, .editSleep, .editMedication:
+        case .editBath, .editBreastFeed, .editBottleFeed, .editFood, .editNappy, .editSleep, .editMedication:
             "Edit"
         }
     }

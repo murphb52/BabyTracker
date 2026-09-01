@@ -89,6 +89,25 @@ public struct EventCardViewState: Equatable, Identifiable, Sendable {
                 occurredAt: feed.metadata.occurredAt,
                 milkType: feed.milkType
             )
+        case let .food(food):
+            id = food.id
+            kind = .food
+            title = BabyEventPresentation.title(for: event)
+            detailText = BabyEventPresentation.detailText(
+                for: event,
+                preferredFeedVolumeUnit: preferredFeedVolumeUnit
+            ) ?? ""
+            self.timestampText = timestampText ?? food.metadata.occurredAt.formatted(
+                date: .abbreviated,
+                time: .shortened
+            )
+            actionPayload = .editFood(
+                occurredAt: food.metadata.occurredAt,
+                foodName: food.foodName,
+                amount: food.amount,
+                unit: food.unit,
+                customUnitLabel: food.customUnitLabel
+            )
         case let .sleep(sleep):
             id = sleep.id
             kind = .sleep

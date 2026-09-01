@@ -133,6 +133,8 @@ public final class SwiftDataUserIdentityRepository: CloudKitUserIdentityReposito
         try deleteAll(StoredUserIdentity.self)
         try deleteAll(StoredBreastFeedEvent.self)
         try deleteAll(StoredBottleFeedEvent.self)
+        try deleteAll(StoredFoodEvent.self)
+        try deleteAll(StoredFoodPreset.self)
         try deleteAll(StoredSleepEvent.self)
         try deleteAll(StoredNappyEvent.self)
         try deleteAll(StoredBathEvent.self)
@@ -223,6 +225,22 @@ public final class SwiftDataUserIdentityRepository: CloudKitUserIdentityReposito
             }
         }
 
+        for event in try modelContext.fetch(FetchDescriptor<StoredFoodEvent>()) {
+            if event.createdBy == sourceUserID { event.createdBy = targetUserID }
+            if event.updatedBy == sourceUserID { event.updatedBy = targetUserID }
+            if event.createdBy == targetUserID || event.updatedBy == targetUserID {
+                markPendingSync(event, errorCode: nil)
+            }
+        }
+
+        for preset in try modelContext.fetch(FetchDescriptor<StoredFoodPreset>()) {
+            if preset.createdBy == sourceUserID { preset.createdBy = targetUserID }
+            if preset.updatedBy == sourceUserID { preset.updatedBy = targetUserID }
+            if preset.createdBy == targetUserID || preset.updatedBy == targetUserID {
+                markPendingSync(preset, errorCode: nil)
+            }
+        }
+
         for event in try modelContext.fetch(FetchDescriptor<StoredSleepEvent>()) {
             if event.createdBy == sourceUserID { event.createdBy = targetUserID }
             if event.updatedBy == sourceUserID { event.updatedBy = targetUserID }
@@ -272,6 +290,16 @@ public final class SwiftDataUserIdentityRepository: CloudKitUserIdentityReposito
     }
 
     private func markPendingSync(_ storedModel: StoredBottleFeedEvent, errorCode: String?) {
+        storedModel.syncStateRawValue = SyncState.pendingSync.rawValue
+        storedModel.lastSyncErrorCode = errorCode
+    }
+
+    private func markPendingSync(_ storedModel: StoredFoodEvent, errorCode: String?) {
+        storedModel.syncStateRawValue = SyncState.pendingSync.rawValue
+        storedModel.lastSyncErrorCode = errorCode
+    }
+
+    private func markPendingSync(_ storedModel: StoredFoodPreset, errorCode: String?) {
         storedModel.syncStateRawValue = SyncState.pendingSync.rawValue
         storedModel.lastSyncErrorCode = errorCode
     }

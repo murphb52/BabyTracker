@@ -6,6 +6,34 @@ import Testing
 @MainActor
 struct EventRepositoryTests {
     @Test
+    func foodEventAndPresetsRoundTripIndependently() throws {
+        let harness = try RepositoryHarness()
+        let childID = UUID()
+        let userID = UUID()
+        let occurredAt = Date(timeIntervalSince1970: 8_000)
+        let event = try FoodEvent(
+            metadata: EventMetadata(childID: childID, occurredAt: occurredAt, createdBy: userID),
+            foodName: "Porridge",
+            amount: 0.5,
+            unit: .bowl
+        )
+        let presetRepository = SwiftDataFoodPresetRepository(store: harness.store)
+        let preset = try FoodPreset(childID: childID, foodName: "Porridge", amount: 1, unit: .bowl, sortOrder: 0, createdBy: userID)
+
+        try harness.repository.saveEvent(.food(event))
+        try presetRepository.savePreset(preset)
+        try harness.repository.softDeleteEvent(id: event.id, deletedAt: occurredAt.addingTimeInterval(30), deletedBy: userID)
+
+        guard case let .food(reloaded)? = try harness.repository.loadEvent(id: event.id) else {
+            Issue.record("Expected Food event")
+            return
+        }
+        #expect(reloaded.foodName == "Porridge")
+        #expect(reloaded.metadata.isDeleted)
+        #expect(try presetRepository.loadPresets(for: childID, includingDeleted: false).map(\.id) == [preset.id])
+    }
+
+    @Test
     func savesEventsLoadsTimelineAndSupportsSoftDelete() throws {
         let harness = try RepositoryHarness()
         defer { harness.cleanUp() }

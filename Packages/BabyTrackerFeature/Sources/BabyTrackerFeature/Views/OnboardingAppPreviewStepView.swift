@@ -111,6 +111,9 @@ struct OnboardingAppPreviewStepView: View {
         case let .bottleFeed(e):
             Text(bottleFeedDetail(e))
 
+        case let .food(e):
+            Text("\(e.foodName) · \(e.displayAmount)")
+
         case let .sleep(e):
             if e.endedAt == nil {
                 HStack(spacing: 8) {
@@ -287,6 +290,7 @@ struct OnboardingAppPreviewStepView: View {
         case .bath: return "Bath"
         case .breastFeed: return "Breast feed"
         case .bottleFeed: return "Bottle feed"
+        case .food:       return "Food"
         case .sleep:      return "Sleep"
         case .nappy:      return "Nappy"
         case .medication: return "Medication"

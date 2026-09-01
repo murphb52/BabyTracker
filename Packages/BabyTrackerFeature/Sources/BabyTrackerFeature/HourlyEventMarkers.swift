@@ -13,6 +13,12 @@ public struct BreastEventMarker: Equatable, Sendable {
     public let time: String
 }
 
+public struct FoodEventMarker: Equatable, Sendable {
+    public let foodName: String
+    public let displayAmount: String
+    public let time: String
+}
+
 public struct SleepEventMarker: Equatable, Sendable {
     public let durationMinutes: Int
     public let wakeTime: String

@@ -130,6 +130,7 @@ public struct ChildProfileNestImportView: View {
                 let bathCount = state.taggedEvents.filter { if case .bath = $0.event { true } else { false } }.count
                 let sleepCount = state.taggedEvents.filter { if case .sleep = $0.event { true } else { false } }.count
                 let bottleCount = state.taggedEvents.filter { if case .bottleFeed = $0.event { true } else { false } }.count
+                let foodCount = state.taggedEvents.filter { if case .food = $0.event { true } else { false } }.count
                 let breastCount = state.taggedEvents.filter { if case .breastFeed = $0.event { true } else { false } }.count
                 let nappyCount = state.taggedEvents.filter { if case .nappy = $0.event { true } else { false } }.count
                 let medicationCount = state.taggedEvents.filter { if case .medication = $0.event { true } else { false } }.count
@@ -151,6 +152,9 @@ public struct ChildProfileNestImportView: View {
                 }
                 if medicationCount > 0 {
                     eventCountRow(icon: "pills.fill", label: "Medications", count: medicationCount, color: .purple)
+                }
+                if foodCount > 0 {
+                    eventCountRow(icon: "fork.knife", label: "Food", count: foodCount, color: BabyEventStyle.accentColor(for: .food))
                 }
             }
 
@@ -421,6 +425,7 @@ private struct NestImportEventRow: View {
         case .bath: return "drop.fill"
         case .sleep: return "moon.zzz.fill"
         case .bottleFeed: return "waterbottle.fill"
+        case .food: return "fork.knife"
         case .breastFeed: return "figure.seated.side.air.upper"
         case .nappy: return "checklist.checked"
         case .medication: return "pills.fill"
@@ -432,6 +437,7 @@ private struct NestImportEventRow: View {
         case .bath: return .teal
         case .sleep: return .indigo
         case .bottleFeed: return .blue
+        case .food: return BabyEventStyle.accentColor(for: .food)
         case .breastFeed: return .pink
         case .nappy: return .orange
         case .medication: return .purple

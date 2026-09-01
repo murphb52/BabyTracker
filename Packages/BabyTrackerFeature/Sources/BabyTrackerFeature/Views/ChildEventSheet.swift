@@ -4,6 +4,7 @@ import Foundation
 public enum ChildEventSheet: Identifiable {
     case quickLogBath
     case quickLogMedication(recentNames: [String], millilitreAmounts: [Double])
+    case quickLogFood(recentNames: [String], presets: [FoodPreset])
     case quickLogBreastFeed
     case quickLogBottleFeed(smartSuggestions: [Int])
     case startSleep(suggestions: [(label: String, date: Date)])
@@ -51,6 +52,7 @@ public enum ChildEventSheet: Identifiable {
         unit: MedicationUnit,
         customUnitLabel: String?
     )
+    case editFood(id: UUID, occurredAt: Date, foodName: String, amount: Double, unit: FoodUnit, customUnitLabel: String?)
 
     public init(id: UUID, actionPayload: EventActionPayload) {
         switch actionPayload {
@@ -70,6 +72,8 @@ public enum ChildEventSheet: Identifiable {
                 unit: unit,
                 customUnitLabel: customUnitLabel
             )
+        case let .editFood(occurredAt, foodName, amount, unit, customUnitLabel):
+            self = .editFood(id: id, occurredAt: occurredAt, foodName: foodName, amount: amount, unit: unit, customUnitLabel: customUnitLabel)
         case let .editBreastFeed(durationMinutes, endTime, side, leftDurationSeconds, rightDurationSeconds):
             self = .editBreastFeed(
                 id: id,
@@ -112,6 +116,8 @@ public enum ChildEventSheet: Identifiable {
             "quick-log-bath"
         case .quickLogMedication:
             "quick-log-medication"
+        case .quickLogFood:
+            "quick-log-food"
         case .quickLogBreastFeed:
             "quick-log-breast-feed"
         case .quickLogBottleFeed:
@@ -136,6 +142,8 @@ public enum ChildEventSheet: Identifiable {
             "edit-bath-\(id.uuidString)"
         case let .editMedication(id, _, _, _, _, _):
             "edit-medication-\(id.uuidString)"
+        case let .editFood(id, _, _, _, _, _):
+            "edit-food-\(id.uuidString)"
         }
     }
 }

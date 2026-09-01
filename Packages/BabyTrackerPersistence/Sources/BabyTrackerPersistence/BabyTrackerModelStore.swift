@@ -11,10 +11,12 @@ public final class BabyTrackerModelStore {
             StoredMembership.self,
             StoredBreastFeedEvent.self,
             StoredBottleFeedEvent.self,
+            StoredFoodEvent.self,
             StoredSleepEvent.self,
             StoredNappyEvent.self,
             StoredBathEvent.self,
             StoredMedicationEvent.self,
+            StoredFoodPreset.self,
             StoredCloudKitRecordMetadata.self,
             StoredSyncAnchor.self,
         ])

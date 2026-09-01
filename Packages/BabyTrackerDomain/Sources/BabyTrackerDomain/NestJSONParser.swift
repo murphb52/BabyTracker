@@ -65,6 +65,19 @@ public struct NestJSONParser {
                 milkType: e.milkType
             ))
 
+        case .food(let e):
+            guard e.amount.isFinite, e.amount > 0, !e.foodName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                skippedReasons.append("Food at \(e.occurredAt.formatted()): name and positive amount are required")
+                return nil
+            }
+            return .food(FoodImport(
+                metadata: ImportEventMetadata(occurredAt: e.occurredAt, notes: e.notes.isEmpty ? nil : e.notes),
+                foodName: e.foodName,
+                amount: e.amount,
+                unit: e.unit,
+                customUnitLabel: e.customUnitLabel
+            ))
+
         case .sleep(let e):
             guard e.endedAt >= e.startedAt else {
                 skippedReasons.append("Sleep at \(e.occurredAt.formatted()): end time is before start time")

@@ -5,6 +5,9 @@ public enum BabyEventError: LocalizedError, Equatable, Sendable {
     case invalidBottleAmount
     case invalidMedicationAmount
     case invalidMedicationName
+    case invalidFoodAmount
+    case invalidFoodName
+    case invalidFoodUnit
     case activeSleepAlreadyInProgress
     case noActiveSleepInProgress
     case sleepAlreadyActive
@@ -19,6 +22,12 @@ public enum BabyEventError: LocalizedError, Equatable, Sendable {
             "Medication doses must record a positive amount."
         case .invalidMedicationName:
             "Medication must have a name."
+        case .invalidFoodAmount:
+            "Food entries must record a positive amount."
+        case .invalidFoodName:
+            "Food must have a name."
+        case .invalidFoodUnit:
+            "Custom food units must have a name."
         case .activeSleepAlreadyInProgress:
             "A sleep session is already in progress."
         case .noActiveSleepInProgress:
