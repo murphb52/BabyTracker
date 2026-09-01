@@ -65,7 +65,7 @@ public struct FoodEditorSheetView: View {
     public var body: some View {
         NavigationStack {
             Form {
-                LoggingSummaryView(sentence: AttributedString(summarySentence))
+                LoggingSummaryView(sentence: summarySentence)
                 presetSection
                 foodSection
                 amountSection
@@ -145,7 +145,7 @@ public struct FoodEditorSheetView: View {
     }
 
     private var foodSection: some View {
-        Section("What did (childName) have?") {
+        Section("What did \(childName) have?") {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(foodSuggestions, id: \.self) { suggestion in
@@ -207,10 +207,22 @@ public struct FoodEditorSheetView: View {
         return nil
     }
 
-    private var summarySentence: String {
-        guard let amount, validationMessage == nil else { return "What did (childName) have?" }
-        let display = "\(FoodEvent.formattedAmount(amount)) \(unit.displayTitle(amount: amount, customLabel: customUnitLabel))"
-        return "(childName) had (display) of (effectiveName) at (occurredAt.formatted(date: .omitted, time: .shortened))"
+    private var summarySentence: AttributedString {
+        let timeStr = occurredAt.formatted(date: .omitted, time: .shortened)
+        var s = summaryVariable(childName, color: Self.eventColor)
+        s += AttributedString(" had ")
+
+        if let amount, amount.isFinite, amount > 0 {
+            let display = "\(FoodEvent.formattedAmount(amount)) \(unit.displayTitle(amount: amount, customLabel: customUnitLabel))"
+            s += summaryVariable(display, color: Self.eventColor)
+            s += AttributedString(" of ")
+        }
+
+        let name = effectiveName.isEmpty ? "food" : effectiveName
+        s += summaryVariable(name, color: Self.eventColor)
+        s += AttributedString(" at ")
+        s += summaryVariable(timeStr, color: Self.eventColor)
+        return s
     }
 
     private func fill(from preset: FoodPreset) {
