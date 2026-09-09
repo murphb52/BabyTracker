@@ -31,6 +31,8 @@ struct OnboardingFirstEventStepView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                OnboardingCharacterSceneView(scene: .firstEvent)
+
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Log your first event")
                         .font(.largeTitle.weight(.bold))

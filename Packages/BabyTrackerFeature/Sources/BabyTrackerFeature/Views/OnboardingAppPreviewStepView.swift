@@ -29,14 +29,9 @@ struct OnboardingAppPreviewStepView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                // Symbol scene
-                AnimatedSymbolSceneView(symbolNames: [
-                    "checkmark.seal.fill",
-                    "star.fill",
-                    "heart.fill",
-                ])
-                .opacity(appearedMask[0] ? 1 : 0)
-                .offset(y: appearedMask[0] ? 0 : 18)
+                OnboardingCharacterSceneView(scene: .appPreview)
+                    .opacity(appearedMask[0] ? 1 : 0)
+                    .offset(y: appearedMask[0] ? 0 : 18)
 
                 // Welcome heading
                 VStack(alignment: .leading, spacing: 6) {
