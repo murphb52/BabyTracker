@@ -592,13 +592,13 @@ struct CloudKitSyncEngineTests {
         // A CloudKit request that never returns used to hold the refresh queue
         // forever, so every later sync waited behind it until the app was killed.
         await harness.client.setStallsAccountStatus(true)
-        harness.syncEngine.refreshTimeout = .milliseconds(200)
+        harness.syncEngine.requestTimeout = .milliseconds(200)
         let stalledSummary = await harness.syncEngine.refreshForeground()
 
         // Restore the normal deadline so a slow CI machine can't time out
         // the follow-up pass as well.
         await harness.client.setStallsAccountStatus(false)
-        harness.syncEngine.refreshTimeout = .seconds(120)
+        harness.syncEngine.requestTimeout = .seconds(120)
         let nextSummary = await harness.syncEngine.refreshForeground()
 
         #expect(stalledSummary.state == .failed)

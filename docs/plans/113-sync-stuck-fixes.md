@@ -27,14 +27,19 @@ token expires, every refresh fails at the same point.
 
 ## Approach
 
-1. **Deadline per refresh pass.** Run each pass in its own task with a
-   watchdog. If the pass outlives `refreshTimeout` (default 120 s, injectable
-   for tests), the watchdog cancels it. CloudKit's async APIs honour task
-   cancellation, so the stalled request throws and the pass ends with a
-   `.failed` summary ("Sync took too long…"). The queue still waits for the
-   cancelled pass to finish, so passes never overlap. Add
-   `Task.checkCancellation()` at the top of the per-child loops and the
-   CloudKit pagination loops so a cancelled pass stops promptly.
+1. **Deadline per CloudKit request.** Syncs normally take 2–10 seconds, so
+   no single CloudKit request should take longer than `requestTimeout`
+   (default 10 s, settable for tests). The engine wraps its client in
+   `RequestTrackingCloudKitClient`, which records each request's start and
+   finish in a `CloudKitRequestTracker`. Each pass runs in its own task with a
+   watchdog that checks every second; once a request has been in flight
+   longer than the limit, it cancels the pass. The limit is per request, not
+   per pass, so a large import made of many quick requests can still finish.
+   CloudKit's async APIs honour task cancellation, so the stalled request
+   throws and the pass ends with a `.failed` summary ("Sync took too long…").
+   The queue still waits for the cancelled pass to finish, so passes never
+   overlap. Add `Task.checkCancellation()` at the top of the per-child loops
+   and the CloudKit pagination loops so a cancelled pass stops promptly.
 2. **Recover from an expired shared-database token.** When
    `databaseChanges` throws `.changeTokenExpired`, restart the shared database
    fetch from scratch, matching the existing zone-level behaviour.

@@ -39,9 +39,10 @@ public final class CloudKitSyncEngine {
     private var didApplyRemoteChangesDuringRefresh = false
     /// The refresh pass currently in flight, if any. New passes queue behind it.
     private var activeRefreshTask: Task<SyncStatusSummary, Never>?
-    /// The longest a single refresh pass may run before it is cancelled.
-    /// Settable so tests can shorten it around a single pass.
-    var refreshTimeout: Duration
+    /// The longest a single CloudKit request may run before the refresh pass
+    /// it belongs to is cancelled. Settable so tests can shorten it.
+    var requestTimeout: Duration
+    private let requestTracker: CloudKitRequestTracker
     private var currentLocalUserID: UUID?
     private var cachedUserDisplayNames: [UUID: String] = [:]
 
@@ -56,7 +57,7 @@ public final class CloudKitSyncEngine {
         syncStateRepository: SyncStateRepository,
         recordMetadataRepository: any CloudKitRecordMetadataRepository,
         client: CloudKitClient = LiveCloudKitClient(),
-        refreshTimeout: Duration = .seconds(120)
+        requestTimeout: Duration = .seconds(10)
     ) {
         self.childRepository = childRepository
         self.userIdentityRepository = userIdentityRepository
@@ -65,8 +66,10 @@ public final class CloudKitSyncEngine {
         self.foodPresetRepository = foodPresetRepository
         self.syncStateRepository = syncStateRepository
         self.recordMetadataRepository = recordMetadataRepository
-        self.client = client
-        self.refreshTimeout = refreshTimeout
+        let requestTracker = CloudKitRequestTracker()
+        self.requestTracker = requestTracker
+        self.client = RequestTrackingCloudKitClient(wrapped: client, tracker: requestTracker)
+        self.requestTimeout = requestTimeout
     }
 
     public func prepareForLaunch() async -> SyncStatusSummary {
@@ -333,27 +336,38 @@ public final class CloudKitSyncEngine {
         return summary
     }
 
-    /// Runs one refresh pass, cancelling it if it outlives `refreshTimeout`.
+    /// Runs one refresh pass, cancelling it if any single CloudKit request
+    /// runs longer than `requestTimeout`.
     ///
     /// Passes are queued, so a single CloudKit request that never returns —
     /// routine when the app is suspended mid-request or the network drops —
     /// would otherwise hold up every later pass until the app is relaunched.
-    /// CloudKit's async calls honour task cancellation, so cancelling the pass
-    /// makes the stalled request throw and the queue moves on. The pass still
-    /// finishes before the next one starts, so passes never overlap.
+    /// The limit is per request rather than per pass so a large import, made
+    /// of many quick requests, can still finish. CloudKit's async calls honour
+    /// task cancellation, so cancelling the pass makes the stalled request
+    /// throw and the queue moves on. The pass still finishes before the next
+    /// one starts, so passes never overlap.
     private func performRefreshWithinDeadline(reason: RefreshReason) async -> SyncStatusSummary {
         let pass = Task { @MainActor in
             await self.performRefresh(reason: reason)
         }
-        let timeout = refreshTimeout
+        let timeout = requestTimeout
+        let checkInterval = min(timeout, .seconds(1))
         let watchdog = Task { @MainActor in
-            try? await Task.sleep(for: timeout)
-            guard !Task.isCancelled else {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: checkInterval)
+                guard !Task.isCancelled else {
+                    return
+                }
+                guard let duration = self.requestTracker.longestRunningRequestDuration(),
+                      duration > timeout else {
+                    continue
+                }
+                self.logger.warning("Refresh(\(reason.logDescription, privacy: .public)) has a CloudKit request stuck for over \(String(describing: timeout), privacy: .public) — cancelling")
+                AppLogger.shared.log(.warning, category: "CloudKitSync", "Refresh(\(reason.logDescription)) has a CloudKit request stuck for over \(timeout) — cancelling")
+                pass.cancel()
                 return
             }
-            self.logger.warning("Refresh(\(reason.logDescription, privacy: .public)) exceeded its deadline — cancelling")
-            AppLogger.shared.log(.warning, category: "CloudKitSync", "Refresh(\(reason.logDescription)) exceeded its deadline — cancelling")
-            pass.cancel()
         }
 
         let summary = await pass.value
