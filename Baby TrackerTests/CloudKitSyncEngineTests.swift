@@ -601,6 +601,24 @@ struct CloudKitSyncEngineTests {
         #expect(stalledSummary.lastErrorDescription == "Sync took too long. It will try again on the next refresh.")
         #expect(nextSummary.state == .upToDate)
     }
+
+    @Test
+    func anExpiredSharedDatabaseTokenFallsBackToAFullFetch() async throws {
+        let harness = SyncEngineHarness()
+        defer { harness.cleanUp() }
+
+        let localUser = try UserIdentity(displayName: "Alex Parent")
+        try harness.userIdentityRepository.saveLocalUser(localUser)
+        try harness.syncStateRepository.saveAnchor(
+            SyncAnchor(databaseScope: .shared, tokenData: Data([1, 2, 3]), lastSyncAt: .now)
+        )
+        await harness.client.setExpiresDatabaseChangeTokens(true)
+
+        let summary = await harness.syncEngine.refreshForeground()
+
+        #expect(summary.state == .upToDate)
+        #expect(await harness.client.databaseChangeTokenWasNil == [false, true])
+    }
 }
 
 // MARK: - Test Harness
@@ -706,6 +724,8 @@ fileprivate actor CloudKitClientSpy: CloudKitClient {
     private var recordsByID: [CKRecord.ID: CKRecord] = [:]
     private var knownRecordTypesByZoneID: [CKRecordZone.ID: Set<String>] = [:]
     private var stallsAccountStatus = false
+    private var expiresDatabaseChangeTokens = false
+    private(set) var databaseChangeTokenWasNil: [Bool] = []
 
     func accountStatus() async throws -> CKAccountStatus {
         if stallsAccountStatus {
@@ -718,6 +738,10 @@ fileprivate actor CloudKitClientSpy: CloudKitClient {
 
     func setStallsAccountStatus(_ stalls: Bool) {
         stallsAccountStatus = stalls
+    }
+
+    func setExpiresDatabaseChangeTokens(_ expires: Bool) {
+        expiresDatabaseChangeTokens = expires
     }
 
     func userRecordID() async throws -> CKRecord.ID {
@@ -836,7 +860,12 @@ fileprivate actor CloudKitClientSpy: CloudKitClient {
         in databaseScope: CKDatabase.Scope,
         since tokenData: Data?
     ) async throws -> CloudKitDatabaseChangeSet {
-        CloudKitDatabaseChangeSet(
+        databaseChangeTokenWasNil.append(tokenData == nil)
+        if expiresDatabaseChangeTokens, tokenData != nil {
+            throw CKError(.changeTokenExpired)
+        }
+
+        return CloudKitDatabaseChangeSet(
             modifiedZoneIDs: [],
             deletedZoneIDs: [],
             tokenData: nil,

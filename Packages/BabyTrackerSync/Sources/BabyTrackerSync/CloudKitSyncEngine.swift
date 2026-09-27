@@ -516,12 +516,22 @@ public final class CloudKitSyncEngine {
 
         var currentTokenData = anchor?.tokenData
         var latestTokenData: Data?
+        var hasMorePages = true
 
-        repeat {
-            let changes = try await client.databaseChanges(
-                in: .shared,
-                since: currentTokenData
-            )
+        while hasMorePages {
+            let changes: CloudKitDatabaseChangeSet
+            do {
+                changes = try await client.databaseChanges(
+                    in: .shared,
+                    since: currentTokenData
+                )
+            } catch let error as CKError where error.code == .changeTokenExpired && currentTokenData != nil {
+                // Without this, an expired token failed every refresh from here on.
+                logger.warning("Shared database token expired, restarting with full fetch")
+                AppLogger.shared.log(.warning, category: "CloudKitSync", "Shared database token expired, restarting with full fetch")
+                currentTokenData = nil
+                continue
+            }
             logger.info("Shared database page: \(changes.modifiedZoneIDs.count, privacy: .public) modified zone(s), \(changes.deletedZoneIDs.count, privacy: .public) deleted zone(s), moreComing: \(changes.moreComing, privacy: .public)")
             AppLogger.shared.log(.info, category: "CloudKitSync", "Shared database page: \(changes.modifiedZoneIDs.count) modified zone(s), \(changes.deletedZoneIDs.count) deleted zone(s), moreComing: \(changes.moreComing)")
 
@@ -549,8 +559,9 @@ public final class CloudKitSyncEngine {
             }
 
             latestTokenData = changes.tokenData
-            currentTokenData = changes.moreComing ? changes.tokenData : nil
-        } while currentTokenData != nil
+            currentTokenData = changes.tokenData
+            hasMorePages = changes.moreComing
+        }
 
         if let tokenData = latestTokenData {
             let newAnchor = SyncAnchor(
