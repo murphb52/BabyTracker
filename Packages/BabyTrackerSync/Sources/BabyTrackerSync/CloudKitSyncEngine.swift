@@ -40,7 +40,8 @@ public final class CloudKitSyncEngine {
     /// The refresh pass currently in flight, if any. New passes queue behind it.
     private var activeRefreshTask: Task<SyncStatusSummary, Never>?
     /// The longest a single refresh pass may run before it is cancelled.
-    private let refreshTimeout: Duration
+    /// Settable so tests can shorten it around a single pass.
+    var refreshTimeout: Duration
     private var currentLocalUserID: UUID?
     private var cachedUserDisplayNames: [UUID: String] = [:]
 

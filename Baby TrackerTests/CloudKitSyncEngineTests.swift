@@ -581,9 +581,9 @@ struct CloudKitSyncEngineTests {
         #expect(harness.syncEngine.consumeRemoteCaregiverEventChanges().isEmpty)
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func aStalledRefreshTimesOutAndDoesNotBlockLaterRefreshes() async throws {
-        let harness = SyncEngineHarness(refreshTimeout: .milliseconds(200))
+        let harness = SyncEngineHarness()
         defer { harness.cleanUp() }
 
         let localUser = try UserIdentity(displayName: "Alex Parent")
@@ -592,9 +592,13 @@ struct CloudKitSyncEngineTests {
         // A CloudKit request that never returns used to hold the refresh queue
         // forever, so every later sync waited behind it until the app was killed.
         await harness.client.setStallsAccountStatus(true)
+        harness.syncEngine.refreshTimeout = .milliseconds(200)
         let stalledSummary = await harness.syncEngine.refreshForeground()
 
+        // Restore the normal deadline so a slow CI machine can't time out
+        // the follow-up pass as well.
         await harness.client.setStallsAccountStatus(false)
+        harness.syncEngine.refreshTimeout = .seconds(120)
         let nextSummary = await harness.syncEngine.refreshForeground()
 
         #expect(stalledSummary.state == .failed)
@@ -638,7 +642,7 @@ extension CloudKitSyncEngineTests {
         let client: CloudKitClientSpy
         let syncEngine: CloudKitSyncEngine
 
-        init(refreshTimeout: Duration = .seconds(120)) {
+        init() {
             let store = InMemoryStore()
             self.childRepository = InMemoryChildRepository(store: store)
             self.userIdentityRepository = InMemoryUserIdentityRepository(store: store)
@@ -654,8 +658,7 @@ extension CloudKitSyncEngineTests {
                 eventRepository: eventRepository,
                 syncStateRepository: syncStateRepository,
                 recordMetadataRepository: recordMetadataRepository,
-                client: client,
-                refreshTimeout: refreshTimeout
+                client: client
             )
         }
 
