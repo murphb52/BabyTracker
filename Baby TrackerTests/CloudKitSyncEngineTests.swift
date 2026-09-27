@@ -625,6 +625,53 @@ struct CloudKitSyncEngineTests {
         #expect(summary.state != .failed)
         #expect(await harness.client.databaseChangeTokenWasNil == [false, true])
     }
+
+    @Test
+    func aPushCutShortKeepsTheBatchesAlreadySaved() async throws {
+        let harness = SyncEngineHarness()
+        defer { harness.cleanUp() }
+
+        let localUser = try UserIdentity(displayName: "Alex Parent")
+        let child = try Child(name: "Poppy", createdBy: localUser.id)
+        try harness.userIdentityRepository.saveLocalUser(localUser)
+        try harness.childRepository.saveChild(child)
+        try harness.membershipRepository.saveMembership(
+            .owner(childID: child.id, userID: localUser.id, createdAt: child.createdAt)
+        )
+        let zoneID = CloudKitRecordNames.zoneID(for: child.id)
+        try harness.childRepository.saveCloudKitChildContext(
+            CloudKitChildContext(childID: child.id, zoneID: zoneID, databaseScope: .private)
+        )
+        try await harness.client.modifyRecordZones(
+            saving: [CKRecordZone(zoneID: zoneID)],
+            deleting: [],
+            databaseScope: .private
+        )
+
+        // Enough records for two upload batches of up to 400.
+        for index in 0..<401 {
+            let occurredAt = child.createdAt.addingTimeInterval(TimeInterval(index * 60))
+            let event = try BottleFeedEvent(
+                metadata: EventMetadata(
+                    childID: child.id,
+                    occurredAt: occurredAt,
+                    createdAt: occurredAt,
+                    createdBy: localUser.id
+                ),
+                amountMilliliters: 120
+            )
+            try harness.eventRepository.saveEvent(.bottleFeed(event))
+        }
+        let pendingBefore = try harness.syncStateRepository.loadPendingRecords().count
+
+        // The first batch saves, the second hangs until the pass is cancelled.
+        await harness.client.stallModifyRecords(afterCalls: 1)
+        harness.syncEngine.requestTimeout = .milliseconds(200)
+        _ = await harness.syncEngine.refreshAfterLocalWrite()
+
+        let pendingAfter = try harness.syncStateRepository.loadPendingRecords().count
+        #expect(pendingAfter == pendingBefore - 400)
+    }
 }
 
 // MARK: - Test Harness
@@ -730,6 +777,7 @@ fileprivate actor CloudKitClientSpy: CloudKitClient {
     private var knownRecordTypesByZoneID: [CKRecordZone.ID: Set<String>] = [:]
     private var stallsAccountStatus = false
     private var expiresDatabaseChangeTokens = false
+    private var modifyRecordsCallsBeforeStall: Int?
     private(set) var databaseChangeTokenWasNil: [Bool] = []
 
     func accountStatus() async throws -> CKAccountStatus {
@@ -747,6 +795,10 @@ fileprivate actor CloudKitClientSpy: CloudKitClient {
 
     func setExpiresDatabaseChangeTokens(_ expires: Bool) {
         expiresDatabaseChangeTokens = expires
+    }
+
+    func stallModifyRecords(afterCalls calls: Int) {
+        modifyRecordsCallsBeforeStall = calls
     }
 
     func userRecordID() async throws -> CKRecord.ID {
@@ -832,6 +884,13 @@ fileprivate actor CloudKitClientSpy: CloudKitClient {
         deleteResults: [CKRecord.ID: Result<Void, Error>]
     ) {
         _ = atomically
+        if let remainingCalls = modifyRecordsCallsBeforeStall {
+            if remainingCalls == 0 {
+                // Only ends when the calling task is cancelled.
+                try await Task.sleep(for: .seconds(3600))
+            }
+            modifyRecordsCallsBeforeStall = remainingCalls - 1
+        }
         savedRecordBatches.append((
             databaseScope: databaseScope,
             recordTypes: records.map(\.recordType),

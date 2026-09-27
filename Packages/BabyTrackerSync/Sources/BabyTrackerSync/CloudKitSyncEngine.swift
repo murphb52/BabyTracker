@@ -755,8 +755,9 @@ public final class CloudKitSyncEngine {
 
         // CloudKit enforces a maximum of 400 records per CKModifyRecordsOperation.
         // Split into batches so large imports (e.g. from Huckleberry) don't fail.
+        // Each batch's results are recorded as soon as it lands, so a pass cut
+        // short partway through a large push keeps the batches already saved.
         let cloudKitBatchLimit = 400
-        var mergedSaveResults: [CKRecord.ID: Result<CKRecord, Error>] = [:]
         for batchStart in stride(from: 0, to: outboundRecords.count, by: cloudKitBatchLimit) {
             let batch = Array(outboundRecords[batchStart..<min(batchStart + cloudKitBatchLimit, outboundRecords.count)])
             if outboundRecords.count > cloudKitBatchLimit {
@@ -770,11 +771,17 @@ public final class CloudKitSyncEngine {
                 savePolicy: .ifServerRecordUnchanged,
                 atomically: false
             )
-            mergedSaveResults.merge(batchResults.saveResults) { _, new in new }
+            try recordPushResults(batchResults.saveResults, for: batch, context: context)
         }
+    }
 
+    private func recordPushResults(
+        _ saveResults: [CKRecord.ID: Result<CKRecord, Error>],
+        for outboundRecords: [OutboundRecord],
+        context: CloudKitChildContext
+    ) throws {
         for outboundRecord in outboundRecords {
-            if let result = mergedSaveResults[outboundRecord.record.recordID] {
+            if let result = saveResults[outboundRecord.record.recordID] {
                 switch result {
                 case let .success(savedRecord):
                     try recordMetadataRepository.saveSystemFields(

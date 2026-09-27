@@ -44,11 +44,18 @@ token expires, every refresh fails at the same point.
    `databaseChanges` throws `.changeTokenExpired`, restart the shared database
    fetch from scratch, matching the existing zone-level behaviour.
 
+3. **Keep upload progress when a pass is cut short.** Pushes go out in
+   batches of 400. Record each batch's results as soon as it saves, instead
+   of after every batch, so an interrupted import doesn't re-upload the
+   batches that already landed.
+
 ## Tests
 
 - A refresh whose CloudKit call stalls returns a timed-out failure, and the
   next refresh completes normally.
 - An expired shared-database token triggers a fetch with no token and the
   refresh succeeds.
+- A push whose second batch stalls keeps the first 400 records marked as
+  synced.
 
 - [x] Complete
