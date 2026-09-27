@@ -39,6 +39,10 @@ public final class CloudKitSyncEngine {
     private var didApplyRemoteChangesDuringRefresh = false
     /// The refresh pass currently in flight, if any. New passes queue behind it.
     private var activeRefreshTask: Task<SyncStatusSummary, Never>?
+    /// The longest a single CloudKit request may run before the refresh pass
+    /// it belongs to is cancelled. Settable so tests can shorten it.
+    var requestTimeout: Duration
+    private let requestTracker: CloudKitRequestTracker
     private var currentLocalUserID: UUID?
     private var cachedUserDisplayNames: [UUID: String] = [:]
 
@@ -52,7 +56,8 @@ public final class CloudKitSyncEngine {
         foodPresetRepository: (any FoodPresetRepository)? = nil,
         syncStateRepository: SyncStateRepository,
         recordMetadataRepository: any CloudKitRecordMetadataRepository,
-        client: CloudKitClient = LiveCloudKitClient()
+        client: CloudKitClient = LiveCloudKitClient(),
+        requestTimeout: Duration = .seconds(10)
     ) {
         self.childRepository = childRepository
         self.userIdentityRepository = userIdentityRepository
@@ -61,7 +66,10 @@ public final class CloudKitSyncEngine {
         self.foodPresetRepository = foodPresetRepository
         self.syncStateRepository = syncStateRepository
         self.recordMetadataRepository = recordMetadataRepository
-        self.client = client
+        let requestTracker = CloudKitRequestTracker()
+        self.requestTracker = requestTracker
+        self.client = RequestTrackingCloudKitClient(wrapped: client, tracker: requestTracker)
+        self.requestTimeout = requestTimeout
     }
 
     public func prepareForLaunch() async -> SyncStatusSummary {
@@ -315,7 +323,7 @@ public final class CloudKitSyncEngine {
         let precedingRefresh = activeRefreshTask
         let refreshTask = Task { @MainActor in
             _ = await precedingRefresh?.value
-            return await self.performRefresh(reason: reason)
+            return await self.performRefreshWithinDeadline(reason: reason)
         }
         activeRefreshTask = refreshTask
 
@@ -325,6 +333,45 @@ public final class CloudKitSyncEngine {
             activeRefreshTask = nil
         }
 
+        return summary
+    }
+
+    /// Runs one refresh pass, cancelling it if any single CloudKit request
+    /// runs longer than `requestTimeout`.
+    ///
+    /// Passes are queued, so a single CloudKit request that never returns —
+    /// routine when the app is suspended mid-request or the network drops —
+    /// would otherwise hold up every later pass until the app is relaunched.
+    /// The limit is per request rather than per pass so a large import, made
+    /// of many quick requests, can still finish. CloudKit's async calls honour
+    /// task cancellation, so cancelling the pass makes the stalled request
+    /// throw and the queue moves on. The pass still finishes before the next
+    /// one starts, so passes never overlap.
+    private func performRefreshWithinDeadline(reason: RefreshReason) async -> SyncStatusSummary {
+        let pass = Task { @MainActor in
+            await self.performRefresh(reason: reason)
+        }
+        let timeout = requestTimeout
+        let checkInterval = min(timeout, .seconds(1))
+        let watchdog = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: checkInterval)
+                guard !Task.isCancelled else {
+                    return
+                }
+                guard let duration = self.requestTracker.longestRunningRequestDuration(),
+                      duration > timeout else {
+                    continue
+                }
+                self.logger.warning("Refresh(\(reason.logDescription, privacy: .public)) has a CloudKit request stuck for over \(String(describing: timeout), privacy: .public) — cancelling")
+                AppLogger.shared.log(.warning, category: "CloudKitSync", "Refresh(\(reason.logDescription)) has a CloudKit request stuck for over \(timeout) — cancelling")
+                pass.cancel()
+                return
+            }
+        }
+
+        let summary = await pass.value
+        watchdog.cancel()
         return summary
     }
 
@@ -385,11 +432,16 @@ public final class CloudKitSyncEngine {
             logger.error("Refresh(\(reason.logDescription, privacy: .public)) failed: \(error.localizedDescription, privacy: .public) [\(String(describing: error), privacy: .public)]")
             AppLogger.shared.log(.error, category: "CloudKitSync", "Refresh(\(reason.logDescription)) failed: \(error.localizedDescription)")
             let localSummary = (try? syncStateRepository.loadStatusSummary()) ?? SyncStatusSummary()
+            // A cancelled pass surfaces as whatever error the interrupted
+            // request threw, so report the timeout rather than that error.
+            let errorDescription = Task.isCancelled
+                ? "Sync took too long. It will try again on the next refresh."
+                : error.localizedDescription
             statusSummary = SyncStatusSummary(
                 state: .failed,
                 pendingRecordCount: localSummary.pendingRecordCount,
                 lastSyncAt: localSummary.lastSyncAt,
-                lastErrorDescription: error.localizedDescription,
+                lastErrorDescription: errorDescription,
                 didApplyRemoteChanges: didApplyRemoteChangesDuringRefresh
             )
             return statusSummary
@@ -479,12 +531,22 @@ public final class CloudKitSyncEngine {
 
         var currentTokenData = anchor?.tokenData
         var latestTokenData: Data?
+        var hasMorePages = true
 
-        repeat {
-            let changes = try await client.databaseChanges(
-                in: .shared,
-                since: currentTokenData
-            )
+        while hasMorePages {
+            let changes: CloudKitDatabaseChangeSet
+            do {
+                changes = try await client.databaseChanges(
+                    in: .shared,
+                    since: currentTokenData
+                )
+            } catch let error as CKError where error.code == .changeTokenExpired && currentTokenData != nil {
+                // Without this, an expired token failed every refresh from here on.
+                logger.warning("Shared database token expired, restarting with full fetch")
+                AppLogger.shared.log(.warning, category: "CloudKitSync", "Shared database token expired, restarting with full fetch")
+                currentTokenData = nil
+                continue
+            }
             logger.info("Shared database page: \(changes.modifiedZoneIDs.count, privacy: .public) modified zone(s), \(changes.deletedZoneIDs.count, privacy: .public) deleted zone(s), moreComing: \(changes.moreComing, privacy: .public)")
             AppLogger.shared.log(.info, category: "CloudKitSync", "Shared database page: \(changes.modifiedZoneIDs.count) modified zone(s), \(changes.deletedZoneIDs.count) deleted zone(s), moreComing: \(changes.moreComing)")
 
@@ -512,8 +574,9 @@ public final class CloudKitSyncEngine {
             }
 
             latestTokenData = changes.tokenData
-            currentTokenData = changes.moreComing ? changes.tokenData : nil
-        } while currentTokenData != nil
+            currentTokenData = changes.tokenData
+            hasMorePages = changes.moreComing
+        }
 
         if let tokenData = latestTokenData {
             let newAnchor = SyncAnchor(
@@ -532,6 +595,7 @@ public final class CloudKitSyncEngine {
         AppLogger.shared.log(.info, category: "CloudKitSync", "Found \(children.count) child(ren) in local store")
 
         for child in children {
+            try Task.checkCancellation()
             if let context = try childRepository.loadCloudKitChildContext(id: child.id) {
                 logger.info(
                     "Child '\(child.name, privacy: .private)' — zone: \(context.zoneID.zoneName, privacy: .public), scope: \(context.databaseScope.logDescription, privacy: .public), isArchived: \(child.isArchived, privacy: .public)"
@@ -638,6 +702,7 @@ public final class CloudKitSyncEngine {
 
         let children = try childRepository.loadAllChildren()
         for child in children {
+            try Task.checkCancellation()
             let memberships = try membershipRepository.loadMemberships(for: child.id)
             let childHasPending = pendingRecords.contains { $0.childID == child.id || $0.recordID == child.id }
             let childHasPendingUsers = memberships.contains { pendingUserIDs.contains($0.userID) }
@@ -690,8 +755,9 @@ public final class CloudKitSyncEngine {
 
         // CloudKit enforces a maximum of 400 records per CKModifyRecordsOperation.
         // Split into batches so large imports (e.g. from Huckleberry) don't fail.
+        // Each batch's results are recorded as soon as it lands, so a pass cut
+        // short partway through a large push keeps the batches already saved.
         let cloudKitBatchLimit = 400
-        var mergedSaveResults: [CKRecord.ID: Result<CKRecord, Error>] = [:]
         for batchStart in stride(from: 0, to: outboundRecords.count, by: cloudKitBatchLimit) {
             let batch = Array(outboundRecords[batchStart..<min(batchStart + cloudKitBatchLimit, outboundRecords.count)])
             if outboundRecords.count > cloudKitBatchLimit {
@@ -705,11 +771,17 @@ public final class CloudKitSyncEngine {
                 savePolicy: .ifServerRecordUnchanged,
                 atomically: false
             )
-            mergedSaveResults.merge(batchResults.saveResults) { _, new in new }
+            try recordPushResults(batchResults.saveResults, for: batch, context: context)
         }
+    }
 
+    private func recordPushResults(
+        _ saveResults: [CKRecord.ID: Result<CKRecord, Error>],
+        for outboundRecords: [OutboundRecord],
+        context: CloudKitChildContext
+    ) throws {
         for outboundRecord in outboundRecords {
-            if let result = mergedSaveResults[outboundRecord.record.recordID] {
+            if let result = saveResults[outboundRecord.record.recordID] {
                 switch result {
                 case let .success(savedRecord):
                     try recordMetadataRepository.saveSystemFields(

@@ -52,6 +52,7 @@ public struct LiveCloudKitClient: CloudKitClient {
         var currentCursor: CKQueryOperation.Cursor?
 
         repeat {
+            try Task.checkCancellation()
             if let cursor = currentCursor {
                 let page = try await database(for: databaseScope).records(
                     continuingMatchFrom: cursor
@@ -130,6 +131,7 @@ public struct LiveCloudKitClient: CloudKitClient {
         var latestTokenData = tokenData
 
         while true {
+            try Task.checkCancellation()
             let changes = try await database(for: databaseScope).recordZoneChanges(
                 inZoneWith: zoneID,
                 since: currentToken

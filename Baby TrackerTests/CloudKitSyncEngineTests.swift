@@ -580,6 +580,98 @@ struct CloudKitSyncEngineTests {
         #expect(changes.count == 1)
         #expect(harness.syncEngine.consumeRemoteCaregiverEventChanges().isEmpty)
     }
+
+    @Test
+    func aStalledRefreshTimesOutAndDoesNotBlockLaterRefreshes() async throws {
+        let harness = SyncEngineHarness()
+        defer { harness.cleanUp() }
+
+        let localUser = try UserIdentity(displayName: "Alex Parent")
+        try harness.userIdentityRepository.saveLocalUser(localUser)
+
+        // A CloudKit request that never returns used to hold the refresh queue
+        // forever, so every later sync waited behind it until the app was killed.
+        await harness.client.setStallsAccountStatus(true)
+        harness.syncEngine.requestTimeout = .milliseconds(200)
+        let stalledSummary = await harness.syncEngine.refreshForeground()
+
+        // Restore the normal deadline so a slow CI machine can't time out
+        // the follow-up pass as well.
+        await harness.client.setStallsAccountStatus(false)
+        harness.syncEngine.requestTimeout = .seconds(120)
+        let nextSummary = await harness.syncEngine.refreshForeground()
+
+        #expect(stalledSummary.state == .failed)
+        #expect(stalledSummary.lastErrorDescription == "Sync took too long. It will try again on the next refresh.")
+        // A fixture with no child leaves the local user unpushed, so success
+        // reads as pending rather than up to date — what matters is no failure.
+        #expect(nextSummary.state != .failed)
+    }
+
+    @Test
+    func anExpiredSharedDatabaseTokenFallsBackToAFullFetch() async throws {
+        let harness = SyncEngineHarness()
+        defer { harness.cleanUp() }
+
+        let localUser = try UserIdentity(displayName: "Alex Parent")
+        try harness.userIdentityRepository.saveLocalUser(localUser)
+        try harness.syncStateRepository.saveAnchor(
+            SyncAnchor(databaseScope: .shared, tokenData: Data([1, 2, 3]), lastSyncAt: .now)
+        )
+        await harness.client.setExpiresDatabaseChangeTokens(true)
+
+        let summary = await harness.syncEngine.refreshForeground()
+
+        #expect(summary.state != .failed)
+        #expect(await harness.client.databaseChangeTokenWasNil == [false, true])
+    }
+
+    @Test
+    func aPushCutShortKeepsTheBatchesAlreadySaved() async throws {
+        let harness = SyncEngineHarness()
+        defer { harness.cleanUp() }
+
+        let localUser = try UserIdentity(displayName: "Alex Parent")
+        let child = try Child(name: "Poppy", createdBy: localUser.id)
+        try harness.userIdentityRepository.saveLocalUser(localUser)
+        try harness.childRepository.saveChild(child)
+        try harness.membershipRepository.saveMembership(
+            .owner(childID: child.id, userID: localUser.id, createdAt: child.createdAt)
+        )
+        let zoneID = CloudKitRecordNames.zoneID(for: child.id)
+        try harness.childRepository.saveCloudKitChildContext(
+            CloudKitChildContext(childID: child.id, zoneID: zoneID, databaseScope: .private)
+        )
+        try await harness.client.modifyRecordZones(
+            saving: [CKRecordZone(zoneID: zoneID)],
+            deleting: [],
+            databaseScope: .private
+        )
+
+        // Enough records for two upload batches of up to 400.
+        for index in 0..<401 {
+            let occurredAt = child.createdAt.addingTimeInterval(TimeInterval(index * 60))
+            let event = try BottleFeedEvent(
+                metadata: EventMetadata(
+                    childID: child.id,
+                    occurredAt: occurredAt,
+                    createdAt: occurredAt,
+                    createdBy: localUser.id
+                ),
+                amountMilliliters: 120
+            )
+            try harness.eventRepository.saveEvent(.bottleFeed(event))
+        }
+        let pendingBefore = try harness.syncStateRepository.loadPendingRecords().count
+
+        // The first batch saves, the second hangs until the pass is cancelled.
+        await harness.client.stallModifyRecords(afterCalls: 1)
+        harness.syncEngine.requestTimeout = .milliseconds(200)
+        _ = await harness.syncEngine.refreshAfterLocalWrite()
+
+        let pendingAfter = try harness.syncStateRepository.loadPendingRecords().count
+        #expect(pendingAfter == pendingBefore - 400)
+    }
 }
 
 // MARK: - Test Harness
@@ -683,9 +775,30 @@ fileprivate actor CloudKitClientSpy: CloudKitClient {
     private var databaseSubscriptionsByID: [String: CKSubscription] = [:]
     private var recordsByID: [CKRecord.ID: CKRecord] = [:]
     private var knownRecordTypesByZoneID: [CKRecordZone.ID: Set<String>] = [:]
+    private var stallsAccountStatus = false
+    private var expiresDatabaseChangeTokens = false
+    private var modifyRecordsCallsBeforeStall: Int?
+    private(set) var databaseChangeTokenWasNil: [Bool] = []
 
     func accountStatus() async throws -> CKAccountStatus {
-        .available
+        if stallsAccountStatus {
+            // Mirrors a CloudKit request stuck on the network: it only ends
+            // when the calling task is cancelled.
+            try await Task.sleep(for: .seconds(3600))
+        }
+        return .available
+    }
+
+    func setStallsAccountStatus(_ stalls: Bool) {
+        stallsAccountStatus = stalls
+    }
+
+    func setExpiresDatabaseChangeTokens(_ expires: Bool) {
+        expiresDatabaseChangeTokens = expires
+    }
+
+    func stallModifyRecords(afterCalls calls: Int) {
+        modifyRecordsCallsBeforeStall = calls
     }
 
     func userRecordID() async throws -> CKRecord.ID {
@@ -771,6 +884,13 @@ fileprivate actor CloudKitClientSpy: CloudKitClient {
         deleteResults: [CKRecord.ID: Result<Void, Error>]
     ) {
         _ = atomically
+        if let remainingCalls = modifyRecordsCallsBeforeStall {
+            if remainingCalls == 0 {
+                // Only ends when the calling task is cancelled.
+                try await Task.sleep(for: .seconds(3600))
+            }
+            modifyRecordsCallsBeforeStall = remainingCalls - 1
+        }
         savedRecordBatches.append((
             databaseScope: databaseScope,
             recordTypes: records.map(\.recordType),
@@ -804,7 +924,12 @@ fileprivate actor CloudKitClientSpy: CloudKitClient {
         in databaseScope: CKDatabase.Scope,
         since tokenData: Data?
     ) async throws -> CloudKitDatabaseChangeSet {
-        CloudKitDatabaseChangeSet(
+        databaseChangeTokenWasNil.append(tokenData == nil)
+        if expiresDatabaseChangeTokens, tokenData != nil {
+            throw CKError(.changeTokenExpired)
+        }
+
+        return CloudKitDatabaseChangeSet(
             modifiedZoneIDs: [],
             deletedZoneIDs: [],
             tokenData: nil,
