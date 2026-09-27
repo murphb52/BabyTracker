@@ -39,6 +39,8 @@ public final class CloudKitSyncEngine {
     private var didApplyRemoteChangesDuringRefresh = false
     /// The refresh pass currently in flight, if any. New passes queue behind it.
     private var activeRefreshTask: Task<SyncStatusSummary, Never>?
+    /// The longest a single refresh pass may run before it is cancelled.
+    private let refreshTimeout: Duration
     private var currentLocalUserID: UUID?
     private var cachedUserDisplayNames: [UUID: String] = [:]
 
@@ -52,7 +54,8 @@ public final class CloudKitSyncEngine {
         foodPresetRepository: (any FoodPresetRepository)? = nil,
         syncStateRepository: SyncStateRepository,
         recordMetadataRepository: any CloudKitRecordMetadataRepository,
-        client: CloudKitClient = LiveCloudKitClient()
+        client: CloudKitClient = LiveCloudKitClient(),
+        refreshTimeout: Duration = .seconds(120)
     ) {
         self.childRepository = childRepository
         self.userIdentityRepository = userIdentityRepository
@@ -62,6 +65,7 @@ public final class CloudKitSyncEngine {
         self.syncStateRepository = syncStateRepository
         self.recordMetadataRepository = recordMetadataRepository
         self.client = client
+        self.refreshTimeout = refreshTimeout
     }
 
     public func prepareForLaunch() async -> SyncStatusSummary {
@@ -315,7 +319,7 @@ public final class CloudKitSyncEngine {
         let precedingRefresh = activeRefreshTask
         let refreshTask = Task { @MainActor in
             _ = await precedingRefresh?.value
-            return await self.performRefresh(reason: reason)
+            return await self.performRefreshWithinDeadline(reason: reason)
         }
         activeRefreshTask = refreshTask
 
@@ -325,6 +329,34 @@ public final class CloudKitSyncEngine {
             activeRefreshTask = nil
         }
 
+        return summary
+    }
+
+    /// Runs one refresh pass, cancelling it if it outlives `refreshTimeout`.
+    ///
+    /// Passes are queued, so a single CloudKit request that never returns —
+    /// routine when the app is suspended mid-request or the network drops —
+    /// would otherwise hold up every later pass until the app is relaunched.
+    /// CloudKit's async calls honour task cancellation, so cancelling the pass
+    /// makes the stalled request throw and the queue moves on. The pass still
+    /// finishes before the next one starts, so passes never overlap.
+    private func performRefreshWithinDeadline(reason: RefreshReason) async -> SyncStatusSummary {
+        let pass = Task { @MainActor in
+            await self.performRefresh(reason: reason)
+        }
+        let timeout = refreshTimeout
+        let watchdog = Task { @MainActor in
+            try? await Task.sleep(for: timeout)
+            guard !Task.isCancelled else {
+                return
+            }
+            self.logger.warning("Refresh(\(reason.logDescription, privacy: .public)) exceeded its deadline — cancelling")
+            AppLogger.shared.log(.warning, category: "CloudKitSync", "Refresh(\(reason.logDescription)) exceeded its deadline — cancelling")
+            pass.cancel()
+        }
+
+        let summary = await pass.value
+        watchdog.cancel()
         return summary
     }
 
@@ -385,11 +417,16 @@ public final class CloudKitSyncEngine {
             logger.error("Refresh(\(reason.logDescription, privacy: .public)) failed: \(error.localizedDescription, privacy: .public) [\(String(describing: error), privacy: .public)]")
             AppLogger.shared.log(.error, category: "CloudKitSync", "Refresh(\(reason.logDescription)) failed: \(error.localizedDescription)")
             let localSummary = (try? syncStateRepository.loadStatusSummary()) ?? SyncStatusSummary()
+            // A cancelled pass surfaces as whatever error the interrupted
+            // request threw, so report the timeout rather than that error.
+            let errorDescription = Task.isCancelled
+                ? "Sync took too long. It will try again on the next refresh."
+                : error.localizedDescription
             statusSummary = SyncStatusSummary(
                 state: .failed,
                 pendingRecordCount: localSummary.pendingRecordCount,
                 lastSyncAt: localSummary.lastSyncAt,
-                lastErrorDescription: error.localizedDescription,
+                lastErrorDescription: errorDescription,
                 didApplyRemoteChanges: didApplyRemoteChangesDuringRefresh
             )
             return statusSummary
@@ -532,6 +569,7 @@ public final class CloudKitSyncEngine {
         AppLogger.shared.log(.info, category: "CloudKitSync", "Found \(children.count) child(ren) in local store")
 
         for child in children {
+            try Task.checkCancellation()
             if let context = try childRepository.loadCloudKitChildContext(id: child.id) {
                 logger.info(
                     "Child '\(child.name, privacy: .private)' — zone: \(context.zoneID.zoneName, privacy: .public), scope: \(context.databaseScope.logDescription, privacy: .public), isArchived: \(child.isArchived, privacy: .public)"
@@ -638,6 +676,7 @@ public final class CloudKitSyncEngine {
 
         let children = try childRepository.loadAllChildren()
         for child in children {
+            try Task.checkCancellation()
             let memberships = try membershipRepository.loadMemberships(for: child.id)
             let childHasPending = pendingRecords.contains { $0.childID == child.id || $0.recordID == child.id }
             let childHasPendingUsers = memberships.contains { pendingUserIDs.contains($0.userID) }

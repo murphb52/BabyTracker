@@ -580,6 +580,27 @@ struct CloudKitSyncEngineTests {
         #expect(changes.count == 1)
         #expect(harness.syncEngine.consumeRemoteCaregiverEventChanges().isEmpty)
     }
+
+    @Test(.timeLimit(.minutes(1)))
+    func aStalledRefreshTimesOutAndDoesNotBlockLaterRefreshes() async throws {
+        let harness = SyncEngineHarness(refreshTimeout: .milliseconds(200))
+        defer { harness.cleanUp() }
+
+        let localUser = try UserIdentity(displayName: "Alex Parent")
+        try harness.userIdentityRepository.saveLocalUser(localUser)
+
+        // A CloudKit request that never returns used to hold the refresh queue
+        // forever, so every later sync waited behind it until the app was killed.
+        await harness.client.setStallsAccountStatus(true)
+        let stalledSummary = await harness.syncEngine.refreshForeground()
+
+        await harness.client.setStallsAccountStatus(false)
+        let nextSummary = await harness.syncEngine.refreshForeground()
+
+        #expect(stalledSummary.state == .failed)
+        #expect(stalledSummary.lastErrorDescription == "Sync took too long. It will try again on the next refresh.")
+        #expect(nextSummary.state == .upToDate)
+    }
 }
 
 // MARK: - Test Harness
@@ -599,7 +620,7 @@ extension CloudKitSyncEngineTests {
         let client: CloudKitClientSpy
         let syncEngine: CloudKitSyncEngine
 
-        init() {
+        init(refreshTimeout: Duration = .seconds(120)) {
             let store = InMemoryStore()
             self.childRepository = InMemoryChildRepository(store: store)
             self.userIdentityRepository = InMemoryUserIdentityRepository(store: store)
@@ -615,7 +636,8 @@ extension CloudKitSyncEngineTests {
                 eventRepository: eventRepository,
                 syncStateRepository: syncStateRepository,
                 recordMetadataRepository: recordMetadataRepository,
-                client: client
+                client: client,
+                refreshTimeout: refreshTimeout
             )
         }
 
@@ -683,9 +705,19 @@ fileprivate actor CloudKitClientSpy: CloudKitClient {
     private var databaseSubscriptionsByID: [String: CKSubscription] = [:]
     private var recordsByID: [CKRecord.ID: CKRecord] = [:]
     private var knownRecordTypesByZoneID: [CKRecordZone.ID: Set<String>] = [:]
+    private var stallsAccountStatus = false
 
     func accountStatus() async throws -> CKAccountStatus {
-        .available
+        if stallsAccountStatus {
+            // Mirrors a CloudKit request stuck on the network: it only ends
+            // when the calling task is cancelled.
+            try await Task.sleep(for: .seconds(3600))
+        }
+        return .available
+    }
+
+    func setStallsAccountStatus(_ stalls: Bool) {
+        stallsAccountStatus = stalls
     }
 
     func userRecordID() async throws -> CKRecord.ID {
