@@ -135,7 +135,7 @@ public struct FoodEditorSheetView: View {
                                 .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("Fill (preset.foodName), (preset.displayAmount)")
+                            .accessibilityLabel("Fill \(preset.foodName), \(preset.displayAmount)")
                         }
                     }
                 }
@@ -145,7 +145,7 @@ public struct FoodEditorSheetView: View {
     }
 
     private var foodSection: some View {
-        Section("What did \(childName) have?") {
+        Section {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(foodSuggestions, id: \.self) { suggestion in
@@ -158,6 +158,9 @@ public struct FoodEditorSheetView: View {
             TextField("Food name", text: $foodName)
                 .textInputAutocapitalization(.words)
                 .accessibilityIdentifier("food-name-field")
+        } header: {
+            // Form headers are uppercased by default, which mangles the child's name.
+            Text("What did \(childName) have?").textCase(nil)
         }
     }
 
