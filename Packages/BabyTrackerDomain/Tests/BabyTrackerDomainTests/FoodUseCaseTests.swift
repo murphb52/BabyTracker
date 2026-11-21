@@ -55,6 +55,21 @@ struct FoodUseCaseTests {
     }
 
     @Test
+    func nilLimitReturnsEveryDistinctName() throws {
+        let childID = UUID()
+        let userID = UUID()
+        let repository = FoodEventRepositoryStub()
+        for (index, name) in ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"].enumerated() {
+            try repository.saveEvent(.food(try makeFood(name, at: TimeInterval(index), childID: childID, userID: userID)))
+        }
+
+        let limited = try FetchRecentFoodNamesUseCase(eventRepository: repository).execute(.init(childID: childID))
+        let all = try FetchRecentFoodNamesUseCase(eventRepository: repository).execute(.init(childID: childID, limit: nil))
+        #expect(limited.count == 8)
+        #expect(all == ["J", "I", "H", "G", "F", "E", "D", "C", "B", "A"])
+    }
+
+    @Test
     func exactPresetMatchIsDeduplicatedButDifferentAmountIsAllowed() throws {
         let childID = UUID()
         let userID = UUID()

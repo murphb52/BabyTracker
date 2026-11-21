@@ -4,9 +4,10 @@ import Foundation
 public struct FetchRecentFoodNamesUseCase: UseCase {
     public struct Input {
         public let childID: UUID
-        public let limit: Int
+        /// Maximum number of names to return. `nil` returns every distinct name.
+        public let limit: Int?
 
-        public init(childID: UUID, limit: Int = 8) {
+        public init(childID: UUID, limit: Int? = 8) {
             self.childID = childID
             self.limit = limit
         }
@@ -30,7 +31,7 @@ public struct FetchRecentFoodNamesUseCase: UseCase {
         var names: [String] = []
         for food in foods where seen.insert(food.foodName.lowercased()).inserted {
             names.append(food.foodName)
-            if names.count == input.limit { break }
+            if let limit = input.limit, names.count == limit { break }
         }
         return names
     }

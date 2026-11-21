@@ -1249,11 +1249,12 @@ public final class AppModel {
             .execute(.init(childID: currentChild.id))) ?? []
     }
 
-    /// Food names previously logged for the current child, most-recent first.
+    /// Every distinct food name previously logged for the current child, most-recent first.
+    /// The food editor filters and caps these for its suggestion chips and lists them all in "View all foods".
     public func recentFoodNames() -> [String] {
         guard let currentChild else { return [] }
         return (try? FetchRecentFoodNamesUseCase(eventRepository: eventRepository)
-            .execute(.init(childID: currentChild.id))) ?? []
+            .execute(.init(childID: currentChild.id, limit: nil))) ?? []
     }
 
     @discardableResult
