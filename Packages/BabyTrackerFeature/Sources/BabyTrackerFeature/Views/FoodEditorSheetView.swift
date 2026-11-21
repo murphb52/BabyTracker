@@ -22,6 +22,7 @@ public struct FoodEditorSheetView: View {
     @State private var customUnitLabel: String
     @State private var saveAsPreset = false
     @State private var showingPresets = false
+    @State private var showingAllFoods = false
     @State private var showingDeleteConfirmation = false
     @State private var displayedPresets: [FoodPreset]
     private let initialTimePreset: QuickTimeSelectorView.TimePreset
@@ -106,6 +107,16 @@ public struct FoodEditorSheetView: View {
                     reorderPresets: reorderDisplayedPresets
                 )
             }
+            .sheet(isPresented: $showingAllFoods) {
+                FoodHistoryListView(
+                    foodNames: recentFoodNames,
+                    selectedFoodName: foodName,
+                    selectFood: { foodName = $0 }
+                )
+                // Opens at half height; the caregiver can pull it up to full screen.
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
             .alert("Delete Food Entry?", isPresented: $showingDeleteConfirmation) {
                 Button("Delete", role: .destructive) { deleteAction?(); dismiss() }
                 Button("Cancel", role: .cancel) {}
@@ -146,18 +157,24 @@ public struct FoodEditorSheetView: View {
 
     private var foodSection: some View {
         Section {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(foodSuggestions, id: \.self) { suggestion in
-                        Button(suggestion) { foodName = suggestion }
-                            .buttonStyle(.bordered)
-                            .tint(foodName.caseInsensitiveCompare(suggestion) == .orderedSame ? Self.eventColor : .secondary)
+            if !filteredFoodSuggestions.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(filteredFoodSuggestions, id: \.self) { suggestion in
+                            Button(suggestion) { foodName = suggestion }
+                                .buttonStyle(.bordered)
+                                .tint(foodName.caseInsensitiveCompare(suggestion) == .orderedSame ? Self.eventColor : .secondary)
+                        }
                     }
                 }
             }
             TextField("Food name", text: $foodName)
                 .textInputAutocapitalization(.words)
                 .accessibilityIdentifier("food-name-field")
+            if !recentFoodNames.isEmpty {
+                Button("View all foods") { showingAllFoods = true }
+                    .accessibilityIdentifier("food-view-all-button")
+            }
         } header: {
             // Form headers are uppercased by default, which mangles the child's name.
             Text("What did \(childName) have?").textCase(nil)
@@ -196,6 +213,10 @@ public struct FoodEditorSheetView: View {
     private var foodSuggestions: [String] {
         var seen = Set<String>()
         return (recentFoodNames + FoodCatalog.starterNames).filter { seen.insert($0.lowercased()).inserted }
+    }
+
+    private var filteredFoodSuggestions: [String] {
+        FoodSuggestionFilter.suggestions(from: foodSuggestions, matching: foodName)
     }
 
     private var effectiveName: String { foodName.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -275,9 +296,25 @@ public struct FoodEditorSheetView: View {
         navigationTitle: "Food",
         primaryActionTitle: "Save",
         childName: "Baby",
-        recentFoodNames: ["Avocado"],
+        recentFoodNames: ["Avocado", "Sweet Potato", "Broccoli", "Pear", "Pasta", "Apple"],
         presets: [],
         initialOccurredAt: .now,
+        updatePreset: { _, _, _, _, _ in true },
+        deletePreset: { _ in true },
+        reorderPresets: { _ in true },
+        saveAction: { _, _, _, _, _, _ in true }
+    )
+}
+
+#Preview("Filtered suggestions") {
+    FoodEditorSheetView(
+        navigationTitle: "Food",
+        primaryActionTitle: "Save",
+        childName: "Baby",
+        recentFoodNames: ["Avocado", "Sweet Potato", "Broccoli", "Pear", "Pasta", "Apple"],
+        presets: [],
+        initialOccurredAt: .now,
+        initialFoodName: "p",
         updatePreset: { _, _, _, _, _ in true },
         deletePreset: { _ in true },
         reorderPresets: { _ in true },
