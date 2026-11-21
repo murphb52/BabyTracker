@@ -146,12 +146,14 @@ public struct FoodEditorSheetView: View {
 
     private var foodSection: some View {
         Section {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(foodSuggestions, id: \.self) { suggestion in
-                        Button(suggestion) { foodName = suggestion }
-                            .buttonStyle(.bordered)
-                            .tint(foodName.caseInsensitiveCompare(suggestion) == .orderedSame ? Self.eventColor : .secondary)
+            if !filteredFoodSuggestions.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(filteredFoodSuggestions, id: \.self) { suggestion in
+                            Button(suggestion) { foodName = suggestion }
+                                .buttonStyle(.bordered)
+                                .tint(foodName.caseInsensitiveCompare(suggestion) == .orderedSame ? Self.eventColor : .secondary)
+                        }
                     }
                 }
             }
@@ -196,6 +198,10 @@ public struct FoodEditorSheetView: View {
     private var foodSuggestions: [String] {
         var seen = Set<String>()
         return (recentFoodNames + FoodCatalog.starterNames).filter { seen.insert($0.lowercased()).inserted }
+    }
+
+    private var filteredFoodSuggestions: [String] {
+        FoodSuggestionFilter.suggestions(from: foodSuggestions, matching: foodName)
     }
 
     private var effectiveName: String { foodName.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -275,9 +281,25 @@ public struct FoodEditorSheetView: View {
         navigationTitle: "Food",
         primaryActionTitle: "Save",
         childName: "Baby",
-        recentFoodNames: ["Avocado"],
+        recentFoodNames: ["Avocado", "Sweet Potato", "Broccoli", "Pear", "Pasta", "Apple"],
         presets: [],
         initialOccurredAt: .now,
+        updatePreset: { _, _, _, _, _ in true },
+        deletePreset: { _ in true },
+        reorderPresets: { _ in true },
+        saveAction: { _, _, _, _, _, _ in true }
+    )
+}
+
+#Preview("Filtered suggestions") {
+    FoodEditorSheetView(
+        navigationTitle: "Food",
+        primaryActionTitle: "Save",
+        childName: "Baby",
+        recentFoodNames: ["Avocado", "Sweet Potato", "Broccoli", "Pear", "Pasta", "Apple"],
+        presets: [],
+        initialOccurredAt: .now,
+        initialFoodName: "p",
         updatePreset: { _, _, _, _, _ in true },
         deletePreset: { _ in true },
         reorderPresets: { _ in true },
