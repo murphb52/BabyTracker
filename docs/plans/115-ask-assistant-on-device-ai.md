@@ -36,12 +36,13 @@ The answers come from Apple's on-device **Foundation Models** framework (iOS 26)
 
 1. `ChildQuestionAnswering` protocol:
    - `availability`
-   - `answer(_:for:)` (async)
+   - `answer(_:for:)` (async, takes the `Child` so instructions can use the name and age)
    - `resetConversation()`
 2. Supporting types:
    - `AssistantAvailability`
    - `AssistantAnswer`
    - `AssistantError`
+   - `UnavailableQuestionAnswerer` (the default, which keeps the tab hidden)
 3. Query types:
    - `EventSummaryCategory`: feeds, sleep, nappies, food, medication, bath. Each one maps to `BabyEventKind`s.
    - `RelativePeriod`: today, yesterday, last 7 days, previous 7 days, last 30 days, previous 30 days. Resolves to a `DateInterval` from `now` and a `Calendar`, so dates are never left to the model.
@@ -79,12 +80,16 @@ This is the only package that imports `FoundationModels`.
 ### Feature (`BabyTrackerFeature`)
 
 - `ChildWorkspaceTab.ask`. The tab only appears when the answerer reports `.available`.
-- `AskViewModel` holds the ephemeral messages, the loading and error state, and the suggested questions. It depends only on `ChildQuestionAnswering`.
+- `AskViewModel` holds the ephemeral messages, the loading and error state, and the draft question. It depends only on `ChildQuestionAnswering`.
+- `AskSuggestedQuestions` builds the starter questions from the event kinds the child has logged (and that are enabled), capped at 6.
+- `AskTabView` is a thin wrapper that reads `AppModel` and resets the conversation when the child changes. It has no preview because `AppModel` needs the full stack, so the previews live on `AskView`.
+- A "New Chat" toolbar button clears the conversation.
 - Views, each with a `#Preview`:
   - `AskView`
   - `AskMessageBubbleView`
   - `AskSuggestedQuestionsView`
   - `AskDisclaimerFooterView`
+  - `AskInputBarView`
 
 ### App
 
@@ -103,7 +108,8 @@ This is the only package that imports `FoundationModels`.
 
 - Domain: tests for `RelativePeriod`, the summary, the last event and the daily pattern. They cover range edges and deleted events.
 - Assistant: tool output formatting from the data source, without running the model.
-- Feature: `AskViewModel` state changes, using a fake answerer.
+- Feature: `AskViewModel` state changes (using a fake answerer) and `AskSuggestedQuestions`. These live in the app test target `Baby TrackerTests`, so CI runs them.
+- Domain and Assistant package tests are not in `UnitTests.xctestplan`. Run them from Xcode or with `swift test` on a Mac.
 - Manual, on an Apple Intelligence device:
   - ask one question from each category and check the numbers against the Summary tab
   - turn Apple Intelligence off and confirm the tab disappears
