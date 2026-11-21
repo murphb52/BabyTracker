@@ -189,22 +189,28 @@ public struct AdvancedSummaryView: View {
     private func barChart(points: [(String, Int)]) -> some View {
         let maxValue = max(1, points.map(\.1).max() ?? 0)
 
-        return HStack(alignment: .bottom, spacing: 8) {
-            ForEach(Array(points.enumerated()), id: \.offset) { _, point in
-                VStack(spacing: 6) {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color.orange.gradient)
-                        .frame(height: max(6, (CGFloat(point.1) / CGFloat(maxValue)) * 100))
+        // Bars have a fixed width and scroll horizontally so long ranges
+        // (such as All Time) stay inside the card instead of overflowing.
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .bottom, spacing: 8) {
+                ForEach(Array(points.enumerated()), id: \.offset) { _, point in
+                    VStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(Color.orange.gradient)
+                            .frame(height: max(6, (CGFloat(point.1) / CGFloat(maxValue)) * 100))
 
-                    Text(point.0)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        Text(point.0)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                    .frame(width: 36)
                 }
-                .frame(maxWidth: .infinity)
             }
+            .frame(minHeight: 140, alignment: .bottom)
         }
-        .frame(maxWidth: .infinity, minHeight: 140, alignment: .bottom)
+        .defaultScrollAnchor(.trailing)
     }
 
     private var selectionDescription: String {
@@ -242,6 +248,15 @@ public struct AdvancedSummaryView: View {
         AdvancedSummaryView(
             viewModel: SummaryScreenPreviewFactory.summaryViewModel,
             initialSelection: .range(.sevenDays)
+        )
+    }
+}
+
+#Preview("All Time") {
+    NavigationStack {
+        AdvancedSummaryView(
+            viewModel: SummaryScreenPreviewFactory.summaryViewModel,
+            initialSelection: .range(.allTime)
         )
     }
 }
