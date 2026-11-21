@@ -15,6 +15,7 @@ public struct ChildWorkspaceTabView: View {
     @State private var homeViewModel: HomeViewModel
     @State private var timelineViewModel: TimelineViewModel
     @State private var childProfileViewModel: ChildProfileViewModel
+    @State private var askViewModel: AskViewModel
     @State private var quickSwapTip = ChildQuickSwapTip()
 
     public init(model: AppModel) {
@@ -24,6 +25,7 @@ public struct ChildWorkspaceTabView: View {
         _homeViewModel = State(initialValue: HomeViewModel(appModel: model))
         _timelineViewModel = State(initialValue: TimelineViewModel(appModel: model))
         _childProfileViewModel = State(initialValue: ChildProfileViewModel(appModel: model))
+        _askViewModel = State(initialValue: AskViewModel(answerer: model.questionAnswerer))
     }
 
     public var body: some View {
@@ -107,6 +109,15 @@ public struct ChildWorkspaceTabView: View {
                 Label("Summary", systemImage: "chart.bar.fill")
             }
 
+            // Only shown when Apple Intelligence can run on this device.
+            if model.questionAnswerer.availability.isAvailable {
+                AskTabView(model: model, viewModel: askViewModel)
+                .tag(ChildWorkspaceTab.ask)
+                .tabItem {
+                    Label("Ask", systemImage: "sparkles")
+                }
+            }
+
             ChildProfileView(
                 model: model,
                 viewModel: childProfileViewModel,
@@ -147,6 +158,14 @@ public struct ChildWorkspaceTabView: View {
                     }
                     .tint(eventHistoryViewModel.filterIsActive ? .accentColor : nil)
                     .accessibilityIdentifier("event-history-filter-button")
+                }
+            }
+            if model.selectedWorkspaceTab == .ask, !askViewModel.messages.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("New Chat", systemImage: "square.and.pencil") {
+                        askViewModel.startNewConversation()
+                    }
+                    .accessibilityIdentifier("ask-new-chat-button")
                 }
             }
             if model.selectedWorkspaceTab == .timeline {
