@@ -22,6 +22,7 @@ public struct FoodEditorSheetView: View {
     @State private var customUnitLabel: String
     @State private var saveAsPreset = false
     @State private var showingPresets = false
+    @State private var showingAllFoods = false
     @State private var showingDeleteConfirmation = false
     @State private var displayedPresets: [FoodPreset]
     private let initialTimePreset: QuickTimeSelectorView.TimePreset
@@ -106,6 +107,16 @@ public struct FoodEditorSheetView: View {
                     reorderPresets: reorderDisplayedPresets
                 )
             }
+            .sheet(isPresented: $showingAllFoods) {
+                FoodHistoryListView(
+                    foodNames: recentFoodNames,
+                    selectedFoodName: foodName,
+                    selectFood: { foodName = $0 }
+                )
+                // Opens at half height; the caregiver can pull it up to full screen.
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
             .alert("Delete Food Entry?", isPresented: $showingDeleteConfirmation) {
                 Button("Delete", role: .destructive) { deleteAction?(); dismiss() }
                 Button("Cancel", role: .cancel) {}
@@ -160,6 +171,10 @@ public struct FoodEditorSheetView: View {
             TextField("Food name", text: $foodName)
                 .textInputAutocapitalization(.words)
                 .accessibilityIdentifier("food-name-field")
+            if !recentFoodNames.isEmpty {
+                Button("View all foods") { showingAllFoods = true }
+                    .accessibilityIdentifier("food-view-all-button")
+            }
         } header: {
             // Form headers are uppercased by default, which mangles the child's name.
             Text("What did \(childName) have?").textCase(nil)
