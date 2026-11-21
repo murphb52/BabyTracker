@@ -17,6 +17,7 @@
 		D0A000000000000000000005 /* BabyTrackerFeature in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000040 /* BabyTrackerFeature */; };
 		D0A000000000000000000006 /* BabyTrackerPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000042 /* BabyTrackerPersistence */; };
 		D0A000000000000000000007 /* BabyTrackerSync in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000043 /* BabyTrackerSync */; };
+		D0A000000000000000000070 /* BabyTrackerAssistant in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000072 /* BabyTrackerAssistant */; };
 		D0A000000000000000000008 /* BabyTrackerSync in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000043 /* BabyTrackerSync */; };
 		D0A000000000000000000050 /* BabyTrackerLiveActivities in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000044 /* BabyTrackerLiveActivities */; };
 		D0A000000000000000000051 /* BabyTrackerDomain in Frameworks */ = {isa = PBXBuildFile; productRef = D0A000000000000000000041 /* BabyTrackerDomain */; };
@@ -89,6 +90,7 @@
 		D0A000000000000000000011 /* Exceptions for "Packages" folder in "Baby Tracker" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				BabyTrackerAssistant,
 				BabyTrackerDomain,
 				BabyTrackerFeature,
 				BabyTrackerLiveActivities,
@@ -153,6 +155,7 @@
 				D0A000000000000000000003 /* BabyTrackerPersistence in Frameworks */,
 				D0A000000000000000000050 /* BabyTrackerLiveActivities in Frameworks */,
 				D0A000000000000000000007 /* BabyTrackerSync in Frameworks */,
+				D0A000000000000000000070 /* BabyTrackerAssistant in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -250,6 +253,7 @@
 			name = "Baby Tracker";
 			packageProductDependencies = (
 				D0A000000000000000000040 /* BabyTrackerFeature */,
+				D0A000000000000000000072 /* BabyTrackerAssistant */,
 				D0A000000000000000000041 /* BabyTrackerDomain */,
 				D0A000000000000000000044 /* BabyTrackerLiveActivities */,
 				D0A000000000000000000042 /* BabyTrackerPersistence */,
@@ -374,6 +378,7 @@
 				D0A000000000000000000032 /* XCLocalSwiftPackageReference "Packages/BabyTrackerSync" */,
 				D0A000000000000000000033 /* XCLocalSwiftPackageReference "Packages/BabyTrackerFeature" */,
 				D0A000000000000000000034 /* XCLocalSwiftPackageReference "Packages/BabyTrackerLiveActivities" */,
+				D0A000000000000000000071 /* XCLocalSwiftPackageReference "Packages/BabyTrackerAssistant" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C93425712F6BEA3F009ECD88 /* Products */;
@@ -711,6 +716,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		D0A000000000000000000071 /* XCLocalSwiftPackageReference "Packages/BabyTrackerAssistant" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/BabyTrackerAssistant;
+		};
 		D0A000000000000000000030 /* XCLocalSwiftPackageReference "Packages/BabyTrackerDomain" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/BabyTrackerDomain;
@@ -734,6 +743,10 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		D0A000000000000000000072 /* BabyTrackerAssistant */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BabyTrackerAssistant;
+		};
 		D0A000000000000000000040 /* BabyTrackerFeature */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = BabyTrackerFeature;
