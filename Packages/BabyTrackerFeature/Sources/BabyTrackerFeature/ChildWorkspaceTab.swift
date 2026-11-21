@@ -3,5 +3,6 @@ public enum ChildWorkspaceTab: Hashable, Sendable {
     case summary
     case events
     case timeline
+    case ask
     case profile
 }

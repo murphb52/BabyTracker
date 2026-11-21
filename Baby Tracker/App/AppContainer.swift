@@ -1,3 +1,4 @@
+import BabyTrackerAssistant
 import BabyTrackerDomain
 import BabyTrackerFeature
 import BabyTrackerPersistence
@@ -81,7 +82,8 @@ struct AppContainer {
             localNotificationManager: localNotificationManager,
             hapticFeedbackProvider: hapticFeedbackProvider,
             appReviewPromptStateStore: appReviewPromptStateStore,
-            appReviewRequester: appReviewRequester
+            appReviewRequester: appReviewRequester,
+            questionAnswerer: FoundationModelsQuestionAnswerer(eventRepository: eventRepository)
         )
         let shareAcceptanceHandler = ShareAcceptanceHandler(
             syncEngine: syncEngine,

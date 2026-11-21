@@ -88,6 +88,9 @@ public final class AppModel {
     private let buildTimelineDayGridDatasetUseCase = BuildTimelineDayGridDatasetUseCase()
     private let buildRemoteNotificationUseCase = BuildRemoteCaregiverNotificationUseCase()
     private let calendar = Calendar.autoupdatingCurrent
+    /// Answers questions on the Ask tab. Defaults to an unavailable answerer,
+    /// which hides the tab in previews and tests.
+    public let questionAnswerer: any ChildQuestionAnswering
     private var storedReminderNotificationsEnabled: Bool
     private var hasReminderNotificationPermission: Bool
     private var timelineChildID: UUID?
@@ -112,7 +115,8 @@ public final class AppModel {
         localNotificationManager: any LocalNotificationManaging = NoOpLocalNotificationManager(),
         hapticFeedbackProvider: any HapticFeedbackProviding = NoOpHapticFeedbackProvider(),
         appReviewPromptStateStore: any AppReviewPromptStateStoring = NoOpAppReviewPromptStateStore(),
-        appReviewRequester: any AppReviewRequesting = NoOpAppReviewRequester()
+        appReviewRequester: any AppReviewRequesting = NoOpAppReviewRequester(),
+        questionAnswerer: any ChildQuestionAnswering = UnavailableQuestionAnswerer()
     ) {
         self.childRepository = childRepository
         self.userIdentityRepository = userIdentityRepository
@@ -130,6 +134,7 @@ public final class AppModel {
         self.hapticFeedbackProvider = hapticFeedbackProvider
         self.appReviewPromptStateStore = appReviewPromptStateStore
         self.appReviewRequester = appReviewRequester
+        self.questionAnswerer = questionAnswerer
         self.isLiveActivityEnabled = liveActivityPreferenceStore.isLiveActivityEnabled
         let storedReminderNotificationsEnabled = reminderNotificationPreferenceStore.isReminderNotificationsEnabled
         self.storedReminderNotificationsEnabled = storedReminderNotificationsEnabled
