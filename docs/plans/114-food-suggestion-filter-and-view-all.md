@@ -19,4 +19,4 @@ Make the Food logging sheet faster to use:
 4. Add `FoodHistoryListView`: an alphabetical, searchable list of all foods the child has had. Tapping a food fills the name field and dismisses. It is presented with `.medium` and `.large` detents so it opens at half height and only goes full screen when pulled up.
 5. Tests for the unlimited use case fetch and the suggestion filter. Previews for the new list view and an updated editor preview.
 
-- [ ] Complete
+- [x] Complete
